@@ -1,5 +1,5 @@
 // Utility to filter Figma variables by type, name, etc.
-import { FigmaVariable } from '../hooks/types';
+import type { FigmaVariable } from '../types';
 
 export function filterVariables(variables: FigmaVariable[], criteria: { type?: string; name?: string }): FigmaVariable[] {
   return variables.filter(v => {

@@ -1,5 +1,5 @@
-import useFigmaToken from '../hooks/useFigmaToken';
-import { FigmaOperationResponse } from '../hooks/types';
+import useFigmaToken from '../hooks/useFigmaToken'
+import type { FigmaOperationResponse } from '../types'
 
 /**
  * Update a variable's value across modes (Figma Variables API).
@@ -11,10 +11,10 @@ export async function updateVariableValues(
   variableId: string,
   values: any // TODO: Replace 'any' with a proper type if available
 ): Promise<FigmaOperationResponse> {
-  const token = useFigmaToken();
-  if (!token) throw new Error('API token is not provided');
+  const token = useFigmaToken()
+  if (!token) throw new Error('API token is not provided')
 
-  const url = `https://api.figma.com/v1/variables/${variableId}/values`;
+  const url = `https://api.figma.com/v1/variables/${variableId}/values`
   const result = await fetch(url, {
     method: 'PUT',
     headers: {
@@ -22,11 +22,11 @@ export async function updateVariableValues(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(values),
-  });
+  })
 
   if (!result.ok) {
-    throw new Error('Failed to update variable values');
+    throw new Error('Failed to update variable values')
   }
 
-  return result.json();
+  return result.json()
 }
