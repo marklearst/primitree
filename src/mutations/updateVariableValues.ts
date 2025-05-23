@@ -1,5 +1,5 @@
-import useFigmaToken from '../hooks/useFigmaToken'
-import type { FigmaOperationResponse } from '../types'
+import useFigmaToken from 'hooks/useFigmaToken'
+import type { FigmaOperationResponse } from 'types'
 
 /**
  * Update a variable's value across modes (Figma Variables API).

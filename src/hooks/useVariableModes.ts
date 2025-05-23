@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import useFigmaToken from './useFigmaToken'
-import type { FigmaOperationResponse } from '../types'
+import useFigmaToken from 'hooks/useFigmaToken'
+import type { FigmaOperationResponse } from 'types'
 
 const useVariableModes = (collectionId: string) => {
   const [response, setResponse] = useState<FigmaOperationResponse | null>(null)
