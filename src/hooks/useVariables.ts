@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import useFigmaToken from './useFigmaToken'
-import type { FigmaVariable, VariablesResponse } from '../types'
+import useFigmaToken from 'hooks/useFigmaToken'
+import type { FigmaVariable, VariablesResponse } from 'types'
 
 // For NodeJS.Timeout type in browser code, just use number
 type Timeout = ReturnType<typeof setTimeout>

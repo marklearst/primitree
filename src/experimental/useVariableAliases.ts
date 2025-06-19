@@ -1,6 +1,6 @@
 // Advanced: manage variable aliases (not a Figma API feature)
 import { useState } from 'react'
-import type { FigmaVariable } from '../types'
+import type { FigmaVariable } from 'types'
 
 const useVariableAliases = () => {
   const [aliases, setAliases] = useState<{ [alias: string]: FigmaVariable }>({})

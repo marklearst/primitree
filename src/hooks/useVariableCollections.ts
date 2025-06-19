@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import useFigmaToken from './useFigmaToken'
-import type { FigmaCollection, HookState } from '../types'
+import useFigmaToken from 'hooks/useFigmaToken'
+import type { FigmaCollection, HookState } from 'types'
 
 const useVariableCollections = (
   fileKey: string

@@ -1,5 +1,5 @@
-import useFigmaToken from '../hooks/useFigmaToken'
-import type { FigmaOperationResponse } from '../types'
+import useFigmaToken from 'hooks/useFigmaToken'
+import type { FigmaOperationResponse } from 'types'
 
 /**
  * Delete a Figma variable from a file.

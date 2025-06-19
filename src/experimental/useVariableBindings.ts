@@ -1,6 +1,6 @@
 // Advanced: bind variables to components (not a Figma API feature)
 import { useState } from 'react'
-import type { FigmaVariable } from '../types'
+import type { FigmaVariable } from 'types'
 
 const useVariableBindings = () => {
   const [bindings, setBindings] = useState<Map<string, FigmaVariable>>(
