@@ -1,5 +1,5 @@
 // Internal cache utility for Figma variables
-import { FigmaVariable } from '../hooks/types';
+import type { FigmaVariable } from '../types';
 
 export class VariablesCache {
   private cache: { [fileKey: string]: FigmaVariable[] } = {};
