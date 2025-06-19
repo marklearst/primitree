@@ -1,21 +1,28 @@
 // index.ts
 
-export { default as useFigmaAuth } from './hooks/useFigmaAuth'
-export { default as useFigmaVars } from './hooks/useFigmaVars'
-export { default as useCreateFigmaVar } from './hooks/useCreateFigmaVar'
-export { default as useUpdateFigmaVar } from './hooks/useUpdateFigmaVar'
-export { default as useDeleteFigmaVar } from './hooks/useDeleteFigmaVar'
-export { default as useFigmaVarCollections } from './hooks/useFigmaVarCollections'
-export { default as useFigmaVarModes } from './hooks/useFigmaVarModes'
-export { default as useFigmaVarValues } from './hooks/useFigmaVarValues'
-export { default as useFigmaSync } from './hooks/useFigmaSync'
-export { default as useFigmaVarByType } from './hooks/useFigmaVarByType'
-export { default as useFigmaVarsCache } from './hooks/useFigmaVarsCache'
-export { default as useFigmaVarBindings } from './hooks/useFigmaVarBindings'
-export { default as useFigmaPublishVars } from './hooks/useFigmaPublishVars'
-export { default as useFigmaVarAliases } from './hooks/useFigmaVarAliases'
+// Public API: Core Figma Variables Hooks & Utilities
+export { default as useFigmaToken } from './hooks/useFigmaToken';
+export { default as useVariables } from './hooks/useVariables';
+export { default as useVariableCollections } from './hooks/useVariableCollections';
+export { default as useVariableModes } from './hooks/useVariableModes';
 
-// Export any utilities or types that might be useful externally
-export * from './utils/fetchHelpers'
-export * from './utils/authHelpers'
-export * from './hooks/types'
+// Mutation utilities
+export * from './mutations/createVariable';
+export * from './mutations/updateVariable';
+export * from './mutations/deleteVariable';
+export * from './mutations/updateVariableValues';
+
+// Utilities
+export * from './utils/filterVariables';
+export * from './utils/cache';
+export * from './utils/fetchHelpers';
+export * from './utils/authHelpers';
+
+// Types
+export * from './hooks/types';
+
+// Advanced/Experimental (opt-in)
+export { default as useVariableAliases } from './experimental/useVariableAliases';
+export { default as useVariableBindings } from './experimental/useVariableBindings';
+export { default as usePublishVars } from './experimental/usePublishVars';
+export { default as useSync } from './experimental/useSync';
