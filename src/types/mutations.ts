@@ -44,3 +44,56 @@ export interface UpdateVariablePayload {
   scopes?: VariableScope[]
   codeSyntax?: Record<string, string>
 }
+
+// Types for the POST /v1/files/:file_key/variables (bulk) endpoint
+
+export type VariableAction = 'CREATE' | 'UPDATE' | 'DELETE'
+
+export interface VariableCollectionChange {
+  action: VariableAction
+  id: string
+  name?: string
+  initialModeId?: string
+  hiddenFromPublishing?: boolean
+}
+
+export interface VariableModeChange {
+  action: VariableAction
+  id: string
+  name?: string
+  variableCollectionId: string
+}
+
+export interface VariableChange {
+  action: VariableAction
+  id: string
+  name?: string
+  variableCollectionId?: string
+  resolvedType?: ResolvedType
+  description?: string
+  hiddenFromPublishing?: boolean
+  scopes?: VariableScope[]
+  codeSyntax?: Record<string, string>
+}
+
+export interface VariableModeValue {
+  variableId: string
+  modeId: string
+  value: VariableValue
+}
+
+export interface BulkUpdatePayload {
+  variableCollections?: VariableCollectionChange[]
+  variableModes?: VariableModeChange[]
+  variables?: VariableChange[]
+  variableModeValues?: VariableModeValue[]
+}
+
+export interface BulkUpdateResponse {
+  error: boolean
+  status: number
+  message?: string
+  meta?: {
+    tempIdToRealId: Record<string, string>
+  }
+}
