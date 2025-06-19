@@ -1,11 +1,13 @@
-// useFigmaAuth.ts
 import { useState, useEffect } from 'react';
 
-const useFigmaAuth = (): string => {
+/**
+ * Retrieves the Figma API token from environment or context (future-proofed for provider override)
+ */
+const useFigmaToken = (): string => {
   const [token, setToken] = useState<string>('');
 
   useEffect(() => {
-    // Ideally, you'd have a secure way to handle this token in production
+    // TODO: Add support for context/provider override
     const figmaToken: string = process.env.REACT_APP_FIGMA_TOKEN || '';
     setToken(figmaToken);
   }, []);
@@ -13,4 +15,4 @@ const useFigmaAuth = (): string => {
   return token;
 };
 
-export default useFigmaAuth;
+export default useFigmaToken;
