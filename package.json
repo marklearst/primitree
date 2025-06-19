@@ -38,7 +38,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postversion": "git push && git push --tags"
   },
   "peerDependencies": {
     "react": ">=19.0.0",
