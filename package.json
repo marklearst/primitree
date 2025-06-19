@@ -1,5 +1,5 @@
 {
-  "name": "@figmavars/hooks",
+  "name": "@figma-vars/hooks",
   "version": "1.0.2",
   "description": "Typed React hooks for managing Figma Variables, modes, tokens, and bindings via API.",
   "author": "Mark Learst",
@@ -40,7 +40,6 @@
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
-  "dependencies": {},
   "peerDependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
@@ -64,6 +63,7 @@
     "react-dom": "^19.1.0",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-dts": "^4.5.4",
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }
