@@ -2,6 +2,7 @@ import useSWR from 'swr'
 import { useFigmaTokenContext } from 'contexts/FigmaTokenContext'
 import { fetcher } from 'utils/fetcher'
 import type { LocalVariablesResponse } from 'types'
+import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from '../constants'
 
 /**
  * The primary hook for fetching all local variables, collections, and modes for the file specified in the `FigmaVarsProvider`.
@@ -24,9 +25,7 @@ import type { LocalVariablesResponse } from 'types'
 export const useVariables = () => {
   const { token, fileKey } = useFigmaTokenContext()
 
-  const endpoint = fileKey
-    ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
-    : null
+  const endpoint = fileKey ? FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey) : null
 
   const { data, error, isLoading, isValidating } =
     useSWR<LocalVariablesResponse>(

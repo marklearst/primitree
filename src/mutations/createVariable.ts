@@ -1,4 +1,11 @@
 import type { CreateVariablePayload } from 'types/mutations'
+import {
+  FIGMA_POST_VARIABLES_ENDPOINT,
+  CONTENT_TYPE_JSON,
+  FIGMA_TOKEN_HEADER,
+  ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_CREATE_VARIABLE_FAILED,
+} from '../constants'
 
 /**
  * Creates a new variable in a Figma file.
@@ -29,21 +36,21 @@ export const createVariable = async (
   payload: CreateVariablePayload
 ) => {
   if (!token) {
-    throw new Error('A Figma API token is required.')
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const response = await fetch('https://api.figma.com/v1/variables', {
+  const response = await fetch(FIGMA_POST_VARIABLES_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'X-FIGMA-TOKEN': token,
+      'Content-Type': CONTENT_TYPE_JSON,
+      [FIGMA_TOKEN_HEADER]: token,
     },
     body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(errorData.message || 'Failed to create Figma variable.')
+    throw new Error(errorData.message || ERROR_MSG_CREATE_VARIABLE_FAILED)
   }
 
   return response.json()

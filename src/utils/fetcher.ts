@@ -1,5 +1,12 @@
 // utils/fetchHelpers.ts
 
+import {
+  FIGMA_TOKEN_HEADER,
+  CONTENT_TYPE_JSON,
+  ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
+} from '../constants'
+
 /**
  * @internal
  * A generic fetcher function designed to work with SWR.
@@ -14,22 +21,19 @@
  */
 export const fetcher = async (url: string, token: string) => {
   if (!token) {
-    throw new Error('A Figma API token is required to make this request.')
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
   const response = await fetch(url, {
     headers: {
-      'X-FIGMA-TOKEN': token,
-      'Content-Type': 'application/json',
+      [FIGMA_TOKEN_HEADER]: token,
+      'Content-Type': CONTENT_TYPE_JSON,
     },
   })
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(
-      errorData.message ||
-        'An error occurred while fetching data from the Figma API.'
-    )
+    throw new Error(errorData.message || ERROR_MSG_FETCH_FIGMA_DATA_FAILED)
   }
 
   return response.json()

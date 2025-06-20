@@ -17,10 +17,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
-SCRATCHPAD.md
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-api.md
+private/**/*.*

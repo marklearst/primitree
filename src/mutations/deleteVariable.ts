@@ -1,3 +1,11 @@
+import {
+  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  CONTENT_TYPE_JSON,
+  FIGMA_TOKEN_HEADER,
+  ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_DELETE_VARIABLE_FAILED,
+} from '../constants'
+
 /**
  * Deletes a variable from a Figma file.
  *
@@ -18,21 +26,21 @@
  */
 export const deleteVariable = async (token: string, variableId: string) => {
   if (!token) {
-    throw new Error('A Figma API token is required.')
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const url = `https://api.figma.com/v1/variables/${variableId}`
+  const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
   const response = await fetch(url, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
-      'X-FIGMA-TOKEN': token,
+      'Content-Type': CONTENT_TYPE_JSON,
+      [FIGMA_TOKEN_HEADER]: token,
     },
   })
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(errorData.message || 'Failed to delete Figma variable.')
+    throw new Error(errorData.message || ERROR_MSG_DELETE_VARIABLE_FAILED)
   }
 
   // A successful DELETE request to this endpoint returns a 204 No Content,
