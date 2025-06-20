@@ -10,6 +10,8 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)
+![npm](https://img.shields.io/npm/v/@figma-vars/hooks)
+![npm downloads](https://img.shields.io/npm/dm/@figma-vars/hooks)
 
 ---
 
