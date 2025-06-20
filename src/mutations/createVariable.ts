@@ -1,11 +1,9 @@
 import type { CreateVariablePayload } from 'types/mutations'
 import {
   FIGMA_POST_VARIABLES_ENDPOINT,
-  CONTENT_TYPE_JSON,
-  FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
-  ERROR_MSG_CREATE_VARIABLE_FAILED,
 } from '../constants'
+import { mutator } from '../api/mutator'
 
 /**
  * Creates a new variable in a Figma file.
@@ -39,19 +37,10 @@ export const createVariable = async (
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const response = await fetch(FIGMA_POST_VARIABLES_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': CONTENT_TYPE_JSON,
-      [FIGMA_TOKEN_HEADER]: token,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(errorData.message || ERROR_MSG_CREATE_VARIABLE_FAILED)
-  }
-
-  return response.json()
+  return await mutator(
+    FIGMA_POST_VARIABLES_ENDPOINT,
+    token,
+    'POST',
+    payload as unknown as Record<string, unknown>
+  )
 }

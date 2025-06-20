@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 import { useFigmaTokenContext } from 'contexts/FigmaTokenContext'
-import { fetcher } from 'utils/fetcher'
+import { fetcher } from 'api/fetcher'
 import type { LocalVariablesResponse } from 'types'
 import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from '../constants'
 

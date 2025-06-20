@@ -1,11 +1,9 @@
 import type { UpdateVariablePayload } from 'types/mutations'
 import {
   FIGMA_VARIABLE_BY_ID_ENDPOINT,
-  CONTENT_TYPE_JSON,
-  FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
-  ERROR_MSG_UPDATE_VARIABLE_FAILED,
 } from '../constants'
+import { mutator } from '../api/mutator'
 
 /**
  * Updates an existing variable in a Figma file.
@@ -41,21 +39,10 @@ export const updateVariable = async (
   }
 
   const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': CONTENT_TYPE_JSON,
-      [FIGMA_TOKEN_HEADER]: token,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(errorData.message || ERROR_MSG_UPDATE_VARIABLE_FAILED)
-  }
-
-  // A successful PUT request to this endpoint returns a 204 No Content,
-  // so there is no JSON body to parse.
-  return
+  return await mutator(
+    url,
+    token,
+    'PUT',
+    payload as unknown as Record<string, unknown>
+  )
 }

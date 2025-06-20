@@ -1,10 +1,8 @@
 import {
   FIGMA_VARIABLE_BY_ID_ENDPOINT,
-  CONTENT_TYPE_JSON,
-  FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
-  ERROR_MSG_DELETE_VARIABLE_FAILED,
 } from '../constants'
+import { mutator } from '../api/mutator'
 
 /**
  * Deletes a variable from a Figma file.
@@ -30,20 +28,5 @@ export const deleteVariable = async (token: string, variableId: string) => {
   }
 
   const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': CONTENT_TYPE_JSON,
-      [FIGMA_TOKEN_HEADER]: token,
-    },
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(errorData.message || ERROR_MSG_DELETE_VARIABLE_FAILED)
-  }
-
-  // A successful DELETE request to this endpoint returns a 204 No Content,
-  // so there is no JSON body to parse.
-  return
+  return await mutator(url, token, 'DELETE')
 }
