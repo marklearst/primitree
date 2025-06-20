@@ -4,13 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 1.1.1 (2024-08-01)
+## [Unreleased]
 
 ### 🧹 Housekeeping
 
+- **docs**: Add comprehensive JSDoc comments to all public APIs, including hooks, mutations, and types.
 - **docs**: Update `CHANGELOG.md` to include detailed notes for the v1.1.0 release.
+- **refactor**: Rename `fetchHelpers.ts` to `fetcher.ts` for clarity and consistency.
+- **fix**: Resolve multiple TypeScript errors related to incorrect exports and unused imports.
 
-## 1.1.0 (2024-08-01)
+## [1.1.1] - 2024-08-01
+
+- _This version was primarily a documentation and maintenance release. All changes from this version have been consolidated into the changelog for `v1.1.0` and the current `[Unreleased]` section._
+
+## [1.1.0] - 2024-08-01
 
 This release marks a major architectural overhaul, significantly improving the library's flexibility, performance, and developer experience.
 
@@ -31,16 +38,7 @@ This release marks a major architectural overhaul, significantly improving the l
 
 - **Removed Dead Code**: Deleted several unused experimental hooks, mutation utilities, and the old manual cache implementation.
 
-## 1.0.10 (2024-07-31)
+## [1.0.10] - 2024-07-31
 
 - fix(ci): add --no-git-checks flag to publish command to resolve git unclean error
 - feat(release): add postversion script to automate git push and tag
-
-## [Unreleased]
-
-- Initial refactor: modern React 19+ hooks and utilities for Figma Variables API
-- TypeScript strict mode enforced, types split by domain
-- New API surface: useVariables, useVariableCollections, useVariableModes, mutations, and utilities
-- Experimental/advanced hooks for opt-in advanced use cases
-- Storybook/Next.js integration examples
-- Documentation overhaul
