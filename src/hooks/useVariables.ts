@@ -1,37 +1,43 @@
 import useSWR from 'swr'
-import useFigmaToken from 'hooks/useFigmaToken'
-import { fetchWithAuth } from 'utils/fetchHelpers'
-import type { LocalVariablesResponse, FigmaVariable } from 'types'
-import { FIGMA_VARIABLES_ENDPOINT } from 'constants'
+import { useFigmaTokenContext } from 'contexts/FigmaTokenContext'
+import { fetcher } from 'utils/fetcher'
+import type { LocalVariablesResponse } from 'types'
 
 /**
- * A hook to fetch all local variables for a given file.
+ * The primary hook for fetching all local variables, collections, and modes for the file specified in the `FigmaVarsProvider`.
+ * This hook serves as the foundation for other data hooks like `useVariableCollections` and `useVariableModes`.
  *
- * @param fileKey - The key of the file to fetch variables from.
- * @returns An object containing the variables, loading state, and any errors.
+ * It uses `swr` for efficient data fetching, caching, and revalidation.
+ *
+ * @returns An object containing the raw API response (`data`), loading state (`isLoading`), validation state (`isValidating`), and any errors (`error`).
+ *
+ * @example
+ * ```tsx
+ * const { data, isLoading, error } = useVariables();
+ *
+ * if (isLoading) return <div>Loading...</div>;
+ * if (error) return <div>Error: {error.message}</div>;
+ *
+ * const collections = Object.values(data?.meta.variableCollections ?? {});
+ * ```
  */
-export const useVariables = (fileKey: string) => {
-  const token = useFigmaToken()
+export const useVariables = () => {
+  const { token, fileKey } = useFigmaTokenContext()
+
+  const endpoint = fileKey
+    ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
+    : null
+
   const { data, error, isLoading, isValidating } =
     useSWR<LocalVariablesResponse>(
-      token ? FIGMA_VARIABLES_ENDPOINT(fileKey) : null,
-      fetchWithAuth
+      token && endpoint ? [endpoint, token] : null,
+      fetcher
     )
 
-  const variables: FigmaVariable[] = data?.meta
-    ? Object.values(data.meta.variables)
-    : []
-  const variablesById: Record<string, FigmaVariable> = data?.meta
-    ? data.meta.variables
-    : {}
-
   return {
-    variables,
-    variablesById,
+    data,
     isLoading,
     isValidating,
-    error:
-      error ??
-      (data && 'message' in data ? new Error((data as any).message) : null),
+    error,
   }
 }

@@ -1,71 +1,41 @@
-import { useState, useCallback } from 'react'
-import useFigmaToken from 'hooks/useFigmaToken'
-import type { VariableActionResponse } from 'types/mutations'
-
-async function deleteFigmaVariable(
-  token: string,
-  variableId: string
-): Promise<Omit<VariableActionResponse, 'variable'>> {
-  const url = `https://api.figma.com/v1/variables/${variableId}`
-  try {
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-FIGMA-TOKEN': token,
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      return {
-        error: true,
-        status: response.status,
-        message: errorData.message || 'Failed to delete Figma variable',
-      }
-    }
-
-    return {
-      error: false,
-      status: response.status,
-    }
-  } catch (error) {
-    return {
-      error: true,
-      status: 500,
-      message:
-        error instanceof Error ? error.message : 'An unknown error occurred',
-    }
+/**
+ * Deletes a variable from a Figma file.
+ *
+ * This function sends a DELETE request to the Figma API to remove a single variable.
+ * It requires a valid Figma token with `file_variables:write` scope.
+ *
+ * @param token - The Figma Personal Access Token.
+ * @param variableId - The ID of the variable to delete.
+ * @returns A promise that resolves when the variable has been successfully deleted. The Figma API returns no content on a successful DELETE.
+ * @throws Will throw an error if the fetch call fails or if the API returns an error response.
+ *
+ * @example
+ * ```ts
+ * deleteVariable("your-figma-token", "VariableID:1:1")
+ *   .then(() => console.log("Variable deleted successfully"))
+ *   .catch(error => console.error(error));
+ * ```
+ */
+export const deleteVariable = async (token: string, variableId: string) => {
+  if (!token) {
+    throw new Error('A Figma API token is required.')
   }
-}
 
-export const useDeleteVariable = () => {
-  const token = useFigmaToken()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<Omit<
-    VariableActionResponse,
-    'variable'
-  > | null>(null)
-
-  const deleteVariable = useCallback(
-    async (variableId: string) => {
-      if (!token) {
-        setError('Figma API token is not provided.')
-        return
-      }
-
-      setLoading(true)
-      setError(null)
-      const result = await deleteFigmaVariable(token, variableId)
-      setData(result)
-      if (result.error) {
-        setError(result.message || 'An error occurred.')
-      }
-      setLoading(false)
+  const url = `https://api.figma.com/v1/variables/${variableId}`
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-FIGMA-TOKEN': token,
     },
-    [token]
-  )
+  })
 
-  return { deleteVariable, loading, error, data }
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.message || 'Failed to delete Figma variable.')
+  }
+
+  // A successful DELETE request to this endpoint returns a 204 No Content,
+  // so there is no JSON body to parse.
+  return
 }
