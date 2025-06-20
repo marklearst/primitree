@@ -13,13 +13,17 @@
 - [x] Research TanStack/React Query and similar libraries for code structure, API separation, docs.
 - [x] Consider exposing all fetch logic as custom hooks (`useFetch`), to match hooks-library best practices.
 - [x] Standardize constants usage—minimize duplication, enforce DRY patterns.
-- [ ] Add/expand JSDoc for API docs generation.
+- [x] Add/expand JSDoc for API docs generation.
 - [ ] Review for "pro" OSS architecture: modular, testable, well-documented, with future docs-site support.
 
 ## Open Questions
 
 - Mandate: Should all network logic go in a hook (e.g. `useFetch`), or are there valid exceptions?
 - Is putting all constants in `constants/index.ts` ever problematic for tree-shaking or bundle size?
+- Research TanStack/React Query and similar libraries for code structure, API separation, docs.
+- Consider exposing all fetch logic as custom hooks (`useFetch`), to match hooks-library best practices.
+- Standardize constants usage—minimize duplication, enforce DRY patterns.
+- Add/expand JSDoc for API docs generation.
 
 ## Done
 
@@ -29,3 +33,4 @@
 - Research TanStack/React Query and similar libraries for code structure, API separation, docs.
 - Consider exposing all fetch logic as custom hooks (`useFetch`), to match hooks-library best practices.
 - Standardize constants usage—minimize duplication, enforce DRY patterns.
+- Add/expand JSDoc for API docs generation.

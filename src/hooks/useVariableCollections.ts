@@ -3,24 +3,24 @@ import { useVariables } from './useVariables'
 import type { FigmaCollection } from 'types'
 
 /**
- * A convenience hook to access the variable collections from the data fetched by `useVariables`.
- * This hook does not perform its own data fetching; it's a lightweight selector on the main data source.
+ * A memoized selector hook to access variable collections from the data fetched by `useVariables`.
  *
- * It's recommended to use this hook when you only need collection data to avoid re-rendering components unnecessarily when other parts of the Figma data change.
+ * This hook is a lightweight, performant way to get only collection data. It avoids
+ * unnecessary re-renders in components that only care about collections, as it will only
+ * update when the collection data itself changes.
  *
- * @returns An object containing the collections as an array (`collections`) and as a map by ID (`collectionsById`).
+ * @returns {object} An object containing the collections in different formats.
+ * @property {FigmaCollection[]} collections - An array of all `FigmaCollection` objects.
+ * @property {Object<string, FigmaCollection>} collectionsById - A map of all `FigmaCollection` objects, keyed by their ID.
  *
  * @example
  * ```tsx
- * const { collections } = useVariableCollections();
+ * const { collectionsById } = useVariableCollections();
+ * const collection = collectionsById['VariableCollectionId:123:456'];
  *
- * return (
- *   <ul>
- *     {collections.map(collection => (
- *       <li key={collection.id}>{collection.name}</li>
- *     ))}
- *   </ul>
- * );
+ * if (!collection) return <div>Collection not found.</div>;
+ *
+ * return <div>{collection.name}</div>
  * ```
  */
 export const useVariableCollections = () => {

@@ -24,28 +24,35 @@ const FigmaTokenContext = createContext<FigmaTokenContextType | undefined>(
  * Props for the `FigmaVarsProvider` component.
  */
 interface FigmaVarsProviderProps {
-  /** The React children to render within the provider. */
+  /** The child components that will have access to the context. */
   children: ReactNode
-  /** The Figma Personal Access Token. Can be sourced from anywhere (e.g., env variables, localStorage). */
+  /**
+   * Your Figma Personal Access Token.
+   * @see https://www.figma.com/developers/api#authentication
+   */
   token: string | null
-  /** The key of the Figma file to be accessed by the hooks. */
+  /**
+   * The unique identifier of the Figma file you want to access.
+   * You can get this from the file's URL.
+   */
   fileKey: string | null
 }
 
 /**
- * A React Context Provider that makes the Figma token and file key available to all `figma-vars-hooks`.
- * Wrap your application or component tree with this provider.
+ * Provides the Figma token and file key to all descendant hooks.
+ * This component should be placed at the root of your application or any component tree
+ * that needs to interact with the Figma Variables API.
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figma-vars/hooks';
+ * import { FigmaVarsProvider } from 'figma-vars-hooks';
  *
  * const App = () => (
  *   <FigmaVarsProvider
- *     token="your-figma-token"
+ *     token={process.env.FIGMA_ACCESS_TOKEN}
  *     fileKey="your-figma-file-key"
  *   >
- *     <YourComponentThatUsesTheHooks />
+ *     <MyComponent />
  *   </FigmaVarsProvider>
  * );
  * ```

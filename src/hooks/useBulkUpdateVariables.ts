@@ -10,19 +10,33 @@ type BulkUpdateVariablesArgs = {
 }
 
 /**
- * A hook for performing a bulk update of Figma variables.
+ * Hook for performing a bulk update of Figma variables.
  *
- * This hook provides a `mutate` function to trigger the bulk update.
- * It handles the loading, error, and data states of the mutation.
+ * This hook provides a stateful API to create, update, or delete multiple variables
+ * in a single API call. It abstracts the logic for making the API request and managing the mutation state.
  *
- * @returns An object containing the mutation function and the current state of the mutation.
+ * @returns {object} An object containing the mutation state and trigger functions.
+ * @property {(args: BulkUpdateVariablesArgs) => Promise<any|undefined>} mutate - Function to trigger the mutation.
+ * @property {(args: BulkUpdateVariablesArgs) => Promise<any>} mutateAsync - An async version of `mutate` that will throw on error.
+ * @property {any} data - The metadata returned from a successful mutation.
+ * @property {boolean} isLoading - True if the mutation is in progress.
+ * @property {boolean} isSuccess - True if the mutation was successful.
+ * @property {boolean} isError - True if the mutation failed.
+ * @property {Error|null} error - The error object if the mutation failed.
+ *
+ * @see https://www.figma.com/developers/api#post-variables-v1
  *
  * @example
  * ```tsx
- * const { mutate, isLoading, error } = useBulkUpdateVariables();
+ * const { mutate: bulkUpdate, isLoading } = useBulkUpdateVariables();
  *
- * const handleBulkUpdate = (fileKey: string, payload: BulkUpdatePayload) => {
- *   mutate({ fileKey, payload });
+ * const handleBulkUpdate = async (fileKey: string, payload: BulkUpdatePayload) => {
+ *   try {
+ *     const result = await bulkUpdate({ fileKey, payload });
+ *     console.log("Bulk update successful!", result);
+ *   } catch (e) {
+ *     console.error("Bulk update failed", e);
+ *   }
  * };
  * ```
  */
