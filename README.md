@@ -2,15 +2,15 @@
 
 A modern, type-safe, and flexible React hooks library for the [Figma Variables API](https://www.figma.com/developers/api#variables).
 
-Built for the modern web, this library provides a suite of hooks and utilities to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
+Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
 ---
 
 ## 🚀 Features
 
 - **✅ Token Agnostic for the Best DX**: Our library doesn't care _how_ you get your Figma token. Use environment variables, `localStorage`, a state management library, or even a simple input field. This framework-agnostic approach means it works seamlessly with Vite, Next.js, Create React App, and more, without locking you into a specific build tool.
-- **⚛️ Modern React Hooks**: A full suite of hooks for fetching Figma variables, collections, and modes, built on top of `swr` for efficient caching, revalidation, and performance.
-- **✍️ Mutation Utilities**: Simple, promise-based functions for creating, updating, and deleting variables.
+- **⚛️ Modern React Hooks**: A full suite of hooks for fetching and mutating Figma variables, collections, and modes.
+- **✍️ Ergonomic Mutations**: A `useMutation`-style API for creating, updating, and deleting variables, providing clear loading and error states.
 - **🔒 TypeScript-first**: Strictly typed for an ergonomic and safe developer experience. Get autocompletion for all API responses.
 - **📖 Storybook & Next.js Ready**: Perfect for building live design token dashboards or style guides.
 
@@ -26,7 +26,7 @@ yarn add @figma-vars/hooks
 pnpm add @figma-vars/hooks
 ```
 
-> **Peer dependencies:** You'll need `react`, `react-dom`, and `swr`.
+> **Peer dependencies:** You'll need `react` and `react-dom`.
 
 ---
 
@@ -58,7 +58,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 ```
 
-Now, you can use the hooks anywhere in your app:
+### Fetching Data
+
+Now, you can use the query hooks anywhere in your app:
 
 ```tsx
 // src/components/TokenList.tsx
@@ -85,27 +87,73 @@ export function TokenList() {
 }
 ```
 
+### Mutating Data
+
+To create, update, or delete variables, use the provided mutation hooks. They follow a standard pattern, returning a `mutate` function and states for `data`, `isLoading`, and `error`.
+
+Here's an example of creating a new variable:
+
+```tsx
+// src/components/CreateVariableForm.tsx
+import { useCreateVariable } from '@figma-vars/hooks'
+
+function CreateVariableForm({ collectionId, modeId }) {
+  const { mutate, data, isLoading, error } = useCreateVariable()
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const variableName = event.target.elements.variableName.value
+
+    mutate({
+      name: `colors/${variableName}`,
+      collectionId: collectionId,
+      valuesByMode: {
+        [modeId]: { r: 1, g: 0, b: 0, a: 1 },
+      },
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="variableName"
+        placeholder="New variable name"
+      />
+      <button
+        type="submit"
+        disabled={isLoading}>
+        {isLoading ? 'Creating...' : 'Create Variable'}
+      </button>
+      {error && <p>Error: {error.message}</p>}
+      {data && <p>Created variable with ID: {data.id}</p>}
+    </form>
+  )
+}
+```
+
 ---
 
 ## 🧩 API Reference
 
 ### Core Hooks
 
-- `useVariables()`: Fetches all local variables, collections, and modes for the file key provided to the `FigmaVarsProvider`.
+- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns an object with `data`, `isLoading`, and `error` properties. The `data` object contains `variables`, `variableCollections`, and `modes` from the Figma API.
 - `useVariableCollections()`: A convenience hook that returns just the variable collections from the main `useVariables` data.
 - `useVariableModes()`: A convenience hook that returns just the variable modes from the main `useVariables` data.
 - `useFigmaToken()`: A simple hook to access the token and file key from the context.
 
-### Mutations
+### Mutation Hooks
 
-- `createVariable(token, fileKey, variableData)`
-- `updateVariable(token, fileKey, variableId, newData)`
-- `deleteVariable(token, fileKey, variableId)`
-- `bulkUpdateVariables(token, fileKey, variables)`
+All mutation hooks return an object with the following shape: `{ mutate, data, isLoading, error }`.
+
+- `useCreateVariable()`: Creates a new variable. The `mutate` function expects the variable data as its payload.
+- `useUpdateVariable()`: Updates an existing variable. The `mutate` function expects an object with `id` and the `data` to update.
+- `useDeleteVariable()`: Deletes a variable. The `mutate` function expects the `id` of the variable to delete.
+- `useBulkUpdateVariables()`: Updates multiple variables in a single batch operation. The `mutate` function expects an array of variables to update.
 
 ### Types
 
-All types are exported from `@figma-vars/hooks`. The core response type from Figma is `Variables_LocalVariablesResponse`.
+All types are exported from `@figma-vars/hooks`. The core response type from Figma for local variables is `Variables_LocalVariablesResponse`.
 
 ---
 
