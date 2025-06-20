@@ -1,70 +1,98 @@
-# Getting Started with FigmaVarsHooks
+# Getting Started with @figma-vars/hooks
 
-Welcome to FigmaVarsHooks, a React hooks library designed to simplify the integration of Figma variables into your React applications.
+This guide will walk you through setting up and using the library to fetch Figma variables in your React application.
 
-## Installation
+---
 
-To get started, install FigmaVarsHooks via npm or yarn:
+## 1. Installation
+
+First, add the library to your project. You will also need `swr`, which is a peer dependency used for data fetching.
 
 ```bash
-npm install figmavars
+npm install @figma-vars/hooks swr
 # or
-yarn add figmavars
+yarn add @figma-vars/hooks swr
+# or
+pnpm add @figma-vars/hooks swr
 ```
 
-## Setup
+---
 
-Before using the hooks, you need to configure your Figma API token. Store your token securely and make it available in your application, preferably through environment variables.
+## 2. Provider Setup: The Token-Agnostic Way
 
-Create a `.env` file in the root of your project and add:
+The core of the library is the `FigmaVarsProvider`. It uses React Context to efficiently provide your Figma token and file key to all the hooks in your app. This approach is **token-agnostic**, meaning you have complete control over how you manage your credentials.
 
-```env
-REACT_APP_FIGMA_TOKEN=your_figma_api_token_here
-```
+Wrap your application's root component (or any component tree that will use the hooks) with the provider.
 
-Ensure you have .env in your .gitignore file to keep your token secure.
-
-## Basic Usage
-
-Here's a simple example of how to use the useFigmaVars hook to fetch variables from a Figma file:
+**Example (`main.tsx` for a Vite app):**
 
 ```tsx
-import React, { useEffect } from 'react';
-import { useFigmaVars } from 'figma-vars-hooks';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { FigmaVarsProvider } from '@figma-vars/hooks'
+import App from './App'
 
-// Define a type for the variable object
-interface FigmaVariable {
-  id: string;
-  name: string;
-  value: string; // Adjust the type according to what `value` can be
-}
+// --- Your Token, Your Choice ---
+// The token can come from anywhere. This makes the library incredibly flexible.
+// Here, we're using Vite's environment variables as an example.
+const FIGMA_TOKEN = import.meta.env.VITE_FIGMA_TOKEN
 
-const App: React.FC = () => {
-  // Here we're assuming `useFigmaVars` returns an object with data, loading, and error properties
-  // Adjust the type of `data` based on the actual structure of variables you expect
-  const { data: variables, loading, error } = useFigmaVars('file_key_here');
+// You also need the file key for the Figma file you want to access.
+const FIGMA_FILE_KEY = 'your-figma-file-key'
 
-  useEffect(() => {
-    if (error) {
-      console.error(error);
-    }
-  }, [error]);
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <FigmaVarsProvider
+      token={FIGMA_TOKEN}
+      fileKey={FIGMA_FILE_KEY}>
+      <App />
+    </FigmaVarsProvider>
+  </React.StrictMode>
+)
+```
 
-  if (loading) return <div>Loading...</div>;
+By doing this, you've securely provided the token and file key without locking your project into a specific build system or token strategy.
+
+---
+
+## 3. Basic Usage: Fetching Variables
+
+Once the provider is in place, you can use the `useVariables` hook anywhere inside that component tree. The hook doesn't need any arguments; it gets the token and file key directly from the context.
+
+**Example (a component that displays a list of variables):**
+
+```tsx
+import { useVariables } from '@figma-vars/hooks'
+
+export function TokenList() {
+  const { data, isLoading, error } = useVariables()
+
+  if (isLoading) {
+    return <div>Loading design tokens...</div>
+  }
+
+  if (error) {
+    return <div>Error fetching tokens: {error.message}</div>
+  }
+
+  // The `data` object contains all local variables, collections, and modes.
+  // We can safely extract the variables to render them.
+  const variables = Object.values(data?.variables ?? {})
 
   return (
     <div>
-      {variables?.map((varItem: FigmaVariable) => (
-        <div key={varItem.id}>{varItem.name}: {varItem.value}</div>
-      ))}
+      <h2>Design Tokens</h2>
+      <ul>
+        {variables.map((variable) => (
+          <li key={variable.id}>
+            <strong>{variable.name}</strong>:
+            <pre>{JSON.stringify(variable.valuesByMode, null, 2)}</pre>
+          </li>
+        ))}
+      </ul>
     </div>
-  );
-};
-
-export default App;
-
+  )
+}
 ```
 
-## Next Steps
-
-Explore the other hooks provided by FigmaVarsHooks to fully leverage Figma variables in your project. For detailed API documentation, please refer to APIReference.md.
+And that's it! You've successfully set up the library and are now fetching live data from the Figma API in a flexible, robust, and type-safe way.
