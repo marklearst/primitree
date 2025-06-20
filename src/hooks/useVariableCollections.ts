@@ -1,36 +1,43 @@
-import useSWR from 'swr'
-import useFigmaToken from 'hooks/useFigmaToken'
-import { fetchWithAuth } from 'utils/fetchHelpers'
-import type { LocalVariablesResponse, FigmaCollection } from 'types'
-import { FIGMA_VARIABLES_ENDPOINT } from 'constants'
+import { useMemo } from 'react'
+import { useVariables } from './useVariables'
+import type { FigmaCollection } from 'types'
 
 /**
- * A hook to fetch all variable collections for a given file.
- * @param fileKey - The key of the Figma file to fetch collections from.
- * @returns An object containing the variable collections, loading state, and any errors.
+ * A convenience hook to access the variable collections from the data fetched by `useVariables`.
+ * This hook does not perform its own data fetching; it's a lightweight selector on the main data source.
+ *
+ * It's recommended to use this hook when you only need collection data to avoid re-rendering components unnecessarily when other parts of the Figma data change.
+ *
+ * @returns An object containing the collections as an array (`collections`) and as a map by ID (`collectionsById`).
+ *
+ * @example
+ * ```tsx
+ * const { collections } = useVariableCollections();
+ *
+ * return (
+ *   <ul>
+ *     {collections.map(collection => (
+ *       <li key={collection.id}>{collection.name}</li>
+ *     ))}
+ *   </ul>
+ * );
+ * ```
  */
-export const useVariableCollections = (fileKey: string) => {
-  const token = useFigmaToken()
-  const { data, error, isLoading, isValidating } =
-    useSWR<LocalVariablesResponse>(
-      token ? FIGMA_VARIABLES_ENDPOINT(fileKey) : null,
-      fetchWithAuth
-    )
+export const useVariableCollections = () => {
+  const { data } = useVariables()
 
-  const collections: FigmaCollection[] = data?.meta
-    ? Object.values(data.meta.variableCollections)
-    : []
-  const collectionsById: Record<string, FigmaCollection> = data?.meta
-    ? data.meta.variableCollections
-    : {}
+  const collections: FigmaCollection[] = useMemo(
+    () => (data?.meta ? Object.values(data.meta.variableCollections) : []),
+    [data]
+  )
+
+  const collectionsById: Record<string, FigmaCollection> = useMemo(
+    () => (data?.meta ? data.meta.variableCollections : {}),
+    [data]
+  )
 
   return {
     collections,
     collectionsById,
-    isLoading,
-    isValidating,
-    error:
-      error ??
-      (data && 'message' in data ? new Error((data as any).message) : null),
   }
 }
