@@ -4,6 +4,13 @@ A modern, type-safe, and flexible React hooks library for the [Figma Variables A
 
 Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
+![CI](https://github.com/marklearst/figma-react-hooks/actions/workflows/publish.yml/badge.svg)
+![License](https://img.shields.io/github/license/marklearst/figma-react-hooks)
+![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-react-hooks)
+![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-react-hooks)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)
+
 ---
 
 ## 🚀 Features
