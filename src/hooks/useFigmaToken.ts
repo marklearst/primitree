@@ -1,4 +1,4 @@
-import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
 
 /**
  * Retrieves the Figma API token from the FigmaVarsProvider.

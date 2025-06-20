@@ -1,19 +1,23 @@
-import { useState, useCallback } from 'react'
+import { useReducer, useCallback } from 'react'
+import type { MutationState, MutationResult } from 'types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
-interface UseMutationResult<TData, TError, TVariables> {
-  mutate: (variables: TVariables) => Promise<TData | undefined>
-  mutateAsync: (variables: TVariables) => Promise<TData>
-  status: MutationStatus
-  data: TData | undefined
-  error: TError | null
-  isLoading: boolean
-  isSuccess: boolean
-  isError: boolean
+function mutationReducer<TData>(
+  state: MutationState<TData>,
+  action: { type: MutationStatus; payload?: TData | Error }
+): MutationState<TData> {
+  switch (action.type) {
+    case 'loading':
+      return { ...state, status: 'loading', error: null }
+    case 'success':
+      return { ...state, status: 'success', data: action.payload as TData }
+    case 'error':
+      return { ...state, status: 'error', error: action.payload as Error }
+    default:
+      return state
+  }
 }
-
-type MutationFn<TData, TVariables> = (variables: TVariables) => Promise<TData>
 
 /**
  * @internal
@@ -24,63 +28,37 @@ type MutationFn<TData, TVariables> = (variables: TVariables) => Promise<TData>
  * @param mutationFn The async function that performs the mutation.
  * @returns An object with the mutation state and functions to trigger it.
  */
-export const useMutation = <TData = unknown, TError = Error, TVariables = void>(
-  mutationFn: MutationFn<TData, TVariables>
-): UseMutationResult<TData, TError, TVariables> => {
-  const [status, setStatus] = useState<MutationStatus>('idle')
-  const [data, setData] = useState<TData | undefined>()
-  const [error, setError] = useState<TError | null>(null)
+export const useMutation = <TData = unknown, TPayload = unknown>(
+  mutationFn: (payload: TPayload) => Promise<TData>
+): MutationResult<TData, TPayload> => {
+  const initialState: MutationState<TData> = {
+    status: 'idle',
+    data: null,
+    error: null,
+  }
+  const [state, dispatch] = useReducer(mutationReducer, initialState)
 
   const mutate = useCallback(
-    async (variables: TVariables) => {
-      setStatus('loading')
+    async (payload: TPayload) => {
+      dispatch({ type: 'loading' })
       try {
-        const result = await mutationFn(variables)
-        setData(result)
-        setStatus('success')
-        setError(null)
+        const result = await mutationFn(payload)
+        dispatch({ type: 'success', payload: result })
         return result
       } catch (e) {
-        setError(e as TError)
-        setStatus('error')
-        // We return undefined here because we don't want to throw
-        // and let the caller handle the error state via the `isError` and `error` properties.
+        dispatch({ type: 'error', payload: e as Error })
+        // We return undefined because the caller can use the `isError` flag
         return undefined
       }
     },
     [mutationFn]
   )
 
-  const mutateAsync = useCallback(
-    async (variables: TVariables) => {
-      setStatus('loading')
-      try {
-        const result = await mutationFn(variables)
-        setData(result)
-        setStatus('success')
-        setError(null)
-        return result
-      } catch (e) {
-        setError(e as TError)
-        setStatus('error')
-        throw e
-      }
-    },
-    [mutationFn]
-  )
-
-  const isLoading = status === 'loading'
-  const isSuccess = status === 'success'
-  const isError = status === 'error'
-
   return {
     mutate,
-    mutateAsync,
-    status,
-    data,
-    error,
-    isLoading,
-    isSuccess,
-    isError,
+    ...state,
+    isLoading: state.status === 'loading',
+    isSuccess: state.status === 'success',
+    isError: state.status === 'error',
   }
 }
