@@ -48,9 +48,9 @@
   "sideEffects": false,
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "funding": {
@@ -69,5 +69,8 @@
   },
   "directories": {
     "doc": "docs"
+  },
+  "dependencies": {
+    "swr": "^2.3.3"
   }
 }
