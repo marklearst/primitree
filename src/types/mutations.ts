@@ -21,13 +21,12 @@ export type SpecificType = VariableValueUpdate[]
 
 export interface CreateVariablePayload {
   name: string
-  collectionId: string
+  variableCollectionId: string
   resolvedType: ResolvedType
   description?: string
   hiddenFromPublishing?: boolean
   scopes?: VariableScope[]
   codeSyntax?: Record<string, string>
-  valuesByMode?: Record<string, VariableValue>
 }
 
 export interface VariableActionResponse {

@@ -1,80 +1,36 @@
-import { useState, useEffect, useCallback } from 'react'
+import useSWR from 'swr'
 import useFigmaToken from 'hooks/useFigmaToken'
-import type { FigmaCollection, LocalVariablesResponse } from 'types'
-
-interface UseVariableCollectionsReturn {
-  collections: FigmaCollection[] | null
-  collectionsById: Record<string, FigmaCollection> | null
-  loading: boolean
-  error: Error | null
-  refresh: () => void
-}
+import { fetchWithAuth } from 'utils/fetchHelpers'
+import type { LocalVariablesResponse, FigmaCollection } from 'types'
+import { FIGMA_VARIABLES_ENDPOINT } from 'constants'
 
 /**
- * Fetches local Figma variable collections for a given file ID.
- * @param fileId - The Figma file ID to fetch collections from.
+ * A hook to fetch all variable collections for a given file.
+ * @param fileKey - The key of the Figma file to fetch collections from.
+ * @returns An object containing the variable collections, loading state, and any errors.
  */
-const useVariableCollections = (
-  fileId: string
-): UseVariableCollectionsReturn => {
-  const [collectionsById, setCollectionsById] = useState<Record<
-    string,
-    FigmaCollection
-  > | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
+export const useVariableCollections = (fileKey: string) => {
   const token = useFigmaToken()
+  const { data, error, isLoading, isValidating } =
+    useSWR<LocalVariablesResponse>(
+      token ? FIGMA_VARIABLES_ENDPOINT(fileKey) : null,
+      fetchWithAuth
+    )
 
-  const fetchCollections = useCallback(async () => {
-    if (!token) {
-      setError(new Error('Figma API token is not provided.'))
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError(null)
+  const collections: FigmaCollection[] = data?.meta
+    ? Object.values(data.meta.variableCollections)
+    : []
+  const collectionsById: Record<string, FigmaCollection> = data?.meta
+    ? data.meta.variableCollections
+    : {}
 
-    try {
-      const url = `https://api.figma.com/v1/files/${fileId}/variables/local`
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'X-FIGMA-TOKEN': token,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch Figma collections: ${response.status} ${response.statusText}`
-        )
-      }
-
-      const json: LocalVariablesResponse = await response.json()
-      if (json.meta) {
-        setCollectionsById(json.meta.variableCollections)
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err
-          : new Error('An unknown error occurred while fetching collections')
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [fileId, token])
-
-  const refresh = useCallback(() => {
-    fetchCollections()
-  }, [fetchCollections])
-
-  useEffect(() => {
-    fetchCollections()
-  }, [fetchCollections])
-
-  const collections = collectionsById ? Object.values(collectionsById) : null
-
-  return { collections, collectionsById, loading, error, refresh }
+  return {
+    collections,
+    collectionsById,
+    isLoading,
+    isValidating,
+    error:
+      error ??
+      (data && 'message' in data ? new Error((data as any).message) : null),
+  }
 }
-
-export default useVariableCollections
