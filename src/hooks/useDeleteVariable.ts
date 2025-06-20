@@ -1,48 +1,51 @@
-import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
-import { useMutation } from './useMutation'
-import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from '../constants'
-import { mutator } from '../api/mutator'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
+import {
+  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  ERROR_MSG_TOKEN_REQUIRED,
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
- * Hook for deleting a Figma variable.
+ * Deletes a variable from the Figma file by its ID.
  *
- * This hook provides a stateful API to delete a variable from the Figma file.
- * It abstracts the logic for making the API request and managing the mutation state.
+ * This hook provides a stateful API to delete a variable, returning the mutation's
+ * current state including `isLoading`, `isSuccess`, and `isError`.
  *
- * @returns {object} An object containing the mutation state and trigger functions.
- * @property {(variableId: string) => Promise<void|undefined>} mutate - Function to trigger the mutation.
- * @property {(variableId: string) => Promise<void>} mutateAsync - An async version of `mutate` that will throw on error.
- * @property {undefined} data - Should be undefined for a delete operation.
- * @property {boolean} isLoading - True if the mutation is in progress.
- * @property {boolean} isSuccess - True if the mutation was successful.
- * @property {boolean} isError - True if the mutation failed.
- * @property {Error|null} error - The error object if the mutation failed.
+ * @returns {object} The mutation object.
+ * @property {Function} mutate - The function to trigger the variable deletion. It takes the variable ID as an argument.
+ * @property {boolean} isLoading - True if the mutation is currently in flight.
+ * @property {boolean} isSuccess - True if the mutation has completed successfully.
+ * @property {boolean} isError - True if the mutation has failed.
+ * @property {Error} error - The error object if the mutation fails.
  *
  * @example
  * ```tsx
- * const { mutate: deleteVariable, isLoading } = useDeleteVariable();
+ * const { mutate, isLoading } = useDeleteVariable();
  *
- * const handleDelete = async (id: string) => {
- *   try {
- *     await deleteVariable(id);
- *     console.log("Variable deleted!");
- *     // You can then refetch your variables list or update the UI.
- *   } catch (e) {
- *     console.error("Deletion failed", e);
- *   }
+ * const handleDelete = () => {
+ *   // The payload for delete is just the variable ID string.
+ *   mutate("VariableID:1:2");
  * };
+ *
+ * return (
+ *   <button onClick={handleDelete} disabled={isLoading}>
+ *     {isLoading ? 'Deleting...' : 'Delete Variable'}
+ *   </button>
+ * );
  * ```
  */
 export const useDeleteVariable = () => {
   const { token } = useFigmaTokenContext()
-
   const mutation = useMutation(async (variableId: string) => {
     if (!token) {
-      throw new Error('A Figma API token is required.')
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
-    const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
-    return await mutator(url, token, 'DELETE')
+    return await mutator<any>(
+      FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
+      token,
+      'DELETE'
+    )
   })
-
   return mutation
 }

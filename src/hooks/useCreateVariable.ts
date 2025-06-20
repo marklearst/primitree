@@ -1,49 +1,51 @@
-import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
-import { useMutation } from './useMutation'
-import type { CreateVariablePayload } from '../types/mutations'
-import { FIGMA_POST_VARIABLES_ENDPOINT } from '../constants'
-import { mutator } from '../api/mutator'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
+import type { CreateVariablePayload } from 'types/mutations'
+import {
+  FIGMA_POST_VARIABLES_ENDPOINT,
+  ERROR_MSG_TOKEN_REQUIRED,
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
- * Hook for creating a new Figma variable.
+ * Creates a new variable in the Figma file.
  *
- * This hook provides a stateful API to create a new variable in the Figma file.
- * It abstracts the logic for making the API request and managing the mutation state.
+ * This hook provides a stateful API to create a new variable, returning the mutation's
+ * current state including `isLoading`, `isSuccess`, `isError`, and the created data.
  *
- * @returns {object} An object containing the mutation state and trigger functions.
- * @property {(payload: CreateVariablePayload) => Promise<any|undefined>} mutate - Function to trigger the mutation.
- * @property {(payload: CreateVariablePayload) => Promise<any>} mutateAsync - An async version of `mutate` that will throw on error.
- * @property {any} data - The data returned from a successful mutation.
- * @property {boolean} isLoading - True if the mutation is in progress.
- * @property {boolean} isSuccess - True if the mutation was successful.
- * @property {boolean} isError - True if the mutation failed.
- * @property {Error|null} error - The error object if the mutation failed.
+ * @returns {object} The mutation object.
+ * @property {Function} mutate - The function to trigger the variable creation. It takes the variable payload as an argument.
+ * @property {boolean} isLoading - True if the mutation is currently in flight.
+ * @property {boolean} isSuccess - True if the mutation has completed successfully.
+ * @property {boolean} isError - True if the mutation has failed.
+ * @property {object} data - The data returned from the successful mutation.
+ * @property {Error} error - The error object if the mutation fails.
  *
  * @example
  * ```tsx
- * const { mutate: createVariable, isLoading, error } = useCreateVariable();
+ * const { mutate, isLoading, isSuccess } = useCreateVariable();
  *
- * const handleCreate = async () => {
- *   const newVariable = {
- *     name: "new-color",
- *     variableCollectionId: "VariableCollectionId:1:1",
- *     resolvedType: "COLOR"
- *   };
- *   try {
- *     const result = await createVariable(newVariable);
- *     console.log("Variable created!", result);
- *   } catch (e) {
- *     console.error("Creation failed", e);
- *   }
+ * const handleCreate = () => {
+ *   mutate({
+ *     name: "new-brand-color",
+ *     collectionId: "VariableCollectionId:1:1",
+ *     resolvedType: "COLOR",
+ *     valuesByMode: { "2:1": { r: 1, g: 0, b: 0, a: 1 } }
+ *   });
  * };
+ *
+ * return (
+ *   <button onClick={handleCreate} disabled={isLoading}>
+ *     {isLoading ? 'Creating...' : 'Create Variable'}
+ *   </button>
+ * );
  * ```
  */
 export const useCreateVariable = () => {
   const { token } = useFigmaTokenContext()
-
   const mutation = useMutation(async (payload: CreateVariablePayload) => {
     if (!token) {
-      throw new Error('A Figma API token is required.')
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
     return await mutator<any>(
       FIGMA_POST_VARIABLES_ENDPOINT,
@@ -52,6 +54,5 @@ export const useCreateVariable = () => {
       payload as unknown as Record<string, unknown>
     )
   })
-
   return mutation
 }

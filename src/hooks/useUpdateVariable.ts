@@ -1,8 +1,8 @@
-import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
-import { useMutation } from './useMutation'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
 import type { UpdateVariablePayload } from 'types/mutations'
-import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from '../constants'
-import { mutator } from '../api/mutator'
+import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from 'constants/index'
+import { mutator } from 'api/mutator'
 
 type UpdateVariableArgs = {
   variableId: string
@@ -10,32 +10,37 @@ type UpdateVariableArgs = {
 }
 
 /**
- * Hook for updating an existing Figma variable.
+ * Updates an existing Figma variable.
  *
- * This hook provides a stateful API to update a variable in the Figma file.
- * It abstracts the logic for making the API request and managing the mutation state.
+ * This hook provides a stateful API to update a variable, returning the mutation's
+ * current state including `isLoading`, `isSuccess`, `isError`, and the updated data.
  *
- * @returns {object} An object containing the mutation state and trigger functions.
- * @property {(args: UpdateVariableArgs) => Promise<void|undefined>} mutate - Function to trigger the mutation.
- * @property {(args: UpdateVariableArgs) => Promise<void>} mutateAsync - An async version of `mutate` that will throw on error.
- * @property {undefined} data - Should be undefined for an update operation.
- * @property {boolean} isLoading - True if the mutation is in progress.
- * @property {boolean} isSuccess - True if the mutation was successful.
- * @property {boolean} isError - True if the mutation failed.
- * @property {Error|null} error - The error object if the mutation failed.
+ * @returns {object} The mutation object.
+ * @property {Function} mutate - The function to trigger the variable update. It takes the variable payload as an argument.
+ * @property {boolean} isLoading - True if the mutation is currently in flight.
+ * @property {boolean} isSuccess - True if the mutation has completed successfully.
+ * @property {boolean} isError - True if the mutation has failed.
+ * @property {object} data - The data returned from the successful mutation.
+ * @property {Error} error - The error object if the mutation fails.
  *
  * @example
  * ```tsx
- * const { mutate: updateVariable, isLoading } = useUpdateVariable();
+ * const { mutate, isLoading } = useUpdateVariable();
  *
- * const handleUpdate = async (id: string, data: UpdateVariablePayload) => {
- *   try {
- *     await updateVariable({ variableId: id, payload: data });
- *     console.log("Variable updated!");
- *   } catch (e) {
- *     console.error("Update failed", e);
- *   }
+ * const handleUpdate = () => {
+ *   mutate({
+ *     id: "VariableID:1:2",
+ *     name: "updated-brand-color",
+ *     resolvedType: "COLOR",
+ *     valuesByMode: { "2:1": { r: 0, g: 1, b: 0, a: 1 } }
+ *   });
  * };
+ *
+ * return (
+ *   <button onClick={handleUpdate} disabled={isLoading}>
+ *     {isLoading ? 'Updating...' : 'Update Variable'}
+ *   </button>
+ * );
  * ```
  */
 export const useUpdateVariable = () => {
