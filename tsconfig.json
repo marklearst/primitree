@@ -1,43 +1,37 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+
+    "target": "ESNext",
     "useDefineForClassFields": true,
-    "module": "ESNext",
     "lib": [
-      "ES2020",
+      "ESNext",
       "DOM",
       "DOM.Iterable"
     ],
+    "module": "ESNext",
     "skipLibCheck": true,
-    /* Bundler mode */
     "moduleResolution": "bundler",
+    "esModuleInterop": true,
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "baseUrl": "./src",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": [
-      "vitest/globals"
-    ],
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
+    "baseUrl": "./src",
     "paths": {
-      "hooks/*": [
-        "hooks/*"
+      "api/*": [
+        "api/*"
       ],
       "mutations/*": [
         "mutations/*"
       ],
-      "types/*": [
-        "types/*"
-      ],
-      "utils/*": [
-        "utils/*"
+      "experimental/*": [
+        "experimental/*"
       ],
       "constants/*": [
         "constants/*"
@@ -45,17 +39,32 @@
       "contexts/*": [
         "contexts/*"
       ],
-      "api/*": [
-        "api/*"
+      "hooks/*": [
+        "hooks/*"
       ],
-      "tests/*": [
-        "tests/*"
+      "mocks/*": [
+        "../tests/mocks/*"
+      ],
+      "types/*": [
+        "types/*"
+      ],
+      "utils/*": [
+        "utils/*"
       ]
-    }
+    },
+    "types": [
+      "vitest",
+      "vitest/globals",
+      "node"
+    ]
   },
   "include": [
     "src",
-    "tests",
-    "vite.config.ts"
+    "tests"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
   ]
 }
