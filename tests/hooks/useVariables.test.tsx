@@ -1,45 +1,62 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import React from 'react'
 import useSWR from 'swr'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, Mock } from 'vitest'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { useVariables } from '../../src/hooks/useVariables'
 import { mockVariablesResponse } from '../mocks/variables'
+import type { ReactNode } from 'react'
 
 // Mock the useSWR hook
 vi.mock('swr')
 
-const mockUseSWR = useSWR as vi.Mock
+const mockedUseSWR = useSWR as Mock
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <FigmaVarsProvider
+    token="test-token"
+    fileKey="test-key">
+    {children}
+  </FigmaVarsProvider>
+)
+
+const wrapperNoToken = ({ children }: { children: ReactNode }) => (
+  <FigmaVarsProvider
+    token={null}
+    fileKey="test-key">
+    {children}
+  </FigmaVarsProvider>
+)
+
+const wrapperNoFileKey = ({ children }: { children: ReactNode }) => (
+  <FigmaVarsProvider
+    token="test-token"
+    fileKey={null}>
+    {children}
+  </FigmaVarsProvider>
+)
 
 describe('useVariables', () => {
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <FigmaVarsProvider
-      figmaToken="test-token"
-      fileKey="test-key">
-      {children}
-    </FigmaVarsProvider>
-  )
-
   it('should return loading state initially', () => {
-    mockUseSWR.mockReturnValue({
+    mockedUseSWR.mockReturnValue({
       data: undefined,
       error: undefined,
       isLoading: true,
+      isValidating: false,
     })
 
     const { result } = renderHook(() => useVariables(), { wrapper })
 
     expect(result.current.isLoading).toBe(true)
-    expect(result.current.data).toBeUndefined()
-    expect(result.current.error).toBeUndefined()
+    expect(result.current.isValidating).toBe(false)
   })
 
   it('should return variables on successful fetch', async () => {
-    mockUseSWR.mockReturnValue({
+    mockedUseSWR.mockReturnValue({
       data: mockVariablesResponse,
       error: undefined,
       isLoading: false,
+      isValidating: false,
     })
 
     const { result } = renderHook(() => useVariables(), { wrapper })
@@ -48,15 +65,17 @@ describe('useVariables', () => {
       expect(result.current.isLoading).toBe(false)
       expect(result.current.data).toEqual(mockVariablesResponse)
       expect(result.current.error).toBeUndefined()
+      expect(result.current.isValidating).toBe(false)
     })
   })
 
   it('should return an error when fetch fails', async () => {
     const error = new Error('Failed to fetch')
-    mockUseSWR.mockReturnValue({
+    mockedUseSWR.mockReturnValue({
       data: undefined,
       error: error,
       isLoading: false,
+      isValidating: false,
     })
 
     const { result } = renderHook(() => useVariables(), { wrapper })
@@ -65,6 +84,47 @@ describe('useVariables', () => {
       expect(result.current.isLoading).toBe(false)
       expect(result.current.data).toBeUndefined()
       expect(result.current.error).toBe(error)
+      expect(result.current.isValidating).toBe(false)
     })
+  })
+
+  it('should return isValidating true when revalidating', () => {
+    mockedUseSWR.mockReturnValue({
+      data: mockVariablesResponse,
+      error: undefined,
+      isLoading: false,
+      isValidating: true,
+    })
+
+    const { result } = renderHook(() => useVariables(), { wrapper })
+
+    expect(result.current.isValidating).toBe(true)
+    expect(result.current.isLoading).toBe(false)
+  })
+
+  it('should not call useSWR when token is missing', () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => useVariables(), { wrapper: wrapperNoToken })
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+  })
+
+  it('should not call useSWR when fileKey is missing', () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => useVariables(), { wrapper: wrapperNoFileKey })
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
   })
 })
