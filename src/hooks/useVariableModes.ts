@@ -11,9 +11,6 @@ import type { UseVariableModesResult } from 'types/hooks'
  * update when the mode data itself changes. It provides modes in several useful formats.
  *
  * @returns {UseVariableModesResult} An object containing the modes in different formats.
- * @property {VariableMode[]} modes - An array of all `VariableMode` objects.
- * @property {Object<string, VariableMode[]>} modesByCollectionId - A map where keys are collection IDs and values are arrays of modes belonging to that collection.
- * @property {Object<string, VariableMode>} modesById - A map of all `VariableMode` objects, keyed by their `modeId`.
  *
  * @example
  * ```tsx
