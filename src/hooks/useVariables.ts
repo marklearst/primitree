@@ -1,8 +1,8 @@
 import useSWR from 'swr'
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
-import { fetcher } from '../api/fetcher'
-import type { LocalVariablesResponse } from '../types'
-import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from '../constants'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { fetcher } from 'api/fetcher'
+import type { LocalVariablesResponse } from 'types'
+import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from 'constants/index'
 
 /**
  * Fetches all local variables, collections, and modes for the file specified in the `FigmaVarsProvider`.
@@ -12,13 +12,8 @@ import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from '../constants'
  *
  * It uses `swr` for efficient data fetching, caching, and revalidation.
  *
- * @returns {object} The response from `useSWR` for the local variables endpoint.
- * @property {LocalVariablesResponse} data - The raw API response from Figma.
- * @property {boolean} isLoading - True if the request is in flight.
- * @property {boolean} isValidating - True if the data is being revalidated.
- * @property {Error} error - Any error that occurred during fetching.
- *
- * @see https://www.figma.com/developers/api#get-local-variables-v1
+ * @returns {{data: LocalVariablesResponse | undefined, isLoading: boolean, isValidating: boolean, error: Error | undefined}} The response from `useSWR` for the local variables endpoint.
+ * @see {@link https://www.figma.com/developers/api#get-local-variables-v1|Figma Variables API Documentation}
  *
  * @example
  * ```tsx
