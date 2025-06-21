@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useVariables } from './useVariables'
+import { useVariables } from 'hooks/useVariables'
 import type { FigmaCollection } from 'types'
 
 /**
