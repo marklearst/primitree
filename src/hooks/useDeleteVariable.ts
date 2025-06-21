@@ -12,35 +12,54 @@ import { mutator } from 'api/mutator'
  * This hook provides a stateful API to delete a variable, returning the mutation's
  * current state including `isLoading`, `isSuccess`, and `isError`.
  *
- * @returns {object} The mutation object.
- * @property {Function} mutate - The function to trigger the variable deletion. It takes the variable ID as an argument.
- * @property {boolean} isLoading - True if the mutation is currently in flight.
- * @property {boolean} isSuccess - True if the mutation has completed successfully.
- * @property {boolean} isError - True if the mutation has failed.
- * @property {Error} error - The error object if the mutation fails.
+ * @function useDeleteVariable
+ * @memberof Hooks
+ * @since 1.0.0
+ * @returns {MutationResult<void, string>} The mutation object with state and trigger function.
+ * @see {@link https://www.figma.com/developers/api#delete-variables|Figma Variables API - Delete Variable}
+ * @see {@link useMutation} - The underlying mutation hook
  *
  * @example
  * ```tsx
+ * import { useDeleteVariable } from '@figma-vars/hooks';
+ *
+ * function VariableDeleter({ variableId }) {
+ *   const { mutate, isLoading, isSuccess, error } = useDeleteVariable();
+ *
+ *   const handleDelete = () => {
+ *     if (confirm('Are you sure you want to delete this variable?')) {
+ *       mutate(variableId);
+ *     }
+ *   };
+ *
+ *   if (isLoading) return <div>Deleting variable...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isSuccess) return <div>Variable deleted successfully!</div>;
+ *
+ *   return <button onClick={handleDelete}>Delete Variable</button>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Delete a variable by ID
  * const { mutate, isLoading } = useDeleteVariable();
- *
- * const handleDelete = () => {
- *   // The payload for delete is just the variable ID string.
- *   mutate("VariableID:1:2");
+ * 
+ * const deleteVariable = (id: string) => {
+ *   mutate(id); // Pass the variable ID directly
  * };
- *
- * return (
- *   <button onClick={handleDelete} disabled={isLoading}>
- *     {isLoading ? 'Deleting...' : 'Delete Variable'}
- *   </button>
- * );
+ * 
+ * // Usage
+ * deleteVariable('VariableID:123:456');
  * ```
  */
 export const useDeleteVariable = () => {
   const { token } = useFigmaTokenContext()
+  if (!token) {
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+  }
   const mutation = useMutation(async (variableId: string) => {
-    if (!token) {
-      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
-    }
+
     return await mutator<any>(
       FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
       token,
