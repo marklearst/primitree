@@ -13,12 +13,13 @@ type HttpMethod = 'POST' | 'PUT' | 'DELETE'
  *
  * This function is used by the mutation functions to make authenticated requests to the Figma API.
  *
- * @param url - The API endpoint to send the request to.
- * @param token - The Figma Personal Access Token.
- * @param method - The HTTP method ('POST', 'PUT', or 'DELETE').
- * @param body - The payload to send with the request (for 'POST' and 'PUT').
- * @returns A promise that resolves with the JSON data from the API.
- * @throws Will throw an error if the fetch call fails or if the API returns an error response.
+ * @template T - The expected return type from the API response
+ * @param {string} url - The API endpoint to send the request to.
+ * @param {string} token - The Figma Personal Access Token.
+ * @param {HttpMethod} method - The HTTP method ('POST', 'PUT', or 'DELETE').
+ * @param {Record<string, unknown>} [body] - The payload to send with the request (for 'POST' and 'PUT').
+ * @returns {Promise<T>} A promise that resolves with the JSON data from the API.
+ * @throws {Error} Will throw an error if the fetch call fails or if the API returns an error response.
  */
 export const mutator = async <T>(
   url: string,
