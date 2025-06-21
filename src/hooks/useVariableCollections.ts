@@ -9,9 +9,7 @@ import type { FigmaCollection } from 'types'
  * unnecessary re-renders in components that only care about collections, as it will only
  * update when the collection data itself changes.
  *
- * @returns {object} An object containing the collections in different formats.
- * @property {FigmaCollection[]} collections - An array of all `FigmaCollection` objects.
- * @property {Object<string, FigmaCollection>} collectionsById - A map of all `FigmaCollection` objects, keyed by their ID.
+ * @returns {{collections: FigmaCollection[], collectionsById: Record<string, FigmaCollection>}} An object containing the collections in different formats.
  *
  * @example
  * ```tsx
