@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.3.3] - 2025-06-22
+
+### ✨ Added
+
+- **branding**: Added new logo assets (`assets/figma-vars-tagline-light.png`) and updated README to feature the new branding at the top of the page
+- **docs**: Improved visual identity and documentation clarity with prominent project logo
+
 ## [1.3.2] - 2025-06-22
 
 ### 🔧 Fixed

@@ -1,7 +1,7 @@
 # @figma-vars/hooks
 
-<p align="center">
-  <img src="assets/figma-vars-tagline.png" alt="FigmaVars Logo" width="500" />
+<p align="left">
+  <img src="assets/figma-vars-tagline-light.png" alt="FigmaVars Logo" width="700px" />
 </p>
 
 A fast, typed React 19 hooks library for the Figma Variables API: fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
