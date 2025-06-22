@@ -6,6 +6,7 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/publish.yml/badge.svg)
+[![codecov](https://codecov.io/gh/marklearst/figma-vars-hooks/branch/main/graph/badge.svg)](https://codecov.io/gh/marklearst/figma-vars-hooks)
 ![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
