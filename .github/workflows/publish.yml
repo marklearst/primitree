@@ -18,6 +18,8 @@ jobs:
         with:
           version: 8
       - run: pnpm install
+      - run: pnpm ls vite-tsconfig-paths
+      - run: cat vite.config.ts
       - run: pnpm run build
       - run: pnpm publish --access public --no-git-checks
         env:
