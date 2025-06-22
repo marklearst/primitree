@@ -4,7 +4,7 @@
  * @since 1.0.0
  */
 
-import type { FigmaVariable, ResolvedType } from 'types'
+import type { FigmaVariable, ResolvedType } from '../types'
 
 /**
  * Filters an array of Figma variables based on specified criteria.
