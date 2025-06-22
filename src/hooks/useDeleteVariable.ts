@@ -1,10 +1,10 @@
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
-import { useMutation } from './useMutation'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
 import {
   FIGMA_VARIABLE_BY_ID_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from '../constants/index'
-import { mutator } from '../api/mutator'
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * Deletes a variable from the Figma file by its ID.
@@ -21,7 +21,7 @@ import { mutator } from '../api/mutator'
  *
  * @example
  * ```tsx
- * import { useDeleteVariable } from './useDeleteVariable';
+ * import { useDeleteVariable } from '@figma-vars/hooks';
  *
  * function VariableDeleter({ variableId }) {
  *   const { mutate, isLoading, isSuccess, error } = useDeleteVariable();
@@ -44,11 +44,11 @@ import { mutator } from '../api/mutator'
  * ```tsx
  * // Delete a variable by ID
  * const { mutate, isLoading } = useDeleteVariable();
- * 
+ *
  * const deleteVariable = (id: string) => {
  *   mutate(id); // Pass the variable ID directly
  * };
- * 
+ *
  * // Usage
  * deleteVariable('VariableID:123:456');
  * ```
@@ -59,7 +59,6 @@ export const useDeleteVariable = () => {
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
   const mutation = useMutation(async (variableId: string) => {
-
     return await mutator<any>(
       FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
       token,

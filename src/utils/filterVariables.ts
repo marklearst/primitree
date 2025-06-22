@@ -4,7 +4,7 @@
  * @since 1.0.0
  */
 
-import type { FigmaVariable, ResolvedType } from '../types'
+import type { FigmaVariable, ResolvedType } from 'types'
 
 /**
  * Filters an array of Figma variables based on specified criteria.
@@ -31,14 +31,14 @@ import type { FigmaVariable, ResolvedType } from '../types'
  * ];
  *
  * // Filter by type
- * const colorVariables = filterVariables(allVariables, { 
- *   resolvedType: 'COLOR' 
+ * const colorVariables = filterVariables(allVariables, {
+ *   resolvedType: 'COLOR'
  * });
  * // Returns: [primary-color, secondary-color]
  *
  * // Filter by name (partial match)
- * const fontVariables = filterVariables(allVariables, { 
- *   name: 'font' 
+ * const fontVariables = filterVariables(allVariables, {
+ *   name: 'font'
  * });
  * // Returns: [font-size-large]
  *
@@ -57,7 +57,7 @@ import type { FigmaVariable, ResolvedType } from '../types'
  *
  * function ColorVariablesList() {
  *   const { variables } = useVariables();
- *   
+ *
  *   const colorVariables = filterVariables(variables, {
  *     resolvedType: 'COLOR'
  *   });

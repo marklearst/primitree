@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import type {
   FigmaTokenContextType,
   FigmaVarsProviderProps,
-} from '../types/contexts'
+} from 'types/contexts'
 
 /**
  * @internal

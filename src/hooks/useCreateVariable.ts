@@ -1,11 +1,11 @@
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
-import { useMutation } from './useMutation'
-import type { CreateVariablePayload } from '../types/mutations'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
+import type { CreateVariablePayload } from 'types/mutations'
 import {
   FIGMA_POST_VARIABLES_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from '../constants/index'
-import { mutator } from '../api/mutator'
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * Creates a new variable in the Figma file.
@@ -50,7 +50,7 @@ import { mutator } from '../api/mutator'
  * ```tsx
  * // Create a string variable
  * const { mutate } = useCreateVariable();
- * 
+ *
  * mutate({
  *   name: 'Button Text',
  *   variableCollectionId: 'VariableCollectionId:123:456',
