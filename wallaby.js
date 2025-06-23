@@ -1,6 +1,12 @@
-module.exports = function () {
+module.exports = function (wallaby) {
   return {
-    files: ['src/**/*', 'tests/**/*', '!**/*.test.*'],
+    files: [
+      'src/**/*',
+      'tests/**/*',
+      '.env',
+      'vitest.setup.ts',
+      '!**/*.test.*',
+    ],
     tests: ['tests/**/*.test.*', 'src/**/*.test.*'],
 
     // Tell Wallaby it's a Vitest project and to use the Vite config.
@@ -10,6 +16,7 @@ module.exports = function () {
     },
 
     setup: (wallaby) => {
+      require('dotenv').config()
       const vitestConfig = require('./vite.config.ts').default.test
       wallaby.testFramework.setupFiles = vitestConfig.setupFiles
     },
