@@ -8,24 +8,26 @@ import {
 import { mutator } from 'api/mutator'
 
 /**
- * Creates a new variable in the Figma file.
+ * React hook that creates a new Figma variable in the current file using the Figma Variables API.
  *
- * This hook provides a stateful API to create a new variable, returning the mutation's
- * current state including `isLoading`, `isSuccess`, `isError`, and the created data.
+ * @remarks
+ * Returns a mutation object with status flags and error info. To trigger creation, call `mutate(payload)` with a `CreateVariablePayload` object containing:
+ * - `name`: the variable name
+ * - `variableCollectionId`: target collection ID
+ * - `resolvedType`: variable type
+ * - `valuesByMode`: values for one or more modes
  *
- * @function useCreateVariable
- * @memberof Hooks
- * @since 1.0.0
- * @returns {MutationResult<any, CreateVariablePayload>} The mutation object with state and trigger function.
- * @see {@link https://www.figma.com/developers/api#post-variables|Figma Variables API - Create Variable}
- * @see {@link useMutation} - The underlying mutation hook
+ * Throws if the Figma Personal Access Token (PAT) is missing from context.
+ * Use for advanced workflows, automated variable management, or custom UI tooling.
+ *
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
  *
  * @example
  * ```tsx
  * import { useCreateVariable } from '@figma-vars/hooks';
  *
- * function VariableCreator() {
- *   const { mutate, isLoading, isSuccess, error, data } = useCreateVariable();
+ * function CreateVariableComponent() {
+ *   const { mutate, isLoading, isSuccess, error } = useCreateVariable();
  *
  *   const handleCreate = () => {
  *     mutate({
@@ -38,30 +40,15 @@ import { mutator } from 'api/mutator'
  *     });
  *   };
  *
- *   if (isLoading) return <div>Creating variable...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
- *   if (isSuccess) return <div>Variable created: {data?.name}</div>;
+ *   if (isLoading) return <div>Creating variable…</div>;
+ *   if (error) return <div style={{ color: 'red' }}>Error: {error.message}</div>;
+ *   if (isSuccess) return <div>Variable created successfully!</div>;
  *
  *   return <button onClick={handleCreate}>Create Variable</button>;
  * }
  * ```
  *
- * @example
- * ```tsx
- * // Create a string variable
- * const { mutate } = useCreateVariable();
- *
- * mutate({
- *   name: 'Button Text',
- *   variableCollectionId: 'VariableCollectionId:123:456',
- *   resolvedType: 'STRING',
- *   description: 'Default button text content',
- *   valuesByMode: {
- *     '42:0': 'Click me'
- *   },
- *   scopes: ['TEXT_CONTENT']
- * });
- * ```
+ * @public
  */
 export const useCreateVariable = () => {
   const { token } = useFigmaTokenContext()
