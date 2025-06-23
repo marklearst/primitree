@@ -56,8 +56,33 @@ describe('useBulkUpdateVariables', () => {
     expect(mockedMutator).toHaveBeenCalledWith(
       FIGMA_POST_VARIABLES_ENDPOINT,
       mockToken,
-      'PUT',
+      'CREATE',
       payload
     )
+  })
+
+  it('should return an error state if the mutator throws an error', async () => {
+    const mockToken = 'test-token'
+    const payload: BulkUpdatePayload = {
+      variables: [
+        {
+          action: 'UPDATE',
+          id: 'VariableId:123',
+          name: 'new-name-for-bulk',
+        },
+      ],
+    }
+
+    mockedUseFigmaTokenContext.mockReturnValue({ token: mockToken })
+    mockedMutator.mockRejectedValue(new Error('Mocked error'))
+
+    const { result } = renderHook(() => useBulkUpdateVariables())
+
+    await act(async () => {
+      await result.current.mutate(payload)
+    })
+
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.message).toBe('Mocked error')
   })
 })

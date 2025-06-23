@@ -58,10 +58,10 @@ export const useBulkUpdateVariables = () => {
     if (!token) {
       throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
-    return await mutator<any>(
+    return await mutator(
       FIGMA_POST_VARIABLES_ENDPOINT,
       token,
-      'PUT',
+      'CREATE',
       payload as unknown as Record<string, unknown>
     )
   })

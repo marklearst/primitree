@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mutator } from './mutator'
-import { FIGMA_API_BASE_URL, FIGMA_TOKEN_HEADER } from '../constants'
+import { FIGMA_API_BASE_URL } from '../constants'
 
 // Mock the global fetch function as it's a dependency
 global.fetch = vi.fn()

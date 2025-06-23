@@ -52,14 +52,14 @@ import { mutator } from 'api/mutator'
  */
 export const useCreateVariable = () => {
   const { token } = useFigmaTokenContext()
-  if (!token) {
-    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
-  }
   const mutation = useMutation(async (payload: CreateVariablePayload) => {
-    return await mutator<any>(
+    if (!token) {
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+    }
+    return await mutator(
       FIGMA_POST_VARIABLES_ENDPOINT,
       token,
-      'POST',
+      'CREATE',
       payload as unknown as Record<string, unknown>
     )
   })
