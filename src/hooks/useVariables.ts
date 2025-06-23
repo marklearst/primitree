@@ -38,8 +38,17 @@ export const useVariables = (): SWRResponse<LocalVariablesResponse> => {
 
   const endpoint = fileKey ? FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey) : null
 
-  return useSWR<LocalVariablesResponse>(
-    token && endpoint ? [endpoint, token] : null,
-    fetcher
-  )
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<LocalVariablesResponse>(
+      token && endpoint ? [endpoint, token] : null,
+      fetcher
+    )
+
+  return {
+    data,
+    isLoading,
+    isValidating,
+    error,
+    mutate,
+  }
 }
