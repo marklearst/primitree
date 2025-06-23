@@ -1,68 +1,49 @@
 import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
 import { useMutation } from 'hooks/useMutation'
-import type { UpdateVariablePayload } from 'types/mutations'
-import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from 'constants/index'
+import type { UpdateVariableArgs } from 'types/hooks'
+import {
+  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  ERROR_MSG_TOKEN_REQUIRED,
+} from 'constants/index'
 import { mutator } from 'api/mutator'
 
-type UpdateVariableArgs = {
-  variableId: string
-  payload: UpdateVariablePayload
-}
-
 /**
- * Updates an existing Figma variable.
+ * React hook that updates a Figma variable by its ID via the Figma Variables API.
  *
- * This hook provides a stateful API to update a variable, returning the mutation's
- * current state including `isLoading`, `isSuccess`, `isError`, and the updated data.
+ * @remarks
+ * Returns a mutation object with status flags, error info, and a trigger function. Call `mutate({ variableId, payload })` to update a variable—provide the target variable's ID and the update payload.
+ * Throws if the Figma Personal Access Token (PAT) is missing from context.
+ * Use for advanced UI tooling or bulk edit workflows.
  *
- * @function useUpdateVariable
- * @memberof Hooks
- * @since 1.0.0
- * @returns {MutationResult<any, UpdateVariableArgs>} The mutation object with state and trigger function.
- * @see {@link https://www.figma.com/developers/api#put-variables|Figma Variables API - Update Variable}
- * @see {@link useMutation} - The underlying mutation hook
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
  *
  * @example
  * ```tsx
  * import { useUpdateVariable } from '@figma-vars/hooks';
  *
- * function VariableEditor() {
+ * function UpdateVariableButton({ variableId }: { variableId: string }) {
  *   const { mutate, isLoading, isSuccess, error } = useUpdateVariable();
  *
  *   const handleUpdate = () => {
  *     mutate({
- *       variableId: 'VariableID:123:456',
+ *       variableId,
  *       payload: {
- *         name: 'Updated Variable Name',
- *         description: 'Updated description'
- *       }
+ *         name: 'Updated Name',
+ *         description: 'Updated description',
+ *       },
  *     });
  *   };
  *
- *   if (isLoading) return <div>Updating variable...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (!mutate) return <div>Not authorized. Figma token missing.</div>;
+ *   if (isLoading) return <div>Updating variable…</div>;
+ *   if (error) return <div style={{ color: 'red' }}>Error: {error.message}</div>;
  *   if (isSuccess) return <div>Variable updated successfully!</div>;
  *
  *   return <button onClick={handleUpdate}>Update Variable</button>;
  * }
  * ```
  *
- * @example
- * ```tsx
- * // Update variable with new values
- * const { mutate } = useUpdateVariable();
- *
- * mutate({
- *   variableId: 'VariableID:123:456',
- *   payload: {
- *     name: 'Primary Color',
- *     description: 'Main brand color',
- *     valuesByMode: {
- *       '42:0': { r: 0.2, g: 0.4, b: 0.8, a: 1 }
- *     }
- *   }
- * });
- * ```
+ * @public
  */
 export const useUpdateVariable = () => {
   const { token } = useFigmaTokenContext()
@@ -70,7 +51,7 @@ export const useUpdateVariable = () => {
   const mutation = useMutation(
     async ({ variableId, payload }: UpdateVariableArgs) => {
       if (!token) {
-        throw new Error('A Figma API token is required.')
+        throw new Error(ERROR_MSG_TOKEN_REQUIRED)
       }
       const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
       return await mutator(
