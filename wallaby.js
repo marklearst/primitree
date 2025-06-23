@@ -9,6 +9,11 @@ module.exports = function () {
       configFile: './vite.config.ts',
     },
 
+    setup: (wallaby) => {
+      const vitestConfig = require('./vite.config.ts').default.test
+      wallaby.testFramework.setupFiles = vitestConfig.setupFiles
+    },
+
     // Default Node.js environment
     env: {
       type: 'node',
