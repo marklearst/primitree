@@ -1,76 +1,30 @@
-/**
- * @fileoverview Utility functions for filtering and searching Figma variables.
- * Provides helper functions to filter variables by type, name, and other criteria.
- * @since 1.0.0
- */
-
 import type { FigmaVariable, ResolvedType } from 'types'
 
 /**
- * Filters an array of Figma variables based on specified criteria.
- * This utility can filter by variable type, a partial name match, or both.
+ * Utility function to filter Figma variables by type and/or substring name match.
  *
- * @function filterVariables
- * @memberof Utils
- * @since 1.0.0
- * @param {FigmaVariable[]} variables The array of `FigmaVariable` objects to filter.
- * @param {Object} criteria An object specifying the filter criteria.
- * @param {ResolvedType} [criteria.resolvedType] The variable type (e.g., 'COLOR', 'FLOAT') to filter by.
- * @param {string} [criteria.name] A string to search for within the variable names (case-sensitive).
- * @returns {FigmaVariable[]} A new array containing only the variables that match the criteria.
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
+ * @remarks
+ * Returns a new array of variables matching the provided criteria. Use for building type pickers, variable search, dashboard views, or bulk edit tools. Filtering is case-sensitive for `name`. Pass no criteria to return all variables unfiltered.
+ *
+ * @param variables - The array of FigmaVariable objects to filter.
+ * @param criteria - Object specifying filter fields. Provide a `resolvedType` (e.g., 'COLOR', 'FLOAT') and/or a `name` substring to match variable names.
+ * @returns Array of FigmaVariable objects that match all provided criteria. Returns an empty array if no matches found. Returns all variables if criteria is empty.
  *
  * @example
- * ```typescript
- * import { filterVariables } from 'utils/filterVariables';
+ * ```ts
+ * import { filterVariables } from '@figma-vars/hooks';
  *
- * const allVariables = [
- *   { name: 'primary-color', resolvedType: 'COLOR', id: '1:1', ... },
- *   { name: 'font-size-large', resolvedType: 'FLOAT', id: '1:2', ... },
- *   { name: 'secondary-color', resolvedType: 'COLOR', id: '1:3', ... }
- * ];
+ * // Example 1: Filter all color variables
+ * const colorVars = filterVariables(allVars, { resolvedType: 'COLOR' });
  *
- * // Filter by type
- * const colorVariables = filterVariables(allVariables, {
- *   resolvedType: 'COLOR'
- * });
- * // Returns: [primary-color, secondary-color]
+ * // Example 2: Filter variables containing 'brand' in their name (case-sensitive)
+ * const brandVars = filterVariables(allVars, { name: 'brand' });
  *
- * // Filter by name (partial match)
- * const fontVariables = filterVariables(allVariables, {
- *   name: 'font'
- * });
- * // Returns: [font-size-large]
- *
- * // Filter by both type and name
- * const primaryColors = filterVariables(allVariables, {
- *   resolvedType: 'COLOR',
- *   name: 'primary'
- * });
- * // Returns: [primary-color]
+ * // Example 3: Filter variables that are COLOR and include 'brand' in name
+ * const filtered = filterVariables(allVars, { resolvedType: 'COLOR', name: 'brand' });
  * ```
  *
- * @example
- * ```typescript
- * // Use with the useVariables hook
- * import { useVariables, filterVariables } from 'utils';
- *
- * function ColorVariablesList() {
- *   const { variables } = useVariables();
- *
- *   const colorVariables = filterVariables(variables, {
- *     resolvedType: 'COLOR'
- *   });
- *
- *   return (
- *     <ul>
- *       {colorVariables.map(variable => (
- *         <li key={variable.id}>{variable.name}</li>
- *       ))}
- *     </ul>
- *   );
- * }
- * ```
+ * @public
  */
 export function filterVariables(
   variables: FigmaVariable[],
