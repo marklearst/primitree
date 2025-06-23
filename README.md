@@ -1,5 +1,3 @@
-# @figma-vars/hooks
-
 <p align="left">
   <img src="assets/figma-vars-tagline-light.png" alt="FigmaVars Logo" width="700px" />
 </p>
@@ -110,21 +108,26 @@ Here's an example of creating a new variable:
 ```tsx
 // src/components/CreateVariableForm.tsx
 import { useCreateVariable } from '@figma-vars/hooks'
+import type { CreateVariablePayload } from '@figma-vars/hooks'
 
-function CreateVariableForm({ collectionId, modeId }) {
+function CreateVariableForm({ collectionId }: { collectionId: string }) {
   const { mutate, data, isLoading, error } = useCreateVariable()
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const variableName = event.target.elements.variableName.value
+    const form = event.currentTarget
+    const variableName = (
+      form.elements.namedItem('variableName') as HTMLInputElement
+    )?.value
 
-    mutate({
-      name: `colors/${variableName}`,
-      collectionId: collectionId,
-      valuesByMode: {
-        [modeId]: { r: 1, g: 0, b: 0, a: 1 },
-      },
-    })
+    if (!variableName) return
+
+    const payload: CreateVariablePayload = {
+      name: variableName,
+      variableCollectionId: collectionId,
+      resolvedType: 'COLOR', // Example type
+    }
+    mutate(payload)
   }
 
   return (
@@ -208,17 +211,13 @@ function ErrorHandling() {
 }
 ```
 
-### Documentation Generation
-
-This library uses TSDoc to generate documentation. You can find the generated documentation in the `docs` folder.
-
 ---
 
 ## 🧩 API Reference
 
 ### Core Hooks
 
-- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns an object with `data`, `isLoading`, and `error` properties. The `data` object contains `variables`, `variableCollections`, and `modes` from the Figma API.
+- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns a SWR hook state with `data`, `isLoading`, and `error` properties. The actual Figma response is in `data.data`.
 - `useVariableCollections()`: A convenience hook that returns just the variable collections from the main `useVariables` data.
 - `useVariableModes()`: A convenience hook that returns just the variable modes from the main `useVariables` data.
 - `useFigmaToken()`: A simple hook to access the token and file key from the context.
@@ -227,14 +226,14 @@ This library uses TSDoc to generate documentation. You can find the generated do
 
 All mutation hooks return an object with the following shape: `{ mutate, data, isLoading, error }`.
 
-- `useCreateVariable()`: Creates a new variable. The `mutate` function expects the variable data as its payload.
-- `useUpdateVariable()`: Updates an existing variable. The `mutate` function expects an object with `id` and the `data` to update.
-- `useDeleteVariable()`: Deletes a variable. The `mutate` function expects the `id` of the variable to delete.
-- `useBulkUpdateVariables()`: Updates multiple variables in a single batch operation. The `mutate` function expects an array of variables to update.
+- `useCreateVariable()`: Creates a new variable. The `mutate` function expects a `CreateVariablePayload` object.
+- `useUpdateVariable()`: Updates an existing variable. The `mutate` function expects an object `{ variableId, payload }` where `payload` is an `UpdateVariablePayload`.
+- `useDeleteVariable()`: Deletes a variable. The `mutate` function expects the `variableId` (string) of the variable to delete.
+- `useBulkUpdateVariables()`: Creates, updates, or deletes multiple entities in a single batch operation. The `mutate` function expects a `BulkUpdatePayload` object.
 
 ### Types
 
-All types are exported from `@figma-vars/hooks`. The core response type from Figma for local variables is `Variables_LocalVariablesResponse`.
+All types are exported from `@figma-vars/hooks`. The core response type from Figma for local variables is `LocalVariablesResponse`.
 
 ---
 
