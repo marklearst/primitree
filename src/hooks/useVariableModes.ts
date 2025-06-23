@@ -4,24 +4,34 @@ import type { FigmaCollection, VariableMode } from 'types'
 import type { UseVariableModesResult } from 'types/hooks'
 
 /**
- * A memoized selector hook to access and process variable modes from the data fetched by `useVariables`.
+ * React hook that extracts and memoizes all variable modes from loaded Figma variables data.
  *
- * This hook is a lightweight, performant way to get only mode data. It avoids
- * unnecessary re-renders in components that only care about modes, as it will only
- * update when the mode data itself changes. It provides modes in several useful formats.
+ * @remarks
+ * Returns an object with:
+ * - `modes`: an array of all modes
+ * - `modesByCollectionId`: a lookup table mapping collection IDs to arrays of modes
+ * - `modesById`: a lookup table mapping mode IDs to VariableMode objects
  *
- * @returns {UseVariableModesResult} An object containing the modes in different formats.
+ * Useful for building UI pickers, mapping, advanced theme controls, or custom variable management tools. Call this hook anywhere you need fast, up-to-date access to modes for the current file context.
  *
  * @example
  * ```tsx
- * const { modesById, modesByCollectionId } = useVariableModes();
- * const lightMode = modesById['42:0'];
- * const collectionModes = modesByCollectionId['VariableCollectionId:123:456'];
+ * import { useVariableModes } from '@figma-vars/hooks';
  *
- * if (!lightMode) return <div>Mode not found.</div>;
- *
- * return <div>Mode: {lightMode.name}</div>
+ * function ModeList() {
+ *   const { modes } = useVariableModes();
+ *   if (!modes.length) return <div>No modes found.</div>;
+ *   return (
+ *     <ul>
+ *       {modes.map(mode => (
+ *         <li key={mode.modeId}>{mode.name}</li>
+ *       ))}
+ *     </ul>
+ *   );
+ * }
  * ```
+ *
+ * @public
  */
 export const useVariableModes = (): UseVariableModesResult => {
   const { data } = useVariables()
