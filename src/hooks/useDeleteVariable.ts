@@ -43,11 +43,13 @@ export const useDeleteVariable = () => {
   if (!token) {
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
+
   const mutation = useMutation(async (variableId: string) => {
-    return await mutator<any>(
+    return await mutator(
       FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
       token,
-      'DELETE'
+      'DELETE',
+      undefined
     )
   })
   return mutation

@@ -47,17 +47,17 @@ import { mutator } from 'api/mutator'
  */
 export const useUpdateVariable = () => {
   const { token } = useFigmaTokenContext()
+  if (!token) {
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+  }
 
   const mutation = useMutation(
     async ({ variableId, payload }: UpdateVariableArgs) => {
-      if (!token) {
-        throw new Error(ERROR_MSG_TOKEN_REQUIRED)
-      }
       const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
       return await mutator(
         url,
         token,
-        'PUT',
+        'UPDATE',
         payload as unknown as Record<string, unknown>
       )
     }
