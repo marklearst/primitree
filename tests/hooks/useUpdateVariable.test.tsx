@@ -21,15 +21,27 @@ describe('useUpdateVariable', () => {
     vi.restoreAllMocks()
   })
 
-  it('should throw an error if figma token is not provided', () => {
+  it('should return an error state if figma token is not provided', async () => {
+    // Spy on the context hook and mock its return value for this test
     const spy = vi
       .spyOn(FigmaVarsProvider, 'useFigmaTokenContext')
       .mockReturnValue({ token: null, fileKey: '' })
 
-    expect(() => renderHook(() => useUpdateVariable())).toThrow(
-      ERROR_MSG_TOKEN_REQUIRED
-    )
-    spy.mockRestore()
+    const { result } = renderHook(() => useUpdateVariable())
+
+    await act(async () => {
+      // The error is thrown inside the mutate function, so we call it
+      await result.current.mutate({
+        variableId: 'some-id',
+        payload: { name: 'test' },
+      })
+    })
+
+    // The useMutation hook catches the error and sets the state
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error?.message).toBe(ERROR_MSG_TOKEN_REQUIRED)
+
+    spy.mockRestore() // Clean up the spy
   })
 
   it('should call mutator with the correct arguments', async () => {
