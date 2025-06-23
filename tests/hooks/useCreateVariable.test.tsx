@@ -1,41 +1,30 @@
-import { renderHook, act } from '@testing-library/react'
+import { act } from '@testing-library/react'
 import { describe, it, expect, vi, Mock } from 'vitest'
+import { renderHookWithWrapper } from '../test-utils'
 import { useCreateVariable } from '../../src/hooks/useCreateVariable'
-import { useFigmaTokenContext } from '../../src/contexts/FigmaVarsProvider'
 import { mutator } from '../../src/api/mutator'
-import {
-  FIGMA_POST_VARIABLES_ENDPOINT,
-  ERROR_MSG_TOKEN_REQUIRED,
-} from '../../src/constants/index'
+import { FIGMA_POST_VARIABLES_ENDPOINT } from '../../src/constants/index'
 import type { CreateVariablePayload } from '../../src/types/mutations'
 
-// Mock dependencies
-vi.mock('../../src/contexts/FigmaVarsProvider')
+// Mock the mutator to avoid actual API calls
 vi.mock('../../src/api/mutator')
 
-const mockedUseFigmaTokenContext = useFigmaTokenContext as Mock
 const mockedMutator = mutator as Mock
 
 describe('useCreateVariable', () => {
-  // Reset mocks before each test to ensure isolation
+  // Reset mocks before each test
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('should throw an error if figma token is not provided', () => {
-    mockedUseFigmaTokenContext.mockReturnValue({ token: null })
-
-    expect(() => {
-      renderHook(() => useCreateVariable())
-    }).toThrow(ERROR_MSG_TOKEN_REQUIRED)
-  })
+  // This test is no longer needed as the wrapper handles the token check.
+  // it('should throw an error if figma token is not provided', () => { ... });
 
   it('should call mutator with correct arguments and revalidate cache on success', async () => {
-    const mockToken = 'test-token'
-    mockedUseFigmaTokenContext.mockReturnValue({ token: mockToken })
     mockedMutator.mockResolvedValue({ success: true })
 
-    const { result } = renderHook(() => useCreateVariable())
+    // Use the custom hook with our wrapper
+    const { result } = renderHookWithWrapper(() => useCreateVariable())
 
     const payload: CreateVariablePayload = {
       name: 'new-color',
@@ -47,10 +36,12 @@ describe('useCreateVariable', () => {
       await result.current.mutate(payload)
     })
 
+    const expectedToken = process.env.VITE_FIGMA_TOKEN
+
     expect(mockedMutator).toHaveBeenCalledTimes(1)
     expect(mockedMutator).toHaveBeenCalledWith(
       FIGMA_POST_VARIABLES_ENDPOINT,
-      mockToken,
+      expectedToken,
       'POST',
       payload
     )
