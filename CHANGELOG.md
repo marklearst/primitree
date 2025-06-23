@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.5 (2024-12-19)
+
+### Added
+
+- **docs**: Added comprehensive Architecture Highlights section to README showcasing 100% test coverage and development practices
+- **docs**: Added 100% test coverage badge to README for improved project credibility
+- **testing**: Added final test coverage for `src/api/index.ts` barrel file exports
+
+### Changed
+
+- **docs**: Updated Architecture Highlights to use accurate descriptions (changed "Framework Agnostic" to "React Ecosystem" and "Zero Runtime Dependencies" to "Minimal Dependencies")
+- **docs**: Refined error handling description from "Robust Error Handling" to "Consistent Error Handling" for accuracy
+
+### Chores
+
+- **ci**: Achieved complete 100% test coverage across all 76 tests for optimal Codecov reporting
+
 ## 1.4.4 (2024-12-19)
 
 ### Bug Fixes

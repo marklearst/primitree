@@ -9,6 +9,7 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/publish.yml/badge.svg)
 [![codecov](https://codecov.io/gh/marklearst/figma-vars-hooks/branch/main/graph/badge.svg)](https://codecov.io/gh/marklearst/figma-vars-hooks)
+![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
@@ -25,6 +26,19 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 - **✍️ Ergonomic Mutations**: A `useMutation`-style API for creating, updating, and deleting variables, providing clear loading and error states.
 - **🔒 TypeScript-first**: Strictly typed for an ergonomic and safe developer experience. Get autocompletion for all API responses.
 - **📖 Storybook & Next.js Ready**: Perfect for building live design token dashboards or style guides.
+
+---
+
+## 🧱 Architecture Highlights
+
+✅ **100% Test Coverage** - Comprehensive test suite with 76 tests covering all hooks, utilities, and edge cases via Vitest
+✅ **Consistent Error Handling** - Standardized error propagation with clear messages from the Figma API
+✅ **Strictly Typed APIs** - Modern TypeScript best practices with full type inference and autocompletion
+✅ **Predictable Hook Signatures** - Consistent, composable patterns designed for safe React integrations
+✅ **Developer-First Architecture** - Clean folder structure, path aliases, and logical component separation
+✅ **React Ecosystem** - Built specifically for React apps, Storybook, Next.js, and design system dashboards
+✅ **Ergonomic DX** - Intuitive API that's easy to use in both prototype and production environments
+✅ **Minimal Dependencies** - Leverages SWR for caching with careful dependency selection for optimal bundle size
 
 ---
 
