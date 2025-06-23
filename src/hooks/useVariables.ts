@@ -1,4 +1,4 @@
-import useSWR from 'swr'
+import useSWR, { type SWRResponse } from 'swr'
 import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
 import { fetcher } from 'api/fetcher'
 import type { LocalVariablesResponse } from 'types'
@@ -33,21 +33,13 @@ import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from 'constants/index'
  *
  * @public
  */
-export const useVariables = () => {
+export const useVariables = (): SWRResponse<LocalVariablesResponse> => {
   const { token, fileKey } = useFigmaTokenContext()
 
   const endpoint = fileKey ? FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey) : null
 
-  const { data, error, isLoading, isValidating } =
-    useSWR<LocalVariablesResponse>(
-      token && endpoint ? [endpoint, token] : null,
-      fetcher
-    )
-
-  return {
-    data,
-    isLoading,
-    isValidating,
-    error,
-  }
+  return useSWR<LocalVariablesResponse>(
+    token && endpoint ? [endpoint, token] : null,
+    fetcher
+  )
 }
