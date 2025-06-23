@@ -33,5 +33,6 @@ private/**/*.*
 # vitest.workspace.json
 coverage
 private
+docs-site
 
 .env
