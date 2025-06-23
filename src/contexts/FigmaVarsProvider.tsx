@@ -4,65 +4,32 @@ import type {
   FigmaVarsProviderProps,
 } from 'types/contexts'
 
-/**
- * @internal
- * React Context to provide the Figma token and file key down the component tree.
- * @function FigmaTokenContext
- * @memberof Contexts
- * @since 1.0.0
- */
 const FigmaTokenContext = createContext<FigmaTokenContextType | undefined>(
   undefined
 )
 
 /**
- * Provides the Figma token and file key to all descendant hooks.
- * This component should be placed at the root of your application or any component tree
- * that needs to interact with the Figma Variables API.
+ * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
  *
- * @function FigmaVarsProvider
- * @memberof Providers
- * @since 1.0.0
- * @param {FigmaVarsProviderProps} props - The provider props
- * @param {string} props.token - The Figma Personal Access Token
- * @param {string} props.fileKey - The Figma file key from the file URL
- * @param {React.ReactNode} props.children - The child components that will have access to the context
- * @returns {JSX.Element} The provider component
- * @see {@link https://www.figma.com/developers/api#authentication|Figma API Authentication}
+ * @remarks
+ * Wrap your application or feature subtree with this provider to securely and type-safely provide the Figma Personal Access Token (PAT) and target Figma file key. This enables all child hooks and utilities to access the Figma Variables REST API with consistent authentication and scoping.
+ *
+ * This is the central source of truth for Figma authentication and file context within the app.
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figma-vars/hooks';
+ * import { FigmaVarsProvider } from '@figma-vars/hooks/contexts';
  *
  * function App() {
- *   const token = process.env.REACT_APP_FIGMA_TOKEN;
- *   const fileKey = 'abc123def456'; // From Figma file URL
- *
  *   return (
- *     <FigmaVarsProvider token={token} fileKey={fileKey}>
- *       <Dashboard />
- *       <VariableEditor />
+ *     <FigmaVarsProvider token={process.env.FIGMA_PAT!} fileKey="AbC123">
+ *       <MyDashboard />
  *     </FigmaVarsProvider>
  *   );
  * }
  * ```
  *
- * @example
- * ```tsx
- * // With Next.js and environment variables
- * import { FigmaVarsProvider } from '@figma-vars/hooks';
- *
- * export default function MyApp({ Component, pageProps }) {
- *   return (
- *     <FigmaVarsProvider
- *       token={process.env.NEXT_PUBLIC_FIGMA_TOKEN}
- *       fileKey={process.env.NEXT_PUBLIC_FIGMA_FILE_KEY}
- *     >
- *       <Component {...pageProps} />
- *     </FigmaVarsProvider>
- *   );
- * }
- * ```
+ * @public
  */
 export const FigmaVarsProvider = ({
   children,
@@ -77,13 +44,34 @@ export const FigmaVarsProvider = ({
 }
 
 /**
- * @internal
- * A hook to access the Figma token and file key from the context.
- * Throws an error if used outside of a `FigmaVarsProvider`.
- * @function useFigmaTokenContext
- * @memberof Hooks
- * @since 1.0.0
- * @returns {FigmaTokenContextType} The Figma token and file key.
+ * React hook to access the current Figma Personal Access Token and file key from context.
+ *
+ * @remarks
+ * Retrieves the token and file key provided by the nearest `FigmaVarsProvider`.
+ * Throws a descriptive error if used outside of the provider to prevent silent failures.
+ *
+ * Use this hook in any component or hook that requires authenticated access to the Figma Variables API scoped to a file.
+ *
+ * @returns The current FigmaTokenContextType containing `{ token, fileKey }`.
+ *
+ * @throws Throws if called outside of a `FigmaVarsProvider` context.
+ *
+ * @example
+ * ```tsx
+ * import { useFigmaTokenContext } from '@figma-vars/hooks/contexts';
+ *
+ * function DebugToken() {
+ *   const { token, fileKey } = useFigmaTokenContext();
+ *   return (
+ *     <div>
+ *       <p>Token: {token?.slice(0, 6)}... (hidden for security)</p>
+ *       <p>File Key: {fileKey}</p>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @public
  */
 export const useFigmaTokenContext = (): FigmaTokenContextType => {
   const context = useContext(FigmaTokenContext)
