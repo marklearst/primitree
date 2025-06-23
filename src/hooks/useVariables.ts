@@ -5,26 +5,33 @@ import type { LocalVariablesResponse } from 'types'
 import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from 'constants/index'
 
 /**
- * Fetches all local variables, collections, and modes for the file specified in the `FigmaVarsProvider`.
- * This is the primary data-fetching hook and serves as the foundation for other hooks like `useVariableCollections` and `useVariableModes`.
+ * React hook that fetches all local variables, collections, and modes for the current Figma file via the Variables API.
  *
- * "Local variables" are all variables and collections defined in the current file.
+ * @remarks
+ * Returns an object with SWR state for the Figma local variables endpoint, including:
+ * - `data`: the variables response object (or undefined)
+ * - `isLoading`: boolean loading state
+ * - `isValidating`: boolean validation state
+ * - `error`: error object (if any)
  *
- * It uses `swr` for efficient data fetching, caching, and revalidation.
+ * Use this as the single source of truth for all variables, collections, and modes within the current file context.
  *
- * @returns {{data: LocalVariablesResponse | undefined, isLoading: boolean, isValidating: boolean, error: Error | undefined}} The response from `useSWR` for the local variables endpoint.
- * @see {@link https://www.figma.com/developers/api#get-local-variables-v1|Figma Variables API Documentation}
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
  *
  * @example
  * ```tsx
- * const { data, isLoading, error } = useVariables();
+ * import { useVariables } from '@figma-vars/hooks';
  *
- * if (isLoading) return <div>Loading variables...</div>;
- * if (error) return <div>Error fetching variables: {error.message}</div>;
- *
- * const collections = data ? Object.values(data.meta.variableCollections) : [];
- * console.log(collections);
+ * function VariablesPanel() {
+ *   const { data, isLoading, error } = useVariables();
+ *   if (isLoading) return <span>Loading variables…</span>;
+ *   if (error) return <span style={{ color: 'red' }}>Error: {error.message}</span>;
+ *   if (!data) return <span>No variables found.</span>;
+ *   return <pre>{JSON.stringify(data, null, 2)}</pre>;
+ * }
  * ```
+ *
+ * @public
  */
 export const useVariables = () => {
   const { token, fileKey } = useFigmaTokenContext()
