@@ -1,33 +1,52 @@
-import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import useFigmaToken from 'hooks/useFigmaToken'
-import type { FigmaOperationResponse } from 'types'
+import { fetchWithAuth } from 'utils/fetchHelpers'
+import type {
+  LocalVariablesResponse,
+  FigmaCollection,
+  VariableMode,
+} from 'types'
+import type { UseVariableModesResult } from 'types/hooks'
+import { FIGMA_VARIABLES_ENDPOINT } from 'constants'
 
-const useVariableModes = (collectionId: string) => {
-  const [response, setResponse] = useState<FigmaOperationResponse | null>(null)
+/**
+ * A hook to fetch all variable modes for a given file.
+ *
+ * @param fileKey - The key of the file to fetch variables from.
+ * @returns An object containing the variable modes, loading state, and any errors.
+ */
+export const useVariableModes = (fileKey: string): UseVariableModesResult => {
   const token = useFigmaToken()
+  const { data, error, isLoading, isValidating } =
+    useSWR<LocalVariablesResponse>(
+      token ? FIGMA_VARIABLES_ENDPOINT(fileKey) : null,
+      fetchWithAuth
+    )
 
-  useEffect(() => {
-    const fetchModes = async () => {
-      const url = `https://api.figma.com/v1/collections/${collectionId}/modes`
-      try {
-        const result = await fetch(url, {
-          headers: {
-            'X-FIGMA-TOKEN': token,
-          },
-        })
-        if (!result.ok) throw new Error('Failed to fetch Figma modes')
-        setResponse({ success: true, message: 'Modes fetched successfully' })
-      } catch (error) {
-        setResponse({
-          success: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-        })
+  const modes: VariableMode[] = []
+  const modesByCollectionId: Record<string, VariableMode[]> = {}
+  const modesById: Record<string, VariableMode> = {}
+
+  if (data?.meta) {
+    for (const collection of Object.values(
+      data.meta.variableCollections
+    ) as FigmaCollection[]) {
+      modes.push(...collection.modes)
+      modesByCollectionId[collection.id] = collection.modes
+      for (const mode of collection.modes) {
+        modesById[mode.modeId] = mode
       }
     }
-    fetchModes()
-  }, [collectionId, token])
+  }
 
-  return { response }
+  return {
+    modes,
+    modesByCollectionId,
+    modesById,
+    isLoading,
+    isValidating,
+    error:
+      error ??
+      (data && 'message' in data ? new Error((data as any).message) : null),
+  }
 }
-
-export default useVariableModes
