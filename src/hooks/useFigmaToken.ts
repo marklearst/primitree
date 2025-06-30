@@ -1,17 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
 
 /**
- * Retrieves the Figma API token from environment or context (future-proofed for provider override)
+ * Retrieves the Figma API token from the FigmaVarsProvider.
+ * This hook must be used within a component wrapped by FigmaVarsProvider.
  */
-const useFigmaToken = (): string => {
-  const [token, setToken] = useState<string>('')
-
-  useEffect(() => {
-    // TODO: Add support for context/provider override
-    const figmaToken: string = import.meta.env.VITE_FIGMA_TOKEN || ''
-    setToken(figmaToken)
-  }, [])
-
+const useFigmaToken = (): string | null => {
+  const { token } = useFigmaTokenContext()
   return token
 }
 
