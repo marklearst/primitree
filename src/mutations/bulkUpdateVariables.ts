@@ -1,72 +1,52 @@
-import { useState, useCallback } from 'react'
-import useFigmaToken from 'hooks/useFigmaToken'
-import type { BulkUpdatePayload, BulkUpdateResponse } from 'types/mutations'
+import type { BulkUpdatePayload } from 'types/mutations'
 
-async function bulkUpdateFigmaVariables(
+/**
+ * Performs a bulk update of variables in a Figma file.
+ * This endpoint can be used to create, update, or delete multiple variables in a single API call.
+ *
+ * @param token - The Figma Personal Access Token.
+ * @param fileKey - The key of the Figma file where the variables reside.
+ * @param payload - The bulk update payload, containing arrays of variables to create, update, and/or delete.
+ * @returns A promise that resolves with the metadata from the Figma API about the bulk operation.
+ * @throws Will throw an error if the fetch call fails or if the API returns an error response.
+ *
+ * @example
+ * ```ts
+ * const payload = {
+ *   create: [{ name: "new-var", variableCollectionId: "VC:1:1", resolvedType: "FLOAT" }],
+ *   update: [{ id: "VariableID:123:456", name: "updated-name" }],
+ *   delete: ["VariableID:789:101"]
+ * };
+ *
+ * bulkUpdateVariables("your-token", "your-file-key", payload)
+ *   .then(response => console.log("Bulk update successful:", response))
+ *   .catch(error => console.error(error));
+ * ```
+ */
+export const bulkUpdateVariables = async (
   token: string,
   fileKey: string,
   payload: BulkUpdatePayload
-): Promise<BulkUpdateResponse> {
-  const url = `https://api.figma.com/v1/files/${fileKey}/variables`
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-FIGMA-TOKEN': token,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const responseData = await response.json()
-
-    if (!response.ok) {
-      return {
-        error: true,
-        status: response.status,
-        message: responseData.message || 'Failed to perform bulk update.',
-      }
-    }
-
-    return {
-      error: false,
-      status: response.status,
-      meta: responseData.meta,
-    }
-  } catch (error) {
-    return {
-      error: true,
-      status: 500,
-      message:
-        error instanceof Error ? error.message : 'An unknown error occurred.',
-    }
+) => {
+  if (!token || !fileKey) {
+    throw new Error('A Figma API token and file key are required.')
   }
-}
 
-export const useBulkUpdateVariables = () => {
-  const token = useFigmaToken()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<BulkUpdateResponse | null>(null)
-
-  const bulkUpdate = useCallback(
-    async (fileKey: string, payload: BulkUpdatePayload) => {
-      if (!token) {
-        setError('Figma API token is not provided.')
-        return
-      }
-
-      setLoading(true)
-      setError(null)
-      const result = await bulkUpdateFigmaVariables(token, fileKey, payload)
-      setData(result)
-      if (result.error) {
-        setError(result.message || 'An error occurred during the bulk update.')
-      }
-      setLoading(false)
+  const url = `https://api.figma.com/v1/files/${fileKey}/variables`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-FIGMA-TOKEN': token,
     },
-    [token]
-  )
+    body: JSON.stringify(payload),
+  })
 
-  return { bulkUpdate, loading, error, data }
+  const responseData = await response.json()
+
+  if (!response.ok) {
+    throw new Error(responseData.message || 'Failed to perform bulk update.')
+  }
+
+  return responseData
 }

@@ -1,74 +1,50 @@
-import { useState, useCallback } from 'react'
-import useFigmaToken from 'hooks/useFigmaToken'
-import type {
-  CreateVariablePayload,
-  VariableActionResponse,
-} from 'types/mutations'
+import type { CreateVariablePayload } from 'types/mutations'
 
-async function createFigmaVariable(
+/**
+ * Creates a new variable in a Figma file.
+ *
+ * This function sends a POST request to the Figma API to create a new variable.
+ * It requires a valid Figma token with `file_variables:write` scope.
+ *
+ * @param token - The Figma Personal Access Token.
+ * @param payload - The data for the new variable, including its name, collection ID, and type.
+ * @returns A promise that resolves with the created variable data from the Figma API.
+ * @throws Will throw an error if the fetch call fails or if the API returns an error response.
+ *
+ * @example
+ * ```ts
+ * const newVariableData = {
+ *   name: "new-color",
+ *   variableCollectionId: "VariableCollectionId:1:1",
+ *   resolvedType: "COLOR"
+ * };
+ *
+ * createVariable("your-figma-token", newVariableData)
+ *   .then(result => console.log("Variable created:", result))
+ *   .catch(error => console.error(error));
+ * ```
+ */
+export const createVariable = async (
   token: string,
   payload: CreateVariablePayload
-): Promise<VariableActionResponse> {
-  const url = `https://api.figma.com/v1/variables`
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-FIGMA-TOKEN': token,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      return {
-        error: true,
-        status: response.status,
-        message: errorData.message || 'Failed to create Figma variable',
-      }
-    }
-
-    const result = await response.json()
-    return {
-      error: false,
-      status: response.status,
-      variable: result,
-    }
-  } catch (error) {
-    return {
-      error: true,
-      status: 500,
-      message:
-        error instanceof Error ? error.message : 'An unknown error occurred',
-    }
+) => {
+  if (!token) {
+    throw new Error('A Figma API token is required.')
   }
-}
 
-export const useCreateVariable = () => {
-  const token = useFigmaToken()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<VariableActionResponse | null>(null)
-
-  const createVariable = useCallback(
-    async (payload: CreateVariablePayload) => {
-      if (!token) {
-        setError('Figma API token is not provided.')
-        return
-      }
-
-      setLoading(true)
-      setError(null)
-      const result = await createFigmaVariable(token, payload)
-      setData(result)
-      if (result.error) {
-        setError(result.message || 'An error occurred.')
-      }
-      setLoading(false)
+  const response = await fetch('https://api.figma.com/v1/variables', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-FIGMA-TOKEN': token,
     },
-    [token]
-  )
+    body: JSON.stringify(payload),
+  })
 
-  return { createVariable, loading, error, data }
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.message || 'Failed to create Figma variable.')
+  }
+
+  return response.json()
 }
