@@ -31,14 +31,14 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 
 ## 🧱 Architecture Highlights
 
-✅ **100% Test Coverage** - Comprehensive test suite with 78 tests covering all hooks, utilities, and edge cases via Vitest
-✅ **Consistent Error Handling** - Standardized error propagation with clear messages from the Figma API
-✅ **Strictly Typed APIs** - Modern TypeScript best practices with full type inference and autocompletion
-✅ **Predictable Hook Signatures** - Consistent, composable patterns designed for safe React integrations
-✅ **Developer-First Architecture** - Clean folder structure, path aliases, and logical component separation
-✅ **React Ecosystem** - Built specifically for React apps, Storybook, Next.js, and design system dashboards
-✅ **Ergonomic DX** - Intuitive API that's easy to use in both prototype and production environments
-✅ **Minimal Dependencies** - Leverages SWR for caching with careful dependency selection for optimal bundle size
+- ✅ **100% Test Coverage** - Comprehensive test suite with 78 tests covering all hooks, utilities, and edge cases via Vitest
+- ✅ **Consistent Error Handling** - Standardized error propagation with clear messages from the Figma API
+- ✅ **Strictly Typed APIs** - Modern TypeScript best practices with full type inference and autocompletion
+- ✅ **Predictable Hook Signatures** - Consistent, composable patterns designed for safe React integrations
+- ✅ **Developer-First Architecture** - Clean folder structure, path aliases, and logical component separation
+- ✅ **React Ecosystem** - Built specifically for React apps, Storybook, Next.js, and design system dashboards
+- ✅ **Ergonomic DX** - Intuitive API that's easy to use in both prototype and production environments
+- ✅ **Minimal Dependencies** - Leverages SWR for caching with careful dependency selection for optimal bundle size
 
 ---
 
