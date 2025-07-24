@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2024-08-02
+
 ### 🧹 Housekeeping
 
 - **docs**: Add comprehensive JSDoc comments to all public APIs, including hooks, mutations, and types.
