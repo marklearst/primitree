@@ -1,11 +1,9 @@
 import type { BulkUpdatePayload } from 'types/mutations'
 import {
   FIGMA_VARIABLES_ENDPOINT,
-  CONTENT_TYPE_JSON,
-  FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
-  ERROR_MSG_BULK_UPDATE_FAILED,
 } from '../constants'
+import { mutator } from '../api/mutator'
 
 /**
  * Performs a bulk update of variables in a Figma file.
@@ -40,20 +38,10 @@ export const bulkUpdateVariables = async (
   }
 
   const url = FIGMA_VARIABLES_ENDPOINT(fileKey)
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': CONTENT_TYPE_JSON,
-      [FIGMA_TOKEN_HEADER]: token,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  const responseData = await response.json()
-
-  if (!response.ok) {
-    throw new Error(responseData.message || ERROR_MSG_BULK_UPDATE_FAILED)
-  }
-
-  return responseData
+  return await mutator(
+    url,
+    token,
+    'POST',
+    payload as unknown as Record<string, unknown>
+  )
 }
