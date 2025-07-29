@@ -1,4 +1,11 @@
 import type { UpdateVariablePayload } from 'types/mutations'
+import {
+  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  CONTENT_TYPE_JSON,
+  FIGMA_TOKEN_HEADER,
+  ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_UPDATE_VARIABLE_FAILED,
+} from '../constants'
 
 /**
  * Updates an existing variable in a Figma file.
@@ -30,22 +37,22 @@ export const updateVariable = async (
   payload: UpdateVariablePayload
 ) => {
   if (!token) {
-    throw new Error('A Figma API token is required.')
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const url = `https://api.figma.com/v1/variables/${variableId}`
+  const url = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Content-Type': 'application/json',
-      'X-FIGMA-TOKEN': token,
+      'Content-Type': CONTENT_TYPE_JSON,
+      [FIGMA_TOKEN_HEADER]: token,
     },
     body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(errorData.message || 'Failed to update Figma variable.')
+    throw new Error(errorData.message || ERROR_MSG_UPDATE_VARIABLE_FAILED)
   }
 
   // A successful PUT request to this endpoint returns a 204 No Content,

@@ -1,4 +1,11 @@
 import type { BulkUpdatePayload } from 'types/mutations'
+import {
+  FIGMA_VARIABLES_ENDPOINT,
+  CONTENT_TYPE_JSON,
+  FIGMA_TOKEN_HEADER,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
+  ERROR_MSG_BULK_UPDATE_FAILED,
+} from '../constants'
 
 /**
  * Performs a bulk update of variables in a Figma file.
@@ -29,15 +36,15 @@ export const bulkUpdateVariables = async (
   payload: BulkUpdatePayload
 ) => {
   if (!token || !fileKey) {
-    throw new Error('A Figma API token and file key are required.')
+    throw new Error(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED)
   }
 
-  const url = `https://api.figma.com/v1/files/${fileKey}/variables`
+  const url = FIGMA_VARIABLES_ENDPOINT(fileKey)
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'X-FIGMA-TOKEN': token,
+      'Content-Type': CONTENT_TYPE_JSON,
+      [FIGMA_TOKEN_HEADER]: token,
     },
     body: JSON.stringify(payload),
   })
@@ -45,7 +52,7 @@ export const bulkUpdateVariables = async (
   const responseData = await response.json()
 
   if (!response.ok) {
-    throw new Error(responseData.message || 'Failed to perform bulk update.')
+    throw new Error(responseData.message || ERROR_MSG_BULK_UPDATE_FAILED)
   }
 
   return responseData
