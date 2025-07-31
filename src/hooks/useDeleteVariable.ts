@@ -4,19 +4,32 @@ import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from '../constants'
 import { mutator } from '../api/mutator'
 
 /**
- * A hook for deleting a Figma variable.
+ * Hook for deleting a Figma variable.
  *
- * This hook provides a `mutate` function to trigger the deletion of a variable.
- * It handles the loading, error, and data states of the mutation.
+ * This hook provides a stateful API to delete a variable from the Figma file.
+ * It abstracts the logic for making the API request and managing the mutation state.
  *
- * @returns An object containing the mutation function and the current state of the mutation.
+ * @returns {object} An object containing the mutation state and trigger functions.
+ * @property {(variableId: string) => Promise<void|undefined>} mutate - Function to trigger the mutation.
+ * @property {(variableId: string) => Promise<void>} mutateAsync - An async version of `mutate` that will throw on error.
+ * @property {undefined} data - Should be undefined for a delete operation.
+ * @property {boolean} isLoading - True if the mutation is in progress.
+ * @property {boolean} isSuccess - True if the mutation was successful.
+ * @property {boolean} isError - True if the mutation failed.
+ * @property {Error|null} error - The error object if the mutation failed.
  *
  * @example
  * ```tsx
- * const { mutate, isLoading, error } = useDeleteVariable();
+ * const { mutate: deleteVariable, isLoading } = useDeleteVariable();
  *
- * const handleDeleteVariable = (variableId: string) => {
- *   mutate(variableId);
+ * const handleDelete = async (id: string) => {
+ *   try {
+ *     await deleteVariable(id);
+ *     console.log("Variable deleted!");
+ *     // You can then refetch your variables list or update the UI.
+ *   } catch (e) {
+ *     console.error("Deletion failed", e);
+ *   }
  * };
  * ```
  */

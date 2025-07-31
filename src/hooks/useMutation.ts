@@ -15,6 +15,15 @@ interface UseMutationResult<TData, TError, TVariables> {
 
 type MutationFn<TData, TVariables> = (variables: TVariables) => Promise<TData>
 
+/**
+ * @internal
+ * A generic hook, inspired by `react-query`, to handle API mutations.
+ * This hook is not meant to be used directly by consumers of the library.
+ * Instead, specific mutation hooks (e.g., `useCreateVariable`) are built upon it.
+ *
+ * @param mutationFn The async function that performs the mutation.
+ * @returns An object with the mutation state and functions to trigger it.
+ */
 export const useMutation = <TData = unknown, TError = Error, TVariables = void>(
   mutationFn: MutationFn<TData, TVariables>
 ): UseMutationResult<TData, TError, TVariables> => {

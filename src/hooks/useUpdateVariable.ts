@@ -10,19 +10,31 @@ type UpdateVariableArgs = {
 }
 
 /**
- * A hook for updating a Figma variable.
+ * Hook for updating an existing Figma variable.
  *
- * This hook provides a `mutate` function to trigger the update of a variable.
- * It handles the loading, error, and data states of the mutation.
+ * This hook provides a stateful API to update a variable in the Figma file.
+ * It abstracts the logic for making the API request and managing the mutation state.
  *
- * @returns An object containing the mutation function and the current state of the mutation.
+ * @returns {object} An object containing the mutation state and trigger functions.
+ * @property {(args: UpdateVariableArgs) => Promise<void|undefined>} mutate - Function to trigger the mutation.
+ * @property {(args: UpdateVariableArgs) => Promise<void>} mutateAsync - An async version of `mutate` that will throw on error.
+ * @property {undefined} data - Should be undefined for an update operation.
+ * @property {boolean} isLoading - True if the mutation is in progress.
+ * @property {boolean} isSuccess - True if the mutation was successful.
+ * @property {boolean} isError - True if the mutation failed.
+ * @property {Error|null} error - The error object if the mutation failed.
  *
  * @example
  * ```tsx
- * const { mutate, isLoading, error } = useUpdateVariable();
+ * const { mutate: updateVariable, isLoading } = useUpdateVariable();
  *
- * const handleUpdateVariable = (variableId: string, payload: UpdateVariablePayload) => {
- *   mutate({ variableId, payload });
+ * const handleUpdate = async (id: string, data: UpdateVariablePayload) => {
+ *   try {
+ *     await updateVariable({ variableId: id, payload: data });
+ *     console.log("Variable updated!");
+ *   } catch (e) {
+ *     console.error("Update failed", e);
+ *   }
  * };
  * ```
  */
