@@ -1,62 +1,59 @@
-import { useFigmaTokenContext } from '../contexts/FigmaTokenContext'
-import { useMutation } from './useMutation'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
 import type { BulkUpdatePayload } from 'types/mutations'
-import { FIGMA_VARIABLES_ENDPOINT } from '../constants'
-import { mutator } from '../api/mutator'
-
-type BulkUpdateVariablesArgs = {
-  fileKey: string
-  payload: BulkUpdatePayload
-}
+import {
+  FIGMA_POST_VARIABLES_ENDPOINT,
+  ERROR_MSG_TOKEN_REQUIRED,
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
- * Hook for performing a bulk update of Figma variables.
+ * Updates multiple variables in the Figma file in a single request.
  *
- * This hook provides a stateful API to create, update, or delete multiple variables
- * in a single API call. It abstracts the logic for making the API request and managing the mutation state.
+ * This hook provides a stateful API to perform a bulk update, returning the mutation's
+ * current state including `isLoading`, `isSuccess`, and `isError`.
  *
- * @returns {object} An object containing the mutation state and trigger functions.
- * @property {(args: BulkUpdateVariablesArgs) => Promise<any|undefined>} mutate - Function to trigger the mutation.
- * @property {(args: BulkUpdateVariablesArgs) => Promise<any>} mutateAsync - An async version of `mutate` that will throw on error.
- * @property {any} data - The metadata returned from a successful mutation.
- * @property {boolean} isLoading - True if the mutation is in progress.
- * @property {boolean} isSuccess - True if the mutation was successful.
- * @property {boolean} isError - True if the mutation failed.
- * @property {Error|null} error - The error object if the mutation failed.
- *
- * @see https://www.figma.com/developers/api#post-variables-v1
+ * @returns {object} The mutation object.
+ * @property {Function} mutate - The function to trigger the bulk update. It takes the bulk update payload as an argument.
+ * @property {boolean} isLoading - True if the mutation is currently in flight.
+ * @property {boolean} isSuccess - True if the mutation has completed successfully.
+ * @property {boolean} isError - True if the mutation has failed.
+ * @property {object} data - The data returned from the successful mutation.
+ * @property {Error} error - The error object if the mutation fails.
  *
  * @example
  * ```tsx
- * const { mutate: bulkUpdate, isLoading } = useBulkUpdateVariables();
+ * const { mutate, isLoading } = useBulkUpdateVariables();
  *
- * const handleBulkUpdate = async (fileKey: string, payload: BulkUpdatePayload) => {
- *   try {
- *     const result = await bulkUpdate({ fileKey, payload });
- *     console.log("Bulk update successful!", result);
- *   } catch (e) {
- *     console.error("Bulk update failed", e);
- *   }
+ * const handleBulkUpdate = () => {
+ *   mutate({
+ *     variableIds: ["VariableID:1:2", "VariableID:1:3"],
+ *     variableCollectionId: "VariableCollectionId:1:1",
+ *     valuesByMode: { "2:1": { r: 0, g: 0, b: 1, a: 1 } }
+ *   });
  * };
+ *
+ * return (
+ *   <button onClick={handleBulkUpdate} disabled={isLoading}>
+ *     {isLoading ? 'Updating all...' : 'Bulk Update Variables'}
+ *   </button>
+ * );
  * ```
  */
 export const useBulkUpdateVariables = () => {
   const { token } = useFigmaTokenContext()
 
-  const mutation = useMutation(
-    async ({ fileKey, payload }: BulkUpdateVariablesArgs) => {
-      if (!token) {
-        throw new Error('A Figma API token is required.')
-      }
-      const url = FIGMA_VARIABLES_ENDPOINT(fileKey)
-      return await mutator(
-        url,
-        token,
-        'POST',
-        payload as unknown as Record<string, unknown>
-      )
+  const mutation = useMutation(async (payload: BulkUpdatePayload) => {
+    if (!token) {
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
-  )
+    return await mutator<any>(
+      FIGMA_POST_VARIABLES_ENDPOINT,
+      token,
+      'PUT',
+      payload as unknown as Record<string, unknown>
+    )
+  })
 
   return mutation
 }
