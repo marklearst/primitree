@@ -125,3 +125,29 @@ export interface BulkUpdateResponse {
     tempIdToRealId: Record<string, string>
   }
 }
+
+/**
+ * Represents the state of a mutation operation.
+ * @template TData The type of data returned by the mutation.
+ * @template TError The type of error returned by the mutation.
+ */
+export interface MutationState<TData> {
+  status: 'idle' | 'loading' | 'success' | 'error'
+  data: TData | null
+  error: Error | null
+}
+
+/**
+ * The result object returned by the `useMutation` hook.
+ * @template TData The type of data returned by the mutation.
+ * @template TPayload The type of the payload passed to the mutate function.
+ */
+export interface MutationResult<TData, TPayload> {
+  mutate: (payload: TPayload) => Promise<TData | undefined>
+  status: 'idle' | 'loading' | 'success' | 'error'
+  data: TData | null
+  error: Error | null
+  isLoading: boolean
+  isSuccess: boolean
+  isError: boolean
+}
