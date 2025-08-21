@@ -6,7 +6,7 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/publish.yml/badge.svg)
-![License](https://img.shields.io/github/license/marklearst/figma-react-hooks)
+![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-react-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-react-hooks)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)
