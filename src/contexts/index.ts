@@ -20,5 +20,6 @@
  */
 export {
   FigmaVarsProvider,
-  useFigmaTokenContext,
-} from 'contexts/FigmaVarsProvider'
+} from "contexts/FigmaVarsProvider";
+export { useFigmaTokenContext } from "./useFigmaTokenContext";
+export { FigmaTokenContext } from "./FigmaTokenContext";

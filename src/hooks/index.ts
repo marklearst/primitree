@@ -24,7 +24,7 @@
  *
  * @public
  */
-export { useVariables } from 'hooks/useVariables'
+export { useVariables } from "hooks/useVariables";
 /**
  * React hook to select and memoize variable collections from the loaded Figma variables data.
  *
@@ -39,7 +39,7 @@ export { useVariables } from 'hooks/useVariables'
  *
  * @public
  */
-export { useVariableCollections } from 'hooks/useVariableCollections'
+export { useVariableCollections } from "hooks/useVariableCollections";
 /**
  * React hook to select and memoize variable modes from the loaded Figma variables data.
  *
@@ -54,7 +54,7 @@ export { useVariableCollections } from 'hooks/useVariableCollections'
  *
  * @public
  */
-export { useVariableModes } from 'hooks/useVariableModes'
+export { useVariableModes } from "hooks/useVariableModes";
 /**
  * React hook to access the Figma Personal Access Token from context.
  *
@@ -69,7 +69,7 @@ export { useVariableModes } from 'hooks/useVariableModes'
  *
  * @public
  */
-export { default as useFigmaToken } from 'hooks/useFigmaToken'
+export { default as useFigmaToken } from "hooks/useFigmaToken";
 /**
  * React hook to create a new Figma variable in the current file.
  *
@@ -87,7 +87,7 @@ export { default as useFigmaToken } from 'hooks/useFigmaToken'
  *
  * @public
  */
-export { useCreateVariable } from 'hooks/useCreateVariable'
+export { useCreateVariable } from "hooks/useCreateVariable";
 /**
  * React hook to update an existing Figma variable by ID.
  *
@@ -105,7 +105,7 @@ export { useCreateVariable } from 'hooks/useCreateVariable'
  *
  * @public
  */
-export { useUpdateVariable } from 'hooks/useUpdateVariable'
+export { useUpdateVariable } from "hooks/useUpdateVariable";
 /**
  * React hook to delete a Figma variable by ID.
  *
@@ -123,7 +123,7 @@ export { useUpdateVariable } from 'hooks/useUpdateVariable'
  *
  * @public
  */
-export { useDeleteVariable } from 'hooks/useDeleteVariable'
+export { useDeleteVariable } from "hooks/useDeleteVariable";
 /**
  * React hook to perform a bulk update of multiple Figma variables in a single request.
  *
@@ -141,4 +141,4 @@ export { useDeleteVariable } from 'hooks/useDeleteVariable'
  *
  * @public
  */
-export { useBulkUpdateVariables } from 'hooks/useBulkUpdateVariables'
+export { useBulkUpdateVariables } from "hooks/useBulkUpdateVariables";

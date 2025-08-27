@@ -1,4 +1,4 @@
-import type { ResolvedType, VariableScope, VariableValue } from './figma'
+import type { ResolvedType, VariableScope, VariableValue } from "./figma";
 
 /**
  * Payload for creating a new Figma variable in a specific collection.
@@ -33,13 +33,13 @@ import type { ResolvedType, VariableScope, VariableValue } from './figma'
  * @public
  */
 export interface CreateVariablePayload {
-  name: string
-  variableCollectionId: string
-  resolvedType: ResolvedType
-  description?: string
-  hiddenFromPublishing?: boolean
-  scopes?: VariableScope[]
-  codeSyntax?: Record<string, string>
+  name: string;
+  variableCollectionId: string;
+  resolvedType: ResolvedType;
+  description?: string;
+  hiddenFromPublishing?: boolean;
+  scopes?: VariableScope[];
+  codeSyntax?: Record<string, string>;
 }
 
 /**
@@ -68,11 +68,11 @@ export interface CreateVariablePayload {
  * @public
  */
 export interface UpdateVariablePayload {
-  name?: string
-  description?: string
-  hiddenFromPublishing?: boolean
-  scopes?: VariableScope[]
-  codeSyntax?: Record<string, string>
+  name?: string;
+  description?: string;
+  hiddenFromPublishing?: boolean;
+  scopes?: VariableScope[];
+  codeSyntax?: Record<string, string>;
 }
 
 /**
@@ -83,7 +83,7 @@ export interface UpdateVariablePayload {
  *
  * @public
  */
-export type VariableAction = 'CREATE' | 'UPDATE' | 'DELETE'
+export type VariableAction = "CREATE" | "UPDATE" | "DELETE";
 
 /**
  * Represents a change operation on a Figma variable collection.
@@ -112,11 +112,11 @@ export type VariableAction = 'CREATE' | 'UPDATE' | 'DELETE'
  * @public
  */
 export interface VariableCollectionChange {
-  action: VariableAction
-  id: string
-  name?: string
-  initialModeId?: string
-  hiddenFromPublishing?: boolean
+  action: VariableAction;
+  id: string;
+  name?: string;
+  initialModeId?: string;
+  hiddenFromPublishing?: boolean;
 }
 
 /**
@@ -145,10 +145,10 @@ export interface VariableCollectionChange {
  * @public
  */
 export interface VariableModeChange {
-  action: VariableAction
-  id: string
-  name?: string
-  variableCollectionId: string
+  action: VariableAction;
+  id: string;
+  name?: string;
+  variableCollectionId: string;
 }
 
 /**
@@ -180,15 +180,15 @@ export interface VariableModeChange {
  * @public
  */
 export interface VariableChange {
-  action: VariableAction
-  id: string
-  name?: string
-  variableCollectionId?: string
-  resolvedType?: ResolvedType
-  description?: string
-  hiddenFromPublishing?: boolean
-  scopes?: VariableScope[]
-  codeSyntax?: Record<string, string>
+  action: VariableAction;
+  id: string;
+  name?: string;
+  variableCollectionId?: string;
+  resolvedType?: ResolvedType;
+  description?: string;
+  hiddenFromPublishing?: boolean;
+  scopes?: VariableScope[];
+  codeSyntax?: Record<string, string>;
 }
 
 /**
@@ -215,9 +215,9 @@ export interface VariableChange {
  * @public
  */
 export interface VariableModeValue {
-  variableId: string
-  modeId: string
-  value: VariableValue
+  variableId: string;
+  modeId: string;
+  value: VariableValue;
 }
 
 /**
@@ -246,10 +246,10 @@ export interface VariableModeValue {
  * @public
  */
 export interface BulkUpdatePayload {
-  variableCollections?: VariableCollectionChange[]
-  variableModes?: VariableModeChange[]
-  variables?: VariableChange[]
-  variableModeValues?: VariableModeValue[]
+  variableCollections?: VariableCollectionChange[];
+  variableModes?: VariableModeChange[];
+  variables?: VariableChange[];
+  variableModeValues?: VariableModeValue[];
 }
 
 /**
@@ -279,12 +279,12 @@ export interface BulkUpdatePayload {
  * @public
  */
 export interface BulkUpdateResponse {
-  error: boolean
-  status: number
-  message?: string
+  error: boolean;
+  status: number;
+  message?: string;
   meta?: {
-    tempIdToRealId: Record<string, string>
-  }
+    tempIdToRealId: Record<string, string>;
+  };
 }
 
 /**
@@ -298,9 +298,9 @@ export interface BulkUpdateResponse {
  * @public
  */
 export interface MutationState<TData> {
-  status: 'idle' | 'loading' | 'success' | 'error'
-  data: TData | null
-  error: Error | null
+  status: "idle" | "loading" | "success" | "error";
+  data: TData | null;
+  error: Error | null;
 }
 
 /**
@@ -315,11 +315,11 @@ export interface MutationState<TData> {
  * @public
  */
 export interface MutationResult<TData, TPayload> {
-  mutate: (payload: TPayload) => Promise<TData | undefined>
-  status: 'idle' | 'loading' | 'success' | 'error'
-  data: TData | null
-  error: Error | null
-  isLoading: boolean
-  isSuccess: boolean
-  isError: boolean
+  mutate: (payload: TPayload) => Promise<TData | undefined>;
+  status: "idle" | "loading" | "success" | "error";
+  data: TData | null;
+  error: Error | null;
+  isLoading: boolean;
+  isSuccess: boolean;
+  isError: boolean;
 }

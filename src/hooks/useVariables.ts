@@ -1,54 +1,27 @@
-import useSWR, { type SWRResponse } from 'swr'
-import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
-import { fetcher } from 'api/fetcher'
-import type { LocalVariablesResponse } from 'types'
-import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from 'constants/index'
+import useSWR from "swr";
+import { fetcher } from "api/fetcher";
+import type { LocalVariablesResponse } from "types/figma";
+import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
 
 /**
- * React hook that fetches all local variables, collections, and modes for the current Figma file via the Variables API.
+ * Hook to fetch and manage Figma Variables, including collections and modes.
  *
  * @remarks
- * Returns an object with SWR state for the Figma local variables endpoint, including:
- * - `data`: the variables response object (or undefined)
- * - `isLoading`: boolean loading state
- * - `isValidating`: boolean validation state
- * - `error`: error object (if any)
+ * This hook uses SWR for caching and revalidation. It fetches the variables for the
+ * file key provided via the FigmaVarsProvider context.
  *
- * Use this as the single source of truth for all variables, collections, and modes within the current file context.
- *
- * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
- *
- * @example
- * ```tsx
- * import { useVariables } from '@figma-vars/hooks';
- *
- * function VariablesPanel() {
- *   const { data, isLoading, error } = useVariables();
- *   if (isLoading) return <span>Loading variables…</span>;
- *   if (error) return <span style={{ color: 'red' }}>Error: {error.message}</span>;
- *   if (!data) return <span>No variables found.</span>;
- *   return <pre>{JSON.stringify(data, null, 2)}</pre>;
- * }
- * ```
+ * @returns SWR response object with `data`, `error`, `isLoading`, and `isValidating`.
  *
  * @public
  */
-export const useVariables = (): SWRResponse<LocalVariablesResponse> => {
-  const { token, fileKey } = useFigmaTokenContext()
+export const useVariables = () => {
+  const { token, fileKey } = useFigmaTokenContext();
 
-  const endpoint = fileKey ? FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey) : null
+  const url = token && fileKey ? `https://api.figma.com/v1/files/${fileKey}/variables/local` : null;
+  const swrResponse = useSWR<LocalVariablesResponse>(
+    url && token ? ([url, token] as const) : null,
+    url && token ? ([u, t]: readonly [string, string]) => fetcher<LocalVariablesResponse>(u, t) : () => Promise.resolve(undefined as unknown as LocalVariablesResponse),
+  );
 
-  const { data, error, isLoading, isValidating, mutate } =
-    useSWR<LocalVariablesResponse>(
-      token && endpoint ? [endpoint, token] : null,
-      fetcher
-    )
-
-  return {
-    data,
-    isLoading,
-    isValidating,
-    error,
-    mutate,
-  }
-}
+  return swrResponse;
+};

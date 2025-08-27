@@ -3,6 +3,7 @@
 
     "target": "ESNext",
     "useDefineForClassFields": true,
+    "verbatimModuleSyntax": true,
     "lib": [
       "ESNext",
       "DOM",
@@ -19,6 +20,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
@@ -61,6 +65,10 @@
   "include": [
     "src",
     "tests"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
   ],
   "references": [
     {

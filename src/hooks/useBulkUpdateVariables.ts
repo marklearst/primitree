@@ -1,70 +1,52 @@
-import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
-import { useMutation } from 'hooks/useMutation'
-import type { BulkUpdatePayload } from 'types/mutations'
+import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
+import { useMutation } from "hooks/useMutation";
+import type { BulkUpdatePayload } from "types/mutations";
 import {
   FIGMA_POST_VARIABLES_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from 'constants/index'
-import { mutator } from 'api/mutator'
+} from "constants/index";
+import { mutator } from "api/mutator";
 
 /**
  * React hook that performs a bulk update of multiple Figma variables in a single request via the Figma Variables API.
  *
  * @remarks
- * Returns a mutation object with status flags and error info.
- * Call `mutate(payload)` with a `BulkUpdatePayload` object to trigger the update—`payload` must include:
- * - `variableIds`: array of Figma variable IDs to update
- * - `variableCollectionId`: the collection context for the update
- * - `updates`: an object mapping variable IDs to their updated values or properties
- *
- * The hook throws if the Figma Personal Access Token (PAT) is missing from context.
- * Use for advanced workflows requiring atomic, multi-variable updates.
- *
- * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
+ * This hook is designed to perform a batch operation for creating, updating, and deleting variables, collections, and modes.
+ * It provides an ergonomic API with `mutate` and loading/error state for easy integration.
  *
  * @example
  * ```tsx
  * import { useBulkUpdateVariables } from '@figma-vars/hooks';
  *
- * function BulkUpdateComponent() {
- *   const { mutate, isLoading, isSuccess, error } = useBulkUpdateVariables();
+ * function BulkUpdateButton() {
+ *   const { mutate, isLoading, error } = useBulkUpdateVariables();
  *
  *   const handleBulkUpdate = () => {
  *     mutate({
- *       variableIds: ['VariableID:123:456', 'VariableID:123:457'],
- *       variableCollectionId: 'VariableCollectionId:123:456',
- *       updates: {
- *         'VariableID:123:456': { name: 'Primary Color Updated' },
- *         'VariableID:123:457': { name: 'Secondary Color Updated' }
- *       }
+ *       variables: [{ action: 'UPDATE', id: 'VariableId:123', name: 'new-name' }],
  *     });
  *   };
  *
- *   if (!mutate) return <div>Not authorized. Figma token missing.</div>;
- *   if (isLoading) return <div>Updating variables…</div>;
- *   if (error) return <div style={{ color: 'red' }}>Error: {error.message}</div>;
- *   if (isSuccess) return <div>Variables updated successfully!</div>;
- *
- *   return <button onClick={handleBulkUpdate}>Update All Variables</button>;
+ *   if (isLoading) return <div>Updating...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *   return <button onClick={handleBulkUpdate}>Bulk Update</button>;
  * }
  * ```
  *
  * @public
  */
 export const useBulkUpdateVariables = () => {
-  const { token } = useFigmaTokenContext()
-
+  const { token } = useFigmaTokenContext();
   const mutation = useMutation(async (payload: BulkUpdatePayload) => {
     if (!token) {
-      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED);
     }
     return await mutator(
       FIGMA_POST_VARIABLES_ENDPOINT,
       token,
-      'CREATE',
-      payload as unknown as Record<string, unknown>
-    )
-  })
-
-  return mutation
-}
+      "CREATE",
+      payload as unknown as Record<string, unknown>,
+    );
+  });
+  return mutation;
+};

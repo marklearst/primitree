@@ -11,7 +11,7 @@
  *
  * @public
  */
-export type ResolvedType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'COLOR'
+export type ResolvedType = "BOOLEAN" | "FLOAT" | "STRING" | "COLOR";
 
 /**
  * Enum of all valid Figma variable scopes.
@@ -28,29 +28,29 @@ export type ResolvedType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'COLOR'
  * @public
  */
 export type VariableScope =
-  | 'ALL_SCOPES'
-  | 'TEXT_CONTENT'
-  | 'CORNER_RADIUS'
-  | 'WIDTH_HEIGHT'
-  | 'GAP'
-  | 'STROKE_FLOAT'
-  | 'OPACITY'
-  | 'EFFECT_FLOAT'
-  | 'FONT_WEIGHT'
-  | 'FONT_SIZE'
-  | 'LINE_HEIGHT'
-  | 'LETTER_SPACING'
-  | 'PARAGRAPH_SPACING'
-  | 'PARAGRAPH_INDENT'
-  | 'FONT_FAMILY'
-  | 'FONT_STYLE'
-  | 'FONT_VARIATIONS'
-  | 'ALL_FILLS'
-  | 'FRAME_FILL'
-  | 'SHAPE_FILL'
-  | 'TEXT_FILL'
-  | 'STROKE_COLOR'
-  | 'EFFECT_COLOR'
+  | "ALL_SCOPES"
+  | "TEXT_CONTENT"
+  | "CORNER_RADIUS"
+  | "WIDTH_HEIGHT"
+  | "GAP"
+  | "STROKE_FLOAT"
+  | "OPACITY"
+  | "EFFECT_FLOAT"
+  | "FONT_WEIGHT"
+  | "FONT_SIZE"
+  | "LINE_HEIGHT"
+  | "LETTER_SPACING"
+  | "PARAGRAPH_SPACING"
+  | "PARAGRAPH_INDENT"
+  | "FONT_FAMILY"
+  | "FONT_STYLE"
+  | "FONT_VARIATIONS"
+  | "ALL_FILLS"
+  | "FRAME_FILL"
+  | "SHAPE_FILL"
+  | "TEXT_FILL"
+  | "STROKE_COLOR"
+  | "EFFECT_COLOR";
 
 /**
  * RGBA color value used by Figma variables of type COLOR.
@@ -68,13 +68,13 @@ export type VariableScope =
  */
 export interface Color {
   /** Red channel, 0–1 */
-  r: number
+  r: number;
   /** Green channel, 0–1 */
-  g: number
+  g: number;
   /** Blue channel, 0–1 */
-  b: number
+  b: number;
   /** Alpha channel, 0–1 (opacity) */
-  a: number
+  a: number;
 }
 
 /**
@@ -92,9 +92,9 @@ export interface Color {
  */
 export interface VariableAlias {
   /** Type identifier for variable alias objects. Always 'VARIABLE_ALIAS'. */
-  type: 'VARIABLE_ALIAS'
+  type: "VARIABLE_ALIAS";
   /** The referenced variable's Figma variable ID. */
-  id: string
+  id: string;
 }
 
 /**
@@ -106,7 +106,7 @@ export interface VariableAlias {
  *
  * @public
  */
-export type VariableValue = string | boolean | number | Color | VariableAlias
+export type VariableValue = string | boolean | number | Color | VariableAlias;
 
 /**
  * Model of a single Figma variable, including metadata, values by mode, and collection info.
@@ -144,16 +144,16 @@ export type VariableValue = string | boolean | number | Color | VariableAlias
  * @public
  */
 export interface FigmaVariable {
-  id: string
-  name: string
-  variableCollectionId: string
-  resolvedType: ResolvedType
-  valuesByMode: Record<string, VariableValue>
-  description: string
-  hiddenFromPublishing: boolean
-  scopes: VariableScope[]
-  codeSyntax: Record<string, string>
-  updatedAt: string
+  id: string;
+  name: string;
+  variableCollectionId: string;
+  resolvedType: ResolvedType;
+  valuesByMode: Record<string, VariableValue>;
+  description: string;
+  hiddenFromPublishing: boolean;
+  scopes: VariableScope[];
+  codeSyntax: Record<string, string>;
+  updatedAt: string;
 }
 
 /**
@@ -172,9 +172,9 @@ export interface FigmaVariable {
  */
 export interface VariableMode {
   /** Unique mode ID */
-  modeId: string
+  modeId: string;
   /** Human-readable mode name */
-  name: string
+  name: string;
 }
 
 /**
@@ -207,13 +207,13 @@ export interface VariableMode {
  * @public
  */
 export interface FigmaCollection {
-  id: string
-  name: string
-  modes: VariableMode[]
-  defaultModeId: string
-  variableIds: string[]
-  hiddenFromPublishing: boolean
-  updatedAt: string
+  id: string;
+  name: string;
+  modes: VariableMode[];
+  defaultModeId: string;
+  variableIds: string[];
+  hiddenFromPublishing: boolean;
+  updatedAt: string;
 }
 
 /**
@@ -242,10 +242,10 @@ export interface FigmaCollection {
 export interface LocalVariablesResponse {
   meta: {
     /** Map of collection IDs to FigmaCollection objects. */
-    variableCollections: Record<string, FigmaCollection>
+    variableCollections: Record<string, FigmaCollection>;
     /** Map of variable IDs to FigmaVariable objects. */
-    variables: Record<string, FigmaVariable>
-  }
+    variables: Record<string, FigmaVariable>;
+  };
 }
 
 /**
@@ -270,7 +270,7 @@ export interface LocalVariablesResponse {
  */
 export interface FigmaError {
   /** HTTP status code returned by the Figma API. */
-  statusCode: number
+  statusCode: number;
   /** Human-readable error message describing the failure. */
-  message: string
+  message: string;
 }

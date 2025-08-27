@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

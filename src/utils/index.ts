@@ -18,4 +18,4 @@
  *
  * @public
  */
-export { filterVariables } from 'utils/filterVariables'
+export { filterVariables } from "utils/filterVariables";

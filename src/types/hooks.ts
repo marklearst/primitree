@@ -1,5 +1,5 @@
-import type { VariableMode } from './figma'
-import type { UpdateVariablePayload } from './mutations'
+import type { VariableMode } from "./figma";
+import type { UpdateVariablePayload } from "./mutations";
 
 /**
  * Arguments for updating a Figma variable via the useUpdateVariable hook.
@@ -25,9 +25,9 @@ import type { UpdateVariablePayload } from './mutations'
  */
 export interface UpdateVariableArgs {
   /** The unique Figma variable ID to update. */
-  variableId: string
+  variableId: string;
   /** The payload object with updated properties for the variable. */
-  payload: UpdateVariablePayload
+  payload: UpdateVariablePayload;
 }
 
 /**
@@ -61,9 +61,9 @@ export interface UpdateVariableArgs {
  */
 export interface UseVariableModesResult {
   /** Flat array of all VariableMode objects in the file. */
-  modes: VariableMode[]
+  modes: VariableMode[];
   /** Lookup map of collection IDs to arrays of VariableMode objects. */
-  modesByCollectionId: Record<string, VariableMode[]>
+  modesByCollectionId: Record<string, VariableMode[]>;
   /** Lookup map of mode IDs to VariableMode objects. */
-  modesById: Record<string, VariableMode>
+  modesById: Record<string, VariableMode>;
 }

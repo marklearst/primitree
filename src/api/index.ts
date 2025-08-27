@@ -21,5 +21,5 @@
  *
  * @public
  */
-export { fetcher } from 'api/fetcher'
-export { mutator } from 'api/mutator'
+export { fetcher } from "api/fetcher";
+export { mutator } from "api/mutator";
