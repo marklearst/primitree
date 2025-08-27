@@ -1,14 +1,9 @@
 {
   "compilerOptions": {
-
     "target": "ESNext",
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true,
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -28,48 +23,20 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": "./src",
     "paths": {
-      "api/*": [
-        "api/*"
-      ],
-      "mutations/*": [
-        "mutations/*"
-      ],
-      "experimental/*": [
-        "experimental/*"
-      ],
-      "constants/*": [
-        "constants/*"
-      ],
-      "contexts/*": [
-        "contexts/*"
-      ],
-      "hooks/*": [
-        "hooks/*"
-      ],
-      "mocks/*": [
-        "../tests/mocks/*"
-      ],
-      "types/*": [
-        "types/*"
-      ],
-      "utils/*": [
-        "utils/*"
-      ]
+      "api/*": ["api/*"],
+      "mutations/*": ["mutations/*"],
+      "experimental/*": ["experimental/*"],
+      "constants/*": ["constants/*"],
+      "contexts/*": ["contexts/*"],
+      "hooks/*": ["hooks/*"],
+      "mocks/*": ["../tests/mocks/*"],
+      "types/*": ["types/*"],
+      "utils/*": ["utils/*"]
     },
-    "types": [
-      "vitest",
-      "vitest/globals",
-      "node"
-    ]
+    "types": ["vitest", "vitest/globals", "node"]
   },
-  "include": [
-    "src",
-    "tests"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules"
-  ],
+  "include": ["src", "tests"],
+  "exclude": ["dist", "node_modules"],
   "references": [
     {
       "path": "./tsconfig.node.json"

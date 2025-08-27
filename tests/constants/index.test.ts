@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest'
 import {
   FIGMA_API_BASE_URL,
   FIGMA_FILES_ENDPOINT,
@@ -15,73 +15,83 @@ import {
   ERROR_MSG_DELETE_VARIABLE_FAILED,
   ERROR_MSG_UPDATE_VARIABLE_FAILED,
   ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
-} from "../../src/constants/index";
+} from '../../src/constants/index'
 
-describe("constants", () => {
-  describe("API URLs", () => {
-    it("should have correct base URL", () => {
-      expect(FIGMA_API_BASE_URL).toBe("https://api.figma.com");
-    });
+describe('constants', () => {
+  describe('API URLs', () => {
+    it('should have correct base URL', () => {
+      expect(FIGMA_API_BASE_URL).toBe('https://api.figma.com')
+    })
 
-    it("should have correct files endpoint", () => {
-      expect(FIGMA_FILES_ENDPOINT).toBe("https://api.figma.com/v1/files");
-    });
+    it('should have correct files endpoint', () => {
+      expect(FIGMA_FILES_ENDPOINT).toBe('https://api.figma.com/v1/files')
+    })
 
-    it("should generate correct variables endpoint", () => {
-      const fileKey = "test-file-key";
+    it('should generate correct variables endpoint', () => {
+      const fileKey = 'test-file-key'
       expect(FIGMA_VARIABLES_ENDPOINT(fileKey)).toBe(
-        "https://api.figma.com/v1/files/test-file-key/variables",
-      );
-    });
+        'https://api.figma.com/v1/files/test-file-key/variables'
+      )
+    })
 
-    it("should have correct post variables endpoint", () => {
-      expect(FIGMA_POST_VARIABLES_ENDPOINT).toBe("https://api.figma.com/v1/variables");
-    });
+    it('should have correct post variables endpoint', () => {
+      expect(FIGMA_POST_VARIABLES_ENDPOINT).toBe(
+        'https://api.figma.com/v1/variables'
+      )
+    })
 
-    it("should generate correct variable by ID endpoint", () => {
-      const variableId = "test-variable-id";
+    it('should generate correct variable by ID endpoint', () => {
+      const variableId = 'test-variable-id'
       expect(FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)).toBe(
-        "https://api.figma.com/v1/variables/test-variable-id",
-      );
-    });
+        'https://api.figma.com/v1/variables/test-variable-id'
+      )
+    })
 
-    it("should generate correct local variables endpoint", () => {
-      const fileKey = "test-file-key";
+    it('should generate correct local variables endpoint', () => {
+      const fileKey = 'test-file-key'
       expect(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey)).toBe(
-        "https://api.figma.com/v1/files/test-file-key/variables/local",
-      );
-    });
-  });
+        'https://api.figma.com/v1/files/test-file-key/variables/local'
+      )
+    })
+  })
 
-  describe("Headers", () => {
-    it("should have correct content type", () => {
-      expect(CONTENT_TYPE_JSON).toBe("application/json");
-    });
+  describe('Headers', () => {
+    it('should have correct content type', () => {
+      expect(CONTENT_TYPE_JSON).toBe('application/json')
+    })
 
-    it("should have correct Figma token header", () => {
-      expect(FIGMA_TOKEN_HEADER).toBe("X-FIGMA-TOKEN");
-    });
-  });
+    it('should have correct Figma token header', () => {
+      expect(FIGMA_TOKEN_HEADER).toBe('X-FIGMA-TOKEN')
+    })
+  })
 
-  describe("Error Messages", () => {
-    it("should have correct auth error messages", () => {
-      expect(ERROR_MSG_TOKEN_REQUIRED).toBe("A Figma API token is required.");
+  describe('Error Messages', () => {
+    it('should have correct auth error messages', () => {
+      expect(ERROR_MSG_TOKEN_REQUIRED).toBe('A Figma API token is required.')
       expect(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED).toBe(
-        "A Figma API token is required. and file key are required.",
-      );
-    });
+        'A Figma API token is required. and file key are required.'
+      )
+    })
 
-    it("should have correct mutation error messages", () => {
-      expect(ERROR_MSG_BULK_UPDATE_FAILED).toBe("Failed to perform bulk update.");
-      expect(ERROR_MSG_CREATE_VARIABLE_FAILED).toBe("Failed to create Figma variable.");
-      expect(ERROR_MSG_DELETE_VARIABLE_FAILED).toBe("Failed to delete Figma variable.");
-      expect(ERROR_MSG_UPDATE_VARIABLE_FAILED).toBe("Failed to update Figma variable.");
-    });
+    it('should have correct mutation error messages', () => {
+      expect(ERROR_MSG_BULK_UPDATE_FAILED).toBe(
+        'Failed to perform bulk update.'
+      )
+      expect(ERROR_MSG_CREATE_VARIABLE_FAILED).toBe(
+        'Failed to create Figma variable.'
+      )
+      expect(ERROR_MSG_DELETE_VARIABLE_FAILED).toBe(
+        'Failed to delete Figma variable.'
+      )
+      expect(ERROR_MSG_UPDATE_VARIABLE_FAILED).toBe(
+        'Failed to update Figma variable.'
+      )
+    })
 
-    it("should have correct fetch error message", () => {
+    it('should have correct fetch error message', () => {
       expect(ERROR_MSG_FETCH_FIGMA_DATA_FAILED).toBe(
-        "An error occurred while fetching data from the Figma API.",
-      );
-    });
-  });
-});
+        'An error occurred while fetching data from the Figma API.'
+      )
+    })
+  })
+})

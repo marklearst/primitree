@@ -15,17 +15,16 @@ export default defineConfig({
       insertTypesEntry: true,
       tsconfigPath: 'tsconfig.build.json',
       outDir: 'dist',
-      declarationMap: true,
       include: ['src/**/*'],
-      exclude: ['tests/**/*', 'src/**/*.test.ts', 'src/**/*.test.tsx']
-    })
+      exclude: ['tests/**/*', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    }),
   ],
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: '@figma-vars/hooks',
-      fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
-      formats: ['es', 'cjs']
+      fileName: format => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime', 'swr'],

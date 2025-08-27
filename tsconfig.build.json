@@ -9,15 +9,6 @@
     "rootDir": "src",
     "stripInternal": true
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "tests",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "dist",
-    "node_modules"
-  ]
+  "include": ["src"],
+  "exclude": ["tests", "**/*.test.ts", "**/*.test.tsx", "dist", "node_modules"]
 }
-

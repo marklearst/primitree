@@ -1,0 +1,25 @@
+# Build outputs
+dist/
+coverage/
+node_modules/
+
+# Generated files
+*.d.ts
+*.d.ts.map
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Environment files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
