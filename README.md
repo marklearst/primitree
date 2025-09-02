@@ -1,6 +1,6 @@
 # @figma-vars/hooks
 
-A fast, typed React 19 hooks library for the Figma Variables API—fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
+A fast, typed React 19 hooks library for the Figma Variables API: fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
 
 Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
