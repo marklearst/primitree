@@ -17,6 +17,9 @@
     "baseUrl": "./src",
     "noEmit": true,
     "jsx": "react-jsx",
+    "types": [
+      "vitest/globals"
+    ],
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -38,10 +41,21 @@
       ],
       "constants/*": [
         "constants/*"
+      ],
+      "contexts/*": [
+        "contexts/*"
+      ],
+      "api/*": [
+        "api/*"
+      ],
+      "tests/*": [
+        "tests/*"
       ]
     }
   },
   "include": [
-    "src"
+    "src",
+    "tests",
+    "vite.config.ts"
   ]
 }
