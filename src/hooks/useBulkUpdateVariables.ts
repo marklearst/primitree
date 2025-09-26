@@ -13,31 +13,66 @@ import { mutator } from 'api/mutator'
  * This hook provides a stateful API to perform a bulk update, returning the mutation's
  * current state including `isLoading`, `isSuccess`, and `isError`.
  *
- * @returns {object} The mutation object.
- * @property {Function} mutate - The function to trigger the bulk update. It takes the bulk update payload as an argument.
- * @property {boolean} isLoading - True if the mutation is currently in flight.
- * @property {boolean} isSuccess - True if the mutation has completed successfully.
- * @property {boolean} isError - True if the mutation has failed.
- * @property {object} data - The data returned from the successful mutation.
- * @property {Error} error - The error object if the mutation fails.
+ * @function useBulkUpdateVariables
+ * @memberof Hooks
+ * @since 1.0.0
+ * @returns {MutationResult<any, BulkUpdatePayload>} The mutation object with state and trigger function.
+ * @see {@link https://www.figma.com/developers/api#post-variables|Figma Variables API - Bulk Update Variables}
+ * @see {@link useMutation} - The underlying mutation hook
  *
  * @example
  * ```tsx
- * const { mutate, isLoading } = useBulkUpdateVariables();
+ * import { useBulkUpdateVariables } from '@figma-vars/hooks';
  *
- * const handleBulkUpdate = () => {
- *   mutate({
- *     variableIds: ["VariableID:1:2", "VariableID:1:3"],
- *     variableCollectionId: "VariableCollectionId:1:1",
- *     valuesByMode: { "2:1": { r: 0, g: 0, b: 1, a: 1 } }
- *   });
- * };
+ * function BulkVariableEditor() {
+ *   const { mutate, isLoading, isSuccess, error } = useBulkUpdateVariables();
  *
- * return (
- *   <button onClick={handleBulkUpdate} disabled={isLoading}>
- *     {isLoading ? 'Updating all...' : 'Bulk Update Variables'}
- *   </button>
- * );
+ *   const handleBulkUpdate = () => {
+ *     mutate({
+ *       variableIds: ['VariableID:123:456', 'VariableID:123:457'],
+ *       variableCollectionId: 'VariableCollectionId:123:456',
+ *       updates: {
+ *         'VariableID:123:456': {
+ *           name: 'Primary Color Updated',
+ *           description: 'Updated primary brand color'
+ *         },
+ *         'VariableID:123:457': {
+ *           name: 'Secondary Color Updated',
+ *           description: 'Updated secondary brand color'
+ *         }
+ *       }
+ *     });
+ *   };
+ *
+ *   if (isLoading) return <div>Updating variables...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isSuccess) return <div>Variables updated successfully!</div>;
+ *
+ *   return <button onClick={handleBulkUpdate}>Update All Variables</button>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Bulk update color variables with new values
+ * const { mutate } = useBulkUpdateVariables();
+ * 
+ * mutate({
+ *   variableIds: ['VariableID:123:456', 'VariableID:123:457'],
+ *   variableCollectionId: 'VariableCollectionId:123:456',
+ *   updates: {
+ *     'VariableID:123:456': {
+ *       valuesByMode: {
+ *         '42:0': { r: 0.2, g: 0.4, b: 0.8, a: 1 }
+ *       }
+ *     },
+ *     'VariableID:123:457': {
+ *       valuesByMode: {
+ *         '42:0': { r: 0.8, g: 0.4, b: 0.2, a: 1 }
+ *       }
+ *     }
+ *   }
+ * });
  * ```
  */
 export const useBulkUpdateVariables = () => {
