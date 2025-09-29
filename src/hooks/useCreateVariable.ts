@@ -13,40 +13,62 @@ import { mutator } from 'api/mutator'
  * This hook provides a stateful API to create a new variable, returning the mutation's
  * current state including `isLoading`, `isSuccess`, `isError`, and the created data.
  *
- * @returns {object} The mutation object.
- * @property {Function} mutate - The function to trigger the variable creation. It takes the variable payload as an argument.
- * @property {boolean} isLoading - True if the mutation is currently in flight.
- * @property {boolean} isSuccess - True if the mutation has completed successfully.
- * @property {boolean} isError - True if the mutation has failed.
- * @property {object} data - The data returned from the successful mutation.
- * @property {Error} error - The error object if the mutation fails.
+ * @function useCreateVariable
+ * @memberof Hooks
+ * @since 1.0.0
+ * @returns {MutationResult<any, CreateVariablePayload>} The mutation object with state and trigger function.
+ * @see {@link https://www.figma.com/developers/api#post-variables|Figma Variables API - Create Variable}
+ * @see {@link useMutation} - The underlying mutation hook
  *
  * @example
  * ```tsx
- * const { mutate, isLoading, isSuccess } = useCreateVariable();
+ * import { useCreateVariable } from '@figma-vars/hooks';
  *
- * const handleCreate = () => {
- *   mutate({
- *     name: "new-brand-color",
- *     collectionId: "VariableCollectionId:1:1",
- *     resolvedType: "COLOR",
- *     valuesByMode: { "2:1": { r: 1, g: 0, b: 0, a: 1 } }
- *   });
- * };
+ * function VariableCreator() {
+ *   const { mutate, isLoading, isSuccess, error, data } = useCreateVariable();
  *
- * return (
- *   <button onClick={handleCreate} disabled={isLoading}>
- *     {isLoading ? 'Creating...' : 'Create Variable'}
- *   </button>
- * );
+ *   const handleCreate = () => {
+ *     mutate({
+ *       name: 'Primary Color',
+ *       variableCollectionId: 'VariableCollectionId:123:456',
+ *       resolvedType: 'COLOR',
+ *       valuesByMode: {
+ *         '42:0': { r: 0.2, g: 0.4, b: 0.8, a: 1 }
+ *       }
+ *     });
+ *   };
+ *
+ *   if (isLoading) return <div>Creating variable...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isSuccess) return <div>Variable created: {data?.name}</div>;
+ *
+ *   return <button onClick={handleCreate}>Create Variable</button>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Create a string variable
+ * const { mutate } = useCreateVariable();
+ * 
+ * mutate({
+ *   name: 'Button Text',
+ *   variableCollectionId: 'VariableCollectionId:123:456',
+ *   resolvedType: 'STRING',
+ *   description: 'Default button text content',
+ *   valuesByMode: {
+ *     '42:0': 'Click me'
+ *   },
+ *   scopes: ['TEXT_CONTENT']
+ * });
  * ```
  */
 export const useCreateVariable = () => {
   const { token } = useFigmaTokenContext()
+  if (!token) {
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+  }
   const mutation = useMutation(async (payload: CreateVariablePayload) => {
-    if (!token) {
-      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
-    }
     return await mutator<any>(
       FIGMA_POST_VARIABLES_ENDPOINT,
       token,
