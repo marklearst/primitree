@@ -3,7 +3,7 @@ import type { MutationState, MutationResult } from 'types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
-function mutationReducer<TData>(
+export function mutationReducer<TData>(
   state: MutationState<TData>,
   action: { type: MutationStatus; payload?: TData | Error }
 ): MutationState<TData> {
@@ -25,8 +25,10 @@ function mutationReducer<TData>(
  * This hook is not meant to be used directly by consumers of the library.
  * Instead, specific mutation hooks (e.g., `useCreateVariable`) are built upon it.
  *
- * @param mutationFn The async function that performs the mutation.
- * @returns An object with the mutation state and functions to trigger it.
+ * @template TData - The type of data returned by the mutation
+ * @template TPayload - The type of payload passed to the mutation function
+ * @param {(payload: TPayload) => Promise<TData>} mutationFn - The async function that performs the mutation.
+ * @returns {MutationResult<TData, TPayload>} An object with the mutation state and functions to trigger it.
  */
 export const useMutation = <TData = unknown, TPayload = unknown>(
   mutationFn: (payload: TPayload) => Promise<TData>
@@ -45,9 +47,8 @@ export const useMutation = <TData = unknown, TPayload = unknown>(
         const result = await mutationFn(payload)
         dispatch({ type: 'success', payload: result })
         return result
-      } catch (e) {
-        dispatch({ type: 'error', payload: e as Error })
-        // We return undefined because the caller can use the `isError` flag
+      } catch (err) {
+        dispatch({ type: 'error', payload: err as Error })
         return undefined
       }
     },
