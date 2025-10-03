@@ -15,32 +15,53 @@ type UpdateVariableArgs = {
  * This hook provides a stateful API to update a variable, returning the mutation's
  * current state including `isLoading`, `isSuccess`, `isError`, and the updated data.
  *
- * @returns {object} The mutation object.
- * @property {Function} mutate - The function to trigger the variable update. It takes the variable payload as an argument.
- * @property {boolean} isLoading - True if the mutation is currently in flight.
- * @property {boolean} isSuccess - True if the mutation has completed successfully.
- * @property {boolean} isError - True if the mutation has failed.
- * @property {object} data - The data returned from the successful mutation.
- * @property {Error} error - The error object if the mutation fails.
+ * @function useUpdateVariable
+ * @memberof Hooks
+ * @since 1.0.0
+ * @returns {MutationResult<any, UpdateVariableArgs>} The mutation object with state and trigger function.
+ * @see {@link https://www.figma.com/developers/api#put-variables|Figma Variables API - Update Variable}
+ * @see {@link useMutation} - The underlying mutation hook
  *
  * @example
  * ```tsx
- * const { mutate, isLoading } = useUpdateVariable();
+ * import { useUpdateVariable } from '@figma-vars/hooks';
  *
- * const handleUpdate = () => {
- *   mutate({
- *     id: "VariableID:1:2",
- *     name: "updated-brand-color",
- *     resolvedType: "COLOR",
- *     valuesByMode: { "2:1": { r: 0, g: 1, b: 0, a: 1 } }
- *   });
- * };
+ * function VariableEditor() {
+ *   const { mutate, isLoading, isSuccess, error } = useUpdateVariable();
  *
- * return (
- *   <button onClick={handleUpdate} disabled={isLoading}>
- *     {isLoading ? 'Updating...' : 'Update Variable'}
- *   </button>
- * );
+ *   const handleUpdate = () => {
+ *     mutate({
+ *       variableId: 'VariableID:123:456',
+ *       payload: {
+ *         name: 'Updated Variable Name',
+ *         description: 'Updated description'
+ *       }
+ *     });
+ *   };
+ *
+ *   if (isLoading) return <div>Updating variable...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isSuccess) return <div>Variable updated successfully!</div>;
+ *
+ *   return <button onClick={handleUpdate}>Update Variable</button>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Update variable with new values
+ * const { mutate } = useUpdateVariable();
+ * 
+ * mutate({
+ *   variableId: 'VariableID:123:456',
+ *   payload: {
+ *     name: 'Primary Color',
+ *     description: 'Main brand color',
+ *     valuesByMode: {
+ *       '42:0': { r: 0.2, g: 0.4, b: 0.8, a: 1 }
+ *     }
+ *   }
+ * });
  * ```
  */
 export const useUpdateVariable = () => {
