@@ -3,17 +3,23 @@ import type { LocalVariablesResponse } from '../../src/types'
 export const mockVariablesResponse: LocalVariablesResponse = {
   meta: {
     variableCollections: {
-      'VariableCollectionId:1:1': {
-        id: 'VariableCollectionId:1:1',
-        name: 'Brand Colors',
-        modes: [
-          { modeId: '1:0', name: 'Light' },
-          { modeId: '1:1', name: 'Dark' },
-        ],
-        defaultModeId: '1:0',
-        variableIds: ['VariableID:1:1', 'VariableID:1:2'],
+      'VariableCollectionId:123:456': {
+        id: 'VariableCollectionId:123:456',
+        name: 'Test Collection 1',
+        modes: [{ modeId: '1:1', name: 'Mode 1' }],
+        defaultModeId: '1:1',
         hiddenFromPublishing: false,
         updatedAt: '2024-01-01T00:00:00Z',
+        variableIds: ['VariableId:123:789'],
+      },
+      'VariableCollectionId:123:457': {
+        id: 'VariableCollectionId:123:457',
+        name: 'Test Collection 2',
+        modes: [{ modeId: '2:1', name: 'Mode A' }],
+        defaultModeId: '2:1',
+        hiddenFromPublishing: true,
+        updatedAt: '2024-01-01T00:00:00Z',
+        variableIds: ['VariableId:123:790'],
       },
     },
     variables: {
