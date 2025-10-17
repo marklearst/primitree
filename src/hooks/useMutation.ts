@@ -30,7 +30,7 @@ export function mutationReducer<TData>(
  * @param {(payload: TPayload) => Promise<TData>} mutationFn - The async function that performs the mutation.
  * @returns {MutationResult<TData, TPayload>} An object with the mutation state and functions to trigger it.
  */
-export const useMutation = <TData = unknown, TPayload = unknown>(
+export const useMutation = <TData, TPayload>(
   mutationFn: (payload: TPayload) => Promise<TData>
 ): MutationResult<TData, TPayload> => {
   const initialState: MutationState<TData> = {
@@ -38,7 +38,7 @@ export const useMutation = <TData = unknown, TPayload = unknown>(
     data: null,
     error: null,
   }
-  const [state, dispatch] = useReducer(mutationReducer, initialState)
+  const [state, dispatch] = useReducer(mutationReducer<TData>, initialState)
 
   const mutate = useCallback(
     async (payload: TPayload) => {
