@@ -4,11 +4,10 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import dts from 'vite-plugin-dts'
-import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), viteTsconfigPaths(), dts({ rollupTypes: true })],
+  plugins: [react(), dts({ rollupTypes: true })],
   resolve: {
     alias: {
       api: resolve(__dirname, './src/api'),
