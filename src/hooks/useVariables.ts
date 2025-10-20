@@ -1,8 +1,8 @@
 import useSWR from 'swr'
-import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
-import { fetcher } from 'api/fetcher'
-import type { LocalVariablesResponse } from 'types'
-import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from 'constants/index'
+import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
+import { fetcher } from '../api/fetcher'
+import type { LocalVariablesResponse } from '../types'
+import { FIGMA_LOCAL_VARIABLES_ENDPOINT } from '../constants/index'
 
 /**
  * Fetches all local variables, collections, and modes for the file specified in the `FigmaVarsProvider`.

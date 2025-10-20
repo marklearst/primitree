@@ -1,4 +1,4 @@
-import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
 
 /**
  * Retrieves the Figma API token from the FigmaVarsProvider.
@@ -13,7 +13,7 @@ import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
  *
  * @example
  * ```tsx
- * import { useFigmaToken } from '@figma-vars/hooks';
+ * import { useFigmaToken } from './useFigmaToken';
  *
  * function CustomAPIComponent() {
  *   const figmaToken = useFigmaToken();

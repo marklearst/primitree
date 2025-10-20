@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react'
-import type { MutationState, MutationResult } from 'types/mutations'
+import type { MutationState, MutationResult } from '../types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
