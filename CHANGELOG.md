@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.3.2] - 2025-06-22
+
+### 🔧 Fixed
+
+- **build**: Implement proper path alias resolution using `vite-tsconfig-paths` plugin
+- **refactor**: Revert all internal imports from relative paths (`./`) to clean bare imports (`contexts/`, `hooks/`, etc.)
+- **ci**: Ensure consistent build behavior across local and CI environments
+- **docs**: Clean up code formatting and documentation examples throughout codebase
+
+### 🧹 Housekeeping
+
+- **config**: Replace manual alias configuration with `vite-tsconfig-paths` plugin in `vite.config.ts`
+- **imports**: Update all 15+ files to use path aliases consistently with `tsconfig.json` configuration
+- **maintenance**: Achieve zero relative imports in `src` directory for cleaner, more maintainable code
+
+## [1.3.1] - 2025-06-22
+
+### 🔧 Fixed
+
+- **build**: Resolve Vite/Rollup path alias resolution errors causing CI build failures
+- **ci**: Fix GitHub Actions build issues with import resolution in Linux environment
+- **imports**: Convert problematic bare imports to relative imports as temporary workaround
+- **test**: Configure Vitest setup with proper `@testing-library/jest-dom` integration
+
+### 🧹 Housekeeping
+
+- **ci**: Add debug steps to GitHub Actions workflow for better troubleshooting
+- **config**: Consolidate test configuration in `vite.config.ts` and remove separate `vitest.config.ts`
+- **deps**: Ensure proper Vitest and testing library dependency alignment
+
 ## [1.2.0] - 2024-08-02
 
 ### 🧹 Housekeeping
