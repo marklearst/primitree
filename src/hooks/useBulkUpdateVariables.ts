@@ -1,11 +1,11 @@
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
-import { useMutation } from './useMutation'
-import type { BulkUpdatePayload } from '../types/mutations'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
+import type { BulkUpdatePayload } from 'types/mutations'
 import {
   FIGMA_POST_VARIABLES_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from '../constants/index'
-import { mutator } from '../api/mutator'
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * Updates multiple variables in the Figma file in a single request.
@@ -56,7 +56,7 @@ import { mutator } from '../api/mutator'
  * ```tsx
  * // Bulk update color variables with new values
  * const { mutate } = useBulkUpdateVariables();
- * 
+ *
  * mutate({
  *   variableIds: ['VariableID:123:456', 'VariableID:123:457'],
  *   variableCollectionId: 'VariableCollectionId:123:456',

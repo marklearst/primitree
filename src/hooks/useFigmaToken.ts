@@ -1,4 +1,4 @@
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
 
 /**
  * Retrieves the Figma API token from the FigmaVarsProvider.
@@ -13,17 +13,17 @@ import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
  *
  * @example
  * ```tsx
- * import { useFigmaToken } from './useFigmaToken';
+ * import { useFigmaToken } from '@figma-vars/hooks';
  *
  * function CustomAPIComponent() {
  *   const figmaToken = useFigmaToken();
- *   
+ *
  *   const makeCustomAPICall = async () => {
  *     if (!figmaToken) {
  *       console.error('No Figma token available');
  *       return;
  *     }
- *     
+ *
  *     // Use token for custom API calls
  *     const response = await fetch('https://api.figma.com/v1/me', {
  *       headers: {
@@ -45,11 +45,11 @@ import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
  * // Check token availability before making API calls
  * const MyComponent = () => {
  *   const figmaToken = useFigmaToken();
- *   
+ *
  *   if (!figmaToken) {
  *     return <div>Please provide a Figma token</div>;
  *   }
- *   
+ *
  *   return <div>Ready to interact with Figma API</div>;
  * };
  * ```

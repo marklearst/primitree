@@ -1,8 +1,8 @@
-import { useFigmaTokenContext } from '../contexts/FigmaVarsProvider'
-import { useMutation } from './useMutation'
-import type { UpdateVariablePayload } from '../types/mutations'
-import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from '../constants/index'
-import { mutator } from '../api/mutator'
+import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useMutation } from 'hooks/useMutation'
+import type { UpdateVariablePayload } from 'types/mutations'
+import { FIGMA_VARIABLE_BY_ID_ENDPOINT } from 'constants/index'
+import { mutator } from 'api/mutator'
 
 type UpdateVariableArgs = {
   variableId: string
@@ -51,7 +51,7 @@ type UpdateVariableArgs = {
  * ```tsx
  * // Update variable with new values
  * const { mutate } = useUpdateVariable();
- * 
+ *
  * mutate({
  *   variableId: 'VariableID:123:456',
  *   payload: {

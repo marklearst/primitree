@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { useVariables } from './useVariables'
-import type { FigmaCollection, VariableMode } from '../types'
-import type { UseVariableModesResult } from '../types/hooks'
+import { useVariables } from 'hooks/useVariables'
+import type { FigmaCollection, VariableMode } from 'types'
+import type { UseVariableModesResult } from 'types/hooks'
 
 /**
  * A memoized selector hook to access and process variable modes from the data fetched by `useVariables`.

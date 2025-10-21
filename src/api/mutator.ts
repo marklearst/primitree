@@ -3,7 +3,7 @@ import {
   CONTENT_TYPE_JSON,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
-} from '../constants'
+} from 'constants/index'
 
 type HttpMethod = 'POST' | 'PUT' | 'DELETE'
 
