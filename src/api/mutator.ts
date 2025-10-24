@@ -8,18 +8,35 @@ import {
 type HttpMethod = 'POST' | 'PUT' | 'DELETE'
 
 /**
- * @internal
- * A generic mutator function for handling POST, PUT, DELETE requests.
+ * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
  *
- * This function is used by the mutation functions to make authenticated requests to the Figma API.
+ * @remarks
+ * This function performs authenticated HTTP mutations (POST, PUT, DELETE) against the specified Figma API endpoint.
+ * It handles JSON serialization of the request body, parses JSON responses, and propagates detailed errors.
+ * Intended primarily for internal use by mutation hooks, but also suitable for direct custom API mutations.
  *
- * @template T - The expected return type from the API response
- * @param {string} url - The API endpoint to send the request to.
- * @param {string} token - The Figma Personal Access Token.
- * @param {HttpMethod} method - The HTTP method ('POST', 'PUT', or 'DELETE').
- * @param {Record<string, unknown>} [body] - The payload to send with the request (for 'POST' and 'PUT').
- * @returns {Promise<T>} A promise that resolves with the JSON data from the API.
- * @throws {Error} Will throw an error if the fetch call fails or if the API returns an error response.
+ * @typeParam T - The expected response type returned from the Figma API.
+ * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
+ * @param token - Figma Personal Access Token (PAT) used for authentication.
+ * @param method - The HTTP method for the mutation: 'POST', 'PUT', or 'DELETE'.
+ * @param body - Optional request payload sent as a JSON string.
+ *
+ * @returns A Promise resolving to the parsed JSON response from the Figma API.
+ *
+ * @throws Throws an Error if the token is not provided.
+ * @throws Throws an Error if the HTTP response is unsuccessful, including the error message from the API or a default message.
+ *
+ * @example
+ * ```ts
+ * import { mutator } from '@figma-vars/hooks/api';
+ *
+ * async function updateVariable(fileKey: string, token: string, variableId: string) {
+ *   const url = `https://api.figma.com/v1/files/${fileKey}/variables/${variableId}`;
+ *   const payload = { name: 'Updated Name' };
+ *   const result = await mutator(url, token, 'PUT', payload);
+ *   return result;
+ * }
+ * ```
  */
 export const mutator = async <T>(
   url: string,
@@ -41,11 +58,15 @@ export const mutator = async <T>(
   })
 
   if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(errorData.message || ERROR_MSG_FETCH_FIGMA_DATA_FAILED)
+    const errorData = await response.json().catch(() => null)
+    const message =
+      errorData && typeof errorData.message === 'string'
+        ? errorData.message
+        : ERROR_MSG_FETCH_FIGMA_DATA_FAILED
+    throw new Error(message)
   }
 
-  // For DELETE requests, Figma API returns 204 No Content, so the body will be empty.
+  // 204 No Content response - resolve with undefined
   if (response.status === 204) {
     return Promise.resolve(undefined as T)
   }
