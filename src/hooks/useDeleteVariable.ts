@@ -7,51 +7,36 @@ import {
 import { mutator } from 'api/mutator'
 
 /**
- * Deletes a variable from the Figma file by its ID.
+ * React hook that deletes a Figma variable by ID using the Figma Variables API.
  *
- * This hook provides a stateful API to delete a variable, returning the mutation's
- * current state including `isLoading`, `isSuccess`, and `isError`.
+ * @remarks
+ * Returns a mutation object with status flags and error info. To trigger deletion, call `mutate(variableId)` with the variable's ID as a string.
+ * Throws if the Figma Personal Access Token (PAT) is missing from context.
+ * Use this for advanced workflows, admin tooling, or custom variable management UIs.
  *
- * @function useDeleteVariable
- * @memberof Hooks
- * @since 1.0.0
- * @returns {MutationResult<void, string>} The mutation object with state and trigger function.
- * @see {@link https://www.figma.com/developers/api#delete-variables|Figma Variables API - Delete Variable}
- * @see {@link useMutation} - The underlying mutation hook
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
  *
  * @example
  * ```tsx
  * import { useDeleteVariable } from '@figma-vars/hooks';
  *
- * function VariableDeleter({ variableId }) {
+ * function DeleteVariableButton({ variableId }: { variableId: string }) {
  *   const { mutate, isLoading, isSuccess, error } = useDeleteVariable();
  *
  *   const handleDelete = () => {
- *     if (confirm('Are you sure you want to delete this variable?')) {
- *       mutate(variableId);
- *     }
+ *     mutate(variableId); // variableId must be a string
  *   };
  *
- *   if (isLoading) return <div>Deleting variable...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (!mutate) return <div>Not authorized. Figma token missing.</div>;
+ *   if (isLoading) return <div>Deleting variable…</div>;
+ *   if (error) return <div style={{ color: 'red' }}>Error: {error.message}</div>;
  *   if (isSuccess) return <div>Variable deleted successfully!</div>;
  *
  *   return <button onClick={handleDelete}>Delete Variable</button>;
  * }
  * ```
  *
- * @example
- * ```tsx
- * // Delete a variable by ID
- * const { mutate, isLoading } = useDeleteVariable();
- *
- * const deleteVariable = (id: string) => {
- *   mutate(id); // Pass the variable ID directly
- * };
- *
- * // Usage
- * deleteVariable('VariableID:123:456');
- * ```
+ * @public
  */
 export const useDeleteVariable = () => {
   const { token } = useFigmaTokenContext()
