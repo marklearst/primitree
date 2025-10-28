@@ -8,23 +8,25 @@ import {
 import { mutator } from 'api/mutator'
 
 /**
- * Updates multiple variables in the Figma file in a single request.
+ * React hook that performs a bulk update of multiple Figma variables in a single request via the Figma Variables API.
  *
- * This hook provides a stateful API to perform a bulk update, returning the mutation's
- * current state including `isLoading`, `isSuccess`, and `isError`.
+ * @remarks
+ * Returns a mutation object with status flags and error info.
+ * Call `mutate(payload)` with a `BulkUpdatePayload` object to trigger the update—`payload` must include:
+ * - `variableIds`: array of Figma variable IDs to update
+ * - `variableCollectionId`: the collection context for the update
+ * - `updates`: an object mapping variable IDs to their updated values or properties
  *
- * @function useBulkUpdateVariables
- * @memberof Hooks
- * @since 1.0.0
- * @returns {MutationResult<any, BulkUpdatePayload>} The mutation object with state and trigger function.
- * @see {@link https://www.figma.com/developers/api#post-variables|Figma Variables API - Bulk Update Variables}
- * @see {@link useMutation} - The underlying mutation hook
+ * The hook throws if the Figma Personal Access Token (PAT) is missing from context.
+ * Use for advanced workflows requiring atomic, multi-variable updates.
+ *
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
  *
  * @example
  * ```tsx
  * import { useBulkUpdateVariables } from '@figma-vars/hooks';
  *
- * function BulkVariableEditor() {
+ * function BulkUpdateComponent() {
  *   const { mutate, isLoading, isSuccess, error } = useBulkUpdateVariables();
  *
  *   const handleBulkUpdate = () => {
@@ -32,48 +34,22 @@ import { mutator } from 'api/mutator'
  *       variableIds: ['VariableID:123:456', 'VariableID:123:457'],
  *       variableCollectionId: 'VariableCollectionId:123:456',
  *       updates: {
- *         'VariableID:123:456': {
- *           name: 'Primary Color Updated',
- *           description: 'Updated primary brand color'
- *         },
- *         'VariableID:123:457': {
- *           name: 'Secondary Color Updated',
- *           description: 'Updated secondary brand color'
- *         }
+ *         'VariableID:123:456': { name: 'Primary Color Updated' },
+ *         'VariableID:123:457': { name: 'Secondary Color Updated' }
  *       }
  *     });
  *   };
  *
- *   if (isLoading) return <div>Updating variables...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (!mutate) return <div>Not authorized. Figma token missing.</div>;
+ *   if (isLoading) return <div>Updating variables…</div>;
+ *   if (error) return <div style={{ color: 'red' }}>Error: {error.message}</div>;
  *   if (isSuccess) return <div>Variables updated successfully!</div>;
  *
  *   return <button onClick={handleBulkUpdate}>Update All Variables</button>;
  * }
  * ```
  *
- * @example
- * ```tsx
- * // Bulk update color variables with new values
- * const { mutate } = useBulkUpdateVariables();
- *
- * mutate({
- *   variableIds: ['VariableID:123:456', 'VariableID:123:457'],
- *   variableCollectionId: 'VariableCollectionId:123:456',
- *   updates: {
- *     'VariableID:123:456': {
- *       valuesByMode: {
- *         '42:0': { r: 0.2, g: 0.4, b: 0.8, a: 1 }
- *       }
- *     },
- *     'VariableID:123:457': {
- *       valuesByMode: {
- *         '42:0': { r: 0.8, g: 0.4, b: 0.2, a: 1 }
- *       }
- *     }
- *   }
- * });
- * ```
+ * @public
  */
 export const useBulkUpdateVariables = () => {
   const { token } = useFigmaTokenContext()
