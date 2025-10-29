@@ -3,6 +3,24 @@ import type { MutationState, MutationResult } from 'types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
+/**
+ * Internal reducer to manage async mutation state for all mutation hooks.
+ *
+ * @remarks
+ * Handles mutation status transitions (`loading`, `success`, `error`) and enforces consistent error/data handling across the library.
+ * Used by {@link useMutation} and not intended for direct use in external code.
+ *
+ * @typeParam TData - The type of data returned by the mutation.
+ *
+ * @example
+ * ```ts
+ * import { mutationReducer } from '@figma-vars/hooks';
+ * const [state, dispatch] = useReducer(mutationReducer, initialState);
+ * // Internal pattern for mutation state management
+ * ```
+ *
+ * @internal
+ */
 export function mutationReducer<TData>(
   state: MutationState<TData>,
   action: { type: MutationStatus; payload?: TData | Error }
@@ -20,15 +38,31 @@ export function mutationReducer<TData>(
 }
 
 /**
- * @internal
- * A generic hook, inspired by `react-query`, to handle API mutations.
- * This hook is not meant to be used directly by consumers of the library.
- * Instead, specific mutation hooks (e.g., `useCreateVariable`) are built upon it.
+ * Internal React hook for async mutation state, status flags, and mutation trigger.
  *
- * @template TData - The type of data returned by the mutation
- * @template TPayload - The type of payload passed to the mutation function
- * @param {(payload: TPayload) => Promise<TData>} mutationFn - The async function that performs the mutation.
- * @returns {MutationResult<TData, TPayload>} An object with the mutation state and functions to trigger it.
+ * @remarks
+ * Returns a mutation object with status, error, and result data. Preferred pattern: use higher-level hooks (e.g., `useCreateVariable`, `useUpdateVariable`) rather than using this directly in production code.
+ * The provided `mutationFn` must be an async function that performs the actual mutation (API call, etc). See example for pattern.
+ *
+ * @typeParam TData - Type returned by the mutation.
+ * @typeParam TPayload - Payload accepted by the mutation function.
+ * @param mutationFn - Async function performing the mutation logic.
+ * @returns Mutation state, status flags, and a `mutate(payload)` trigger function.
+ *
+ * @example
+ * ```ts
+ * import { useMutation } from '@figma-vars/hooks';
+ *
+ * // Example: use for custom async logic
+ * const { mutate, isLoading, isSuccess, error } = useMutation(async (payload: MyPayload) => {
+ *   // Your async mutation logic here (e.g., API call)
+ *   return result;
+ * });
+ *
+ * // Call mutate(payload) to trigger the mutation.
+ * ```
+ *
+ * @internal
  */
 export const useMutation = <TData, TPayload>(
   mutationFn: (payload: TPayload) => Promise<TData>
