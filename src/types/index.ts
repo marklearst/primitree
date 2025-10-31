@@ -1,20 +1,29 @@
-/**
- * @fileoverview Main entry point for all TypeScript type definitions.
- * Re-exports all types from individual type modules for convenient importing.
- * 
- * @module Types
- * @since 1.0.0
- * 
+/****
+ * @packageDocumentation
+ *
+ * OSS barrel file for all public types and interfaces in @figma-vars/hooks.
+ *
+ * @remarks
+ * This module re-exports all Figma domain types (variables, collections, modes, API response models), mutation argument/result types, and all context/provider types for robust type-safe integration. Import types directly from this barrel for application code, plugins, API adapters, or custom UI tooling. All official Figma variable, mutation, and provider types are available from this entry point—see below for usage.
+ *
  * @example
- * ```typescript
- * // Import specific types
- * import type { FigmaVariable, CreateVariablePayload } from '@figma-vars/hooks/types';
- * 
- * // Or import all types
- * import type * as FigmaTypes from '@figma-vars/hooks/types';
+ * ```ts
+ * // Importing multiple types for advanced integration and custom hooks:
+ * import type {
+ *   FigmaVariable,
+ *   FigmaCollection,
+ *   VariableMode,
+ *   UpdateVariableArgs,
+ *   FigmaVarsProviderProps,
+ *   MutationResult,
+ * } from '@figma-vars/hooks';
+ *
+ * // Use for type-safe props, mutation payloads, and UI mapping:
+ * function MyFeature(props: { variable: FigmaVariable; onUpdate: (args: UpdateVariableArgs) => void }) {
+ *   // ...
+ * }
  * ```
  */
-
 export * from './figma'
 export * from './hooks'
 export * from './mutations'

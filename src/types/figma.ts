@@ -1,29 +1,31 @@
 /**
- * @fileoverview TypeScript type definitions for the Figma Variables REST API.
- * These types match the official Figma API specification for variables, collections, and modes.
- * @see {@link https://www.figma.com/developers/api#variables|Figma Variables API Documentation}
- * @since 1.0.0
- */
-
-/**
- * The resolved type of a Figma variable.
- * Determines what kind of value the variable can hold.
- * 
- * @typedef {string} ResolvedType
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
+ * Enum of supported variable value types in Figma.
+ *
+ * @remarks
+ * Used as the `resolvedType` for Figma variables—defines if the value is a boolean, float, string, or color.
+ *
+ * @example
+ * ```ts
+ * const type: ResolvedType = 'COLOR'
+ * ```
+ *
+ * @public
  */
 export type ResolvedType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'COLOR'
 
 /**
- * The scopes where a Figma variable can be applied.
- * `ALL_SCOPES` is a general-purpose scope. Other values restrict the variable to specific properties.
- * 
- * @typedef {string} VariableScope
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
+ * Enum of all valid Figma variable scopes.
+ *
+ * @remarks
+ * Scopes define where a variable can be referenced or applied (e.g., fills, text content, opacity, effects).
+ * Use this to restrict variables to certain design properties in the Figma UI or API.
+ *
+ * @example
+ * ```ts
+ * const scopes: VariableScope[] = ['ALL_FILLS', 'TEXT_CONTENT']
+ * ```
+ *
+ * @public
  */
 export type VariableScope =
   | 'ALL_SCOPES'
@@ -51,181 +53,224 @@ export type VariableScope =
   | 'EFFECT_COLOR'
 
 /**
- * Represents a color in RGBA format.
- * 
- * @typedef {Object} Color
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#color-object|Figma Color Object}
- * @property {number} r The red channel value (0-1).
- * @property {number} g The green channel value (0-1).
- * @property {number} b The blue channel value (0-1).
- * @property {number} a The alpha (opacity) channel value (0-1).
+ * RGBA color value used by Figma variables of type COLOR.
+ *
+ * @remarks
+ * Each component is a float between 0 and 1 (inclusive), matching the Figma API spec.
+ * Used for color values in variable payloads and responses.
+ *
+ * @example
+ * ```ts
+ * const color: Color = { r: 0.5, g: 0.8, b: 0.2, a: 1 }
+ * ```
+ *
+ * @public
  */
 export interface Color {
-  /** The red channel value (0-1). */
+  /** Red channel, 0–1 */
   r: number
-  /** The green channel value (0-1). */
+  /** Green channel, 0–1 */
   g: number
-  /** The blue channel value (0-1). */
+  /** Blue channel, 0–1 */
   b: number
-  /** The alpha (opacity) channel value (0-1). */
+  /** Alpha channel, 0–1 (opacity) */
   a: number
 }
 
 /**
- * Represents an alias to another Figma variable.
- * This is used when a variable's value is set to reference another variable.
- * 
- * @typedef {Object} VariableAlias
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
- * @property {string} type The type of the value, indicating it's a variable alias.
- * @property {string} id The ID of the variable being referenced.
+ * Value representing a variable alias reference in Figma.
+ *
+ * @remarks
+ * Used when a variable references another variable via aliasing. Type should always be 'VARIABLE_ALIAS'.
+ *
+ * @example
+ * ```ts
+ * const alias: VariableAlias = { type: 'VARIABLE_ALIAS', id: 'VariableID:123:456' }
+ * ```
+ *
+ * @public
  */
 export interface VariableAlias {
-  /** The type of the value, indicating it's a variable alias. */
+  /** Type identifier for variable alias objects. Always 'VARIABLE_ALIAS'. */
   type: 'VARIABLE_ALIAS'
-  /** The ID of the variable being referenced. */
+  /** The referenced variable's Figma variable ID. */
   id: string
 }
 
 /**
- * The possible value types for a variable in a specific mode.
- * It can be a primitive value, a color object, or an alias to another variable.
- * 
- * @typedef {(string|boolean|number|Color|VariableAlias)} VariableValue
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
+ * Union of all supported Figma variable value types.
+ *
+ * - string, boolean, number, Color, or VariableAlias
+ *
+ * Used in payloads and responses for Figma variable APIs.
+ *
+ * @public
  */
 export type VariableValue = string | boolean | number | Color | VariableAlias
 
 /**
- * Represents a single Figma variable.
- * 
- * @typedef {Object} FigmaVariable
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-object|Figma Variable Object}
- * @property {string} id The unique identifier for the variable.
- * @property {string} name The name of the variable.
- * @property {string} variableCollectionId The ID of the collection this variable belongs to.
- * @property {ResolvedType} resolvedType The underlying data type of the variable.
- * @property {Record<string, VariableValue>} valuesByMode A map of mode IDs to the variable's value in that mode.
- * @property {string} description The description of the variable, as set in Figma.
- * @property {boolean} hiddenFromPublishing Whether the variable is hidden when publishing the library.
- * @property {VariableScope[]} scopes The scopes in which this variable can be used.
- * @property {Record<string, string>} codeSyntax Platform-specific code syntax for this variable (e.g., for Web, iOS, Android).
- * @property {string} updatedAt The timestamp of the last update.
+ * Model of a single Figma variable, including metadata, values by mode, and collection info.
+ *
+ * @remarks
+ * Core unit for all Figma variable APIs. Includes value definitions, metadata, type info, and publishing flags. Variables are always associated with a collection and may have different values per mode.
+ *
+ * @property id - Unique Figma variable ID
+ * @property name - Human-readable variable name
+ * @property variableCollectionId - Parent collection ID
+ * @property resolvedType - Data type for this variable (BOOLEAN, FLOAT, STRING, or COLOR)
+ * @property valuesByMode - Map of mode IDs to variable values (by type)
+ * @property description - Optional freeform description
+ * @property hiddenFromPublishing - If true, this variable is hidden from publishing
+ * @property scopes - Array of allowed or assigned Figma variable scopes
+ * @property codeSyntax - Map of language IDs to code sample strings for this variable
+ * @property updatedAt - ISO8601 timestamp of last update
+ *
+ * @example
+ * ```ts
+ * const variable: FigmaVariable = {
+ *   id: 'VariableID:123:456',
+ *   name: 'Primary Color',
+ *   variableCollectionId: 'VariableCollectionId:789:012',
+ *   resolvedType: 'COLOR',
+ *   valuesByMode: { 'MODE:dark': { r: 0, g: 0, b: 0, a: 1 } },
+ *   description: 'Main brand color',
+ *   hiddenFromPublishing: false,
+ *   scopes: ['ALL_FILLS'],
+ *   codeSyntax: { css: 'var(--primary-color)' },
+ *   updatedAt: '2024-06-21T23:59:59Z',
+ * }
+ * ```
+ *
+ * @public
  */
 export interface FigmaVariable {
-  /** The unique identifier for the variable. */
   id: string
-  /** The name of the variable. */
   name: string
-  /** The ID of the collection this variable belongs to. */
   variableCollectionId: string
-  /** The underlying data type of the variable. */
   resolvedType: ResolvedType
-  /** A map of mode IDs to the variable's value in that mode. */
   valuesByMode: Record<string, VariableValue>
-  /** The description of the variable, as set in Figma. */
   description: string
-  /** Whether the variable is hidden when publishing the library. */
   hiddenFromPublishing: boolean
-  /** The scopes in which this variable can be used. */
   scopes: VariableScope[]
-  /** Platform-specific code syntax for this variable (e.g., for Web, iOS, Android). */
   codeSyntax: Record<string, string>
-  /** The timestamp of the last update. */
   updatedAt: string
 }
 
 /**
- * Represents a single mode within a variable collection.
- * 
- * @typedef {Object} VariableMode
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-collection-object|Figma Variable Collection Object}
- * @property {string} modeId The unique identifier for the mode.
- * @property {string} name The name of the mode (e.g., "Light", "Dark").
+ * Model of a Figma variable mode (e.g., Light, Dark, Custom).
+ *
+ * @remarks
+ * Modes are used to provide variable overrides for different states (themes, breakpoints, etc.).
+ * Each collection may define its own set of modes.
+ *
+ * @example
+ * ```ts
+ * const mode: VariableMode = { modeId: 'MODE:dark', name: 'Dark' }
+ * ```
+ *
+ * @public
  */
 export interface VariableMode {
-  /** The unique identifier for the mode. */
+  /** Unique mode ID */
   modeId: string
-  /** The name of the mode (e.g., "Light", "Dark"). */
+  /** Human-readable mode name */
   name: string
 }
 
 /**
- * Represents a collection of Figma variables, which can contain multiple modes.
- * 
- * @typedef {Object} FigmaCollection
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variable-collection-object|Figma Variable Collection Object}
- * @property {string} id The unique identifier for the collection.
- * @property {string} name The name of the collection (e.g., "Brand Colors").
- * @property {VariableMode[]} modes An array of modes available in this collection.
- * @property {string} defaultModeId The ID of the default mode for this collection.
- * @property {string[]} variableIds An array of variable IDs that belong to this collection.
- * @property {boolean} hiddenFromPublishing Whether the collection is hidden when publishing the library.
- * @property {string} updatedAt The timestamp of the last update.
+ * Model of a Figma variable collection (grouping of related variables and modes).
+ *
+ * @remarks
+ * Collections define shared settings, available modes, and membership of variables. Used as the organizing tier for all variable operations.
+ *
+ * @property id - Unique Figma collection ID
+ * @property name - Human-readable collection name
+ * @property modes - List of VariableMode objects
+ * @property defaultModeId - The default mode for this collection
+ * @property variableIds - Array of IDs of variables in this collection
+ * @property hiddenFromPublishing - If true, collection is hidden from publishing
+ * @property updatedAt - ISO8601 timestamp of last update
+ *
+ * @example
+ * ```ts
+ * const collection: FigmaCollection = {
+ *   id: 'VariableCollectionId:789:012',
+ *   name: 'Theme Colors',
+ *   modes: [{ modeId: 'MODE:dark', name: 'Dark' }],
+ *   defaultModeId: 'MODE:dark',
+ *   variableIds: ['VariableID:123:456'],
+ *   hiddenFromPublishing: false,
+ *   updatedAt: '2024-06-21T23:59:59Z',
+ * }
+ * ```
+ *
+ * @public
  */
 export interface FigmaCollection {
-  /** The unique identifier for the collection. */
   id: string
-  /** The name of the collection (e.g., "Brand Colors"). */
   name: string
-  /** An array of modes available in this collection. */
   modes: VariableMode[]
-  /** The ID of the default mode for this collection. */
   defaultModeId: string
-  /** An array of variable IDs that belong to this collection. */
   variableIds: string[]
-  /** Whether the collection is hidden when publishing the library. */
   hiddenFromPublishing: boolean
-  /** The timestamp of the last update. */
   updatedAt: string
 }
 
 /**
- * The structure of the successful response from the Figma API's `/v1/files/{file_key}/variables/local` endpoint.
- * 
- * @typedef {Object} LocalVariablesResponse
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#variables-endpoint|Figma Variables Endpoint}
- * @property {Object} meta Contains the metadata about the variables and collections.
- * @property {Record<string, FigmaCollection>} meta.variableCollections A map of collection IDs to `FigmaCollection` objects.
- * @property {Record<string, FigmaVariable>} meta.variables A map of variable IDs to `FigmaVariable` objects.
+ * API response shape for the Figma Variables API local variables endpoint.
+ *
+ * @remarks
+ * Contains all collections and variables available in the current Figma file context.
+ * Use this as the source of truth for fetching and mapping Figma variable data.
+ *
+ * @property meta - Metadata object containing collections and variables.
+ * @property meta.variableCollections - Map of collection IDs to FigmaCollection objects.
+ * @property meta.variables - Map of variable IDs to FigmaVariable objects.
+ *
+ * @example
+ * ```ts
+ * import type { LocalVariablesResponse } from '@figma-vars/hooks';
+ *
+ * function handleResponse(response: LocalVariablesResponse) {
+ *   const collections = Object.values(response.meta.variableCollections);
+ *   const variables = Object.values(response.meta.variables);
+ * }
+ * ```
+ *
+ * @public
  */
 export interface LocalVariablesResponse {
-  /** Contains the metadata about the variables and collections. */
   meta: {
-    /** A map of collection IDs to `FigmaCollection` objects. */
+    /** Map of collection IDs to FigmaCollection objects. */
     variableCollections: Record<string, FigmaCollection>
-    /** A map of variable IDs to `FigmaVariable` objects. */
+    /** Map of variable IDs to FigmaVariable objects. */
     variables: Record<string, FigmaVariable>
   }
 }
 
 /**
- * A generic error shape for failed Figma API requests.
- * 
- * @typedef {Object} FigmaError
- * @memberof Types
- * @since 1.0.0
- * @see {@link https://www.figma.com/developers/api#error-handling|Figma API Error Handling}
- * @property {number} statusCode The HTTP status code of the error.
- * @property {string} message The error message from the API.
+ * Standard error response shape for Figma API error objects.
+ *
+ * @remarks
+ * Returned by API calls when an error occurs (e.g., invalid token, not found, etc.).
+ *
+ * @property statusCode - HTTP status code returned by the Figma API.
+ * @property message - Human-readable error message describing the failure.
+ *
+ * @example
+ * ```ts
+ * import type { FigmaError } from '@figma-vars/hooks';
+ *
+ * function handleError(error: FigmaError) {
+ *   console.error(error.statusCode, error.message);
+ * }
+ * ```
+ *
+ * @public
  */
 export interface FigmaError {
-  /** The HTTP status code of the error. */
+  /** HTTP status code returned by the Figma API. */
   statusCode: number
-  /** The error message from the API. */
+  /** Human-readable error message describing the failure. */
   message: string
 }

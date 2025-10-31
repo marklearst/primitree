@@ -1,49 +1,79 @@
-/**
- * @fileoverview TypeScript type definitions for React context types.
- * These types define the structure of context values and provider props.
- * @since 1.0.0
- */
-
 import type { ReactNode } from 'react'
 
 /**
- * @internal
- * The shape of the context provided by `FigmaVarsProvider`.
- * 
- * @typedef {Object} FigmaTokenContextType
- * @memberof Types
- * @since 1.0.0
- * @property {string | null} token The Figma Personal Access Token.
- * @property {string | null} fileKey The key of the Figma file to access.
+ * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
+ *
+ * @remarks
+ * - `token`: Figma Personal Access Token (PAT) for authenticating Figma REST API requests. You can generate a PAT in your Figma account settings (https://www.figma.com/developers/api#access-tokens).
+ * - `fileKey`: Figma file key uniquely identifying the current Figma file context. You can find the file key in the Figma file URL—it is the string after `/file/` and before the next `/` (e.g., https://www.figma.com/file/<fileKey>/...).
+ *
+ * This type defines the single source of truth for authentication and file context, available via the FigmaVarsProvider context and typically accessed using `useFigmaTokenContext`.
+ * All variable, collection, and mode hooks rely on this context to determine scope and authorization.
+ *
+ * @example
+ * ```tsx
+ * import { useFigmaTokenContext } from '@figma-vars/hooks';
+ *
+ * function TokenStatus() {
+ *   const { token, fileKey } = useFigmaTokenContext();
+ *   if (!token) return <div>Figma API token missing.</div>;
+ *   return <div>
+ *     <div>Token: {token.slice(0, 4)}... (hidden)</div>
+ *     <div>File key: {fileKey}</div>
+ *   </div>;
+ * }
+ * ```
+ *
+ * @public
  */
 export interface FigmaTokenContextType {
-  /** The Figma Personal Access Token. */
+  /**
+   * Figma Personal Access Token (PAT), or null if not set. Required for all authenticated Figma REST API operations.
+   * Generate a PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
+   */
   token: string | null
-  /** The key of the Figma file to access. */
+  /**
+   * Figma file key for the current file context, or null if not set.
+   * The file key is the string after '/file/' in a Figma file URL (e.g., https://www.figma.com/file/<fileKey>/...).
+   */
   fileKey: string | null
 }
 
 /**
- * Props for the `FigmaVarsProvider` component.
- * 
- * @typedef {Object} FigmaVarsProviderProps
- * @memberof Types
- * @since 1.0.0
- * @property {ReactNode} children The child components that will have access to the context.
- * @property {string | null} token The Figma Personal Access Token for API authentication.
- * @property {string | null} fileKey The Figma file key extracted from the file URL.
+ * Props for the FigmaVarsProvider component, which injects Figma API authentication and file scoping for all descendant hooks and utilities.
+ *
+ * @remarks
+ * - `children`: React nodes to render within the provider—this wraps your app, feature, or test tree.
+ * - `token`: Figma Personal Access Token (PAT) for authenticating API calls. Obtain one in your Figma account settings: https://www.figma.com/developers/api#access-tokens
+ * - `fileKey`: Figma file key identifying the file to scope all variable/collection operations to. Extract the file key from your Figma file URL: https://www.figma.com/file/<fileKey>/...
+ *
+ * Use this to wrap your application, dashboard, or Storybook preview, ensuring all consumers have access to the proper Figma API context and authentication.
+ *
+ * @example
+ * ```tsx
+ * import { FigmaVarsProvider } from '@figma-vars/hooks';
+ *
+ * // At the root of your app:
+ * <FigmaVarsProvider token={myToken} fileKey={myFileKey}>
+ *   <App />
+ * </FigmaVarsProvider>
+ * ```
+ *
+ * @public
  */
 export interface FigmaVarsProviderProps {
-  /** The child components that will have access to the context. */
+  /**
+   * The React nodes to render inside the provider.
+   */
   children: ReactNode
   /**
-   * Your Figma Personal Access Token.
-   * @see https://www.figma.com/developers/api#authentication
+   * Figma Personal Access Token (PAT) to inject into context. Required for all authenticated API operations.
+   * Generate your PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
    */
   token: string | null
   /**
-   * The unique identifier of the Figma file you want to access.
-   * You can get this from the file's URL.
+   * Figma file key (ID) to provide context for all variable and collection operations.
+   * The file key is found in the Figma file URL, after `/file/` and before the next `/` (e.g., https://www.figma.com/file/<fileKey>/...).
    */
   fileKey: string | null
 }
