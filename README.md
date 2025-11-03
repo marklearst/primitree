@@ -145,6 +145,73 @@ function CreateVariableForm({ collectionId, modeId }) {
 }
 ```
 
+### Figma PAT Security
+
+When using the Figma API, it's essential to keep your Personal Access Token (PAT) secure. Here are some best practices:
+
+- Never hardcode your PAT in your code.
+- Use environment variables or a secure storage mechanism to store your PAT.
+- Limit the scope of your PAT to only the necessary permissions.
+- Rotate your PAT regularly.
+
+### Advanced Usage
+
+For advanced use cases, you can use the `useFigmaToken` hook to access the token and file key from the context.
+
+```tsx
+// src/components/AdvancedUsage.tsx
+import { useFigmaToken } from '@figma-vars/hooks'
+
+function AdvancedUsage() {
+  const { token, fileKey } = useFigmaToken()
+
+  // Use the token and file key to make custom API requests
+  const apiRequest = async () => {
+    const response = await fetch(
+      `https://api.figma.com/v1/files/${fileKey}/variables`,
+      {
+        headers: {
+          'X-Figma-Token': token,
+        },
+      }
+    )
+
+    const data = await response.json()
+    console.log(data)
+  }
+
+  return <button onClick={apiRequest}>Make API Request</button>
+}
+```
+
+### Error Handling
+
+All hooks return an `error` state that you can use to handle errors.
+
+```tsx
+// src/components/ErrorHandling.tsx
+import { useVariables } from '@figma-vars/hooks'
+
+function ErrorHandling() {
+  const { data, isLoading, error } = useVariables()
+
+  if (error) {
+    return (
+      <div>
+        <h2>Error</h2>
+        <p>{error.message}</p>
+      </div>
+    )
+  }
+
+  // Render data or loading state
+}
+```
+
+### Documentation Generation
+
+This library uses TSDoc to generate documentation. You can find the generated documentation in the `docs` folder.
+
 ---
 
 ## 🧩 API Reference
