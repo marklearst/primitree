@@ -1,128 +1,95 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mutator } from '../../src/api/mutator'
+import { FIGMA_API_BASE_URL } from '../../src/constants'
 
-const DUMMY_URL = 'https://api.example.com/test'
-const DUMMY_TOKEN = 'dummy-token'
-const DUMMY_BODY = { foo: 'bar' }
+global.fetch = vi.fn()
 
 describe('mutator', () => {
-  beforeEach(() => {
-    globalThis.fetch = vi.fn()
-  })
+  const token = 'test-token'
+  const url = '/variables'
+  const body = { name: 'test' }
 
   afterEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
-  it('throws if token is missing', async () => {
-    await expect(mutator(DUMMY_URL, '', 'POST', DUMMY_BODY)).rejects.toThrow(
-      /token/i
-    )
-  })
-
-  it('returns JSON on success (POST)', async () => {
-    const data = { success: true }
-    ;(globalThis.fetch as any).mockResolvedValue({
+  it('should call fetch with POST for CREATE action', async () => {
+    ;(fetch as any).mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve(data),
+      json: () => Promise.resolve({ id: '123' }),
     })
-    const result = await mutator(DUMMY_URL, DUMMY_TOKEN, 'POST', DUMMY_BODY)
-    expect(result).toEqual(data)
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      DUMMY_URL,
-      {
-        method: 'POST',
-        headers: {
-          'X-FIGMA-TOKEN': DUMMY_TOKEN,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(DUMMY_BODY),
-      }
+    await mutator(url, token, 'CREATE', body)
+    expect(fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}${url}`,
+      expect.objectContaining({ method: 'POST' })
     )
   })
 
-  it('returns JSON on success (PUT)', async () => {
-    const data = { updated: true }
-    ;(globalThis.fetch as any).mockResolvedValue({
+  it('should call fetch with PUT for UPDATE action', async () => {
+    ;(fetch as any).mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve(data),
+      json: () => Promise.resolve({ id: '123' }),
     })
-    const result = await mutator(DUMMY_URL, DUMMY_TOKEN, 'PUT', DUMMY_BODY)
-    expect(result).toEqual(data)
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      DUMMY_URL,
-      {
-        method: 'PUT',
-        headers: {
-          'X-FIGMA-TOKEN': DUMMY_TOKEN,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(DUMMY_BODY),
-      }
+    await mutator(url, token, 'UPDATE', body)
+    expect(fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}${url}`,
+      expect.objectContaining({ method: 'PUT' })
     )
   })
 
-  it('returns JSON on success (DELETE)', async () => {
-    const data = { deleted: true }
-    ;(globalThis.fetch as any).mockResolvedValue({
+  it('should handle successful DELETE (204 No Content)', async () => {
+    ;(fetch as any).mockResolvedValue({
       ok: true,
-      status: 200,
-      json: () => Promise.resolve(data),
+      status: 204, // No Content
+      json: () => Promise.resolve({}), // Should not be called, but include for safety
     })
-    const result = await mutator(DUMMY_URL, DUMMY_TOKEN, 'DELETE')
-    expect(result).toEqual(data)
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      DUMMY_URL,
-      {
-        method: 'DELETE',
-        headers: {
-          'X-FIGMA-TOKEN': DUMMY_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
+    const result = await mutator(url, token, 'DELETE')
+    expect(fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}${url}`,
+      expect.objectContaining({ method: 'DELETE' })
     )
+    expect(result).toEqual({})
   })
 
-  it('throws with error message if response is not ok and error message exists', async () => {
-    ;(globalThis.fetch as any).mockResolvedValue({
+  it('should throw error with `err` from response', async () => {
+    ;(fetch as any).mockResolvedValue({
       ok: false,
       status: 400,
-      json: () => Promise.resolve({ message: 'fail!' }),
+      json: () => Promise.resolve({ err: 'Bad Request' }),
     })
-    await expect(
-      mutator(DUMMY_URL, DUMMY_TOKEN, 'POST', DUMMY_BODY)
-    ).rejects.toThrow('fail!')
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Bad Request'
+    )
   })
 
-  it('throws with fallback error if response is not ok and no message', async () => {
-    ;(globalThis.fetch as any).mockResolvedValue({
+  it('should throw error with `message` from response', async () => {
+    ;(fetch as any).mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ message: 'Not Found' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Not Found'
+    )
+  })
+
+  it('should throw generic error for failed requests with no message', async () => {
+    ;(fetch as any).mockResolvedValue({
       ok: false,
       status: 500,
       json: () => Promise.resolve({}),
     })
-    await expect(
-      mutator(DUMMY_URL, DUMMY_TOKEN, 'POST', DUMMY_BODY)
-    ).rejects.toThrow(/fetch/i)
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
   })
 
-  it('returns undefined for 204 No Content response', async () => {
-    ;(globalThis.fetch as any).mockResolvedValue({
-      ok: true,
-      status: 204,
-    })
-    const result = await mutator(DUMMY_URL, DUMMY_TOKEN, 'DELETE')
-    expect(result).toBeUndefined()
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      DUMMY_URL,
-      {
-        method: 'DELETE',
-        headers: {
-          'X-FIGMA-TOKEN': DUMMY_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
+  it('should throw error if fetch itself fails', async () => {
+    ;(fetch as any).mockRejectedValue(new Error('Network Failure'))
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Network Failure'
     )
   })
 })

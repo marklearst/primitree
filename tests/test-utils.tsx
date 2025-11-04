@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react'
 import { FigmaVarsProvider } from '../src/contexts/FigmaVarsProvider'
 
 // Wrapper component that provides the Figma context with credentials from environment variables.
-const TestWrapper = ({ children }: { children: ReactNode }) => {
+export const TestWrapper = ({ children }: { children: ReactNode }) => {
   const token = process.env.VITE_FIGMA_TOKEN
   const fileKey = process.env.VITE_FIGMA_FILE_KEY
 

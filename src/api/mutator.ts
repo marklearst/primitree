@@ -1,11 +1,9 @@
 import {
+  FIGMA_API_BASE_URL,
   FIGMA_TOKEN_HEADER,
-  CONTENT_TYPE_JSON,
   ERROR_MSG_TOKEN_REQUIRED,
-  ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
 } from 'constants/index'
-
-type HttpMethod = 'POST' | 'PUT' | 'DELETE'
+import type { VariableAction } from 'types/mutations'
 
 /**
  * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
@@ -18,7 +16,7 @@ type HttpMethod = 'POST' | 'PUT' | 'DELETE'
  * @typeParam T - The expected response type returned from the Figma API.
  * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
  * @param token - Figma Personal Access Token (PAT) used for authentication.
- * @param method - The HTTP method for the mutation: 'POST', 'PUT', or 'DELETE'.
+ * @param action - The action for the mutation: 'CREATE', 'UPDATE', or 'DELETE'.
  * @param body - Optional request payload sent as a JSON string.
  *
  * @returns A Promise resolving to the parsed JSON response from the Figma API.
@@ -38,38 +36,46 @@ type HttpMethod = 'POST' | 'PUT' | 'DELETE'
  * }
  * ```
  */
-export const mutator = async <T>(
+export async function mutator(
   url: string,
   token: string,
-  method: HttpMethod,
-  body?: Record<string, unknown>
-): Promise<T> => {
+  action: VariableAction,
+  body?: any
+): Promise<any> {
   if (!token) {
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const response = await fetch(url, {
+  const methodMap: Record<VariableAction, 'POST' | 'PUT' | 'DELETE'> = {
+    CREATE: 'POST',
+    UPDATE: 'PUT',
+    DELETE: 'DELETE',
+  }
+  const method = methodMap[action]
+
+  const response = await fetch(`${FIGMA_API_BASE_URL}${url}`, {
     method,
     headers: {
+      'Content-Type': 'application/json',
       [FIGMA_TOKEN_HEADER]: token,
-      'Content-Type': CONTENT_TYPE_JSON,
     },
-    ...(body && { body: JSON.stringify(body) }),
+    body: body ? JSON.stringify(body) : undefined,
   })
 
+  console.log(`[mutator] Received response with status: ${response.status}`)
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null)
-    const message =
-      errorData && typeof errorData.message === 'string'
-        ? errorData.message
-        : ERROR_MSG_FETCH_FIGMA_DATA_FAILED
-    throw new Error(message)
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      errorData.err || errorData.message || 'An API error occurred'
+    )
   }
 
-  // 204 No Content response - resolve with undefined
-  if (response.status === 204) {
-    return Promise.resolve(undefined as T)
+  // Handle successful '204 No Content' responses, which have no body
+  if (response.status === 204 || !response.body) {
+    return {}
   }
 
+  // For all other successful responses, parse the JSON body
   return response.json()
 }
