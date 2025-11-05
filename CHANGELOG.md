@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.0 (2024-07-26)
+
+### Features
+
+- Added barrel file for easy hook imports (`cb00ed8`)
+
+### Bug Fixes
+
+- **mutations**: Corrected mutation logic and resolved all test failures to ensure API calls are robust and fully tested. (`8bbf4c5`)
+- **testing**: Achieved 100% test coverage for the API mutator, ensuring all edge cases are handled. (`8bd21ea`)
+- **tooling**: Resolved critical build and test environment issues, enabling a stable development and CI workflow. (`8cbddbb`)
+- **useMutation**: Corrected types and migrated hook to TSDoc for improved type safety and documentation. (`f19fc33`)
+
+### Documentation
+
+- Migrated all hooks and types from JSDoc to TSDoc for better developer experience and type clarity.
+- Simplified public API exports for cleaner package entry. (`c42c2a4`)
+
+## 1.3.0 (2024-07-22)
+
+### Features
+
+- **API**: Added low-level `mutator` utility for authenticated Figma API calls.
+
 ## [Unreleased]
 
 ## [1.3.3] - 2025-06-22
