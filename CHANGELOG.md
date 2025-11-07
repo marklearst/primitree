@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Bug Fixes
 
-- **build**: Resolved a critical build failure caused by a d.ts generation error in the `useVariables` hook. (`83e0688`)
+- **build**: Resolved a critical build failure by disabling `rollupTypes` in the d.ts plugin configuration, ensuring stable declaration file generation. (`fa941b1`)
+- **hooks**: Corrected the return type of `useVariables` to prevent build errors and ensure type consistency. (`c47afa1`)
+- **hooks**: Aligned all API-calling hooks (`useCreateVariable`, `useBulkUpdateVariables`, etc.) to use the new, robust `mutator` function signature. (`598db4c`)
+- **testing**: Resolved all outstanding test failures and achieved 100% test coverage for all mutation hooks and utilities. (`8bd21ea`)
+
+### Chores
+
+- **docs**: Removed outdated `docs` and `docs-site` directories to clean up the repository. (`c47afa1`)
 
 ## 1.4.0 (2024-07-26)
 
