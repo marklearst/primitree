@@ -62,8 +62,6 @@ export async function mutator(
     body: body ? JSON.stringify(body) : undefined,
   })
 
-  console.log(`[mutator] Received response with status: ${response.status}`)
-
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(
