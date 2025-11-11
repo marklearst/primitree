@@ -34,6 +34,9 @@ jobs:
 
       - name: Run Tests with Coverage
         run: pnpm run test:coverage
+        env:
+          VITE_FIGMA_TOKEN: ${{ secrets.VITE_FIGMA_TOKEN }}
+          VITE_FIGMA_FILE_KEY: ${{ secrets.VITE_FIGMA_FILE_KEY }}
 
       - name: Upload Coverage Report (GitHub Artifact)
         uses: actions/upload-artifact@v4
