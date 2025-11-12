@@ -40,11 +40,10 @@ import { mutator } from 'api/mutator'
  */
 export const useDeleteVariable = () => {
   const { token } = useFigmaTokenContext()
-  if (!token) {
-    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
-  }
-
   const mutation = useMutation(async (variableId: string) => {
+    if (!token) {
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+    }
     return await mutator(
       FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
       token,
