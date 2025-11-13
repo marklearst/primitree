@@ -142,3 +142,21 @@ export { useDeleteVariable } from 'hooks/useDeleteVariable'
  * @public
  */
 export { useBulkUpdateVariables } from 'hooks/useBulkUpdateVariables'
+/**
+ * React hook to fetch published Figma Variables from a file.
+ *
+ * @remarks
+ * Fetches variables that have been published to a library. Published variables
+ * are shared across files and represent the source of truth for design tokens.
+ *
+ * @see {@link https://www.figma.com/developers/api#variables | Figma Variables API}
+ *
+ * @example
+ * ```tsx
+ * import { usePublishedVariables } from '@figma-vars/hooks';
+ * const { data, isLoading } = usePublishedVariables();
+ * ```
+ *
+ * @public
+ */
+export { usePublishedVariables } from 'hooks/usePublishedVariables'

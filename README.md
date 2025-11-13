@@ -276,6 +276,64 @@ function ErrorHandling() {
 }
 ```
 
+### When to Use Local vs. Published Variables
+
+Understanding the difference between local and published variables is important for building robust design systems:
+
+#### Use `useVariables()` (Local Variables) when:
+
+- **Developing and iterating** on design tokens within a single file
+- **Testing changes** before publishing them to a library
+- **Working offline** with exported JSON files from Figma Dev Mode
+- Building **file-specific** dashboards or tools
+- You need to **modify variables** using mutation hooks (create, update, delete)
+
+#### Use `usePublishedVariables()` (Published Variables) when:
+
+- **Consuming variables** from a published Figma library
+- Building **design system dashboards** that track the source of truth
+- **Monitoring consistency** across files that consume the same library
+- Validating that **local variables match published tokens**
+- You only need **read access** to stable, shared design tokens
+
+**Key Difference:** Local variables are file-specific and can be modified, while published variables are library tokens shared across multiple files and represent the canonical source of truth for your design system.
+
+### Figma API Rate Limits
+
+The Figma API has rate limits to ensure fair usage. When using `useVariables()` or `usePublishedVariables()`, keep these considerations in mind:
+
+- **Default limits**: Figma enforces rate limits on API requests (typically 1000 requests per minute per token)
+- **SWR caching**: This library uses SWR for intelligent caching and revalidation, which helps minimize unnecessary API calls
+- **Published variables**: These are typically more stable than local variables, so they can be cached longer without risk of stale data
+- **Best practices**:
+  - Use the `revalidateOnFocus: false` option in production if you don't need real-time updates
+  - Consider longer `dedupingInterval` values for published variables (they change less frequently)
+  - Leverage the `fallbackFile` option for static deployments to avoid API calls entirely
+  - Monitor your API usage in the Figma API console if you're building high-traffic applications
+
+**Example with custom SWR config:**
+
+```tsx
+import { SWRConfig } from 'swr'
+import { FigmaVarsProvider } from '@figma-vars/hooks'
+
+function App() {
+  return (
+    <SWRConfig
+      value={{
+        revalidateOnFocus: false,
+        dedupingInterval: 60000, // 1 minute
+      }}>
+      <FigmaVarsProvider
+        token={FIGMA_TOKEN}
+        fileKey={FIGMA_FILE_KEY}>
+        <YourComponents />
+      </FigmaVarsProvider>
+    </SWRConfig>
+  )
+}
+```
+
 ---
 
 ## 🧩 API Reference
@@ -283,6 +341,7 @@ function ErrorHandling() {
 ### Core Hooks
 
 - `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns a SWR hook state with `data`, `isLoading`, and `error` properties. The actual Figma response is in `data.data`. When `fallbackFile` is provided, it uses the local JSON data instead of making an API request.
+- `usePublishedVariables()`: Fetches published variables from a Figma library. Published variables represent the source of truth for design tokens in a design system and are shared across files. Use this hook when accessing tokens consumed from a library rather than local file variables.
 - `useVariableCollections()`: A convenience hook that returns just the variable collections from the main `useVariables` data.
 - `useVariableModes()`: A convenience hook that returns just the variable modes from the main `useVariables` data.
 - `useFigmaToken()`: A simple hook to access the token and file key from the context.
