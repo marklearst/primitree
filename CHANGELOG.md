@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.4 (2024-12-19)
+
+### Bug Fixes
+
+- **testing**: Added comprehensive test coverage for all barrel files and utility functions to achieve 100% code coverage on Codecov
+- **testing**: Fixed uncaught error handling in `useFigmaToken` test by implementing proper console error suppression
+- **testing**: Added tests for `useFigmaToken`, `filterVariables`, and all barrel export files (`src/hooks/index.ts`, `src/utils/index.ts`, `src/contexts/index.ts`, `src/index.ts`)
+- **testing**: Added test coverage for `wallaby.js` configuration file
+
+### Chores
+
+- **ci**: Improved test coverage reporting to ensure all export statements and utility functions are properly covered for continuous integration
+
 ## 1.4.1 (2024-07-26)
 
 ### Bug Fixes
