@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Chores
 
-- **ci**: Achieved complete 100% test coverage across all 76 tests for optimal Codecov reporting
+- **ci**: Achieved complete 100% test coverage across all 78 tests for optimal Codecov reporting
 
 ## 1.4.4 (2024-12-19)
 
