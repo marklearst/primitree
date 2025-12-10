@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.5.0 (2025-07-16)
+
+### Fixed
+
+- **build**: Fixed critical package build and module resolution issues that prevented package installation and imports
+- **build**: Configured Vite to generate correct output files (`index.js`, `index.mjs`, `index.d.ts`) matching package.json exports
+- **build**: Fixed vite-plugin-dts configuration to properly output TypeScript declarations to dist/ directory
+- **build**: Added dual package support for both ES modules and CommonJS with correct file naming
+- **build**: Added prepublishOnly script to ensure package is always built before publishing
+
+### Changed
+
+- **build**: Updated Vite fileName configuration to use dynamic format-based naming
+- **build**: Improved TypeScript declaration generation with proper include/exclude patterns
+
+**Breaking Change**: None - this is a critical bug fix that makes the package functional without changing the API
+
 ## 1.4.5 (2024-12-19)
 
 ### Added
