@@ -37,7 +37,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "postbuild": "cp dist/index.d.ts dist/index.d.cts || copy dist/index.d.ts dist/index.d.cts",
+    "postbuild": "cp dist/index.d.ts dist/index.d.cts || copy dist/index.d.ts dist/index.d.cts && cp dist/core.d.ts dist/core.d.cts || copy dist/core.d.ts dist/core.d.cts",
     "prepublishOnly": "pnpm build",
     "lint": "biome format --write .",
     "format": "prettier --write .",
@@ -77,6 +77,17 @@
         "default": "./dist/index.cjs"
       },
       "default": "./dist/index.mjs"
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/core.d.ts",
+        "default": "./dist/core.mjs"
+      },
+      "require": {
+        "types": "./dist/core.d.cts",
+        "default": "./dist/core.cjs"
+      },
+      "default": "./dist/core.mjs"
     }
   },
   "publishConfig": {
