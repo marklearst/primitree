@@ -81,7 +81,7 @@ describe('useDeleteVariable', () => {
     expect(mockedMutator).toHaveBeenCalledWith(
       FIGMA_FILE_VARIABLES_PATH(expectedFileKey!),
       expectedToken,
-      'CREATE',
+      'DELETE',
       {
         variables: [
           {

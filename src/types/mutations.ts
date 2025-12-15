@@ -1,4 +1,4 @@
-import type { ResolvedType, VariableScope, VariableValue } from './figma'
+import type { ResolvedType, VariableScope, VariableValue } from './figma.js'
 
 /**
  * Payload for creating a new Figma variable in a specific collection.

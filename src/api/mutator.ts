@@ -3,7 +3,7 @@ import {
   FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
 } from 'constants/index'
-import type { VariableAction } from 'types/mutations'
+import type { VariableAction } from 'types/mutations.js'
 
 /**
  * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
