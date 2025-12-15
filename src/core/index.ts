@@ -16,8 +16,11 @@
  * ```
  */
 
-export { fetcher, mutator } from 'api'
+import { fetcher } from 'api/fetcher'
+import { mutator } from 'api/mutator'
+import { filterVariables } from 'utils/filterVariables'
+
+export { fetcher, mutator, filterVariables }
 export * from 'constants/index'
-export { filterVariables } from 'utils'
-export * from 'types/figma'
-export * from 'types/mutations'
+export type * from 'types/figma'
+export type * from 'types/mutations'
