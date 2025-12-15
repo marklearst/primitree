@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { LocalVariablesResponse } from 'types'
+import type { LocalVariablesResponse, PublishedVariablesResponse } from 'types'
 
 /**
  * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
@@ -42,7 +42,7 @@ export interface FigmaTokenContextType {
    * Optional fallback variable JSON file for offline or static use cases.
    * Allows FigmaVars to function without a live API request.
    */
-  fallbackFile?: LocalVariablesResponse | string
+  fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
 }
 
 /**
@@ -85,5 +85,5 @@ export interface FigmaVarsProviderProps {
   /**
    * Optional fallback variable JSON file used when the API is unavailable or skipped.
    */
-  fallbackFile?: LocalVariablesResponse | string
+  fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
 }
