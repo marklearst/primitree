@@ -1,6 +1,9 @@
-import type { LocalVariablesResponse } from '../../src/types'
+import type {
+  LocalVariablesResponse,
+  PublishedVariablesResponse,
+} from '../../src/types'
 
-export const mockVariablesResponse: LocalVariablesResponse = {
+export const mockLocalVariablesResponse: LocalVariablesResponse = {
   meta: {
     variableCollections: {
       'VariableCollectionId:123:456': {
@@ -51,6 +54,31 @@ export const mockVariablesResponse: LocalVariablesResponse = {
         hiddenFromPublishing: false,
         scopes: ['ALL_SCOPES'],
         codeSyntax: {},
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    },
+  },
+}
+
+export const mockPublishedVariablesResponse: PublishedVariablesResponse = {
+  meta: {
+    variableCollections: {
+      'VariableCollectionId:123:456': {
+        id: 'VariableCollectionId:123:456',
+        subscribed_id: 'SubscribedVariableCollectionId:123:456',
+        name: 'Test Collection 1',
+        key: 'collection-key-1',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    },
+    variables: {
+      'VariableID:1:1': {
+        id: 'VariableID:1:1',
+        subscribed_id: 'SubscribedVariableID:1:1',
+        name: 'colors/primary',
+        key: 'variable-key-1',
+        variableCollectionId: 'VariableCollectionId:123:456',
+        resolvedType: 'COLOR',
         updatedAt: '2024-01-01T00:00:00Z',
       },
     },
