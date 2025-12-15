@@ -1,6 +1,7 @@
 // utils/fetchHelpers.ts
 
 import {
+  FIGMA_API_BASE_URL,
   FIGMA_TOKEN_HEADER,
   CONTENT_TYPE_JSON,
   ERROR_MSG_TOKEN_REQUIRED,
@@ -42,7 +43,12 @@ export async function fetcher<TResponse = unknown>(
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
   }
 
-  const response = await fetch(url, {
+  const requestUrl =
+    url.startsWith('http://') || url.startsWith('https://')
+      ? url
+      : `${FIGMA_API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+
+  const response = await fetch(requestUrl, {
     method: 'GET',
     headers: {
       [FIGMA_TOKEN_HEADER]: token,

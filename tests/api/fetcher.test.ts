@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { fetcher } from '../../src/api/fetcher'
+import { FIGMA_API_BASE_URL } from '../../src/constants'
 
 const DUMMY_URL = 'https://api.example.com/test'
 const DUMMY_TOKEN = 'dummy-token'
@@ -32,6 +33,25 @@ describe('fetcher', () => {
     expect(result).toEqual(data)
     expect(global.fetch).toHaveBeenCalledWith(
       DUMMY_URL,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-FIGMA-TOKEN': DUMMY_TOKEN,
+          'Content-Type': 'application/json',
+        }),
+      })
+    )
+  })
+
+  it('prefixes FIGMA_API_BASE_URL when url is a path', async () => {
+    const data = { foo: 'bar' }
+    const path = '/v1/files/abc/variables/local'
+    mockFetch({ json: () => Promise.resolve(data) })
+
+    const result = await fetcher(path, DUMMY_TOKEN)
+
+    expect(result).toEqual(data)
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}${path}`,
       expect.objectContaining({
         headers: expect.objectContaining({
           'X-FIGMA-TOKEN': DUMMY_TOKEN,
