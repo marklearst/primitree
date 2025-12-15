@@ -104,8 +104,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true,
-    "git-checks": false
+    "provenance": true
   },
   "funding": {
     "type": "github",
