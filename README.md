@@ -6,7 +6,7 @@
 
 Built and maintained by Mark Learst.
 
-A fast, typed React 19 hooks library for the Figma Variables API: fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
+A fast, typed React 19.2.3 hooks library for the Figma Variables API: fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
 
 Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
@@ -137,6 +137,13 @@ import exportedVariables from './figma-variables.json'
 </FigmaVarsProvider>
 ```
 
+### Exporting variables for fallback
+
+- **Dev Mode / plugin export (recommended)**: Use a Variables exporter plugin in Figma Dev Mode to download the full Variables panel as JSON, save anywhere (e.g., `data/figma-variables.json`), and pass it to `fallbackFile`.
+- **REST export script (Enterprise required; repo-only)**: `FIGMA_TOKEN=... node scripts/export-variables.mjs --file-key YOUR_FILE_KEY --out path/to/figma-variables.json`. The helper lives in the repo (not published to npm); clone or copy the script. `--out` accepts any folder/filename, so point it at whatever location your build or Style Dictionary pipeline expects.
+- **Desktop MCP (manual/partial)**: Selecting a frame and running `get_variable_defs` returns only that selection’s variables. Use plugin/REST exports for complete coverage.
+- **Style Dictionary**: Once you have the JSON (from any path), feed it into Style Dictionary to emit platform-specific artifacts, or import it directly via `fallbackFile`.
+
 ## 🔧 Mutation Hooks (verbs fixed)
 
 - `useCreateVariable` → POST via bulk endpoint with `action: 'CREATE'`
@@ -157,6 +164,12 @@ All return `{ mutate, data, error, isLoading, isSuccess, isError }`.
 - Header: `X-FIGMA-TOKEN: <PAT>`
 - Scopes: `file_variables:read` for GETs, `file_variables:write` for mutations.
 - Enterprise Full seat required for live API; fallback JSON works without a token.
+
+## ⚠️ Enterprise Requirement and Offline Options
+
+- The Figma Variables REST API requires a Figma Enterprise seat for live requests. Without Enterprise, live calls will fail even with a valid PAT.
+- The library remains useful without Enterprise: supply `fallbackFile` (object or JSON string) exported from Figma (Dev Mode plugin, CLI, or Figma MCP server output) and all read hooks work offline/for static deployments.
+- MCP/other exporters: as long as they emit the same JSON shape as the Variables API, you can feed that JSON into `fallbackFile`; mutations still require Enterprise access.
 
 ## 🚫 Do Not Publish Tokens or File Keys
 
