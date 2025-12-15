@@ -66,7 +66,13 @@ export async function mutator<
   if (body) {
     init.body = JSON.stringify(body)
   }
-  const response = await fetch(`${FIGMA_API_BASE_URL}${url}`, init)
+
+  const requestUrl =
+    url.startsWith('http://') || url.startsWith('https://')
+      ? url
+      : `${FIGMA_API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+
+  const response = await fetch(requestUrl, init)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
