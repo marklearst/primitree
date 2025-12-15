@@ -6,8 +6,9 @@ import { useUpdateVariable } from '../../src/hooks/useUpdateVariable'
 import * as FigmaTokenHook from '../../src/contexts/useFigmaTokenContext'
 import { mutator } from '../../src/api/mutator'
 import {
-  FIGMA_VARIABLE_BY_ID_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
+  FIGMA_FILE_VARIABLES_PATH,
 } from '../../src/constants/index'
 import type { UpdateVariablePayload } from '../../src/types/mutations'
 
@@ -20,6 +21,28 @@ describe('useUpdateVariable', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.restoreAllMocks()
+  })
+
+  it('should return an error state if figma fileKey is not provided', async () => {
+    const spy = vi
+      .spyOn(FigmaTokenHook, 'useFigmaTokenContext')
+      .mockReturnValue({ token: 'test-token', fileKey: null })
+
+    const { result } = renderHook(() => useUpdateVariable())
+
+    await act(async () => {
+      await result.current.mutate({
+        variableId: 'some-id',
+        payload: { name: 'test' },
+      })
+    })
+
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error?.message).toBe(
+      ERROR_MSG_TOKEN_FILE_KEY_REQUIRED
+    )
+
+    spy.mockRestore()
   })
 
   it('should return an error state if figma token is not provided', async () => {
@@ -62,14 +85,22 @@ describe('useUpdateVariable', () => {
     })
 
     const expectedToken = process.env.VITE_FIGMA_TOKEN
-    const expectedEndpoint = FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)
+    const expectedFileKey = process.env.VITE_FIGMA_FILE_KEY
 
     expect(mockedMutator).toHaveBeenCalledTimes(1)
     expect(mockedMutator).toHaveBeenCalledWith(
-      expectedEndpoint,
+      FIGMA_FILE_VARIABLES_PATH(expectedFileKey!),
       expectedToken,
-      'UPDATE',
-      payload
+      'CREATE',
+      {
+        variables: [
+          {
+            action: 'UPDATE',
+            id: variableId,
+            ...payload,
+          },
+        ],
+      }
     )
   })
 

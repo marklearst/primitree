@@ -2,8 +2,9 @@ import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
 import { useMutation } from 'hooks/useMutation'
 import type { BulkUpdatePayload } from 'types/mutations'
 import {
-  FIGMA_POST_VARIABLES_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
 } from 'constants/index'
 import { mutator } from 'api/mutator'
 
@@ -36,13 +37,16 @@ import { mutator } from 'api/mutator'
  * @public
  */
 export const useBulkUpdateVariables = () => {
-  const { token } = useFigmaTokenContext()
+  const { token, fileKey } = useFigmaTokenContext()
   const mutation = useMutation(async (payload: BulkUpdatePayload) => {
     if (!token) {
       throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
+    if (!fileKey) {
+      throw new Error(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED)
+    }
     return await mutator(
-      FIGMA_POST_VARIABLES_ENDPOINT,
+      FIGMA_FILE_VARIABLES_PATH(fileKey),
       token,
       'CREATE',
       payload as unknown as Record<string, unknown>

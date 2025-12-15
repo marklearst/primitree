@@ -6,8 +6,9 @@ import { useCreateVariable } from '../../src/hooks/useCreateVariable'
 import * as FigmaTokenHook from '../../src/contexts/useFigmaTokenContext'
 import { mutator } from '../../src/api/mutator'
 import {
-  FIGMA_POST_VARIABLES_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
 } from '../../src/constants/index'
 import type { CreateVariablePayload } from '../../src/types/mutations'
 
@@ -20,6 +21,25 @@ describe('useCreateVariable', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.restoreAllMocks() // ensure spies are restored
+  })
+
+  it('should return an error state if figma fileKey is not provided', async () => {
+    const spy = vi
+      .spyOn(FigmaTokenHook, 'useFigmaTokenContext')
+      .mockReturnValue({ token: 'test-token', fileKey: null })
+
+    const { result } = renderHook(() => useCreateVariable())
+
+    await act(async () => {
+      await result.current.mutate({} as CreateVariablePayload)
+    })
+
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error?.message).toBe(
+      ERROR_MSG_TOKEN_FILE_KEY_REQUIRED
+    )
+
+    spy.mockRestore()
   })
 
   it('should return an error state if figma token is not provided', async () => {
@@ -61,13 +81,21 @@ describe('useCreateVariable', () => {
     })
 
     const expectedToken = process.env.VITE_FIGMA_TOKEN
+    const expectedFileKey = process.env.VITE_FIGMA_FILE_KEY
 
     expect(mockedMutator).toHaveBeenCalledTimes(1)
     expect(mockedMutator).toHaveBeenCalledWith(
-      FIGMA_POST_VARIABLES_ENDPOINT,
+      FIGMA_FILE_VARIABLES_PATH(expectedFileKey!),
       expectedToken,
       'CREATE',
-      payload
+      {
+        variables: [
+          {
+            action: 'CREATE',
+            ...payload,
+          },
+        ],
+      }
     )
   })
 
