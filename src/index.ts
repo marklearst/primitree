@@ -63,21 +63,33 @@ export {
   useUpdateVariable,
   useDeleteVariable,
   useBulkUpdateVariables,
+  useInvalidateVariables,
 } from 'hooks'
 
 /**
  * Utility functions for Figma Variable management.
  *
  * @remarks
- * Helpers like `filterVariables` for searching and filtering variable lists. All utilities are stateless and type-safe—use for UI filtering, scripting, and dashboard logic.
+ * Helpers like `filterVariables` for searching and filtering variable lists, and error handling utilities. All utilities are stateless and type-safe—use for UI filtering, scripting, and dashboard logic.
  *
  * @example
  * ```ts
- * import { filterVariables } from '@figma-vars/hooks';
+ * import { filterVariables, isFigmaApiError, getErrorStatus } from '@figma-vars/hooks';
  * const filtered = filterVariables(variables, { resolvedType: 'COLOR' });
+ *
+ * // Error handling
+ * if (isFigmaApiError(error)) {
+ *   console.log('Status:', error.statusCode);
+ * }
  * ```
  */
-export { filterVariables } from 'utils'
+export {
+  filterVariables,
+  isFigmaApiError,
+  getErrorStatus,
+  getErrorMessage,
+  hasErrorStatus,
+} from 'utils'
 
 /**
  * All official TypeScript types for advanced usage and type-safe integration.

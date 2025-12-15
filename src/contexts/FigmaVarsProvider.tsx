@@ -1,8 +1,12 @@
+import { useMemo } from 'react'
 import type {
   FigmaTokenContextType,
   FigmaVarsProviderProps,
 } from 'types/contexts'
 import { FigmaTokenContext } from './FigmaTokenContext'
+
+// Generate a unique ID for each provider instance to avoid SWR cache collisions
+let providerIdCounter = 0
 
 /**
  * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
@@ -32,11 +36,24 @@ export const FigmaVarsProvider = ({
   token,
   fileKey,
   fallbackFile,
+  swrConfig,
 }: FigmaVarsProviderProps) => {
-  const value: FigmaTokenContextType =
-    fallbackFile === undefined
-      ? { token, fileKey }
-      : { token, fileKey, fallbackFile }
+  // Generate a unique provider ID for this instance to avoid SWR cache collisions
+  const providerId = useMemo(() => {
+    providerIdCounter += 1
+    return `figma-vars-provider-${providerIdCounter}`
+  }, [])
+
+  const value: FigmaTokenContextType = useMemo(() => {
+    const base = {
+      token,
+      fileKey,
+      providerId,
+      ...(swrConfig !== undefined && { swrConfig }),
+    }
+    return fallbackFile === undefined ? base : { ...base, fallbackFile }
+  }, [token, fileKey, fallbackFile, providerId, swrConfig])
+
   return (
     <FigmaTokenContext.Provider value={value}>
       {children}

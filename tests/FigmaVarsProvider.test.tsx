@@ -45,4 +45,58 @@ describe('FigmaVarsProvider', () => {
     // Restore original console.error
     console.error = originalError
   })
+
+  it('includes swrConfig in context when provided', () => {
+    const testToken = 'test-token'
+    const testFileKey = 'test-file-key'
+    const swrConfig = { revalidateOnFocus: false }
+
+    const SwrConfigTestComponent = () => {
+      const { token, fileKey, swrConfig: config } = useFigmaTokenContext()
+      return (
+        <div>
+          <p>Token: {token}</p>
+          <p>File Key: {fileKey}</p>
+          <p>SWR Config: {config ? 'present' : 'missing'}</p>
+        </div>
+      )
+    }
+
+    render(
+      <FigmaVarsProvider
+        token={testToken}
+        fileKey={testFileKey}
+        swrConfig={swrConfig}>
+        <SwrConfigTestComponent />
+      </FigmaVarsProvider>
+    )
+
+    expect(screen.getByText('SWR Config: present')).toBeInTheDocument()
+  })
+
+  it('does not include swrConfig in context when undefined', () => {
+    const testToken = 'test-token'
+    const testFileKey = 'test-file-key'
+
+    const SwrConfigTestComponent = () => {
+      const context = useFigmaTokenContext()
+      return (
+        <div>
+          <p>Token: {context.token}</p>
+          <p>File Key: {context.fileKey}</p>
+          <p>Has SWR Config: {'swrConfig' in context ? 'yes' : 'no'}</p>
+        </div>
+      )
+    }
+
+    render(
+      <FigmaVarsProvider
+        token={testToken}
+        fileKey={testFileKey}>
+        <SwrConfigTestComponent />
+      </FigmaVarsProvider>
+    )
+
+    expect(screen.getByText('Has SWR Config: no')).toBeInTheDocument()
+  })
 })

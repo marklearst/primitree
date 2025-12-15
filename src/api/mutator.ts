@@ -3,7 +3,8 @@ import {
   FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
 } from 'constants/index'
-import type { VariableAction } from 'types/mutations.js'
+import type { VariableAction, BulkUpdatePayload } from 'types/mutations.js'
+import { FigmaApiError } from 'types/figma'
 
 /**
  * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
@@ -13,37 +14,36 @@ import type { VariableAction } from 'types/mutations.js'
  * It handles JSON serialization of the request body, parses JSON responses, and propagates detailed errors.
  * Intended primarily for internal use by mutation hooks, but also suitable for direct custom API mutations.
  *
- * @typeParam T - The expected response type returned from the Figma API.
+ * @typeParam TResponse - The expected response type returned from the Figma API.
  * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
  * @param token - Figma Personal Access Token (PAT) used for authentication.
  * @param action - The action for the mutation: 'CREATE', 'UPDATE', or 'DELETE'.
- * @param body - Optional request payload sent as a JSON string.
+ * @param body - Optional request payload. For bulk operations, use BulkUpdatePayload. For individual operations, use objects with `variables` array.
  *
  * @returns A Promise resolving to the parsed JSON response from the Figma API.
  *
- * @throws Throws an Error if the token is not provided.
- * @throws Throws an Error if the HTTP response is unsuccessful, including the error message from the API or a default message.
+ * @throws Throws a FigmaApiError if the token is not provided or if the HTTP response is unsuccessful.
  *
  * @example
  * ```ts
  * import { mutator } from '@figma-vars/hooks/api';
  *
  * async function updateVariable(fileKey: string, token: string, variableId: string) {
- *   const url = `https://api.figma.com/v1/files/${fileKey}/variables/${variableId}`;
- *   const payload = { name: 'Updated Name' };
- *   const result = await mutator(url, token, 'PUT', payload);
+ *   const url = `https://api.figma.com/v1/files/${fileKey}/variables`;
+ *   const payload = { variables: [{ action: 'UPDATE', id: variableId, name: 'Updated Name' }] };
+ *   const result = await mutator(url, token, 'UPDATE', payload);
  *   return result;
  * }
  * ```
  */
-export async function mutator<
-  TResponse = unknown,
-  TBody extends Record<string, unknown> = Record<string, unknown>,
->(
+export async function mutator<TResponse = unknown>(
   url: string,
   token: string,
   action: VariableAction,
-  body?: TBody
+  body?:
+    | BulkUpdatePayload
+    | { variables?: Array<Record<string, unknown>> }
+    | Record<string, unknown>
 ): Promise<TResponse> {
   if (!token) {
     throw new Error(ERROR_MSG_TOKEN_REQUIRED)
@@ -75,10 +75,21 @@ export async function mutator<
   const response = await fetch(requestUrl, init)
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(
-      errorData.err || errorData.message || 'An API error occurred'
-    )
+    const statusCode = response.status
+    let errorMessage = 'An API error occurred'
+
+    // Try to extract error message from JSON response
+    try {
+      const contentType = response.headers.get('content-type')
+      if (contentType?.includes('application/json')) {
+        const errorData = await response.json()
+        errorMessage = errorData.err || errorData.message || errorMessage
+      }
+    } catch {
+      // Ignore JSON parse errors, use default message
+    }
+
+    throw new FigmaApiError(errorMessage, statusCode)
   }
 
   // Handle successful '204 No Content' responses, which have no body
