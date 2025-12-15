@@ -17,7 +17,8 @@ import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
  * @public
  */
 export const useVariables = () => {
-  const { token, fileKey, fallbackFile } = useFigmaTokenContext()
+  const { token, fileKey, fallbackFile, providerId, swrConfig } =
+    useFigmaTokenContext()
 
   const url = fileKey
     ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
@@ -29,7 +30,7 @@ export const useVariables = () => {
   const key = hasLive
     ? ([url as string, token as string] as const)
     : hasFallback
-      ? (['fallback', 'fallback'] as const)
+      ? ([`fallback-${providerId ?? 'default'}`, 'fallback'] as const)
       : null
 
   const swrResponse = useSWR<LocalVariablesResponse>(
@@ -47,11 +48,12 @@ export const useVariables = () => {
 
       // At this point we expect live credentials; guard just in case
       if (!u || !t) {
-        return undefined as unknown as LocalVariablesResponse
+        throw new Error('Missing URL or token for live API request')
       }
 
       return fetcher<LocalVariablesResponse>(u, t)
-    }
+    },
+    swrConfig
   )
 
   return swrResponse

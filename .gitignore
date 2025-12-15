@@ -31,6 +31,13 @@ lib-cov
 private/**/*.*
 TODO.md
 
+# Internal planning/audit docs (optional - uncomment to ignore)
+# ISSUES_FOUND.md
+# DX_FEATURES_PROPOSAL.md
+# 3.0.0_FEATURES.md
+# LAUNCH_CHECKLIST.md
+# MARKDOWN_FILES_NOTE.md
+
 # testing
 # .vitest-result.json
 # vitest.workspace.json

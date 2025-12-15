@@ -16,8 +16,12 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
+  "bin": {
+    "figma-vars-export": "./scripts/export-variables.mjs"
+  },
   "keywords": [
     "figma",
     "figma variables",
