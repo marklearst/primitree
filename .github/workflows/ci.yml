@@ -84,11 +84,7 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org/'
-          always-auth: true
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Verify npm authentication
-        run: npm whoami --registry=https://registry.npmjs.org/
+          scope: '@figma-vars'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
