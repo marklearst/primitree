@@ -5,8 +5,9 @@ import { useBulkUpdateVariables } from '../../src/hooks/useBulkUpdateVariables'
 import { useFigmaTokenContext } from '../../src/contexts/useFigmaTokenContext'
 import { mutator } from '../../src/api/mutator'
 import {
-  FIGMA_POST_VARIABLES_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
 } from '../../src/constants/index'
 import type { BulkUpdatePayload } from '../../src/types/mutations'
 
@@ -23,7 +24,10 @@ describe('useBulkUpdateVariables', () => {
   })
 
   it('should set error if figma token is not provided', async () => {
-    mockedUseFigmaTokenContext.mockReturnValue({ token: null })
+    mockedUseFigmaTokenContext.mockReturnValue({
+      token: null,
+      fileKey: 'test-key',
+    })
     const { result } = renderHook(() => useBulkUpdateVariables())
     await act(async () => {
       result.current.mutate({} as BulkUpdatePayload)
@@ -32,8 +36,24 @@ describe('useBulkUpdateVariables', () => {
     expect(result.current.error?.message).toBe(ERROR_MSG_TOKEN_REQUIRED)
   })
 
+  it('should set error if fileKey is not provided', async () => {
+    mockedUseFigmaTokenContext.mockReturnValue({
+      token: 'test-token',
+      fileKey: null,
+    })
+    const { result } = renderHook(() => useBulkUpdateVariables())
+    await act(async () => {
+      result.current.mutate({} as BulkUpdatePayload)
+    })
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.message).toBe(
+      ERROR_MSG_TOKEN_FILE_KEY_REQUIRED
+    )
+  })
+
   it('should call mutator with correct arguments', async () => {
     const mockToken = 'test-token'
+    const mockFileKey = 'test-key'
     const payload: BulkUpdatePayload = {
       variables: [
         {
@@ -44,7 +64,10 @@ describe('useBulkUpdateVariables', () => {
       ],
     }
 
-    mockedUseFigmaTokenContext.mockReturnValue({ token: mockToken })
+    mockedUseFigmaTokenContext.mockReturnValue({
+      token: mockToken,
+      fileKey: mockFileKey,
+    })
     mockedMutator.mockResolvedValue({ success: true })
 
     const { result } = renderHook(() => useBulkUpdateVariables())
@@ -55,7 +78,7 @@ describe('useBulkUpdateVariables', () => {
 
     expect(mockedMutator).toHaveBeenCalledTimes(1)
     expect(mockedMutator).toHaveBeenCalledWith(
-      FIGMA_POST_VARIABLES_ENDPOINT,
+      FIGMA_FILE_VARIABLES_PATH(mockFileKey),
       mockToken,
       'CREATE',
       payload
@@ -64,6 +87,7 @@ describe('useBulkUpdateVariables', () => {
 
   it('should return an error state if the mutator throws an error', async () => {
     const mockToken = 'test-token'
+    const mockFileKey = 'test-key'
     const payload: BulkUpdatePayload = {
       variables: [
         {
@@ -74,7 +98,10 @@ describe('useBulkUpdateVariables', () => {
       ],
     }
 
-    mockedUseFigmaTokenContext.mockReturnValue({ token: mockToken })
+    mockedUseFigmaTokenContext.mockReturnValue({
+      token: mockToken,
+      fileKey: mockFileKey,
+    })
     mockedMutator.mockRejectedValue(new Error('Mocked error'))
 
     const { result } = renderHook(() => useBulkUpdateVariables())

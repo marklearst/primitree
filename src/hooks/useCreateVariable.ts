@@ -2,8 +2,9 @@ import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
 import { useMutation } from 'hooks/useMutation'
 import type { CreateVariablePayload } from 'types/mutations'
 import {
-  FIGMA_POST_VARIABLES_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
 } from 'constants/index'
 import { mutator } from 'api/mutator'
 
@@ -33,17 +34,22 @@ import { mutator } from 'api/mutator'
  * @public
  */
 export const useCreateVariable = () => {
-  const { token } = useFigmaTokenContext()
+  const { token, fileKey } = useFigmaTokenContext()
   const mutation = useMutation(async (payload: CreateVariablePayload) => {
     if (!token) {
       throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
-    return await mutator(
-      FIGMA_POST_VARIABLES_ENDPOINT,
-      token,
-      'CREATE',
-      payload as unknown as Record<string, unknown>
-    )
+    if (!fileKey) {
+      throw new Error(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED)
+    }
+    return await mutator(FIGMA_FILE_VARIABLES_PATH(fileKey), token, 'CREATE', {
+      variables: [
+        {
+          action: 'CREATE',
+          ...payload,
+        },
+      ],
+    } as unknown as Record<string, unknown>)
   })
   return mutation
 }
