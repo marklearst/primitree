@@ -5,7 +5,7 @@ import {
   CONTENT_TYPE_JSON,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
-} from 'constants/index'
+} from "constants/index";
 
 /**
  * Low-level utility to fetch data from the Figma Variables REST API with authentication.
@@ -34,31 +34,34 @@ import {
  * }
  * ```
  */
-export async function fetcher(url: string, token: string): Promise<any> {
+export async function fetcher<TResponse = unknown>(
+  url: string,
+  token: string,
+): Promise<TResponse> {
   if (!token) {
-    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED);
   }
 
   const response = await fetch(url, {
-    method: 'GET',
+    method: "GET",
     headers: {
       [FIGMA_TOKEN_HEADER]: token,
-      'Content-Type': CONTENT_TYPE_JSON,
+      "Content-Type": CONTENT_TYPE_JSON,
     },
-  })
+  });
 
   if (!response.ok) {
-    let errorMessage = ERROR_MSG_FETCH_FIGMA_DATA_FAILED
+    let errorMessage = ERROR_MSG_FETCH_FIGMA_DATA_FAILED;
     try {
-      const errorData = await response.json()
+      const errorData = await response.json();
       if (errorData?.message) {
-        errorMessage = errorData.message
+        errorMessage = errorData.message;
       }
     } catch {
       // Ignore JSON parse errors
     }
-    throw new Error(errorMessage)
+    throw new Error(errorMessage);
   }
 
-  return response.json()
+  return response.json() as Promise<TResponse>;
 }

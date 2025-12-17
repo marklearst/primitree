@@ -1,7 +1,7 @@
-import { useReducer, useCallback } from 'react'
-import type { MutationState, MutationResult } from 'types/mutations'
+import { useReducer, useCallback } from "react";
+import type { MutationState, MutationResult } from "types/mutations";
 
-type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
+type MutationStatus = "idle" | "loading" | "success" | "error";
 
 /**
  * Internal reducer to manage async mutation state for all mutation hooks.
@@ -23,17 +23,17 @@ type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
  */
 export function mutationReducer<TData>(
   state: MutationState<TData>,
-  action: { type: MutationStatus; payload?: TData | Error }
+  action: { type: MutationStatus; payload?: TData | Error },
 ): MutationState<TData> {
   switch (action.type) {
-    case 'loading':
-      return { ...state, status: 'loading', error: null }
-    case 'success':
-      return { ...state, status: 'success', data: action.payload as TData }
-    case 'error':
-      return { ...state, status: 'error', error: action.payload as Error }
+    case "loading":
+      return { ...state, status: "loading", error: null };
+    case "success":
+      return { ...state, status: "success", data: action.payload as TData };
+    case "error":
+      return { ...state, status: "error", error: action.payload as Error };
     default:
-      return state
+      return state;
   }
 }
 
@@ -65,35 +65,35 @@ export function mutationReducer<TData>(
  * @internal
  */
 export const useMutation = <TData, TPayload>(
-  mutationFn: (payload: TPayload) => Promise<TData>
+  mutationFn: (payload: TPayload) => Promise<TData>,
 ): MutationResult<TData, TPayload> => {
   const initialState: MutationState<TData> = {
-    status: 'idle',
+    status: "idle",
     data: null,
     error: null,
-  }
-  const [state, dispatch] = useReducer(mutationReducer<TData>, initialState)
+  };
+  const [state, dispatch] = useReducer(mutationReducer<TData>, initialState);
 
   const mutate = useCallback(
     async (payload: TPayload) => {
-      dispatch({ type: 'loading' })
+      dispatch({ type: "loading" });
       try {
-        const result = await mutationFn(payload)
-        dispatch({ type: 'success', payload: result })
-        return result
+        const result = await mutationFn(payload);
+        dispatch({ type: "success", payload: result });
+        return result;
       } catch (err) {
-        dispatch({ type: 'error', payload: err as Error })
-        return undefined
+        dispatch({ type: "error", payload: err as Error });
+        return undefined;
       }
     },
-    [mutationFn]
-  )
+    [mutationFn],
+  );
 
   return {
     mutate,
     ...state,
-    isLoading: state.status === 'loading',
-    isSuccess: state.status === 'success',
-    isError: state.status === 'error',
-  }
-}
+    isLoading: state.status === "loading",
+    isSuccess: state.status === "success",
+    isError: state.status === "error",
+  };
+};

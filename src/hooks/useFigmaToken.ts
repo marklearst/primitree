@@ -1,4 +1,4 @@
-import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
+import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
 
 /**
  * React hook that provides access to the Figma Personal Access Token (PAT) from context.
@@ -20,8 +20,8 @@ import { useFigmaTokenContext } from 'contexts/FigmaVarsProvider'
  * @public
  */
 const useFigmaToken = (): string | null => {
-  const { token } = useFigmaTokenContext()
-  return token
-}
+  const { token } = useFigmaTokenContext();
+  return token;
+};
 
-export default useFigmaToken
+export default useFigmaToken;

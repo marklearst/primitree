@@ -1,12 +1,5 @@
-import { createContext, useContext } from 'react'
-import type {
-  FigmaTokenContextType,
-  FigmaVarsProviderProps,
-} from 'types/contexts'
-
-const FigmaTokenContext = createContext<FigmaTokenContextType | undefined>(
-  undefined
-)
+import type { FigmaTokenContextType, FigmaVarsProviderProps } from "types/contexts";
+import { FigmaTokenContext } from "./FigmaTokenContext";
 
 /**
  * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
@@ -35,50 +28,15 @@ export const FigmaVarsProvider = ({
   children,
   token,
   fileKey,
+  fallbackFile,
 }: FigmaVarsProviderProps) => {
+  const value: FigmaTokenContextType =
+    fallbackFile === undefined
+      ? { token, fileKey }
+      : { token, fileKey, fallbackFile };
   return (
-    <FigmaTokenContext.Provider value={{ token, fileKey }}>
+    <FigmaTokenContext.Provider value={value}>
       {children}
     </FigmaTokenContext.Provider>
-  )
-}
-
-/**
- * React hook to access the current Figma Personal Access Token and file key from context.
- *
- * @remarks
- * Retrieves the token and file key provided by the nearest `FigmaVarsProvider`.
- * Throws a descriptive error if used outside of the provider to prevent silent failures.
- *
- * Use this hook in any component or hook that requires authenticated access to the Figma Variables API scoped to a file.
- *
- * @returns The current FigmaTokenContextType containing `{ token, fileKey }`.
- *
- * @throws Throws if called outside of a `FigmaVarsProvider` context.
- *
- * @example
- * ```tsx
- * import { useFigmaTokenContext } from '@figma-vars/hooks/contexts';
- *
- * function DebugToken() {
- *   const { token, fileKey } = useFigmaTokenContext();
- *   return (
- *     <div>
- *       <p>Token: {token?.slice(0, 6)}... (hidden for security)</p>
- *       <p>File Key: {fileKey}</p>
- *     </div>
- *   );
- * }
- * ```
- *
- * @public
- */
-export const useFigmaTokenContext = (): FigmaTokenContextType => {
-  const context = useContext(FigmaTokenContext)
-  if (context === undefined) {
-    throw new Error(
-      'useFigmaTokenContext must be used within a FigmaVarsProvider'
-    )
-  }
-  return context
-}
+  );
+};

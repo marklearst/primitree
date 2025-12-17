@@ -1,9 +1,5 @@
-import {
-  FIGMA_API_BASE_URL,
-  FIGMA_TOKEN_HEADER,
-  ERROR_MSG_TOKEN_REQUIRED,
-} from 'constants/index'
-import type { VariableAction } from 'types/mutations'
+import { FIGMA_API_BASE_URL, FIGMA_TOKEN_HEADER, ERROR_MSG_TOKEN_REQUIRED } from "constants/index";
+import type { VariableAction } from "types/mutations";
 
 /**
  * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
@@ -36,44 +32,46 @@ import type { VariableAction } from 'types/mutations'
  * }
  * ```
  */
-export async function mutator(
+export async function mutator<TResponse = unknown, TBody extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
   token: string,
   action: VariableAction,
-  body?: any
-): Promise<any> {
+  body?: TBody,
+): Promise<TResponse> {
   if (!token) {
-    throw new Error(ERROR_MSG_TOKEN_REQUIRED)
+    throw new Error(ERROR_MSG_TOKEN_REQUIRED);
   }
 
-  const methodMap: Record<VariableAction, 'POST' | 'PUT' | 'DELETE'> = {
-    CREATE: 'POST',
-    UPDATE: 'PUT',
-    DELETE: 'DELETE',
-  }
-  const method = methodMap[action]
+  const methodMap: Record<VariableAction, "POST" | "PUT" | "DELETE"> = {
+    CREATE: "POST",
+    UPDATE: "PUT",
+    DELETE: "DELETE",
+  };
+  const method = methodMap[action];
 
-  const response = await fetch(`${FIGMA_API_BASE_URL}${url}`, {
+  const init: RequestInit = {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       [FIGMA_TOKEN_HEADER]: token,
     },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  };
+  if (body) {
+    init.body = JSON.stringify(body);
+  }
+  const response = await fetch(`${FIGMA_API_BASE_URL}${url}`, init);
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(
-      errorData.err || errorData.message || 'An API error occurred'
-    )
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.err || errorData.message || "An API error occurred");
   }
 
   // Handle successful '204 No Content' responses, which have no body
   if (response.status === 204 || !response.body) {
-    return {}
+    // Cast empty object to the generic response type, allowing callers to specify void or an object
+    return {} as TResponse;
   }
 
   // For all other successful responses, parse the JSON body
-  return response.json()
+  return response.json() as Promise<TResponse>;
 }

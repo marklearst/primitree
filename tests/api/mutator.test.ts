@@ -1,93 +1,82 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { mutator } from '../../src/api/mutator'
-import {
-  FIGMA_API_BASE_URL,
-  ERROR_MSG_TOKEN_REQUIRED,
-} from '../../src/constants'
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { mutator } from "../../src/api/mutator";
+import { FIGMA_API_BASE_URL, ERROR_MSG_TOKEN_REQUIRED } from "../../src/constants";
 
-global.fetch = vi.fn()
+global.fetch = vi.fn();
 
-describe('mutator', () => {
-  const token = 'test-token'
-  const url = '/variables'
-  const body = { name: 'test' }
+describe("mutator", () => {
+  const token = "test-token";
+  const url = "/variables";
+  const body = { name: "test" };
 
   afterEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
-  it('should throw an error if token is not provided', async () => {
-    await expect(mutator(url, '', 'CREATE', body)).rejects.toThrow(
-      ERROR_MSG_TOKEN_REQUIRED
-    )
-  })
+  it("should throw an error if token is not provided", async () => {
+    await expect(mutator(url, "", "CREATE", body)).rejects.toThrow(ERROR_MSG_TOKEN_REQUIRED);
+  });
 
-  it('should call fetch with POST for CREATE action and return JSON', async () => {
-    ;(fetch as any).mockResolvedValue({
+  it("should call fetch with POST for CREATE action and return JSON", async () => {
+    (fetch as any).mockResolvedValue({
       ok: true,
       status: 200,
-      body: 'not-null', // Ensure body is truthy to pass the check
-      json: () => Promise.resolve({ id: '123' }),
-    })
-    const result = await mutator(url, token, 'CREATE', body)
+      body: "not-null", // Ensure body is truthy to pass the check
+      json: () => Promise.resolve({ id: "123" }),
+    });
+    const result = await mutator(url, token, "CREATE", body);
     expect(fetch).toHaveBeenCalledWith(
       `${FIGMA_API_BASE_URL}${url}`,
-      expect.objectContaining({ method: 'POST' })
-    )
-    expect(result).toEqual({ id: '123' })
-  })
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(result).toEqual({ id: "123" });
+  });
 
-  it('should call fetch with PUT for UPDATE action and return JSON', async () => {
-    ;(fetch as any).mockResolvedValue({
+  it("should call fetch with PUT for UPDATE action and return JSON", async () => {
+    (fetch as any).mockResolvedValue({
       ok: true,
       status: 200,
-      body: 'not-null', // Ensure body is truthy to pass the check
-      json: () => Promise.resolve({ id: '123' }),
-    })
-    const result = await mutator(url, token, 'UPDATE', body)
+      body: "not-null", // Ensure body is truthy to pass the check
+      json: () => Promise.resolve({ id: "123" }),
+    });
+    const result = await mutator(url, token, "UPDATE", body);
     expect(fetch).toHaveBeenCalledWith(
       `${FIGMA_API_BASE_URL}${url}`,
-      expect.objectContaining({ method: 'PUT' })
-    )
-    expect(result).toEqual({ id: '123' })
-  })
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(result).toEqual({ id: "123" });
+  });
 
-  it('should handle successful DELETE (204 No Content)', async () => {
-    ;(fetch as any).mockResolvedValue({
+  it("should handle successful DELETE (204 No Content)", async () => {
+    (fetch as any).mockResolvedValue({
       ok: true,
       status: 204,
       body: null, // Simulate no body
-    })
-    const result = await mutator(url, token, 'DELETE')
-    expect(result).toEqual({})
-  })
+    });
+    const result = await mutator(url, token, "DELETE");
+    expect(result).toEqual({});
+  });
 
-  it('should throw error with `err` from response', async () => {
-    ;(fetch as any).mockResolvedValue({
+  it("should throw error with `err` from response", async () => {
+    (fetch as any).mockResolvedValue({
       ok: false,
       status: 400,
-      json: () => Promise.resolve({ err: 'Bad Request' }),
-    })
-    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'Bad Request'
-    )
-  })
+      json: () => Promise.resolve({ err: "Bad Request" }),
+    });
+    await expect(mutator(url, token, "CREATE", body)).rejects.toThrow("Bad Request");
+  });
 
-  it('should throw generic error for failed non-JSON response', async () => {
-    ;(fetch as any).mockResolvedValue({
+  it("should throw generic error for failed non-JSON response", async () => {
+    (fetch as any).mockResolvedValue({
       ok: false,
       status: 500,
-      json: () => Promise.reject(new Error('Invalid JSON')),
-    })
-    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
-    )
-  })
+      json: () => Promise.reject(new Error("Invalid JSON")),
+    });
+    await expect(mutator(url, token, "CREATE", body)).rejects.toThrow("An API error occurred");
+  });
 
-  it('should throw error if fetch itself fails', async () => {
-    ;(fetch as any).mockRejectedValue(new Error('Network Failure'))
-    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'Network Failure'
-    )
-  })
-})
+  it("should throw error if fetch itself fails", async () => {
+    (fetch as any).mockRejectedValue(new Error("Network Failure"));
+    await expect(mutator(url, token, "CREATE", body)).rejects.toThrow("Network Failure");
+  });
+});
