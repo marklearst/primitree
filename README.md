@@ -26,6 +26,8 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 - **✍️ Ergonomic Mutations**: A `useMutation`-style API for creating, updating, and deleting variables, providing clear loading and error states.
 - **🔒 TypeScript-first**: Strictly typed for an ergonomic and safe developer experience. Get autocompletion for all API responses.
 - **📖 Storybook & Next.js Ready**: Perfect for building live design token dashboards or style guides.
+- **🔄 Local JSON Support**: Use local JSON files exported from Figma Dev Mode plugins when you don't have a Figma Enterprise account, enabling offline development and static deployments.
+- **🚧 Style Dictionary Integration**: Coming soon in future beta releases - seamless integration with Amazon's Style Dictionary for multi-platform design token distribution.
 
 ---
 
@@ -162,6 +164,61 @@ function CreateVariableForm({ collectionId }: { collectionId: string }) {
 }
 ```
 
+### Using Local JSON Files (No Enterprise Account Required)
+
+If you don't have a Figma Enterprise account (required for the Variables API), you can still use this library with local JSON files exported from Figma Dev Mode plugins. This is perfect for:
+
+- **Offline Development**: Work on your design system without an internet connection
+- **Static Deployments**: Deploy design token dashboards to static hosting
+- **CI/CD Pipelines**: Use exported JSON files in automated workflows
+- **Team Collaboration**: Share design tokens without API access
+
+#### Getting Your JSON File
+
+We recommend using the [Variables Exporter for Dev Mode](https://www.figma.com/community/plugin/1491572182178544621) plugin:
+
+1. Install the plugin in Figma
+2. Open your Figma file in Dev Mode
+3. Run the plugin and export your variables as JSON
+4. Save the JSON file to your project (e.g., `src/assets/figma-variables.json`)
+
+This plugin exports the exact same format that the Figma Variables API returns, ensuring perfect compatibility with this library.
+
+#### Using the Fallback File
+
+```tsx
+// src/main.tsx or App.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { FigmaVarsProvider } from '@figma-vars/hooks'
+import App from './App'
+import variablesData from './assets/figma-variables.json'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <FigmaVarsProvider
+      token={null} // No token needed when using fallbackFile
+      fileKey="your-figma-file-key"
+      fallbackFile={variablesData}>
+      <App />
+    </FigmaVarsProvider>
+  </React.StrictMode>
+)
+```
+
+You can also pass the JSON as a string if you prefer:
+
+```tsx
+import variablesJson from './assets/figma-variables.json?raw'
+
+<FigmaVarsProvider
+  token={null}
+  fileKey="your-figma-file-key"
+  fallbackFile={variablesJson}>
+  <App />
+</FigmaVarsProvider>
+```
+
 ### Figma PAT Security
 
 When using the Figma API, it's essential to keep your Personal Access Token (PAT) secure. Here are some best practices:
@@ -231,10 +288,18 @@ function ErrorHandling() {
 
 ### Core Hooks
 
-- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns a SWR hook state with `data`, `isLoading`, and `error` properties. The actual Figma response is in `data.data`.
+- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns a SWR hook state with `data`, `isLoading`, and `error` properties. The actual Figma response is in `data.data`. When `fallbackFile` is provided, it uses the local JSON data instead of making an API request.
 - `useVariableCollections()`: A convenience hook that returns just the variable collections from the main `useVariables` data.
 - `useVariableModes()`: A convenience hook that returns just the variable modes from the main `useVariables` data.
 - `useFigmaToken()`: A simple hook to access the token and file key from the context.
+
+### Provider Props
+
+The `FigmaVarsProvider` accepts the following props:
+
+- `token`: Figma Personal Access Token (PAT) for API authentication. Can be `null` when using `fallbackFile`.
+- `fileKey`: Figma file key for the target file. Required for API requests but can be any string when using `fallbackFile`.
+- `fallbackFile`: Optional local JSON file (as object or string) to use instead of API requests. Perfect for users without Figma Enterprise accounts.
 
 ### Mutation Hooks
 
