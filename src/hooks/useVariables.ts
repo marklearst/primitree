@@ -1,7 +1,7 @@
-import useSWR from "swr";
-import { fetcher } from "api/fetcher";
-import type { LocalVariablesResponse } from "types/figma";
-import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
+import useSWR from 'swr'
+import { fetcher } from 'api/fetcher'
+import type { LocalVariablesResponse } from 'types/figma'
+import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
 
 /**
  * Hook to fetch and manage Figma Variables, including collections and modes.
@@ -17,23 +17,34 @@ import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
  * @public
  */
 export const useVariables = () => {
-  const { token, fileKey, fallbackFile } = useFigmaTokenContext();
+  const { token, fileKey, fallbackFile } = useFigmaTokenContext()
 
   // Create a custom fetcher that handles fallbackFile
-  const customFetcher = async (url: string, token: string): Promise<LocalVariablesResponse> => {
+  const customFetcher = async (
+    url: string,
+    token: string
+  ): Promise<LocalVariablesResponse> => {
     if (fallbackFile) {
       return typeof fallbackFile === 'string'
-        ? JSON.parse(fallbackFile) as LocalVariablesResponse
-        : fallbackFile as LocalVariablesResponse;
+        ? (JSON.parse(fallbackFile) as LocalVariablesResponse)
+        : (fallbackFile as LocalVariablesResponse)
     }
-    return fetcher<LocalVariablesResponse>(url, token);
-  };
+    return fetcher<LocalVariablesResponse>(url, token)
+  }
 
-  const url = token && fileKey ? `https://api.figma.com/v1/files/${fileKey}/variables/local` : null;
+  // If fallbackFile is provided, we can use it even without token/fileKey
+  const url =
+    token && fileKey
+      ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
+      : null
   const swrResponse = useSWR<LocalVariablesResponse>(
-    url && token ? ([url, token] as const) : null,
-    url && token ? ([u, t]: readonly [string, string]) => customFetcher(u, t) : () => Promise.resolve(undefined as unknown as LocalVariablesResponse),
-  );
+    (url && token) || fallbackFile
+      ? ([url || 'fallback', token || 'fallback'] as const)
+      : null,
+    (url && token) || fallbackFile
+      ? ([u, t]: readonly [string, string]) => customFetcher(u, t)
+      : () => Promise.resolve(undefined as unknown as LocalVariablesResponse)
+  )
 
-  return swrResponse;
-};
+  return swrResponse
+}

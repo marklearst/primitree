@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import { useVariables } from "hooks/useVariables";
-import type { FigmaCollection } from "types";
+import { useMemo } from 'react'
+import { useVariables } from 'hooks/useVariables'
+import type { FigmaCollection } from 'types'
 
 /**
  * React hook that extracts and memoizes all variable collections from loaded Figma variables data.
@@ -33,20 +33,20 @@ import type { FigmaCollection } from "types";
  * @public
  */
 export const useVariableCollections = () => {
-  const { data } = useVariables();
+  const { data } = useVariables()
 
   const collections: FigmaCollection[] = useMemo(
     () => (data?.meta ? Object.values(data.meta.variableCollections) : []),
-    [data],
-  );
+    [data]
+  )
 
   const collectionsById: Record<string, FigmaCollection> = useMemo(
     () => (data?.meta ? data.meta.variableCollections : {}),
-    [data],
-  );
+    [data]
+  )
 
   return {
     collections,
     collectionsById,
-  };
-};
+  }
+}

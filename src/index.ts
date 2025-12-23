@@ -31,7 +31,7 @@
  * }
  * ```
  */
-export { FigmaVarsProvider } from "contexts";
+export { FigmaVarsProvider } from 'contexts'
 
 /**
  * Core React hooks for interacting with Figma Variables.
@@ -62,7 +62,7 @@ export {
   useUpdateVariable,
   useDeleteVariable,
   useBulkUpdateVariables,
-} from "hooks";
+} from 'hooks'
 
 /**
  * Utility functions for Figma Variable management.
@@ -76,7 +76,7 @@ export {
  * const filtered = filterVariables(variables, { resolvedType: 'COLOR' });
  * ```
  */
-export { filterVariables } from "utils";
+export { filterVariables } from 'utils'
 
 /**
  * All official TypeScript types for advanced usage and type-safe integration.
@@ -89,4 +89,4 @@ export { filterVariables } from "utils";
  * import type { FigmaVariable, CreateVariablePayload } from '@figma-vars/hooks';
  * ```
  */
-export * from "types";
+export * from 'types'

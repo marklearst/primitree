@@ -1,11 +1,11 @@
-import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
-import { useMutation } from "hooks/useMutation";
-import type { CreateVariablePayload } from "types/mutations";
+import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
+import { useMutation } from 'hooks/useMutation'
+import type { CreateVariablePayload } from 'types/mutations'
 import {
   FIGMA_POST_VARIABLES_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from "constants/index";
-import { mutator } from "api/mutator";
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * React hook that creates a new Figma variable in the current file using the Figma Variables API.
@@ -33,17 +33,17 @@ import { mutator } from "api/mutator";
  * @public
  */
 export const useCreateVariable = () => {
-  const { token } = useFigmaTokenContext();
+  const { token } = useFigmaTokenContext()
   const mutation = useMutation(async (payload: CreateVariablePayload) => {
     if (!token) {
-      throw new Error(ERROR_MSG_TOKEN_REQUIRED);
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
     return await mutator(
       FIGMA_POST_VARIABLES_ENDPOINT,
       token,
-      "CREATE",
-      payload as unknown as Record<string, unknown>,
-    );
-  });
-  return mutation;
-};
+      'CREATE',
+      payload as unknown as Record<string, unknown>
+    )
+  })
+  return mutation
+}

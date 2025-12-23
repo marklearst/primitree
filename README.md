@@ -105,7 +105,7 @@ export function TokenList() {
 
   return (
     <ul>
-      {variables.map((variable) => (
+      {variables.map(variable => (
         <li key={variable.id}>
           {variable.name}: {JSON.stringify(variable.valuesByMode)}
         </li>
@@ -132,9 +132,7 @@ function CreateVariableForm({ collectionId }: { collectionId: string }) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
-    const variableName = (
-      form.elements.namedItem('variableName') as HTMLInputElement
-    )?.value
+    const variableName = (form.elements.namedItem('variableName') as HTMLInputElement)?.value
 
     if (!variableName) return
 
@@ -149,11 +147,11 @@ function CreateVariableForm({ collectionId }: { collectionId: string }) {
   return (
     <form onSubmit={handleSubmit}>
       <input
-        name="variableName"
-        placeholder="New variable name"
+        name='variableName'
+        placeholder='New variable name'
       />
       <button
-        type="submit"
+        type='submit'
         disabled={isLoading}>
         {isLoading ? 'Creating...' : 'Create Variable'}
       </button>
@@ -198,7 +196,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <FigmaVarsProvider
       token={null} // No token needed when using fallbackFile
-      fileKey="your-figma-file-key"
+      fileKey={null} // No fileKey needed when using fallbackFile
       fallbackFile={variablesData}>
       <App />
     </FigmaVarsProvider>
@@ -210,10 +208,9 @@ You can also pass the JSON as a string if you prefer:
 
 ```tsx
 import variablesJson from './assets/figma-variables.json?raw'
-
-<FigmaVarsProvider
+;<FigmaVarsProvider
   token={null}
-  fileKey="your-figma-file-key"
+  fileKey={null}
   fallbackFile={variablesJson}>
   <App />
 </FigmaVarsProvider>
@@ -241,14 +238,11 @@ function AdvancedUsage() {
 
   // Use the token and file key to make custom API requests
   const apiRequest = async () => {
-    const response = await fetch(
-      `https://api.figma.com/v1/files/${fileKey}/variables`,
-      {
-        headers: {
-          'X-Figma-Token': token,
-        },
-      }
-    )
+    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables`, {
+      headers: {
+        'X-Figma-Token': token,
+      },
+    })
 
     const data = await response.json()
     console.log(data)
@@ -298,7 +292,7 @@ function ErrorHandling() {
 The `FigmaVarsProvider` accepts the following props:
 
 - `token`: Figma Personal Access Token (PAT) for API authentication. Can be `null` when using `fallbackFile`.
-- `fileKey`: Figma file key for the target file. Required for API requests but can be any string when using `fallbackFile`.
+- `fileKey`: Figma file key for the target file. Required for API requests but can be `null` when using `fallbackFile`.
 - `fallbackFile`: Optional local JSON file (as object or string) to use instead of API requests. Perfect for users without Figma Enterprise accounts.
 
 ### Mutation Hooks
@@ -326,8 +320,8 @@ import { FigmaVarsProvider, useVariables } from '@figma-vars/hooks'
 
 export const TokensStory = () => (
   <FigmaVarsProvider
-    token="YOUR_TOKEN"
-    fileKey="YOUR_FILE_KEY">
+    token='YOUR_TOKEN'
+    fileKey='YOUR_FILE_KEY'>
     <TokenList />
   </FigmaVarsProvider>
 )

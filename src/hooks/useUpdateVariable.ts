@@ -1,8 +1,11 @@
-import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
-import { useMutation } from "hooks/useMutation";
-import type { UpdateVariablePayload } from "types/mutations";
-import { FIGMA_VARIABLE_BY_ID_ENDPOINT, ERROR_MSG_TOKEN_REQUIRED } from "constants/index";
-import { mutator } from "api/mutator";
+import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
+import { useMutation } from 'hooks/useMutation'
+import type { UpdateVariablePayload } from 'types/mutations'
+import {
+  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  ERROR_MSG_TOKEN_REQUIRED,
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * React hook that updates an existing Figma variable by ID using the Figma Variables API.
@@ -28,19 +31,25 @@ import { mutator } from "api/mutator";
  * @public
  */
 export const useUpdateVariable = () => {
-  const { token } = useFigmaTokenContext();
+  const { token } = useFigmaTokenContext()
   const mutation = useMutation(
-    async ({ variableId, payload }: { variableId: string; payload: UpdateVariablePayload }) => {
+    async ({
+      variableId,
+      payload,
+    }: {
+      variableId: string
+      payload: UpdateVariablePayload
+    }) => {
       if (!token) {
-        throw new Error(ERROR_MSG_TOKEN_REQUIRED);
+        throw new Error(ERROR_MSG_TOKEN_REQUIRED)
       }
       return await mutator(
         FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
         token,
-        "UPDATE",
-        payload as unknown as Record<string, unknown>,
-      );
-    },
-  );
-  return mutation;
-};
+        'UPDATE',
+        payload as unknown as Record<string, unknown>
+      )
+    }
+  )
+  return mutation
+}

@@ -1,10 +1,10 @@
-import { useFigmaTokenContext } from "contexts/useFigmaTokenContext";
-import { useMutation } from "hooks/useMutation";
+import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
+import { useMutation } from 'hooks/useMutation'
 import {
   FIGMA_VARIABLE_BY_ID_ENDPOINT,
   ERROR_MSG_TOKEN_REQUIRED,
-} from "constants/index";
-import { mutator } from "api/mutator";
+} from 'constants/index'
+import { mutator } from 'api/mutator'
 
 /**
  * React hook that deletes a Figma variable by ID using the Figma Variables API.
@@ -30,17 +30,17 @@ import { mutator } from "api/mutator";
  * @public
  */
 export const useDeleteVariable = () => {
-  const { token } = useFigmaTokenContext();
+  const { token } = useFigmaTokenContext()
   const mutation = useMutation(async (variableId: string) => {
     if (!token) {
-      throw new Error(ERROR_MSG_TOKEN_REQUIRED);
+      throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
     return await mutator(
       FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
       token,
-      "DELETE",
-      undefined as unknown as Record<string, unknown>,
-    );
-  });
-  return mutation;
-};
+      'DELETE',
+      undefined as unknown as Record<string, unknown>
+    )
+  })
+  return mutation
+}

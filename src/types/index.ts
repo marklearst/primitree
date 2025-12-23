@@ -24,7 +24,7 @@
  * }
  * ```
  */
-export * from "types/figma";
-export * from "types/hooks";
-export * from "types/mutations";
-export * from "types/contexts";
+export * from 'types/figma'
+export * from 'types/hooks'
+export * from 'types/mutations'
+export * from 'types/contexts'

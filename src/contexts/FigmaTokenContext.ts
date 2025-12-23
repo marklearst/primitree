@@ -1,6 +1,6 @@
-import { createContext } from "react";
-import type { FigmaTokenContextType } from "types/contexts";
+import { createContext } from 'react'
+import type { FigmaTokenContextType } from 'types/contexts'
 
-export const FigmaTokenContext = createContext<FigmaTokenContextType | undefined>(undefined);
-
-
+export const FigmaTokenContext = createContext<
+  FigmaTokenContextType | undefined
+>(undefined)

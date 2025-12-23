@@ -1,5 +1,8 @@
-import type { FigmaTokenContextType, FigmaVarsProviderProps } from "types/contexts";
-import { FigmaTokenContext } from "./FigmaTokenContext";
+import type {
+  FigmaTokenContextType,
+  FigmaVarsProviderProps,
+} from 'types/contexts'
+import { FigmaTokenContext } from './FigmaTokenContext'
 
 /**
  * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
@@ -33,10 +36,10 @@ export const FigmaVarsProvider = ({
   const value: FigmaTokenContextType =
     fallbackFile === undefined
       ? { token, fileKey }
-      : { token, fileKey, fallbackFile };
+      : { token, fileKey, fallbackFile }
   return (
     <FigmaTokenContext.Provider value={value}>
       {children}
     </FigmaTokenContext.Provider>
-  );
-};
+  )
+}

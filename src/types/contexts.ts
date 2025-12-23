@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { LocalVariablesResponse } from "types";
+import type { ReactNode } from 'react'
+import type { LocalVariablesResponse } from 'types'
 
 /**
  * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
@@ -32,17 +32,17 @@ export interface FigmaTokenContextType {
    * Figma Personal Access Token (PAT), or null if not set. Required for all authenticated Figma REST API operations.
    * Generate a PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
    */
-  token: string | null;
+  token: string | null
   /**
    * Figma file key for the current file context, or null if not set.
    * The file key is the string after '/file/' in a Figma file URL (e.g., https://www.figma.com/file/<fileKey>/...).
    */
-  fileKey: string | null;
+  fileKey: string | null
   /**
    * Optional fallback variable JSON file for offline or static use cases.
    * Allows FigmaVars to function without a live API request.
    */
-  fallbackFile?: LocalVariablesResponse | string;
+  fallbackFile?: LocalVariablesResponse | string
 }
 
 /**
@@ -71,19 +71,19 @@ export interface FigmaVarsProviderProps {
   /**
    * The React nodes to render inside the provider.
    */
-  children: ReactNode;
+  children: ReactNode
   /**
    * Figma Personal Access Token (PAT) to inject into context. Required for all authenticated API operations.
    * Generate your PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
    */
-  token: string | null;
+  token: string | null
   /**
    * Figma file key (ID) to provide context for all variable and collection operations.
    * The file key is found in the Figma file URL, after `/file/` and before the next `/` (e.g., https://www.figma.com/file/<fileKey>/...).
    */
-  fileKey: string | null;
+  fileKey: string | null
   /**
    * Optional fallback variable JSON file used when the API is unavailable or skipped.
    */
-  fallbackFile?: LocalVariablesResponse | string;
+  fallbackFile?: LocalVariablesResponse | string
 }
