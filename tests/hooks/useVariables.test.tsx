@@ -420,9 +420,10 @@ describe('useVariables', () => {
       (url: string, token: string) => Promise<unknown>,
     ]
     // Key should match pattern: ['fallback-${providerId}', 'fallback']
+    // React's useId() returns format like :r1:, :r2:, etc.
     expect(Array.isArray(key)).toBe(true)
     const keyArray = key as [string, string]
-    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-\d+$/)
+    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-/)
     expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 
