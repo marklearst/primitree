@@ -161,3 +161,48 @@ export { useInvalidateVariables } from 'hooks/useInvalidateVariables'
  * @public
  */
 export { usePublishedVariables } from 'hooks/usePublishedVariables'
+/**
+ * React hook to select a single variable by ID from loaded Figma variables data.
+ *
+ * @remarks
+ * Returns the variable with the specified ID, or undefined if not found.
+ *
+ * @example
+ * ```tsx
+ * import { useVariableById } from '@figma-vars/hooks';
+ * const variable = useVariableById('VariableID:123:456');
+ * ```
+ *
+ * @public
+ */
+export { useVariableById } from 'hooks/useVariableById'
+/**
+ * React hook to select a single variable collection by ID from loaded Figma variables data.
+ *
+ * @remarks
+ * Returns the collection with the specified ID, or undefined if not found.
+ *
+ * @example
+ * ```tsx
+ * import { useCollectionById } from '@figma-vars/hooks';
+ * const collection = useCollectionById('VariableCollectionId:123:456');
+ * ```
+ *
+ * @public
+ */
+export { useCollectionById } from 'hooks/useCollectionById'
+/**
+ * React hook to select modes for a specific variable collection.
+ *
+ * @remarks
+ * Returns an array of modes belonging to the specified collection.
+ *
+ * @example
+ * ```tsx
+ * import { useModesByCollection } from '@figma-vars/hooks';
+ * const modes = useModesByCollection('VariableCollectionId:123:456');
+ * ```
+ *
+ * @public
+ */
+export { useModesByCollection } from 'hooks/useModesByCollection'
