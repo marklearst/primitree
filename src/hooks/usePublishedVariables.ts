@@ -2,7 +2,7 @@ import useSWR from 'swr'
 import { fetcher } from 'api/fetcher'
 import type { PublishedVariablesResponse } from 'types/figma'
 import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
+import { getPublishedVariablesKey } from 'utils/swrKeys'
 
 /**
  * Hook to fetch published Figma Variables from a file.
@@ -44,32 +44,41 @@ import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
  * ```
  */
 export const usePublishedVariables = () => {
-  const { token, fileKey, fallbackFile, providerId, swrConfig } =
-    useFigmaTokenContext()
+  const {
+    token,
+    fileKey,
+    fallbackFile,
+    parsedFallbackFile,
+    providerId,
+    swrConfig,
+  } = useFigmaTokenContext()
 
-  const url = fileKey ? FIGMA_PUBLISHED_VARIABLES_PATH(fileKey) : null
+  const hasFallback = Boolean(fallbackFile || parsedFallbackFile)
 
-  const hasLive = Boolean(token && url)
-  const hasFallback = Boolean(fallbackFile)
-
-  const key = hasLive
-    ? ([url as string, token as string] as const)
-    : hasFallback
-      ? ([`fallback-${providerId ?? 'default'}`, 'fallback'] as const)
-      : null
+  const key = getPublishedVariablesKey({
+    fileKey,
+    token,
+    providerId,
+    hasFallback,
+  })
 
   const swrResponse = useSWR<PublishedVariablesResponse>(
     key,
     async (...args: [readonly [string, string]] | [string, string]) => {
+      // Use pre-parsed fallback file from provider (handles both string and object fallbackFile)
+      if (parsedFallbackFile) {
+        return parsedFallbackFile as PublishedVariablesResponse
+      }
+
+      // Legacy support: if fallbackFile is an object but parsedFallbackFile wasn't set
+      // This can happen if the provider didn't validate the structure correctly
+      if (fallbackFile && typeof fallbackFile === 'object') {
+        return fallbackFile as PublishedVariablesResponse
+      }
+
       const [u, t] = Array.isArray(args[0])
         ? args[0]
         : ([args[0], args[1]] as const)
-
-      if (fallbackFile) {
-        return typeof fallbackFile === 'string'
-          ? (JSON.parse(fallbackFile) as PublishedVariablesResponse)
-          : (fallbackFile as PublishedVariablesResponse)
-      }
 
       if (!u || !t) {
         throw new Error('Missing URL or token for live API request')

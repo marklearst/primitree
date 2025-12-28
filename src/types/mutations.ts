@@ -304,6 +304,21 @@ export interface MutationState<TData> {
 }
 
 /**
+ * Options for configuring mutation behavior.
+ *
+ * @public
+ */
+export interface MutationOptions {
+  /**
+   * If true, errors will be rethrown instead of being caught and stored in state.
+   * This allows callers to use try/catch for error handling.
+   *
+   * @default false
+   */
+  throwOnError?: boolean
+}
+
+/**
  * Return value of mutation hooks.
  *
  * @remarks

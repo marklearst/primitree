@@ -4,6 +4,8 @@ import {
   getErrorStatus,
   getErrorMessage,
   hasErrorStatus,
+  isRateLimited,
+  getRetryAfter,
 } from '../../src/utils/errorHelpers'
 import { FigmaApiError } from '../../src/types/figma'
 
@@ -156,6 +158,65 @@ describe('errorHelpers', () => {
       expect(hasErrorStatus(new FigmaApiError('Server Error', 500), 500)).toBe(
         true
       )
+    })
+  })
+
+  describe('isRateLimited', () => {
+    it('should return true for 429 status code', () => {
+      const error = new FigmaApiError('Rate Limited', 429)
+      expect(isRateLimited(error)).toBe(true)
+    })
+
+    it('should return false for non-429 status codes', () => {
+      expect(isRateLimited(new FigmaApiError('Not Found', 404))).toBe(false)
+      expect(isRateLimited(new FigmaApiError('Unauthorized', 401))).toBe(false)
+      expect(isRateLimited(new FigmaApiError('Server Error', 500))).toBe(false)
+    })
+
+    it('should return false for generic Error instances', () => {
+      const error = new Error('Generic error')
+      expect(isRateLimited(error)).toBe(false)
+    })
+
+    it('should return false for non-error values', () => {
+      expect(isRateLimited(null)).toBe(false)
+      expect(isRateLimited(undefined)).toBe(false)
+      expect(isRateLimited('string')).toBe(false)
+      expect(isRateLimited(123)).toBe(false)
+      expect(isRateLimited({})).toBe(false)
+    })
+  })
+
+  describe('getRetryAfter', () => {
+    it('should return retryAfter value for rate limit error with retryAfter', () => {
+      const error = new FigmaApiError('Rate Limited', 429, 60)
+      expect(getRetryAfter(error)).toBe(60)
+    })
+
+    it('should return null for rate limit error without retryAfter', () => {
+      const error = new FigmaApiError('Rate Limited', 429)
+      expect(getRetryAfter(error)).toBeNull()
+    })
+
+    it('should return null for non-rate-limit errors', () => {
+      expect(getRetryAfter(new FigmaApiError('Not Found', 404))).toBeNull()
+      expect(getRetryAfter(new FigmaApiError('Unauthorized', 401))).toBeNull()
+      expect(getRetryAfter(new Error('Generic error'))).toBeNull()
+    })
+
+    it('should return null for non-error values', () => {
+      expect(getRetryAfter(null)).toBeNull()
+      expect(getRetryAfter(undefined)).toBeNull()
+      expect(getRetryAfter('string')).toBeNull()
+      expect(getRetryAfter(123)).toBeNull()
+    })
+
+    it('should return different retryAfter values correctly', () => {
+      expect(getRetryAfter(new FigmaApiError('Rate Limited', 429, 30))).toBe(30)
+      expect(getRetryAfter(new FigmaApiError('Rate Limited', 429, 120))).toBe(
+        120
+      )
+      expect(getRetryAfter(new FigmaApiError('Rate Limited', 429, 0))).toBe(0)
     })
   })
 })

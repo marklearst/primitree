@@ -307,6 +307,8 @@ export interface FigmaError {
  * Extends the standard Error class to include HTTP status code information,
  * making it easier for consumers to handle different error types (401, 403, 404, 429, etc.).
  *
+ * For rate limit errors (429), includes retry-after information parsed from response headers.
+ *
  * @example
  * ```ts
  * import { FigmaApiError } from '@figma-vars/hooks';
@@ -319,6 +321,7 @@ export interface FigmaError {
  *       // Handle authentication error
  *     } else if (error.statusCode === 429) {
  *       // Handle rate limit
+ *       console.log(`Retry after ${error.retryAfter} seconds`);
  *     }
  *   }
  * }
@@ -329,11 +332,17 @@ export interface FigmaError {
 export class FigmaApiError extends Error {
   /** HTTP status code from the API response. */
   public readonly statusCode: number
+  /**
+   * Retry-After header value in seconds (for 429 rate limit errors).
+   * Undefined if not a rate limit error or header not present.
+   */
+  public readonly retryAfter: number | undefined
 
-  constructor(message: string, statusCode: number) {
+  constructor(message: string, statusCode: number, retryAfter?: number) {
     super(message)
     this.name = 'FigmaApiError'
     this.statusCode = statusCode
+    this.retryAfter = retryAfter ?? undefined
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, FigmaApiError)

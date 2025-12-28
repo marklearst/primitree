@@ -1,5 +1,9 @@
 import { useReducer, useCallback, useRef, useEffect } from 'react'
-import type { MutationState, MutationResult } from 'types/mutations'
+import type {
+  MutationState,
+  MutationResult,
+  MutationOptions,
+} from 'types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -46,9 +50,13 @@ export function mutationReducer<TData>(
  *
  * Uses `useRef` to store the latest `mutationFn` to avoid recreating `mutate` on every render, following React 19.2 best practices.
  *
+ * Race Condition Handling: When multiple mutations are triggered, only the most recent mutation's
+ * result will update the state. Earlier mutations that complete later are ignored to prevent stale data.
+ *
  * @typeParam TData - Type returned by the mutation.
  * @typeParam TPayload - Payload accepted by the mutation function.
  * @param mutationFn - Async function performing the mutation logic.
+ * @param options - Optional configuration for mutation behavior.
  * @returns Mutation state, status flags, and a `mutate(payload)` trigger function.
  *
  * @example
@@ -61,14 +69,22 @@ export function mutationReducer<TData>(
  *   return result;
  * });
  *
- * // Call mutate(payload) to trigger the mutation.
+ * // With error rethrowing enabled:
+ * const { mutate } = useMutation(async (payload) => result, { throwOnError: true });
+ * try {
+ *   await mutate(payload);
+ * } catch (error) {
+ *   // Handle error
+ * }
  * ```
  *
  * @internal
  */
 export const useMutation = <TData, TPayload>(
-  mutationFn: (payload: TPayload) => Promise<TData>
+  mutationFn: (payload: TPayload) => Promise<TData>,
+  options?: MutationOptions
 ): MutationResult<TData, TPayload> => {
+  const { throwOnError = false } = options ?? {}
   const initialState: MutationState<TData> = {
     status: 'idle',
     data: null,
@@ -76,14 +92,18 @@ export const useMutation = <TData, TPayload>(
   }
   const [state, dispatch] = useReducer(mutationReducer<TData>, initialState)
 
-  // Store the latest mutationFn in a ref to avoid recreating mutate on every render
+  // Store the latest mutationFn and options in refs to avoid recreating mutate on every render
   const mutationFnRef = useRef(mutationFn)
+  const optionsRef = useRef({ throwOnError })
   const isMountedRef = useRef(true)
+  // Track the current mutation ID to handle race conditions
+  const mutationIdRef = useRef(0)
 
-  // Update the ref when mutationFn changes
+  // Update the refs when they change
   useEffect(() => {
     mutationFnRef.current = mutationFn
-  }, [mutationFn])
+    optionsRef.current = { throwOnError }
+  }, [mutationFn, throwOnError])
 
   // Track mounted state to prevent state updates after unmount
   useEffect(() => {
@@ -99,23 +119,39 @@ export const useMutation = <TData, TPayload>(
         return undefined
       }
 
+      // Increment mutation ID to track this specific mutation
+      const currentMutationId = ++mutationIdRef.current
+
       dispatch({ type: 'loading' })
       try {
         const result = await mutationFnRef.current(payload)
-        // Only update state if component is still mounted
-        if (isMountedRef.current) {
+        // Only update state if:
+        // 1. Component is still mounted
+        // 2. This is still the latest mutation (no newer mutation has started)
+        if (
+          isMountedRef.current &&
+          currentMutationId === mutationIdRef.current
+        ) {
           dispatch({ type: 'success', payload: result })
         }
         return result
       } catch (err) {
-        // Only update state if component is still mounted
-        if (isMountedRef.current) {
-          dispatch({ type: 'error', payload: err as Error })
+        const error = err as Error
+        // Only update state if this is still the latest mutation
+        if (
+          isMountedRef.current &&
+          currentMutationId === mutationIdRef.current
+        ) {
+          dispatch({ type: 'error', payload: error })
+        }
+        // Rethrow error if throwOnError is enabled
+        if (optionsRef.current.throwOnError) {
+          throw error
         }
         return undefined
       }
     },
-    [] // Empty deps array - mutationFn is accessed via ref
+    [] // Empty deps array - mutationFn and options are accessed via refs
   )
 
   return {

@@ -23,3 +23,5 @@
  */
 export { fetcher } from 'api/fetcher'
 export { mutator } from 'api/mutator'
+export type { FetcherOptions } from 'api/fetcher'
+export type { MutatorOptions } from 'api/mutator'

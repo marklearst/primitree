@@ -117,3 +117,58 @@ export function getErrorMessage(
 export function hasErrorStatus(error: unknown, statusCode: number): boolean {
   return getErrorStatus(error) === statusCode
 }
+
+/**
+ * Checks if an error represents a rate limit (429) response.
+ *
+ * @remarks
+ * Convenience function to check if an error is a rate limit error.
+ *
+ * @param error - The error to check.
+ * @returns `true` if the error is a rate limit error (429), `false` otherwise.
+ *
+ * @example
+ * ```tsx
+ * import { isRateLimited } from '@figma-vars/hooks';
+ *
+ * if (isRateLimited(error)) {
+ *   // Handle rate limit, maybe retry after delay
+ * }
+ * ```
+ *
+ * @public
+ */
+export function isRateLimited(error: unknown): boolean {
+  return hasErrorStatus(error, 429)
+}
+
+/**
+ * Gets the retry-after value in seconds from a rate limit error.
+ *
+ * @remarks
+ * Returns the number of seconds to wait before retrying, as specified in the Retry-After header.
+ * Returns `null` if the error is not a rate limit error or if no retry-after value is available.
+ *
+ * @param error - The error to extract retry-after from.
+ * @returns The number of seconds to wait, or `null` if not available.
+ *
+ * @example
+ * ```tsx
+ * import { getRetryAfter } from '@figma-vars/hooks';
+ *
+ * const retryAfter = getRetryAfter(error);
+ * if (retryAfter !== null) {
+ *   setTimeout(() => {
+ *     // Retry the request
+ *   }, retryAfter * 1000);
+ * }
+ * ```
+ *
+ * @public
+ */
+export function getRetryAfter(error: unknown): number | null {
+  if (isFigmaApiError(error) && error.statusCode === 429) {
+    return error.retryAfter ?? null
+  }
+  return null
+}

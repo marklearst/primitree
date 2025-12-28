@@ -6,6 +6,89 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 3.1.0 (2025-12-27)
+
+### 🐛 Fixed - Critical TypeScript & Runtime Issues
+
+#### **Phase 1: TypeScript Compilation Errors (11 errors fixed)**
+
+- **AbortSignal Type Safety**: Fixed `exactOptionalPropertyTypes` violations in `fetcher.ts` and `mutator.ts` by using conditional spread `...(signal !== undefined && { signal })` instead of passing `signal` directly
+- **Type Exports**: Fixed missing type exports for `LocalVariablesResponse` and `PublishedVariablesResponse` - changed imports from `types/contexts` to `types/figma` in `FigmaVarsProvider.tsx`
+- **Optional Property Types**: Fixed `providerId` type violations in `swrKeys.ts` and hooks - changed from `providerId?: string` to `providerId: string | undefined` for strict mode compliance
+- **FigmaApiError Type**: Fixed `retryAfter` property type - changed from `retryAfter?: number` to `retryAfter: number | undefined` with explicit `?? undefined` assignment
+
+#### **Phase 2: High Priority Runtime Bugs**
+
+- **Race Condition in Mutations**: Fixed critical race condition in `useMutation.ts` when mutations are called concurrently - added `mutationIdRef` counter to ensure only the latest mutation updates state
+- **Timeout Cleanup**: Added immediate timeout cleanup after response and in catch blocks in `fetcher.ts` and `mutator.ts` to prevent spurious abort signals
+- **Fallback Parsing**: Removed duplicate `JSON.parse()` calls in `useVariables.ts` and `usePublishedVariables.ts` - now uses pre-parsed `parsedFallbackFile` from provider
+
+#### **Phase 3: Test Suite Fixes (8 tests fixed)**
+
+- **SWR Key Format**: Standardized on absolute URLs for consistency - updated `usePublishedVariables.test.tsx` and `useInvalidateVariables.test.tsx` expectations
+- **React useId Pattern**: Fixed regex in `useVariables.test.tsx` to match React 19's `:r1:` format instead of numeric-only pattern
+- **Mock Context**: Added missing `token` and `fallbackFile` properties to mock context in invalidation tests
+
+### ✨ Added - Runtime Validation & Developer Experience
+
+#### **Phase 4: Runtime Type Guards**
+
+- **Type Guard Utilities**: Added `src/utils/typeGuards.ts` with comprehensive runtime validation functions:
+  - `isLocalVariablesResponse()` - validates local variables structure
+  - `isPublishedVariablesResponse()` - validates published variables structure
+  - `validateFallbackData()` - unified validation with proper typing
+- **Development Warnings**: Added `console.warn()` in development mode when fallback validation fails (production-safe)
+- **Type Safety**: All type guards include proper TypeScript type predicates for type narrowing
+
+#### **Phase 4: Centralized SWR Key Construction**
+
+- **SWR Key Helpers**: Added `src/utils/swrKeys.ts` with centralized key construction logic:
+  - `getVariablesKey()` - constructs local variables SWR cache key
+  - `getPublishedVariablesKey()` - constructs published variables SWR cache key
+  - `getInvalidationKeys()` - returns all keys for cache invalidation
+  - Prevents key mismatches between fetch hooks and invalidation utilities
+  - All keys use absolute URLs for consistency and explicitness
+
+#### **Phase 4: New Granular Selector Hooks**
+
+- **useCollectionById**: Get a specific variable collection by ID
+- **useModesByCollection**: Get all modes for a specific collection
+- **useVariableById**: Get a specific variable by ID
+- **Benefits**: Better performance for components that only need specific entities, avoid unnecessary re-renders
+
+### 📚 Documentation
+
+- **Error Boundaries**: Added comprehensive error boundary pattern documentation with `react-error-boundary` example in README
+- **Runtime Validation**: Documented type guard usage and fallback file validation in README
+- **API Cheat Sheet**: Updated with new type guards, SWR key helpers, and granular selector hooks
+- **Testing Coverage**: Added `tests/utils/typeGuards.test.ts` with 14 comprehensive tests covering all edge cases
+
+### 🔧 Changed
+
+- **SWR Cache Keys**: Migrated from relative URLs (`/v1/files/...`) to absolute URLs (`https://api.figma.com/v1/files/...`) for consistency and explicitness
+- **Fallback Handling**: Centralized fallback parsing in `FigmaVarsProvider` - all hooks now use pre-parsed data
+- **Context Types**: Added explicit `undefined` to `parsedFallbackFile` type in `FigmaTokenContextType`
+
+### 🎯 Migration Guide
+
+**No breaking changes!** All fixes are internal improvements and bug fixes.
+
+**New features are opt-in:**
+
+- Use new granular selector hooks (`useCollectionById`, etc.) for performance optimization
+- Use type guards (`validateFallbackData`) when working with custom fallback files
+- Import SWR key helpers from `@figma-vars/hooks/utils` if building custom hooks
+
+**What changed automatically:**
+
+- SWR cache keys now use absolute URLs (transparent change, no action needed)
+- Better error messages for invalid fallback files (development-only warnings)
+- Mutations no longer have race condition issues (automatic fix)
+
+### 🙏 Acknowledgments
+
+This release addresses critical issues identified through community feedback. Special thanks to users who reported issues on X and LinkedIn - your feedback helps make the library more robust.
+
 ## 3.0.0 (2025-12-15)
 
 ### ✨ Added
