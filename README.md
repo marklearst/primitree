@@ -179,7 +179,7 @@ Pass `fallbackFile` (object or JSON string) to `FigmaVarsProvider` to bypass liv
 
 ```tsx
 import exportedVariables from './figma-variables.json'
-<FigmaVarsProvider
+;<FigmaVarsProvider
   token={null}
   fileKey={null}
   fallbackFile={exportedVariables}>
@@ -253,6 +253,53 @@ function VariableEditor() {
 ```
 
 ## 🛡️ Error Handling
+
+### Error Boundaries (Recommended)
+
+Wrap your Figma-connected components with an error boundary to gracefully handle errors:
+
+```tsx
+import { ErrorBoundary } from 'react-error-boundary'
+import { FigmaVarsProvider } from '@figma-vars/hooks'
+
+function FigmaErrorFallback({ error }: { error: Error }) {
+  return (
+    <div role='alert'>
+      <h2>Failed to load Figma data</h2>
+      <pre>{error.message}</pre>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary FallbackComponent={FigmaErrorFallback}>
+      <FigmaVarsProvider
+        token={FIGMA_TOKEN}
+        fileKey={FIGMA_FILE_KEY}>
+        <YourApp />
+      </FigmaVarsProvider>
+    </ErrorBoundary>
+  )
+}
+```
+
+> **Note:** The provider validates fallback file structure at runtime and logs warnings in development. Invalid fallback data won't crash the app but will result in `undefined` data.
+
+### Runtime Validation
+
+Use type guards to validate data at runtime:
+
+```tsx
+import { isLocalVariablesResponse, isPublishedVariablesResponse } from '@figma-vars/hooks'
+
+// Validate before using
+if (isLocalVariablesResponse(data)) {
+  // Safe to access data.meta.variables
+}
+```
+
+### Error Utilities
 
 3.0.0 introduces powerful error handling utilities for type-safe error checking:
 
@@ -378,6 +425,7 @@ Customize SWR behavior globally through the provider:
 
 - **Filtering**: `filterVariables` (filter by type, name, etc.)
 - **Error Handling**: `isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`
+- **Type Guards**: `isLocalVariablesResponse`, `isPublishedVariablesResponse` (runtime validation)
 - **Core helpers**: `fetcher`, `mutator`, constants for endpoints and headers
 
 ### Types
