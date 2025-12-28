@@ -18,7 +18,7 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
 
-## 📌 Why 3.0
+## 📌 Why 3.1.1
 
 - ✨ **New DX Features**: SWR configuration support, error handling utilities, cache invalidation helpers
 - 🔧 **React 19.2 Ready**: Optimized hooks with proper cleanup and stable function references
@@ -301,7 +301,7 @@ if (isLocalVariablesResponse(data)) {
 
 ### Error Utilities
 
-3.0.0 introduces powerful error handling utilities for type-safe error checking:
+v3 introduces powerful error handling utilities for type-safe error checking:
 
 ```tsx
 import { isFigmaApiError, getErrorStatus, getErrorMessage, hasErrorStatus } from '@figma-vars/hooks'
@@ -511,11 +511,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 - `pnpm run build`, `pnpm test`, `pnpm run test:coverage`
 - `pnpm run check:publint`, `pnpm run check:attw`, `pnpm run check:size`
 
-## 🧭 Release Checklist (for 3.0.0)
+## 🧭 Release Checklist (for 3.1.0)
 
 - Run `pnpm run check:release`
-- Tag `v3.0.0` (CI publishes to npm)
-- Update dist-tags on npm if needed (`latest` → 3.0.0)
+- Tag `v3.1.0` (CI publishes to npm)
+- Update dist-tags on npm if needed (`latest` → 3.1.0)
 
 ---
 
