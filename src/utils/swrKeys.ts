@@ -40,6 +40,11 @@ export interface PublishedVariablesKeyParams {
 /**
  * Constructs the SWR cache key for local variables.
  *
+ * @remarks
+ * If fallback is available, always returns a fallback key to prevent
+ * fallback data from being cached under live API keys. This ensures
+ * cache isolation between fallback and live data sources.
+ *
  * @param params - Key construction parameters
  * @returns SWR key tuple, or null if no valid key can be constructed
  *
@@ -50,15 +55,16 @@ export function getVariablesKey(
 ): readonly [string, string] | null {
   const { fileKey, token, providerId, hasFallback } = params
 
-  const hasLive = Boolean(token && fileKey)
-
-  if (hasLive && token && fileKey) {
-    const url = `https://api.figma.com/v1/files/${fileKey}/variables/local`
-    return [url, token] as const
-  }
-
+  // If fallback is available, always use fallback key to prevent
+  // fallback data from being cached under live API keys
   if (hasFallback) {
     return [`fallback-${providerId ?? 'default'}`, 'fallback'] as const
+  }
+
+  // Only use live key if no fallback and we have credentials
+  if (token && fileKey) {
+    const url = `https://api.figma.com/v1/files/${fileKey}/variables/local`
+    return [url, token] as const
   }
 
   return null
@@ -66,6 +72,11 @@ export function getVariablesKey(
 
 /**
  * Constructs the SWR cache key for published variables.
+ *
+ * @remarks
+ * If fallback is available, always returns a fallback key to prevent
+ * fallback data from being cached under live API keys. This ensures
+ * cache isolation between fallback and live data sources.
  *
  * @param params - Key construction parameters
  * @returns SWR key tuple, or null if no valid key can be constructed
@@ -77,15 +88,16 @@ export function getPublishedVariablesKey(
 ): readonly [string, string] | null {
   const { fileKey, token, providerId, hasFallback } = params
 
-  const hasLive = Boolean(token && fileKey)
-
-  if (hasLive && token && fileKey) {
-    const url = `https://api.figma.com/v1/files/${fileKey}/variables/published`
-    return [url, token] as const
-  }
-
+  // If fallback is available, always use fallback key to prevent
+  // fallback data from being cached under live API keys
   if (hasFallback) {
     return [`fallback-${providerId ?? 'default'}`, 'fallback'] as const
+  }
+
+  // Only use live key if no fallback and we have credentials
+  if (token && fileKey) {
+    const url = `https://api.figma.com/v1/files/${fileKey}/variables/published`
+    return [url, token] as const
   }
 
   return null

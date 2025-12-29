@@ -377,6 +377,8 @@ describe('useVariables', () => {
 
   it('should test custom fetcher logic directly', async () => {
     // Test the actual custom fetcher logic by calling it directly
+    // When fallbackFile is present, the key should be a fallback key (not live key)
+    // This ensures fallback data is cached under fallback keys, preventing cache pollution
     renderHook(() => useVariables(), { wrapper: wrapperWithFallbackFile })
 
     // Get the custom fetcher function from the useSWR call
@@ -389,10 +391,12 @@ describe('useVariables', () => {
       unknown,
       (url: string, token: string) => Promise<unknown>,
     ]
-    expect(key).toEqual([
-      'https://api.figma.com/v1/files/test-key/variables/local',
-      'test-token',
-    ])
+    // Key should be fallback key (not live key) when fallbackFile is present
+    // This prevents fallback data from being cached under live API keys
+    expect(Array.isArray(key)).toBe(true)
+    const keyArray = key as [string, string]
+    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-/)
+    expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 
     // Call the custom fetcher directly to test the fallbackFile logic
