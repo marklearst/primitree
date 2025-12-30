@@ -56,6 +56,7 @@ export { FigmaVarsProvider } from 'contexts'
  */
 export {
   useVariables,
+  usePublishedVariables,
   useVariableCollections,
   useVariableModes,
   useCreateVariable,
