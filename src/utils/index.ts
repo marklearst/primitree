@@ -19,6 +19,7 @@
  * @public
  */
 export { filterVariables } from 'utils/filterVariables'
+export type { FilterVariablesCriteria } from 'utils/filterVariables'
 export {
   isFigmaApiError,
   getErrorStatus,
