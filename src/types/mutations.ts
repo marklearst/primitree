@@ -310,8 +310,15 @@ export interface MutationState<TData> {
  */
 export interface MutationOptions {
   /**
-   * If true, errors will be rethrown instead of being caught and stored in state.
-   * This allows callers to use try/catch for error handling.
+   * Controls error handling behavior for the mutation.
+   *
+   * - **`false` (default)**: Errors are caught and stored in the `error` state.
+   *   The `mutate` function returns `undefined` on error.
+   *   Use the `isError` flag and `error` state to handle failures reactively.
+   *
+   * - **`true`**: Errors are rethrown, allowing try/catch error handling.
+   *   The `mutate` function throws on error.
+   *   Use this when you need imperative error handling.
    *
    * @default false
    */
@@ -322,7 +329,46 @@ export interface MutationOptions {
  * Return value of mutation hooks.
  *
  * @remarks
- * Combines mutation state with a `mutate` trigger function accepting a payload, along with convenient booleans for status.
+ * Combines mutation state with a `mutate` trigger function accepting a payload,
+ * along with convenient booleans for status checking.
+ *
+ * ## Return Value Semantics
+ *
+ * The `mutate` function returns `Promise<TData | undefined>`:
+ *
+ * - **On success**: Returns the mutation result data (`TData`)
+ * - **On error with `throwOnError: false` (default)**: Returns `undefined` and stores error in `error` state
+ * - **On error with `throwOnError: true`**: Throws the error (use try/catch)
+ *
+ * ## Recommended Patterns
+ *
+ * ```ts
+ * // Pattern 1: Check return value (when throwOnError is false)
+ * const result = await mutate(payload);
+ * if (result === undefined) {
+ *   // Check error state
+ *   console.error('Mutation failed:', error);
+ * } else {
+ *   // Use result
+ *   console.log('Created:', result);
+ * }
+ *
+ * // Pattern 2: Use try/catch (when throwOnError is true)
+ * try {
+ *   const result = await mutate(payload);
+ *   console.log('Created:', result);
+ * } catch (err) {
+ *   console.error('Mutation failed:', err);
+ * }
+ *
+ * // Pattern 3: Use status flags (reactive)
+ * if (isSuccess) {
+ *   console.log('Created:', data);
+ * }
+ * if (isError) {
+ *   console.error('Failed:', error);
+ * }
+ * ```
  *
  * @typeParam TData - The type of data returned by the mutation.
  * @typeParam TPayload - The payload type accepted by the mutation trigger.
@@ -330,11 +376,23 @@ export interface MutationOptions {
  * @public
  */
 export interface MutationResult<TData, TPayload> {
+  /**
+   * Trigger the mutation with the given payload.
+   *
+   * @returns Promise resolving to the mutation result, or `undefined` if an error occurred
+   * and `throwOnError` is false. When `throwOnError` is true, errors are thrown instead.
+   */
   mutate: (payload: TPayload) => Promise<TData | undefined>
+  /** Current mutation status: 'idle' | 'loading' | 'success' | 'error' */
   status: 'idle' | 'loading' | 'success' | 'error'
+  /** The result data from a successful mutation, or `null` if not yet successful. */
   data: TData | null
+  /** The error from a failed mutation, or `null` if no error. */
   error: Error | null
+  /** `true` while the mutation is in progress. */
   isLoading: boolean
+  /** `true` after a successful mutation. */
   isSuccess: boolean
+  /** `true` after a failed mutation. */
   isError: boolean
 }

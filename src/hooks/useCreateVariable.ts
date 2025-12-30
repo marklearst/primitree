@@ -14,19 +14,37 @@ import { mutator } from 'api/mutator'
  * @remarks
  * The hook returns a `mutate` function to trigger the creation along with state flags and data.
  *
+ * ## Return Value
+ *
+ * The `mutate` function returns `Promise<TData | undefined>`:
+ * - On success: Returns the API response data
+ * - On error: Returns `undefined` (error stored in `error` state)
+ *
+ * Use `isSuccess`/`isError` flags or check the return value to handle results.
+ *
+ * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
+ * `data` (API response), and `error` (if failed).
+ *
  * @example
  * ```tsx
  * import { useCreateVariable } from '@figma-vars/hooks';
  *
  * function CreateVariableButton() {
- *   const { mutate, isLoading, error } = useCreateVariable();
+ *   const { mutate, isLoading, isError, error } = useCreateVariable();
  *
- *   const handleCreate = () => {
- *     mutate({ name: 'new-variable', variableCollectionId: 'VariableCollectionId:1:1', resolvedType: 'COLOR' });
+ *   const handleCreate = async () => {
+ *     const result = await mutate({
+ *       name: 'new-variable',
+ *       variableCollectionId: 'VariableCollectionId:1:1',
+ *       resolvedType: 'COLOR'
+ *     });
+ *     if (result) {
+ *       console.log('Created successfully:', result);
+ *     }
  *   };
  *
  *   if (isLoading) return <div>Creating...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isError) return <div>Error: {error?.message}</div>;
  *   return <button onClick={handleCreate}>Create Variable</button>;
  * }
  * ```

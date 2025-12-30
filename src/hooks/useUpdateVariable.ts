@@ -14,17 +14,33 @@ import { mutator } from 'api/mutator'
  * @remarks
  * The hook returns a `mutate` function to trigger the update with given payload and exposes state flags.
  *
+ * ## Return Value
+ *
+ * The `mutate` function returns `Promise<TData | undefined>`:
+ * - On success: Returns the API response data
+ * - On error: Returns `undefined` (error stored in `error` state)
+ *
+ * Use `isSuccess`/`isError` flags or check the return value to handle results.
+ *
+ * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
+ * `data` (API response), and `error` (if failed).
+ *
  * @example
  * ```tsx
  * import { useUpdateVariable } from '@figma-vars/hooks';
  *
  * function UpdateVariableButton({ id }: { id: string }) {
- *   const { mutate, isLoading, error } = useUpdateVariable();
+ *   const { mutate, isLoading, isError, error } = useUpdateVariable();
  *
- *   const onUpdate = () => mutate({ variableId: id, payload: { name: 'new-name' } });
+ *   const onUpdate = async () => {
+ *     const result = await mutate({ variableId: id, payload: { name: 'new-name' } });
+ *     if (result) {
+ *       console.log('Updated successfully');
+ *     }
+ *   };
  *
  *   if (isLoading) return <div>Updating...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isError) return <div>Error: {error?.message}</div>;
  *   return <button onClick={onUpdate}>Update Variable</button>;
  * }
  * ```
