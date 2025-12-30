@@ -74,4 +74,57 @@ describe('filterVariables', () => {
     const result = filterVariables(mockVariables, { name: 'NonExistent' })
     expect(result).toHaveLength(0)
   })
+
+  describe('caseInsensitive option', () => {
+    it('should match case-insensitively when caseInsensitive is true', () => {
+      const result = filterVariables(mockVariables, {
+        name: 'color',
+        caseInsensitive: true,
+      })
+      expect(result).toHaveLength(2)
+      expect(result.map(v => v.name)).toEqual([
+        'Primary Color',
+        'Secondary Color',
+      ])
+    })
+
+    it('should match uppercase search against lowercase names', () => {
+      const result = filterVariables(mockVariables, {
+        name: 'COLOR',
+        caseInsensitive: true,
+      })
+      expect(result).toHaveLength(2)
+    })
+
+    it('should match mixed case search', () => {
+      const result = filterVariables(mockVariables, {
+        name: 'CoLoR',
+        caseInsensitive: true,
+      })
+      expect(result).toHaveLength(2)
+    })
+
+    it('should be case-sensitive by default', () => {
+      const result = filterVariables(mockVariables, { name: 'color' })
+      expect(result).toHaveLength(0) // No match because 'Color' !== 'color'
+    })
+
+    it('should be case-sensitive when caseInsensitive is false', () => {
+      const result = filterVariables(mockVariables, {
+        name: 'color',
+        caseInsensitive: false,
+      })
+      expect(result).toHaveLength(0)
+    })
+
+    it('should combine caseInsensitive with resolvedType filter', () => {
+      const result = filterVariables(mockVariables, {
+        resolvedType: 'COLOR',
+        name: 'primary',
+        caseInsensitive: true,
+      })
+      expect(result).toHaveLength(1)
+      expect(result[0]!.name).toBe('Primary Color')
+    })
+  })
 })
