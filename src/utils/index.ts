@@ -34,3 +34,5 @@ export {
 } from 'utils/typeGuards'
 export { redactToken } from 'utils/redactToken'
 export type { RedactTokenOptions } from 'utils/redactToken'
+export { withRetry } from 'utils/retry'
+export type { RetryOptions } from 'utils/retry'
