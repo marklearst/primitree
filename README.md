@@ -2,7 +2,7 @@
   <img src="assets/figma-vars-tagline-light.png" alt="FigmaVars Logo" width="700px" />
 </p>
 
-#FigmaVars/hooks
+# FigmaVars/hooks
 
 Built and maintained by Mark Learst.
 
