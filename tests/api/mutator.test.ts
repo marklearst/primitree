@@ -12,6 +12,7 @@ global.fetch = mockFetch
 describe('mutator', () => {
   const token = 'test-token'
   const url = '/variables'
+  const fullUrl = `${FIGMA_API_BASE_URL}${url}`
   const body = { name: 'test' }
 
   afterEach(() => {
@@ -52,6 +53,22 @@ describe('mutator', () => {
       expect.objectContaining({ method: 'PUT' })
     )
     expect(result).toEqual({ id: '123' })
+  })
+
+  it('should not prefix base URL when url is already absolute', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: 'not-null',
+      json: () => Promise.resolve({ id: '123' }),
+    })
+
+    await mutator(fullUrl, token, 'CREATE', body)
+
+    expect(fetch).toHaveBeenCalledWith(
+      fullUrl,
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 
   it('should handle successful DELETE (204 No Content)', async () => {
