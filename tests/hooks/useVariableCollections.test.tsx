@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { useVariableCollections } from '../../src/hooks/useVariableCollections'
 import { useVariables } from '../../src/hooks/useVariables'
-import { mockVariablesResponse } from '../../tests/mocks/variables'
+import { mockLocalVariablesResponse } from '../../tests/mocks/variables'
 
 vi.mock('../../src/hooks/useVariables')
 
@@ -21,15 +21,15 @@ describe('useVariableCollections', () => {
 
   it('should return collections when useVariables has data', () => {
     mockedUseVariables.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
     })
     const { result } = renderHook(() => useVariableCollections())
 
     const expectedCollections = Object.values(
-      mockVariablesResponse.meta.variableCollections
+      mockLocalVariablesResponse.meta.variableCollections
     )
     const expectedCollectionsById =
-      mockVariablesResponse.meta.variableCollections
+      mockLocalVariablesResponse.meta.variableCollections
 
     expect(result.current.collections).toEqual(expectedCollections)
     expect(result.current.collectionsById).toEqual(expectedCollectionsById)
@@ -37,7 +37,7 @@ describe('useVariableCollections', () => {
 
   it('should memoize the result and not re-calculate on re-render', () => {
     const mockData = {
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
     }
     mockedUseVariables.mockReturnValue(mockData)
 

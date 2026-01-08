@@ -5,7 +5,7 @@ import type { Mock } from 'vitest'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { useVariables } from '../../src/hooks/useVariables'
-import { mockVariablesResponse } from '../mocks/variables'
+import { mockLocalVariablesResponse } from '../mocks/variables'
 import type { ReactNode } from 'react'
 
 // Mock the useSWR hook
@@ -41,7 +41,7 @@ const wrapperWithFallbackFile = ({ children }: { children: ReactNode }) => (
   <FigmaVarsProvider
     token='test-token'
     fileKey='test-key'
-    fallbackFile={mockVariablesResponse}>
+    fallbackFile={mockLocalVariablesResponse}>
     {children}
   </FigmaVarsProvider>
 )
@@ -54,7 +54,7 @@ const wrapperWithFallbackFileString = ({
   <FigmaVarsProvider
     token='test-token'
     fileKey='test-key'
-    fallbackFile={JSON.stringify(mockVariablesResponse)}>
+    fallbackFile={JSON.stringify(mockLocalVariablesResponse)}>
     {children}
   </FigmaVarsProvider>
 )
@@ -67,7 +67,7 @@ const wrapperWithFallbackFileNoCredentials = ({
   <FigmaVarsProvider
     token={null}
     fileKey={null}
-    fallbackFile={mockVariablesResponse}>
+    fallbackFile={mockLocalVariablesResponse}>
     {children}
   </FigmaVarsProvider>
 )
@@ -89,7 +89,7 @@ describe('useVariables', () => {
 
   it('should return variables on successful fetch', async () => {
     mockedUseSWR.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
       error: undefined,
       isLoading: false,
       isValidating: false,
@@ -99,7 +99,7 @@ describe('useVariables', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
-      expect(result.current.data).toEqual(mockVariablesResponse)
+      expect(result.current.data).toEqual(mockLocalVariablesResponse)
       expect(result.current.error).toBeUndefined()
       expect(result.current.isValidating).toBe(false)
     })
@@ -126,7 +126,7 @@ describe('useVariables', () => {
 
   it('should return isValidating true when revalidating', () => {
     mockedUseSWR.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
       error: undefined,
       isLoading: false,
       isValidating: true,
@@ -170,7 +170,7 @@ describe('useVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockLocalVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -188,7 +188,7 @@ describe('useVariables', () => {
       wrapper: wrapperWithFallbackFile,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockLocalVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -200,7 +200,7 @@ describe('useVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockLocalVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -218,7 +218,7 @@ describe('useVariables', () => {
       wrapper: wrapperWithFallbackFileString,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockLocalVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -230,7 +230,7 @@ describe('useVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockLocalVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -248,7 +248,7 @@ describe('useVariables', () => {
       wrapper: wrapperWithFallbackFileNoCredentials,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockLocalVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -279,7 +279,7 @@ describe('useVariables', () => {
       'https://api.figma.com/v1/files/test-key/variables/local',
       'test-token'
     )
-    expect(resultData).toEqual(mockVariablesResponse)
+    expect(resultData).toEqual(mockLocalVariablesResponse)
   })
 
   it('should test custom fetcher logic with no credentials', async () => {
@@ -303,6 +303,6 @@ describe('useVariables', () => {
 
     // Call the custom fetcher directly to test the fallbackFile logic
     const resultData = await fetcher('fallback', 'fallback')
-    expect(resultData).toEqual(mockVariablesResponse)
+    expect(resultData).toEqual(mockLocalVariablesResponse)
   })
 })

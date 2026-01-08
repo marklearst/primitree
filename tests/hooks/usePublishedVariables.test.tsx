@@ -5,7 +5,11 @@ import type { Mock } from 'vitest'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { usePublishedVariables } from '../../src/hooks/usePublishedVariables'
-import { mockVariablesResponse } from '../mocks/variables'
+import {
+  mockLocalVariablesResponse,
+  mockPublishedVariablesResponse,
+} from '../mocks/variables'
+import { FIGMA_PUBLISHED_VARIABLES_PATH } from '../../src/constants'
 import type { ReactNode } from 'react'
 
 // Mock the useSWR hook
@@ -41,7 +45,7 @@ const wrapperWithFallbackFile = ({ children }: { children: ReactNode }) => (
   <FigmaVarsProvider
     token='test-token'
     fileKey='test-key'
-    fallbackFile={mockVariablesResponse}>
+    fallbackFile={mockPublishedVariablesResponse}>
     {children}
   </FigmaVarsProvider>
 )
@@ -54,7 +58,7 @@ const wrapperWithFallbackFileString = ({
   <FigmaVarsProvider
     token='test-token'
     fileKey='test-key'
-    fallbackFile={JSON.stringify(mockVariablesResponse)}>
+    fallbackFile={JSON.stringify(mockPublishedVariablesResponse)}>
     {children}
   </FigmaVarsProvider>
 )
@@ -67,7 +71,7 @@ const wrapperWithFallbackFileNoCredentials = ({
   <FigmaVarsProvider
     token={null}
     fileKey={null}
-    fallbackFile={mockVariablesResponse}>
+    fallbackFile={mockPublishedVariablesResponse}>
     {children}
   </FigmaVarsProvider>
 )
@@ -89,7 +93,7 @@ describe('usePublishedVariables', () => {
 
   it('should return published variables on successful fetch', async () => {
     mockedUseSWR.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockPublishedVariablesResponse,
       error: undefined,
       isLoading: false,
       isValidating: false,
@@ -99,7 +103,7 @@ describe('usePublishedVariables', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
-      expect(result.current.data).toEqual(mockVariablesResponse)
+      expect(result.current.data).toEqual(mockPublishedVariablesResponse)
       expect(result.current.error).toBeUndefined()
       expect(result.current.isValidating).toBe(false)
     })
@@ -126,7 +130,7 @@ describe('usePublishedVariables', () => {
 
   it('should return isValidating true when revalidating', () => {
     mockedUseSWR.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockPublishedVariablesResponse,
       error: undefined,
       isLoading: false,
       isValidating: true,
@@ -170,7 +174,7 @@ describe('usePublishedVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockPublishedVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -188,7 +192,7 @@ describe('usePublishedVariables', () => {
       wrapper: wrapperWithFallbackFile,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockPublishedVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -200,7 +204,7 @@ describe('usePublishedVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockPublishedVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -218,7 +222,7 @@ describe('usePublishedVariables', () => {
       wrapper: wrapperWithFallbackFileString,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockPublishedVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -230,7 +234,7 @@ describe('usePublishedVariables', () => {
       if (key && Array.isArray(key) && key[0] && key[1]) {
         // Simulate the custom fetcher being called and returning fallback data
         return {
-          data: mockVariablesResponse,
+          data: mockPublishedVariablesResponse,
           error: null,
           isLoading: false,
           isValidating: false,
@@ -248,7 +252,7 @@ describe('usePublishedVariables', () => {
       wrapper: wrapperWithFallbackFileNoCredentials,
     })
 
-    expect(result.current.data).toEqual(mockVariablesResponse)
+    expect(result.current.data).toEqual(mockPublishedVariablesResponse)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
@@ -272,17 +276,17 @@ describe('usePublishedVariables', () => {
     ]
     // Verify it's using the published endpoint, not local
     expect(key).toEqual([
-      'https://api.figma.com/v1/files/test-key/variables/published',
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
       'test-token',
     ])
     expect(typeof fetcher).toBe('function')
 
     // Call the custom fetcher directly to test the fallbackFile logic
     const resultData = await fetcher(
-      'https://api.figma.com/v1/files/test-key/variables/published',
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
       'test-token'
     )
-    expect(resultData).toEqual(mockVariablesResponse)
+    expect(resultData).toEqual(mockPublishedVariablesResponse)
   })
 
   it('should test custom fetcher logic with no credentials', async () => {
@@ -306,6 +310,12 @@ describe('usePublishedVariables', () => {
 
     // Call the custom fetcher directly to test the fallbackFile logic
     const resultData = await fetcher('fallback', 'fallback')
-    expect(resultData).toEqual(mockVariablesResponse)
+    expect(resultData).toEqual(mockPublishedVariablesResponse)
+  })
+
+  it('should not affect local variables mocks used by other tests', () => {
+    expect(
+      mockLocalVariablesResponse.meta.variables['VariableID:1:1']
+    ).toBeDefined()
   })
 })
