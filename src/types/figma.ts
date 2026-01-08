@@ -248,6 +248,31 @@ export interface LocalVariablesResponse {
   }
 }
 
+export interface PublishedVariable {
+  id: string
+  subscribed_id: string
+  name: string
+  key: string
+  variableCollectionId: string
+  resolvedType: ResolvedType
+  updatedAt: string
+}
+
+export interface PublishedVariableCollection {
+  id: string
+  subscribed_id: string
+  name: string
+  key: string
+  updatedAt: string
+}
+
+export interface PublishedVariablesResponse {
+  meta: {
+    variableCollections: Record<string, PublishedVariableCollection>
+    variables: Record<string, PublishedVariable>
+  }
+}
+
 /**
  * Standard error response shape for Figma API error objects.
  *

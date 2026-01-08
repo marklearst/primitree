@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { useVariableModes } from '../../src/hooks/useVariableModes'
 import { useVariables } from '../../src/hooks/useVariables'
-import { mockVariablesResponse } from '../../tests/mocks/variables'
+import { mockLocalVariablesResponse } from '../../tests/mocks/variables'
 
 vi.mock('../../src/hooks/useVariables')
 
@@ -22,11 +22,11 @@ describe('useVariableModes', () => {
 
   it('should return processed modes when useVariables has data', () => {
     mockedUseVariables.mockReturnValue({
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
     })
     const { result } = renderHook(() => useVariableModes())
 
-    const { variableCollections } = mockVariablesResponse.meta
+    const { variableCollections } = mockLocalVariablesResponse.meta
     const collection1 = Object.values(variableCollections)[0]!
     const collection2 = Object.values(variableCollections)[1]!
 
@@ -48,7 +48,7 @@ describe('useVariableModes', () => {
 
   it('should memoize the result', () => {
     const mockData = {
-      data: mockVariablesResponse,
+      data: mockLocalVariablesResponse,
     }
     mockedUseVariables.mockReturnValue(mockData)
 

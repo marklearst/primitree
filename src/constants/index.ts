@@ -30,6 +30,9 @@ const FIGMA_V1_VARIABLES_ENDPOINT_BASE = `${FIGMA_API_BASE_URL}/v1/variables`
 export const FIGMA_VARIABLES_ENDPOINT = (fileKey: string) =>
   `${FIGMA_FILES_ENDPOINT}/${fileKey}/variables`
 
+export const FIGMA_PUBLISHED_VARIABLES_PATH = (fileKey: string) =>
+  `/v1/files/${fileKey}/variables/published`
+
 /**
  * The base endpoint for creating new variables via POST requests.
  */

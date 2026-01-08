@@ -1,7 +1,8 @@
 import useSWR from 'swr'
 import { fetcher } from 'api/fetcher'
-import type { LocalVariablesResponse } from 'types/figma'
+import type { PublishedVariablesResponse } from 'types/figma'
 import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
+import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
 
 /**
  * Hook to fetch published Figma Variables from a file.
@@ -49,27 +50,26 @@ export const usePublishedVariables = () => {
   const customFetcher = async (
     url: string,
     token: string
-  ): Promise<LocalVariablesResponse> => {
+  ): Promise<PublishedVariablesResponse> => {
     if (fallbackFile) {
-      return typeof fallbackFile === 'string'
-        ? (JSON.parse(fallbackFile) as LocalVariablesResponse)
-        : (fallbackFile as LocalVariablesResponse)
+      if (typeof fallbackFile === 'string') {
+        return JSON.parse(fallbackFile) as PublishedVariablesResponse
+      }
+      return fallbackFile as unknown as PublishedVariablesResponse
     }
-    return fetcher<LocalVariablesResponse>(url, token)
+    return fetcher<PublishedVariablesResponse>(url, token)
   }
 
   // Use the published variables endpoint instead of local
-  const url =
-    token && fileKey
-      ? `https://api.figma.com/v1/files/${fileKey}/variables/published`
-      : null
-  const swrResponse = useSWR<LocalVariablesResponse>(
+  const url = token && fileKey ? FIGMA_PUBLISHED_VARIABLES_PATH(fileKey) : null
+  const swrResponse = useSWR<PublishedVariablesResponse>(
     (url && token) || fallbackFile
       ? ([url || 'fallback', token || 'fallback'] as const)
       : null,
     (url && token) || fallbackFile
       ? ([u, t]: readonly [string, string]) => customFetcher(u, t)
-      : () => Promise.resolve(undefined as unknown as LocalVariablesResponse)
+      : () =>
+          Promise.resolve(undefined as unknown as PublishedVariablesResponse)
   )
 
   return swrResponse
