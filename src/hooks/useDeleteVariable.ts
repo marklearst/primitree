@@ -1,8 +1,9 @@
 import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
 import { useMutation } from 'hooks/useMutation'
 import {
-  FIGMA_VARIABLE_BY_ID_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
+  ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
 } from 'constants/index'
 import { mutator } from 'api/mutator'
 
@@ -30,17 +31,22 @@ import { mutator } from 'api/mutator'
  * @public
  */
 export const useDeleteVariable = () => {
-  const { token } = useFigmaTokenContext()
+  const { token, fileKey } = useFigmaTokenContext()
   const mutation = useMutation(async (variableId: string) => {
     if (!token) {
       throw new Error(ERROR_MSG_TOKEN_REQUIRED)
     }
-    return await mutator(
-      FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId),
-      token,
-      'DELETE',
-      undefined as unknown as Record<string, unknown>
-    )
+    if (!fileKey) {
+      throw new Error(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED)
+    }
+    return await mutator(FIGMA_FILE_VARIABLES_PATH(fileKey), token, 'CREATE', {
+      variables: [
+        {
+          action: 'DELETE',
+          id: variableId,
+        },
+      ],
+    } as unknown as Record<string, unknown>)
   })
   return mutation
 }
