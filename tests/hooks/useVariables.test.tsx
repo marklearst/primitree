@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import useSWR from 'swr'
 import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
+import { fetcher as apiFetcher } from 'api/fetcher'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { useVariables } from '../../src/hooks/useVariables'
@@ -11,7 +12,12 @@ import type { ReactNode } from 'react'
 // Mock the useSWR hook
 vi.mock('swr')
 
+vi.mock('api/fetcher', () => ({
+  fetcher: vi.fn(),
+}))
+
 const mockedUseSWR = useSWR as Mock
+const mockedApiFetcher = apiFetcher as Mock
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <FigmaVarsProvider
@@ -151,6 +157,30 @@ describe('useVariables', () => {
     expect(mockedUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
   })
 
+  it('should return undefined from fallback fetcher when token/fileKey/fallbackFile are missing', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => useVariables(), { wrapper: wrapperNoToken })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [key, fetcher] = call as [unknown, () => Promise<unknown>]
+
+    expect(key).toBeNull()
+    expect(typeof fetcher).toBe('function')
+
+    const resultData = await fetcher()
+    expect(resultData).toBeUndefined()
+  })
+
   it('should not call useSWR when fileKey is missing', () => {
     mockedUseSWR.mockReturnValue({
       data: undefined,
@@ -192,6 +222,81 @@ describe('useVariables', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
+  })
+
+  it('should parse fallbackFile when provided as string in custom fetcher', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    const fallbackString = JSON.stringify(mockLocalVariablesResponse)
+    const jsonParseSpy = vi.spyOn(JSON, 'parse')
+
+    renderHook(() => useVariables(), {
+      wrapper: wrapperWithFallbackFileString,
+    })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [, fetcher] = call as [
+      unknown,
+      ([url, token]: readonly [string, string]) => Promise<unknown>,
+    ]
+    expect(typeof fetcher).toBe('function')
+
+    const url = 'https://api.figma.com/v1/files/test-key/variables/local'
+    const resultData = await fetcher([url, 'test-token'] as const)
+
+    expect(resultData).toEqual(mockLocalVariablesResponse)
+    expect(jsonParseSpy).toHaveBeenCalledWith(fallbackString)
+
+    jsonParseSpy.mockRestore()
+  })
+
+  it('should call api fetcher when fallbackFile is not provided', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    mockedApiFetcher.mockResolvedValue(mockLocalVariablesResponse)
+
+    renderHook(() => useVariables(), {
+      wrapper,
+    })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [key, fetcher] = call as [
+      unknown,
+      ([url, token]: readonly [string, string]) => Promise<unknown>,
+    ]
+    expect(key).toEqual([
+      'https://api.figma.com/v1/files/test-key/variables/local',
+      'test-token',
+    ])
+    expect(typeof fetcher).toBe('function')
+
+    const resultData = await fetcher([
+      'https://api.figma.com/v1/files/test-key/variables/local',
+      'test-token',
+    ] as const)
+    expect(resultData).toEqual(mockLocalVariablesResponse)
+    expect(mockedApiFetcher).toHaveBeenCalledWith(
+      'https://api.figma.com/v1/files/test-key/variables/local',
+      'test-token'
+    )
   })
 
   it('should use fallbackFile when provided as string', () => {

@@ -6,5 +6,11 @@ describe('Core barrel file', () => {
 
     expect(Core).toBeDefined()
     expect(typeof Core).toBe('object')
+
+    expect(typeof Core.fetcher).toBe('function')
+    expect(typeof Core.mutator).toBe('function')
+    expect(typeof Core.filterVariables).toBe('function')
+
+    expect(Core.FIGMA_API_BASE_URL).toBe('https://api.figma.com')
   })
 })

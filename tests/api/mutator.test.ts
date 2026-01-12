@@ -14,6 +14,7 @@ describe('mutator', () => {
   const url = '/variables'
   const fullUrl = `${FIGMA_API_BASE_URL}${url}`
   const body = { name: 'test' }
+  const pathWithoutLeadingSlash = 'variables'
 
   afterEach(() => {
     vi.clearAllMocks()
@@ -38,6 +39,22 @@ describe('mutator', () => {
       expect.objectContaining({ method: 'POST' })
     )
     expect(result).toEqual({ id: '123' })
+  })
+
+  it('should prefix base URL when url is a path without a leading slash', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: 'not-null',
+      json: () => Promise.resolve({ id: '123' }),
+    })
+
+    await mutator(pathWithoutLeadingSlash, token, 'CREATE', body)
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}/${pathWithoutLeadingSlash}`,
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 
   it('should call fetch with PUT for UPDATE action and return JSON', async () => {

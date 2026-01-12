@@ -61,6 +61,25 @@ describe('fetcher', () => {
     )
   })
 
+  it('prefixes FIGMA_API_BASE_URL when url is a path without a leading slash', async () => {
+    const data = { foo: 'bar' }
+    const path = 'v1/files/abc/variables/local'
+    mockFetch({ json: () => Promise.resolve(data) })
+
+    const result = await fetcher(path, DUMMY_TOKEN)
+
+    expect(result).toEqual(data)
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${FIGMA_API_BASE_URL}/${path}`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-FIGMA-TOKEN': DUMMY_TOKEN,
+          'Content-Type': 'application/json',
+        }),
+      })
+    )
+  })
+
   it('uses the fallback json method when one is not provided', async () => {
     // This object is compatible with `Partial<Response>`
     const responseData = { status: 200, statusText: 'OK' }
