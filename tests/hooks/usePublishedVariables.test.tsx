@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import useSWR from 'swr'
 import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
+import { fetcher as apiFetcher } from 'api/fetcher'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { usePublishedVariables } from '../../src/hooks/usePublishedVariables'
@@ -15,7 +16,12 @@ import type { ReactNode } from 'react'
 // Mock the useSWR hook
 vi.mock('swr')
 
+vi.mock('api/fetcher', () => ({
+  fetcher: vi.fn(),
+}))
+
 const mockedUseSWR = useSWR as Mock
+const mockedApiFetcher = apiFetcher as Mock
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <FigmaVarsProvider
@@ -196,6 +202,108 @@ describe('usePublishedVariables', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.isValidating).toBe(false)
+  })
+
+  it('should parse fallbackFile when provided as string in custom fetcher', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    const fallbackString = JSON.stringify(mockPublishedVariablesResponse)
+    const jsonParseSpy = vi.spyOn(JSON, 'parse')
+
+    renderHook(() => usePublishedVariables(), {
+      wrapper: wrapperWithFallbackFileString,
+    })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [, fetcher] = call as [
+      unknown,
+      ([url, token]: readonly [string, string]) => Promise<unknown>,
+    ]
+    expect(typeof fetcher).toBe('function')
+
+    const resultData = await fetcher([
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'test-token',
+    ] as const)
+    expect(resultData).toEqual(mockPublishedVariablesResponse)
+    expect(jsonParseSpy).toHaveBeenCalledWith(fallbackString)
+
+    jsonParseSpy.mockRestore()
+  })
+
+  it('should call api fetcher when fallbackFile is not provided', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    mockedApiFetcher.mockResolvedValue(mockPublishedVariablesResponse)
+
+    renderHook(() => usePublishedVariables(), {
+      wrapper,
+    })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [key, fetcher] = call as [
+      unknown,
+      ([url, token]: readonly [string, string]) => Promise<unknown>,
+    ]
+    expect(key).toEqual([
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'test-token',
+    ])
+    expect(typeof fetcher).toBe('function')
+
+    const resultData = await fetcher([
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'test-token',
+    ] as const)
+    expect(resultData).toEqual(mockPublishedVariablesResponse)
+    expect(mockedApiFetcher).toHaveBeenCalledWith(
+      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'test-token'
+    )
+  })
+
+  it('should return undefined from fallback fetcher when token/fileKey/fallbackFile are missing', async () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => usePublishedVariables(), {
+      wrapper: wrapperNoToken,
+    })
+
+    const useSWRCalls = mockedUseSWR.mock.calls
+    expect(useSWRCalls.length).toBeGreaterThan(0)
+
+    const call = useSWRCalls[0]
+    expect(call).toBeDefined()
+    const [key, fetcher] = call as [unknown, () => Promise<unknown>]
+
+    expect(key).toBeNull()
+    expect(typeof fetcher).toBe('function')
+
+    const resultData = await fetcher()
+    expect(resultData).toBeUndefined()
   })
 
   it('should use fallbackFile when provided as string', () => {
