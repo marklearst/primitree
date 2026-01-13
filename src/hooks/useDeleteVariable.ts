@@ -39,7 +39,7 @@ export const useDeleteVariable = () => {
     if (!fileKey) {
       throw new Error(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED)
     }
-    return await mutator(FIGMA_FILE_VARIABLES_PATH(fileKey), token, 'CREATE', {
+    return await mutator(FIGMA_FILE_VARIABLES_PATH(fileKey), token, 'DELETE', {
       variables: [
         {
           action: 'DELETE',

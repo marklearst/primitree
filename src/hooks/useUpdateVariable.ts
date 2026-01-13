@@ -50,7 +50,7 @@ export const useUpdateVariable = () => {
       return await mutator(
         FIGMA_FILE_VARIABLES_PATH(fileKey),
         token,
-        'CREATE',
+        'UPDATE',
         {
           variables: [
             {

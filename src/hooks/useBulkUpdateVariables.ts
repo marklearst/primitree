@@ -48,7 +48,7 @@ export const useBulkUpdateVariables = () => {
     return await mutator(
       FIGMA_FILE_VARIABLES_PATH(fileKey),
       token,
-      'CREATE',
+      'UPDATE',
       payload as unknown as Record<string, unknown>
     )
   })

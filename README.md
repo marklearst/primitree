@@ -17,383 +17,212 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 ![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
 ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
 ![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
-![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)
-![npm](https://img.shields.io/npm/v/@figma-vars/hooks)
-![npm downloads](https://img.shields.io/npm/dm/@figma-vars/hooks)
 
----
+## 📌 Why 3.0
 
-## 🚀 Features
+- Correct HTTP verbs for mutations (create/update/delete/bulk) to match the Figma Variables API.
+- Hardened SWR usage (stable keys, `null` to disable, cleaner fallback handling).
+- Node 20+ toolchain, strict TypeScript, and ESM-first packaging with CJS interop.
 
-- **✅ Token Agnostic for the Best DX**: Our library doesn't care _how_ you get your Figma token. Use environment variables, `localStorage`, a state management library, or even a simple input field. This framework-agnostic approach means it works seamlessly with Vite, Next.js, Create React App, and more, without locking you into a specific build tool.
-- **⚛️ Modern React Hooks**: A full suite of hooks for fetching and mutating Figma variables, collections, and modes.
-- **✍️ Ergonomic Mutations**: A `useMutation`-style API for creating, updating, and deleting variables, providing clear loading and error states.
-- **🔒 TypeScript-first**: Strictly typed for an ergonomic and safe developer experience. Get autocompletion for all API responses.
-- **📖 Storybook & Next.js Ready**: Perfect for building live design token dashboards or style guides.
-- **🔄 Local JSON Support**: Use local JSON files exported from Figma Dev Mode plugins when you don't have a Figma Enterprise account, enabling offline development and static deployments.
-- **🚧 Style Dictionary Integration**: Coming soon in future beta releases - seamless integration with Amazon's Style Dictionary for multi-platform design token distribution.
+## 🚀 Features at a Glance
 
----
-
-## 🧱 Architecture Highlights
-
-- ✅ **100% Test Coverage** - Comprehensive test suite with 78 tests covering all hooks, utilities, and edge cases via Vitest
-- ✅ **Consistent Error Handling** - Standardized error propagation with clear messages from the Figma API
-- ✅ **Strictly Typed APIs** - Modern TypeScript best practices with full type inference and autocompletion
-- ✅ **Predictable Hook Signatures** - Consistent, composable patterns designed for safe React integrations
-- ✅ **Developer-First Architecture** - Clean folder structure, path aliases, and logical component separation
-- ✅ **React Ecosystem** - Built specifically for React apps, Storybook, Next.js, and design system dashboards
-- ✅ **Ergonomic DX** - Intuitive API that's easy to use in both prototype and production environments
-- ✅ **Minimal Dependencies** - Leverages SWR for caching with careful dependency selection for optimal bundle size
-
----
+- Modern React 19 hooks for variables, collections, modes, and published variables.
+- Ergonomic mutation hooks with consistent loading/error states.
+- Fallback JSON support (object or string) for offline/static use.
+- Typed core entrypoint for non-React consumers (Axios, TanStack Query, server scripts).
+- Strict TypeScript + clean exports/attw/publint/size-limit checks.
 
 ## 📦 Install
 
 ```bash
 npm install @figma-vars/hooks
 # or
-yarn add @figma-vars/hooks
-# or
 pnpm add @figma-vars/hooks
 ```
 
-> **Peer dependencies:** You'll need `react` and `react-dom`.
+Peer deps: `react` and `react-dom`.
 
----
-
-## 🛠️ Setup & Usage
-
-The library is designed to be as flexible as possible. You provide the Figma token and file key, and the hooks handle the rest.
-
-Wrap your application (or the relevant component tree) with the `FigmaVarsProvider`. This makes the Figma token and file key available to all the hooks.
+## 🛠️ Quick Start (SWR-powered hooks)
 
 ```tsx
-// src/main.tsx or App.tsx
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { FigmaVarsProvider } from '@figma-vars/hooks'
-import App from './App'
+import { FigmaVarsProvider, useVariables } from '@figma-vars/hooks'
 
-// The token can come from anywhere: .env, localStorage, state, etc.
 const FIGMA_TOKEN = import.meta.env.VITE_FIGMA_TOKEN
-const FIGMA_FILE_KEY = 'your-figma-file-key'
+const FIGMA_FILE_KEY = 'your-file-key'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+function App() {
+  return (
     <FigmaVarsProvider
       token={FIGMA_TOKEN}
       fileKey={FIGMA_FILE_KEY}>
-      <App />
+      <Tokens />
     </FigmaVarsProvider>
-  </React.StrictMode>
-)
-```
+  )
+}
 
-### Fetching Data
-
-Now, you can use the query hooks anywhere in your app:
-
-```tsx
-// src/components/TokenList.tsx
-import { useVariables } from '@figma-vars/hooks'
-
-export function TokenList() {
+function Tokens() {
   const { data, isLoading, error } = useVariables()
-
-  if (isLoading) return <div>Loading tokens...</div>
+  if (isLoading) return <div>Loading…</div>
   if (error) return <div>Error: {error.message}</div>
-
-  // The 'data' object contains variables, collections, and modes
-  const variables = Object.values(data?.variables ?? {})
-
-  return (
-    <ul>
-      {variables.map(variable => (
-        <li key={variable.id}>
-          {variable.name}: {JSON.stringify(variable.valuesByMode)}
-        </li>
-      ))}
-    </ul>
-  )
+  const variables = Object.values(data?.meta.variables ?? {})
+  return <pre>{JSON.stringify(variables, null, 2)}</pre>
 }
 ```
 
-### Mutating Data
+## 🧩 Non-SWR Usage (Core entrypoint)
 
-To create, update, or delete variables, use the provided mutation hooks. They follow a standard pattern, returning a `mutate` function and states for `data`, `isLoading`, and `error`.
+Use the `/core` build when you prefer Axios/TanStack/server scripts without React/SWR.
 
-Here's an example of creating a new variable:
+**Axios example (GET + bulk PUT)**
 
-```tsx
-// src/components/CreateVariableForm.tsx
-import { useCreateVariable } from '@figma-vars/hooks'
-import type { CreateVariablePayload } from '@figma-vars/hooks'
+```ts
+import axios from 'axios'
+import { FIGMA_FILE_VARIABLES_PATH } from '@figma-vars/hooks/core'
 
-function CreateVariableForm({ collectionId }: { collectionId: string }) {
-  const { mutate, data, isLoading, error } = useCreateVariable()
+const token = process.env.FIGMA_TOKEN!
+const fileKey = process.env.FIGMA_FILE_KEY!
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = event.currentTarget
-    const variableName = (form.elements.namedItem('variableName') as HTMLInputElement)?.value
+// Fetch local variables
+const url = `https://api.figma.com${FIGMA_FILE_VARIABLES_PATH(fileKey)}/local`
+const { data } = await axios.get(url, {
+  headers: { 'X-FIGMA-TOKEN': token, 'Content-Type': 'application/json' },
+})
 
-    if (!variableName) return
-
-    const payload: CreateVariablePayload = {
-      name: variableName,
-      variableCollectionId: collectionId,
-      resolvedType: 'COLOR', // Example type
-    }
-    mutate(payload)
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input
-        name='variableName'
-        placeholder='New variable name'
-      />
-      <button
-        type='submit'
-        disabled={isLoading}>
-        {isLoading ? 'Creating...' : 'Create Variable'}
-      </button>
-      {error && <p>Error: {error.message}</p>}
-      {data && <p>Created variable with ID: {data.id}</p>}
-    </form>
-  )
-}
-```
-
-### Using Local JSON Files (No Enterprise Account Required)
-
-If you don't have a Figma Enterprise account (required for the Variables API), you can still use this library with local JSON files exported from Figma Dev Mode plugins. This is perfect for:
-
-- **Offline Development**: Work on your design system without an internet connection
-- **Static Deployments**: Deploy design token dashboards to static hosting
-- **CI/CD Pipelines**: Use exported JSON files in automated workflows
-- **Team Collaboration**: Share design tokens without API access
-
-#### Getting Your JSON File
-
-We recommend using the [Variables Exporter for Dev Mode](https://www.figma.com/community/plugin/1491572182178544621) plugin:
-
-1. Install the plugin in Figma
-2. Open your Figma file in Dev Mode
-3. Run the plugin and export your variables as JSON
-4. Save the JSON file to your project (e.g., `src/assets/figma-variables.json`)
-
-This plugin exports the exact same format that the Figma Variables API returns, ensuring perfect compatibility with this library.
-
-#### Using the Fallback File
-
-```tsx
-// src/main.tsx or App.tsx
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { FigmaVarsProvider } from '@figma-vars/hooks'
-import App from './App'
-import variablesData from './assets/figma-variables.json'
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <FigmaVarsProvider
-      token={null} // No token needed when using fallbackFile
-      fileKey={null} // No fileKey needed when using fallbackFile
-      fallbackFile={variablesData}>
-      <App />
-    </FigmaVarsProvider>
-  </React.StrictMode>
+// Bulk update
+await axios.put(
+  `https://api.figma.com${FIGMA_FILE_VARIABLES_PATH(fileKey)}`,
+  { variables: [{ action: 'UPDATE', id: 'VariableId:123', name: 'new-name' }] },
+  { headers: { 'X-FIGMA-TOKEN': token, 'Content-Type': 'application/json' } }
 )
 ```
 
-You can also pass the JSON as a string if you prefer:
+**TanStack Query example**
+
+```ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FIGMA_FILE_VARIABLES_PATH, fetcher, mutator } from '@figma-vars/hooks/core'
+
+const token = process.env.FIGMA_TOKEN!
+const fileKey = process.env.FIGMA_FILE_KEY!
+
+export function useLocalVariables() {
+  return useQuery({
+    queryKey: ['figma-local', fileKey],
+    queryFn: () => fetcher(`${FIGMA_FILE_VARIABLES_PATH(fileKey)}/local`, token),
+    staleTime: 60_000,
+  })
+}
+
+export function useBulkUpdate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: unknown) =>
+      mutator(FIGMA_FILE_VARIABLES_PATH(fileKey), token, 'UPDATE', payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['figma-local', fileKey] }),
+  })
+}
+```
+
+## 🛡️ Fallback JSON (offline/static)
+
+Pass `fallbackFile` (object or JSON string) to `FigmaVarsProvider` to bypass live API calls:
 
 ```tsx
-import variablesJson from './assets/figma-variables.json?raw'
+import exportedVariables from './figma-variables.json'
 ;<FigmaVarsProvider
   token={null}
   fileKey={null}
-  fallbackFile={variablesJson}>
+  fallbackFile={exportedVariables}>
   <App />
 </FigmaVarsProvider>
 ```
 
-### Figma PAT Security
+## 🔧 Mutation Hooks (verbs fixed)
 
-When using the Figma API, it's essential to keep your Personal Access Token (PAT) secure. Here are some best practices:
+- `useCreateVariable` → POST via bulk endpoint with `action: 'CREATE'`
+- `useUpdateVariable` → PUT via bulk endpoint with `action: 'UPDATE'`
+- `useDeleteVariable` → DELETE via bulk endpoint with `action: 'DELETE'`
+- `useBulkUpdateVariables` → PUT bulk payload (collections, modes, variables, values)
 
-- Never hardcode your PAT in your code.
-- Use environment variables or a secure storage mechanism to store your PAT.
-- Limit the scope of your PAT to only the necessary permissions.
-- Rotate your PAT regularly.
+All return `{ mutate, data, error, isLoading, isSuccess, isError }`.
 
-### Advanced Usage
+## 📚 API Cheat Sheet
 
-For advanced use cases, you can use the `useFigmaToken` hook to access the token and file key from the context.
+- Queries: `useVariables` (local), `usePublishedVariables` (library/published), `useVariableCollections`, `useVariableModes`, `useFigmaToken`.
+- Core helpers: `fetcher`, `mutator`, `filterVariables`, constants for endpoints and headers.
+- Types: `LocalVariablesResponse`, `PublishedVariablesResponse`, `BulkUpdatePayload`, `FigmaVariable`, `FigmaCollection`, `VariableMode`, etc.
 
-```tsx
-// src/components/AdvancedUsage.tsx
-import { useFigmaToken } from '@figma-vars/hooks'
+## 🔐 Auth & Scope
 
-function AdvancedUsage() {
-  const { token, fileKey } = useFigmaToken()
+- Header: `X-FIGMA-TOKEN: <PAT>`
+- Scopes: `file_variables:read` for GETs, `file_variables:write` for mutations.
+- Enterprise Full seat required for live API; fallback JSON works without a token.
 
-  // Use the token and file key to make custom API requests
-  const apiRequest = async () => {
-    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables`, {
-      headers: {
-        'X-Figma-Token': token,
-      },
-    })
+## 🚫 Do Not Publish Tokens or File Keys
 
-    const data = await response.json()
-    console.log(data)
-  }
+- Never commit PATs or file keys to git, Storybook static builds, or client bundles.
+- Use environment variables (`process.env` / `import.meta.env`) and secret managers; keep them server-side where possible.
+- Prefer `fallbackFile` with `token={null}`/`fileKey={null}` for demos and public Storybooks.
+- Avoid logging tokens or keys; scrub them from error messages and analytics.
 
-  return <button onClick={apiRequest}>Make API Request</button>
-}
-```
+## 📈 Rate Limits
 
-### Error Handling
+- Figma enforces per-token limits. Rely on SWR/TanStack caching, avoid unnecessary refetches, and prefer fallback JSON for static sites.
 
-All hooks return an `error` state that you can use to handle errors.
+## 📚 Storybook & Next.js
+
+- **Storybook decorator**: wrap stories once so hooks have context and tokens.
 
 ```tsx
-// src/components/ErrorHandling.tsx
-import { useVariables } from '@figma-vars/hooks'
-
-function ErrorHandling() {
-  const { data, isLoading, error } = useVariables()
-
-  if (error) {
-    return (
-      <div>
-        <h2>Error</h2>
-        <p>{error.message}</p>
-      </div>
-    )
-  }
-
-  // Render data or loading state
-}
-```
-
-### When to Use Local vs. Published Variables
-
-Understanding the difference between local and published variables is important for building robust design systems:
-
-#### Use `useVariables()` (Local Variables) when:
-
-- **Developing and iterating** on design tokens within a single file
-- **Testing changes** before publishing them to a library
-- **Working offline** with exported JSON files from Figma Dev Mode
-- Building **file-specific** dashboards or tools
-- You need to **modify variables** using mutation hooks (create, update, delete)
-
-#### Use `usePublishedVariables()` (Published Variables) when:
-
-- **Consuming variables** from a published Figma library
-- Building **design system dashboards** that track the source of truth
-- **Monitoring consistency** across files that consume the same library
-- Validating that **local variables match published tokens**
-- You only need **read access** to stable, shared design tokens
-
-**Key Difference:** Local variables are file-specific and can be modified, while published variables are library tokens shared across multiple files and represent the canonical source of truth for your design system.
-
-### Figma API Rate Limits
-
-The Figma API has rate limits to ensure fair usage. When using `useVariables()` or `usePublishedVariables()`, keep these considerations in mind:
-
-- **Default limits**: Figma enforces rate limits on API requests (typically 1000 requests per minute per token)
-- **SWR caching**: This library uses SWR for intelligent caching and revalidation, which helps minimize unnecessary API calls
-- **Published variables**: These are typically more stable than local variables, so they can be cached longer without risk of stale data
-- **Best practices**:
-  - Use the `revalidateOnFocus: false` option in production if you don't need real-time updates
-  - Consider longer `dedupingInterval` values for published variables (they change less frequently)
-  - Leverage the `fallbackFile` option for static deployments to avoid API calls entirely
-  - Monitor your API usage in the Figma API console if you're building high-traffic applications
-
-**Example with custom SWR config:**
-
-```tsx
-import { SWRConfig } from 'swr'
+// .storybook/preview.tsx
 import { FigmaVarsProvider } from '@figma-vars/hooks'
+import type { Preview } from '@storybook/react'
 
-function App() {
-  return (
-    <SWRConfig
-      value={{
-        revalidateOnFocus: false,
-        dedupingInterval: 60000, // 1 minute
-      }}>
+const FIGMA_TOKEN = process.env.STORYBOOK_FIGMA_TOKEN
+const FIGMA_FILE_KEY = process.env.STORYBOOK_FIGMA_FILE_KEY
+
+const preview: Preview = {
+  decorators: [
+    Story => (
       <FigmaVarsProvider
         token={FIGMA_TOKEN}
         fileKey={FIGMA_FILE_KEY}>
-        <YourComponents />
+        <Story />
       </FigmaVarsProvider>
-    </SWRConfig>
+    ),
+  ],
+}
+
+export default preview
+```
+
+- **Next.js App Router**: provide context in a shared provider file.
+
+```tsx
+// app/providers.tsx
+import { FigmaVarsProvider } from '@figma-vars/hooks'
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <FigmaVarsProvider
+      token={process.env.NEXT_PUBLIC_FIGMA_TOKEN}
+      fileKey={process.env.NEXT_PUBLIC_FIGMA_FILE_KEY}>
+      {children}
+    </FigmaVarsProvider>
   )
 }
 ```
 
----
+## 🧪 Tooling & Quality Gates
 
-## 🧩 API Reference
+- `pnpm run build`, `pnpm test`, `pnpm run test:coverage`
+- `pnpm run check:publint`, `pnpm run check:attw`, `pnpm run check:size`
 
-### Core Hooks
+## 🧭 Release Checklist (for 3.0.0)
 
-- `useVariables()`: Fetches all local variables for the file key provided to the `FigmaVarsProvider`. Returns a SWR hook state with `data`, `isLoading`, and `error` properties. The actual Figma response is in `data.data`. When `fallbackFile` is provided, it uses the local JSON data instead of making an API request.
-- `usePublishedVariables()`: Fetches published variables from a Figma library. Published variables represent the source of truth for design tokens in a design system and are shared across files. Use this hook when accessing tokens consumed from a library rather than local file variables.
-- `useVariableCollections()`: A convenience hook that returns just the variable collections from the main `useVariables` data.
-- `useVariableModes()`: A convenience hook that returns just the variable modes from the main `useVariables` data.
-- `useFigmaToken()`: A simple hook to access the token and file key from the context.
-
-### Provider Props
-
-The `FigmaVarsProvider` accepts the following props:
-
-- `token`: Figma Personal Access Token (PAT) for API authentication. Can be `null` when using `fallbackFile`.
-- `fileKey`: Figma file key for the target file. Required for API requests but can be `null` when using `fallbackFile`.
-- `fallbackFile`: Optional local JSON file (as object or string) to use instead of API requests. Perfect for users without Figma Enterprise accounts.
-
-### Mutation Hooks
-
-All mutation hooks return an object with the following shape: `{ mutate, data, isLoading, error }`.
-
-- `useCreateVariable()`: Creates a new variable. The `mutate` function expects a `CreateVariablePayload` object.
-- `useUpdateVariable()`: Updates an existing variable. The `mutate` function expects an object `{ variableId, payload }` where `payload` is an `UpdateVariablePayload`.
-- `useDeleteVariable()`: Deletes a variable. The `mutate` function expects the `variableId` (string) of the variable to delete.
-- `useBulkUpdateVariables()`: Creates, updates, or deletes multiple entities in a single batch operation. The `mutate` function expects a `BulkUpdatePayload` object.
-
-### Types
-
-All types are exported from `@figma-vars/hooks`. The core response type from Figma for local variables is `LocalVariablesResponse`.
-
----
-
-## 📚 Storybook & Next.js Integration
-
-The provider model makes integration trivial. Simply wrap your Storybook stories or Next.js pages with the `FigmaVarsProvider`.
-
-```tsx
-// In a Storybook story
-import { FigmaVarsProvider, useVariables } from '@figma-vars/hooks'
-
-export const TokensStory = () => (
-  <FigmaVarsProvider
-    token='YOUR_TOKEN'
-    fileKey='YOUR_FILE_KEY'>
-    <TokenList />
-  </FigmaVarsProvider>
-)
-
-const TokenList = () => {
-  const { data } = useVariables()
-  return <pre>{JSON.stringify(data?.variables, null, 2)}</pre>
-}
-```
+- Run `pnpm run check:release`
+- Tag `v3.0.0` (CI publishes to npm)
+- Update dist-tags on npm if needed (`latest` → 3.0.0)
 
 ---
 
@@ -404,4 +233,4 @@ PRs and issues are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 ## 📝 License
 
 This project is licensed under the [MIT License](LICENSE).
-© 2024–2025 Mark Learst
+© 2024–2026 Mark Learst

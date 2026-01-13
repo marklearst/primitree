@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+attw.**
 
 node_modules
 dist
@@ -28,6 +29,7 @@ lib-cov
 *.sln
 *.sw?
 private/**/*.*
+TODO.md
 
 # testing
 # .vitest-result.json
