@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 3.0.0 (2025-12-15)
+
+### ✨ Added
+
+- **export helper**: Added REST-based variable export script [scripts/export-variables.mjs](scripts/export-variables.mjs) so teams can pull variables to JSON for offline use or fallback loading (`--out` supports any target folder)
+
+### 📚 Docs
+
+- Documented export options (Dev Mode JSON, REST script, MCP snapshots) and clarified Figma Enterprise requirements and fallback expectations in README
+- Cleaned provider usage examples and noted release-time sanity checks to keep `check:release` green before publishing
+
 ## 2.0.0-beta.2 (2025-01-XX)
 
 ### ✨ Added
