@@ -91,7 +91,7 @@ describe('useUpdateVariable', () => {
     expect(mockedMutator).toHaveBeenCalledWith(
       FIGMA_FILE_VARIABLES_PATH(expectedFileKey!),
       expectedToken,
-      'CREATE',
+      'UPDATE',
       {
         variables: [
           {

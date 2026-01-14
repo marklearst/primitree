@@ -19,31 +19,39 @@ import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
 export const useVariables = () => {
   const { token, fileKey, fallbackFile } = useFigmaTokenContext()
 
-  // Create a custom fetcher that handles fallbackFile
-  const customFetcher = async (
-    url: string,
-    token: string
-  ): Promise<LocalVariablesResponse> => {
-    if (fallbackFile) {
-      return typeof fallbackFile === 'string'
-        ? (JSON.parse(fallbackFile) as LocalVariablesResponse)
-        : (fallbackFile as LocalVariablesResponse)
-    }
-    return fetcher<LocalVariablesResponse>(url, token)
-  }
+  const url = fileKey
+    ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
+    : null
 
-  // If fallbackFile is provided, we can use it even without token/fileKey
-  const url =
-    token && fileKey
-      ? `https://api.figma.com/v1/files/${fileKey}/variables/local`
+  const hasLive = Boolean(token && url)
+  const hasFallback = Boolean(fallbackFile)
+
+  const key = hasLive
+    ? ([url as string, token as string] as const)
+    : hasFallback
+      ? (['fallback', 'fallback'] as const)
       : null
+
   const swrResponse = useSWR<LocalVariablesResponse>(
-    (url && token) || fallbackFile
-      ? ([url || 'fallback', token || 'fallback'] as const)
-      : null,
-    (url && token) || fallbackFile
-      ? ([u, t]: readonly [string, string]) => customFetcher(u, t)
-      : () => Promise.resolve(undefined as unknown as LocalVariablesResponse)
+    key,
+    async (...args: [readonly [string, string]] | [string, string]) => {
+      const [u, t] = Array.isArray(args[0])
+        ? args[0]
+        : ([args[0], args[1]] as const)
+
+      if (fallbackFile) {
+        return typeof fallbackFile === 'string'
+          ? (JSON.parse(fallbackFile) as LocalVariablesResponse)
+          : (fallbackFile as LocalVariablesResponse)
+      }
+
+      // At this point we expect live credentials; guard just in case
+      if (!u || !t) {
+        return undefined as unknown as LocalVariablesResponse
+      }
+
+      return fetcher<LocalVariablesResponse>(u, t)
+    }
   )
 
   return swrResponse

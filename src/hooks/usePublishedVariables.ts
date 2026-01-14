@@ -46,30 +46,36 @@ import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
 export const usePublishedVariables = () => {
   const { token, fileKey, fallbackFile } = useFigmaTokenContext()
 
-  // Create a custom fetcher that handles fallbackFile
-  const customFetcher = async (
-    url: string,
-    token: string
-  ): Promise<PublishedVariablesResponse> => {
-    if (fallbackFile) {
-      if (typeof fallbackFile === 'string') {
-        return JSON.parse(fallbackFile) as PublishedVariablesResponse
-      }
-      return fallbackFile as unknown as PublishedVariablesResponse
-    }
-    return fetcher<PublishedVariablesResponse>(url, token)
-  }
+  const url = fileKey ? FIGMA_PUBLISHED_VARIABLES_PATH(fileKey) : null
 
-  // Use the published variables endpoint instead of local
-  const url = token && fileKey ? FIGMA_PUBLISHED_VARIABLES_PATH(fileKey) : null
+  const hasLive = Boolean(token && url)
+  const hasFallback = Boolean(fallbackFile)
+
+  const key = hasLive
+    ? ([url as string, token as string] as const)
+    : hasFallback
+      ? (['fallback', 'fallback'] as const)
+      : null
+
   const swrResponse = useSWR<PublishedVariablesResponse>(
-    (url && token) || fallbackFile
-      ? ([url || 'fallback', token || 'fallback'] as const)
-      : null,
-    (url && token) || fallbackFile
-      ? ([u, t]: readonly [string, string]) => customFetcher(u, t)
-      : () =>
-          Promise.resolve(undefined as unknown as PublishedVariablesResponse)
+    key,
+    async (...args: [readonly [string, string]] | [string, string]) => {
+      const [u, t] = Array.isArray(args[0])
+        ? args[0]
+        : ([args[0], args[1]] as const)
+
+      if (fallbackFile) {
+        return typeof fallbackFile === 'string'
+          ? (JSON.parse(fallbackFile) as PublishedVariablesResponse)
+          : (fallbackFile as PublishedVariablesResponse)
+      }
+
+      if (!u || !t) {
+        return undefined as unknown as PublishedVariablesResponse
+      }
+
+      return fetcher<PublishedVariablesResponse>(u, t)
+    }
   )
 
   return swrResponse

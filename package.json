@@ -7,6 +7,14 @@
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "core": [
+        "dist/core.d.ts"
+      ]
+    }
+  },
   "files": [
     "dist"
   ],
@@ -37,7 +45,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "postbuild": "cp dist/index.d.ts dist/index.d.cts || copy dist/index.d.ts dist/index.d.cts && cp dist/core.d.ts dist/core.d.cts || copy dist/core.d.ts dist/core.d.cts",
+    "postbuild": "cp dist/index.d.ts dist/index.d.cts || copy dist/index.d.ts dist/index.d.cts && cp dist/core.d.ts dist/core.d.cts || copy dist/core.d.ts dist/core.d.cts && cp dist/core/index.d.ts dist/core/index.d.cts || copy dist/core\\index.d.ts dist/core\\index.d.cts",
     "prepublishOnly": "pnpm build",
     "lint": "biome format --write .",
     "format": "prettier --write .",
@@ -80,11 +88,11 @@
     },
     "./core": {
       "import": {
-        "types": "./dist/core.d.ts",
+        "types": "./dist/core/index.d.ts",
         "default": "./dist/core.mjs"
       },
       "require": {
-        "types": "./dist/core.d.cts",
+        "types": "./dist/core/index.d.cts",
         "default": "./dist/core.cjs"
       },
       "default": "./dist/core.mjs"

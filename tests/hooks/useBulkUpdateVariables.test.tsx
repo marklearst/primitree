@@ -80,7 +80,7 @@ describe('useBulkUpdateVariables', () => {
     expect(mockedMutator).toHaveBeenCalledWith(
       FIGMA_FILE_VARIABLES_PATH(mockFileKey),
       mockToken,
-      'CREATE',
+      'UPDATE',
       payload
     )
   })
