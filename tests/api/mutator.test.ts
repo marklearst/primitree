@@ -102,6 +102,10 @@ describe('mutator', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
       json: () => Promise.resolve({ err: 'Bad Request' }),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
@@ -109,15 +113,117 @@ describe('mutator', () => {
     )
   })
 
+  it('should throw error with message from response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ message: 'Custom error message' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Custom error message'
+    )
+  })
+
+  it('should throw error with message when err is falsy', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: null, message: 'Error message' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Error message'
+    )
+  })
+
+  it('should throw error with message when err is empty string', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: '', message: 'Error message' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Error message'
+    )
+  })
+
+  it('should use default errorMessage when both err and message are falsy', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: null, message: null }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
+  it('should use default errorMessage when both err and message are empty strings', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: '', message: '' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
   it('should throw generic error for failed non-JSON response', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/html' : null),
+      },
       json: () => Promise.reject(new Error('Invalid JSON')),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
       'An API error occurred'
     )
+  })
+
+  it('should throw generic error when content-type is not JSON', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/html' : null),
+      },
+      json: () => Promise.resolve({ message: 'Error' }),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
+  it('should handle 204 No Content with null body', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 204,
+      body: null,
+    })
+    const result = await mutator(url, token, 'DELETE')
+    expect(result).toEqual({})
   })
 
   it('should throw error if fetch itself fails', async () => {

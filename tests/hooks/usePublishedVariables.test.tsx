@@ -6,6 +6,7 @@ import { fetcher as apiFetcher } from 'api/fetcher'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { usePublishedVariables } from '../../src/hooks/usePublishedVariables'
+import * as useFigmaTokenContextModule from '../../src/contexts/useFigmaTokenContext'
 import {
   mockLocalVariablesResponse,
   mockPublishedVariablesResponse,
@@ -158,7 +159,11 @@ describe('usePublishedVariables', () => {
 
     renderHook(() => usePublishedVariables(), { wrapper: wrapperNoToken })
 
-    expect(mockedUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      undefined
+    )
   })
 
   it('should not call useSWR when fileKey is missing', () => {
@@ -171,7 +176,11 @@ describe('usePublishedVariables', () => {
 
     renderHook(() => usePublishedVariables(), { wrapper: wrapperNoFileKey })
 
-    expect(mockedUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      undefined
+    )
   })
 
   it('should use fallbackFile when provided as object', () => {
@@ -280,7 +289,7 @@ describe('usePublishedVariables', () => {
     )
   })
 
-  it('should return undefined from fallback fetcher when token/fileKey/fallbackFile are missing', async () => {
+  it('should throw error from fetcher when token/fileKey/fallbackFile are missing', async () => {
     mockedUseSWR.mockReturnValue({
       data: undefined,
       error: null,
@@ -297,13 +306,20 @@ describe('usePublishedVariables', () => {
 
     const call = useSWRCalls[0]
     expect(call).toBeDefined()
-    const [key, fetcher] = call as [unknown, () => Promise<unknown>]
+    const [key, fetcher] = call as [
+      unknown,
+      (
+        ...args: [readonly [string, string]] | [string, string]
+      ) => Promise<unknown>,
+    ]
 
     expect(key).toBeNull()
     expect(typeof fetcher).toBe('function')
 
-    const resultData = await fetcher()
-    expect(resultData).toBeUndefined()
+    // The fetcher should throw an error when called without credentials
+    await expect(fetcher('', '')).rejects.toThrow(
+      'Missing URL or token for live API request'
+    )
   })
 
   it('should use fallbackFile when provided as string', () => {
@@ -413,12 +429,46 @@ describe('usePublishedVariables', () => {
       unknown,
       (url: string, token: string) => Promise<unknown>,
     ]
-    expect(key).toEqual(['fallback', 'fallback'])
+    // Key should match pattern: ['fallback-${providerId}', 'fallback']
+    expect(Array.isArray(key)).toBe(true)
+    const keyArray = key as [string, string]
+    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-\d+$/)
+    expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 
     // Call the custom fetcher directly to test the fallbackFile logic
-    const resultData = await fetcher('fallback', 'fallback')
+    const resultData = await fetcher(keyArray[0], 'fallback')
     expect(resultData).toEqual(mockPublishedVariablesResponse)
+  })
+
+  it('should use default providerId when providerId is null', () => {
+    // Mock the context hook to return undefined providerId for this test only
+    // Omit providerId to test the ?? 'default' fallback
+    const spy = vi
+      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
+      .mockReturnValue({
+        token: null,
+        fileKey: null,
+        fallbackFile: mockPublishedVariablesResponse,
+      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
+
+    mockedUseSWR.mockReturnValue({
+      data: mockPublishedVariablesResponse,
+      error: null,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => usePublishedVariables())
+
+    // Verify the key uses 'default' when providerId is null
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      ['fallback-default', 'fallback'],
+      expect.any(Function),
+      undefined
+    )
+
+    spy.mockRestore()
   })
 
   it('should not affect local variables mocks used by other tests', () => {

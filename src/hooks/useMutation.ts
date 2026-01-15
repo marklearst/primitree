@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react'
+import { useReducer, useCallback, useRef, useEffect } from 'react'
 import type { MutationState, MutationResult } from 'types/mutations'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -44,6 +44,8 @@ export function mutationReducer<TData>(
  * Returns a mutation object with status, error, and result data. Preferred pattern: use higher-level hooks (e.g., `useCreateVariable`, `useUpdateVariable`) rather than using this directly in production code.
  * The provided `mutationFn` must be an async function that performs the actual mutation (API call, etc). See example for pattern.
  *
+ * Uses `useRef` to store the latest `mutationFn` to avoid recreating `mutate` on every render, following React 19.2 best practices.
+ *
  * @typeParam TData - Type returned by the mutation.
  * @typeParam TPayload - Payload accepted by the mutation function.
  * @param mutationFn - Async function performing the mutation logic.
@@ -74,19 +76,46 @@ export const useMutation = <TData, TPayload>(
   }
   const [state, dispatch] = useReducer(mutationReducer<TData>, initialState)
 
+  // Store the latest mutationFn in a ref to avoid recreating mutate on every render
+  const mutationFnRef = useRef(mutationFn)
+  const isMountedRef = useRef(true)
+
+  // Update the ref when mutationFn changes
+  useEffect(() => {
+    mutationFnRef.current = mutationFn
+  }, [mutationFn])
+
+  // Track mounted state to prevent state updates after unmount
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const mutate = useCallback(
     async (payload: TPayload) => {
+      if (!isMountedRef.current) {
+        return undefined
+      }
+
       dispatch({ type: 'loading' })
       try {
-        const result = await mutationFn(payload)
-        dispatch({ type: 'success', payload: result })
+        const result = await mutationFnRef.current(payload)
+        // Only update state if component is still mounted
+        if (isMountedRef.current) {
+          dispatch({ type: 'success', payload: result })
+        }
         return result
       } catch (err) {
-        dispatch({ type: 'error', payload: err as Error })
+        // Only update state if component is still mounted
+        if (isMountedRef.current) {
+          dispatch({ type: 'error', payload: err as Error })
+        }
         return undefined
       }
     },
-    [mutationFn]
+    [] // Empty deps array - mutationFn is accessed via ref
   )
 
   return {

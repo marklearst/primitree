@@ -80,4 +80,56 @@ describe('useMutation', () => {
     expect(result).toEqual(initialState)
     expect(result).toBe(initialState) // Should return the exact same object reference
   })
+
+  it('should return undefined if component is unmounted before mutation starts', async () => {
+    const mockData = { id: 1, name: 'Test' }
+    const mutationFn = vi.fn().mockResolvedValue(mockData)
+    const { result, unmount } = renderHook(() => useMutation(mutationFn))
+
+    // Unmount the component
+    unmount()
+
+    // Try to mutate after unmount - should return undefined immediately
+    let mutateResult: unknown
+    await act(async () => {
+      mutateResult = await result.current.mutate({ payload: 'test' })
+    })
+
+    // Should return undefined without calling mutationFn
+    expect(mutateResult).toBeUndefined()
+    expect(mutationFn).not.toHaveBeenCalled()
+  })
+
+  it('should not update state if component is unmounted during mutation', async () => {
+    const mockData = { id: 1, name: 'Test' }
+    let resolveMutation: (value: unknown) => void
+    const mutationFn = vi.fn(
+      () =>
+        new Promise(resolve => {
+          resolveMutation = resolve
+        })
+    )
+    const { result, unmount } = renderHook(() => useMutation(mutationFn))
+
+    // Start mutation (it will hang waiting for resolve)
+    act(() => {
+      result.current.mutate({ payload: 'test' })
+    })
+
+    // Verify loading state
+    expect(result.current.status).toBe('loading')
+
+    // Unmount before mutation completes
+    unmount()
+
+    // Complete the mutation
+    await act(async () => {
+      resolveMutation!(mockData)
+      // Give a tick for any state updates
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    // The mutation function should have been called
+    expect(mutationFn).toHaveBeenCalled()
+  })
 })

@@ -7,6 +7,7 @@ import {
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_FETCH_FIGMA_DATA_FAILED,
 } from 'constants/index'
+import { FigmaApiError } from 'types/figma'
 
 /**
  * Low-level utility to fetch data from the Figma Variables REST API with authentication.
@@ -58,15 +59,24 @@ export async function fetcher<TResponse = unknown>(
 
   if (!response.ok) {
     let errorMessage = ERROR_MSG_FETCH_FIGMA_DATA_FAILED
+    const statusCode = response.status
+
+    // Try to extract error message from JSON response
     try {
-      const errorData = await response.json()
-      if (errorData?.message) {
-        errorMessage = errorData.message
+      const contentType = response.headers.get('content-type')
+      if (contentType?.includes('application/json')) {
+        const errorData = await response.json()
+        if (errorData?.message) {
+          errorMessage = errorData.message
+        } else if (errorData?.err) {
+          errorMessage = errorData.err
+        }
       }
     } catch {
-      // Ignore JSON parse errors
+      // Ignore JSON parse errors, use default message
     }
-    throw new Error(errorMessage)
+
+    throw new FigmaApiError(errorMessage, statusCode)
   }
 
   return response.json() as Promise<TResponse>

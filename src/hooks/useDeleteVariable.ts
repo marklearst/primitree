@@ -46,7 +46,7 @@ export const useDeleteVariable = () => {
           id: variableId,
         },
       ],
-    } as unknown as Record<string, unknown>)
+    })
   })
   return mutation
 }

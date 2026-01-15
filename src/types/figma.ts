@@ -299,3 +299,44 @@ export interface FigmaError {
   /** Human-readable error message describing the failure. */
   message: string
 }
+
+/**
+ * Custom Error class for Figma API errors that preserves HTTP status codes.
+ *
+ * @remarks
+ * Extends the standard Error class to include HTTP status code information,
+ * making it easier for consumers to handle different error types (401, 403, 404, 429, etc.).
+ *
+ * @example
+ * ```ts
+ * import { FigmaApiError } from '@figma-vars/hooks';
+ *
+ * try {
+ *   await fetcher(url, token);
+ * } catch (error) {
+ *   if (error instanceof FigmaApiError) {
+ *     if (error.statusCode === 401) {
+ *       // Handle authentication error
+ *     } else if (error.statusCode === 429) {
+ *       // Handle rate limit
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * @public
+ */
+export class FigmaApiError extends Error {
+  /** HTTP status code from the API response. */
+  public readonly statusCode: number
+
+  constructor(message: string, statusCode: number) {
+    super(message)
+    this.name = 'FigmaApiError'
+    this.statusCode = statusCode
+    // Maintains proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, FigmaApiError)
+    }
+  }
+}

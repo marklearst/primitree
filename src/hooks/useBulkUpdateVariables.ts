@@ -49,7 +49,7 @@ export const useBulkUpdateVariables = () => {
       FIGMA_FILE_VARIABLES_PATH(fileKey),
       token,
       'UPDATE',
-      payload as unknown as Record<string, unknown>
+      payload
     )
   })
   return mutation

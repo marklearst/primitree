@@ -8,10 +8,10 @@ Built and maintained by Mark Learst.
 
 A fast, typed React 19.2.3 hooks library for the Figma Variables API: fetch, update, and manage design tokens via the official [Figma REST API](https://www.figma.com/developers/api#variables).
 
-Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
+Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens/variables, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
-![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/publish.yml/badge.svg)
+![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/marklearst/figma-vars-hooks/branch/main/graph/badge.svg)](https://codecov.io/gh/marklearst/figma-vars-hooks)
 ![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
@@ -20,17 +20,25 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 
 ## 📌 Why 3.0
 
-- Correct HTTP verbs for mutations (create/update/delete/bulk) to match the Figma Variables API.
-- Hardened SWR usage (stable keys, `null` to disable, cleaner fallback handling).
-- Node 20+ toolchain, strict TypeScript, and ESM-first packaging with CJS interop.
+- ✨ **New DX Features**: SWR configuration support, error handling utilities, cache invalidation helpers
+- 🔧 **React 19.2 Ready**: Optimized hooks with proper cleanup and stable function references
+- 🛡️ **Better Error Handling**: `FigmaApiError` class with HTTP status codes for better error differentiation
+- ✅ **Type Safety**: Removed unsafe type assertions, improved type definitions throughout
+- 🚀 **Performance**: Hardened SWR usage (stable keys, `null` to disable, cleaner fallback handling)
+- 📦 **Modern Tooling**: Node 20+ toolchain, strict TypeScript, and ESM-first packaging with CJS interop
+- 🖥️ **CLI Export Tool**: Automate variable exports with `figma-vars-export` for CI/CD (Enterprise required)
 
 ## 🚀 Features at a Glance
 
-- Modern React 19 hooks for variables, collections, modes, and published variables.
-- Ergonomic mutation hooks with consistent loading/error states.
-- Fallback JSON support (object or string) for offline/static use.
-- Typed core entrypoint for non-React consumers (Axios, TanStack Query, server scripts).
-- Strict TypeScript + clean exports/attw/publint/size-limit checks.
+- **Modern React 19.2 hooks** for variables, collections, modes, and published variables
+- **Ergonomic mutation hooks** with consistent loading/error states
+- **SWR configuration support** for customizing caching and revalidation behavior
+- **Error handling utilities** for type-safe error checking and status code access
+- **Cache invalidation helpers** for automatic data refresh after mutations
+- **CLI export tool** (`figma-vars-export`) for automating variable exports to JSON (Enterprise required)
+- **Fallback JSON support** (object or string) for offline/static use - works without Enterprise!
+- **Typed core entrypoint** for non-React consumers (Axios, TanStack Query, server scripts)
+- **100% test coverage** + strict TypeScript + clean exports/attw/publint/size-limit checks
 
 ## 📦 Install
 
@@ -41,6 +49,44 @@ pnpm add @figma-vars/hooks
 ```
 
 Peer deps: `react` and `react-dom`.
+
+## 🖥️ CLI Export Tool
+
+The package includes a **CLI tool** (`figma-vars-export`) for automatically exporting Figma variables to JSON via the REST API. Perfect for CI/CD pipelines, build scripts, or one-off exports.
+
+> ⚠️ **Enterprise Required**: The CLI tool uses the Figma Variables REST API, which requires a **Figma Enterprise account**. Without Enterprise, use the [Dev Mode plugin export](#exporting-variables-for-fallback) method instead.
+
+```bash
+# Using npx (no install needed)
+FIGMA_TOKEN=your_token npx figma-vars-export --file-key YOUR_FILE_KEY --out ./variables.json
+
+# After installing
+npm install @figma-vars/hooks
+FIGMA_TOKEN=your_token figma-vars-export --file-key YOUR_FILE_KEY --out ./variables.json
+
+# Show help
+figma-vars-export --help
+```
+
+**Options:**
+
+- `--file-key` - Figma file key (required, or set `FIGMA_FILE_KEY` env var)
+- `--out` - Output path (default: `data/figma-variables.json`)
+- `--help` - Show help message
+
+**Environment Variables:**
+
+- `FIGMA_TOKEN` or `FIGMA_PAT` - Figma Personal Access Token (required)
+- `FIGMA_FILE_KEY` - Figma file key (optional)
+
+**Example Output:**
+
+```
+Saved variables to ./variables.json
+Variables count: 42
+```
+
+**No Enterprise?** See [Exporting variables for fallback](#exporting-variables-for-fallback) for alternative methods that work without Enterprise.
 
 ## 🛠️ Quick Start (SWR-powered hooks)
 
@@ -54,7 +100,11 @@ function App() {
   return (
     <FigmaVarsProvider
       token={FIGMA_TOKEN}
-      fileKey={FIGMA_FILE_KEY}>
+      fileKey={FIGMA_FILE_KEY}
+      swrConfig={{
+        revalidateOnFocus: false,
+        dedupingInterval: 5000,
+      }}>
       <Tokens />
     </FigmaVarsProvider>
   )
@@ -139,10 +189,23 @@ import exportedVariables from './figma-variables.json'
 
 ### Exporting variables for fallback
 
-- **Dev Mode / plugin export (recommended)**: Use a Variables exporter plugin in Figma Dev Mode to download the full Variables panel as JSON, save anywhere (e.g., `data/figma-variables.json`), and pass it to `fallbackFile`.
-- **REST export script (Enterprise required; repo-only)**: `FIGMA_TOKEN=... node scripts/export-variables.mjs --file-key YOUR_FILE_KEY --out path/to/figma-variables.json`. The helper lives in the repo (not published to npm); clone or copy the script. `--out` accepts any folder/filename, so point it at whatever location your build or Style Dictionary pipeline expects.
+There are several ways to get your Figma variables as JSON:
+
+1. **Dev Mode / plugin export (recommended, no Enterprise needed)** ⭐
+   - Use a Variables exporter plugin in Figma Dev Mode to download the full Variables panel as JSON
+   - Save anywhere (e.g., `data/figma-variables.json`) and pass it to `fallbackFile`
+   - Works for everyone, no Enterprise account required!
+
+2. **CLI export tool (Enterprise required)** 🚀
+   - Automatically exports via REST API - perfect for CI/CD and automation
+   - See the [CLI Export Tool](#-cli-export-tool) section above for full usage details
+   - Also available from cloned repo: `node scripts/export-variables.mjs --file-key KEY --out file.json`
+
 - **Desktop MCP (manual/partial)**: Selecting a frame and running `get_variable_defs` returns only that selection’s variables. Use plugin/REST exports for complete coverage.
-- **Style Dictionary**: Once you have the JSON (from any path), feed it into Style Dictionary to emit platform-specific artifacts, or import it directly via `fallbackFile`.
+
+4. **Style Dictionary**
+   - Once you have the JSON (from any path), feed it into Style Dictionary to emit platform-specific artifacts
+   - Or import it directly via `fallbackFile`
 
 ## 🔧 Mutation Hooks (verbs fixed)
 
@@ -153,11 +216,176 @@ import exportedVariables from './figma-variables.json'
 
 All return `{ mutate, data, error, isLoading, isSuccess, isError }`.
 
+### Example: Creating and updating variables
+
+```tsx
+import { useCreateVariable, useUpdateVariable, useInvalidateVariables } from '@figma-vars/hooks'
+
+function VariableEditor() {
+  const { mutate: create } = useCreateVariable()
+  const { mutate: update } = useUpdateVariable()
+  const { invalidate } = useInvalidateVariables()
+
+  const handleCreate = async () => {
+    await create({
+      name: 'Primary Color',
+      variableCollectionId: 'CollectionId:123',
+      resolvedType: 'COLOR',
+    })
+    invalidate() // Refresh cache after mutation
+  }
+
+  const handleUpdate = async (id: string) => {
+    await update({
+      variableId: id,
+      payload: { name: 'Updated Name' },
+    })
+    invalidate() // Refresh cache after mutation
+  }
+
+  return (
+    <>
+      <button onClick={handleCreate}>Create Variable</button>
+      <button onClick={() => handleUpdate('VariableId:123')}>Update</button>
+    </>
+  )
+}
+```
+
+## 🛡️ Error Handling
+
+3.0.0 introduces powerful error handling utilities for type-safe error checking:
+
+```tsx
+import { isFigmaApiError, getErrorStatus, getErrorMessage, hasErrorStatus } from '@figma-vars/hooks'
+
+function ErrorHandler({ error }: { error: Error | null }) {
+  if (!error) return null
+
+  // Type guard for FigmaApiError
+  if (isFigmaApiError(error)) {
+    const status = error.statusCode
+
+    if (status === 401) {
+      return <div>Authentication required. Please check your token.</div>
+    }
+    if (status === 403) {
+      return <div>Access forbidden. Check file permissions.</div>
+    }
+    if (status === 429) {
+      return <div>Rate limit exceeded. Please wait before retrying.</div>
+    }
+    if (status === 404) {
+      return <div>File or variable not found.</div>
+    }
+  }
+
+  // Helper functions
+  const status = getErrorStatus(error) // number | null
+  const message = getErrorMessage(error) // string
+
+  // Convenience check
+  if (hasErrorStatus(error, 401)) {
+    // Handle unauthorized
+  }
+
+  return <div>Error: {message}</div>
+}
+```
+
+**Common HTTP Status Codes:**
+
+- `401` - Unauthorized (invalid or missing token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found (file/variable doesn't exist)
+- `429` - Too Many Requests (rate limit exceeded)
+
+## 🔄 Cache Management
+
+After mutations, use `useInvalidateVariables` to refresh cached data:
+
+```tsx
+import { useUpdateVariable, useInvalidateVariables } from '@figma-vars/hooks'
+
+function UpdateButton({ variableId }: { variableId: string }) {
+  const { mutate, isLoading } = useUpdateVariable()
+  const { invalidate, revalidate } = useInvalidateVariables()
+
+  const handleUpdate = async () => {
+    await mutate({
+      variableId,
+      payload: { name: 'New Name' },
+    })
+
+    // Option 1: Invalidate (refetch on next access)
+    invalidate()
+
+    // Option 2: Revalidate immediately (refetch now)
+    // revalidate()
+  }
+
+  return (
+    <button
+      onClick={handleUpdate}
+      disabled={isLoading}>
+      {isLoading ? 'Updating...' : 'Update Variable'}
+    </button>
+  )
+}
+```
+
+## ⚙️ SWR Configuration
+
+Customize SWR behavior globally through the provider:
+
+```tsx
+<FigmaVarsProvider
+  token={FIGMA_TOKEN}
+  fileKey={FIGMA_FILE_KEY}
+  swrConfig={{
+    revalidateOnFocus: false, // Don't refetch on window focus
+    dedupingInterval: 5000, // Dedupe requests within 5s
+    errorRetryCount: 3, // Retry failed requests 3 times
+    errorRetryInterval: 1000, // Wait 1s between retries
+    onError: error => {
+      // Global error handler
+      if (isFigmaApiError(error) && error.statusCode === 429) {
+        console.warn('Rate limited, backing off...')
+      }
+    },
+  }}>
+  <App />
+</FigmaVarsProvider>
+```
+
+**Common SWR Options:**
+
+- `revalidateOnFocus` - Refetch when window regains focus (default: `true`)
+- `dedupingInterval` - Deduplication interval in ms (default: `2000`)
+- `errorRetryCount` - Max retry attempts (default: `5`)
+- `refreshInterval` - Polling interval in ms (default: `0` = disabled)
+- `onError` - Global error callback
+
 ## 📚 API Cheat Sheet
 
-- Queries: `useVariables` (local), `usePublishedVariables` (library/published), `useVariableCollections`, `useVariableModes`, `useFigmaToken`.
-- Core helpers: `fetcher`, `mutator`, `filterVariables`, constants for endpoints and headers.
-- Types: `LocalVariablesResponse`, `PublishedVariablesResponse`, `BulkUpdatePayload`, `FigmaVariable`, `FigmaCollection`, `VariableMode`, etc.
+### Hooks
+
+- **Queries**: `useVariables` (local), `usePublishedVariables` (library/published), `useVariableCollections`, `useVariableModes`, `useFigmaToken`
+- **Mutations**: `useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`
+- **Cache**: `useInvalidateVariables` (invalidate/revalidate cache)
+
+### Utilities
+
+- **Filtering**: `filterVariables` (filter by type, name, etc.)
+- **Error Handling**: `isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`
+- **Core helpers**: `fetcher`, `mutator`, constants for endpoints and headers
+
+### Types
+
+- **Responses**: `LocalVariablesResponse`, `PublishedVariablesResponse`
+- **Variables**: `FigmaVariable`, `FigmaCollection`, `VariableMode`
+- **Mutations**: `BulkUpdatePayload`, `CreateVariablePayload`, `UpdateVariablePayload`
+- **Errors**: `FigmaApiError` (extends `Error` with `statusCode`)
 
 ## 🔐 Auth & Scope
 
@@ -181,6 +409,8 @@ All return `{ mutate, data, error, isLoading, isSuccess, isError }`.
 ## 📈 Rate Limits
 
 - Figma enforces per-token limits. Rely on SWR/TanStack caching, avoid unnecessary refetches, and prefer fallback JSON for static sites.
+- Use `swrConfig` to customize `dedupingInterval` and `errorRetryCount` to optimize API usage.
+- Handle `429` rate limit errors with `isFigmaApiError` and implement exponential backoff if needed.
 
 ## 📚 Storybook & Next.js
 

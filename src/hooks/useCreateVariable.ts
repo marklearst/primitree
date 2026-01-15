@@ -49,7 +49,7 @@ export const useCreateVariable = () => {
           ...payload,
         },
       ],
-    } as unknown as Record<string, unknown>)
+    })
   })
   return mutation
 }

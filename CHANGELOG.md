@@ -10,12 +10,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### ✨ Added
 
-- **export helper**: Added REST-based variable export script [scripts/export-variables.mjs](scripts/export-variables.mjs) so teams can pull variables to JSON for offline use or fallback loading (`--out` supports any target folder)
+- **SWR Configuration Support**: Added `swrConfig` prop to `FigmaVarsProvider` for global SWR customization (revalidation, deduplication, error retry, etc.)
+- **Error Handling Utilities**: New type-safe error helpers (`isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`) for better error differentiation
+- **Cache Invalidation Helper**: New `useInvalidateVariables` hook for easy cache management after mutations (`invalidate` and `revalidate` functions)
+- **FigmaApiError Class**: Custom error class extending `Error` with HTTP `statusCode` property for better error handling
+- **Export CLI Tool**: Added `figma-vars-export` CLI command for automatically exporting variables to JSON via REST API. Available after installing the package (`figma-vars-export`) or via `npx` (`npx figma-vars-export`). Includes `--help` flag, supports `--file-key` and `--out` options, and accepts `FIGMA_TOKEN`/`FIGMA_PAT` and `FIGMA_FILE_KEY` environment variables. Perfect for CI/CD pipelines and build scripts. **Note:** Requires Figma Enterprise account for REST API access. See README CLI Export Tool section for usage examples and alternative export methods.
 
-### 📚 Docs
+### 🔧 Changed
 
-- Documented export options (Dev Mode JSON, REST script, MCP snapshots) and clarified Figma Enterprise requirements and fallback expectations in README
-- Cleaned provider usage examples and noted release-time sanity checks to keep `check:release` green before publishing
+- **React 19.2 Compatibility**: Optimized `useMutation` hook to use `useRef` for stable function references, preventing unnecessary re-renders
+- **Memory Leak Prevention**: Added cleanup handling in `useMutation` to prevent state updates after component unmount
+- **Type Safety**: Removed all unsafe `as unknown as` type assertions throughout the codebase
+- **Mutator Function**: Improved `mutator` function signature with proper types (`BulkUpdatePayload` and compatible objects)
+- **Error Handling**: Enhanced `fetcher` and `mutator` to throw `FigmaApiError` with HTTP status codes instead of generic `Error`
+- **Error Response Parsing**: Added Content-Type header checking before attempting JSON parsing in error responses
+- **SWR Cache Keys**: Fixed potential cache collision risks by generating unique provider IDs per `FigmaVarsProvider` instance
+
+### 🐛 Fixed
+
+- **SWR Key Stability**: Fixed fallback cache keys to include unique provider IDs, preventing collisions when multiple providers exist
+- **Error Status Codes**: Errors now preserve HTTP status codes, enabling proper handling of 401, 403, 404, 429, etc.
+- **Type Assertions**: Removed unsafe type casts in mutation hooks (`useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`)
+- **Unused Constants**: Removed unused endpoint constants (`FIGMA_POST_VARIABLES_ENDPOINT`, `FIGMA_VARIABLE_BY_ID_ENDPOINT`, `FIGMA_VARIABLES_ENDPOINT`)
+
+### 📚 Documentation
+
+- Added comprehensive error handling guide with status code examples
+- Added cache management section with `useInvalidateVariables` examples
+- Added SWR configuration guide with common options and use cases
+- Updated API cheat sheet with new hooks and utilities
+- Enhanced Quick Start example with `swrConfig` usage
+- Documented export options (Dev Mode JSON, REST script, MCP snapshots)
+- Clarified Figma Enterprise requirements and fallback expectations
+
+### 🔄 Migration Guide
+
+**No breaking changes!** All changes are backward compatible. Existing code continues to work without modification.
+
+**New features are opt-in:**
+
+- Add `swrConfig` prop to `FigmaVarsProvider` to customize SWR behavior
+- Use error utilities (`isFigmaApiError`, etc.) for better error handling
+- Use `useInvalidateVariables` hook for cache management after mutations
+
+### 🎯 Why 3.0.0?
+
+This major release focuses on **developer experience improvements**:
+
+- Better error handling with type-safe utilities and status codes
+- Flexible SWR configuration for optimizing API usage
+- Easy cache management after mutations
+- React 19.2 compatibility and performance optimizations
+- Improved type safety throughout the codebase
+
+All improvements are additive and maintain full backward compatibility.
 
 ## 2.0.0-beta.2 (2025-01-XX)
 

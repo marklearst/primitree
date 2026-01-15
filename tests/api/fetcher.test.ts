@@ -91,7 +91,15 @@ describe('fetcher', () => {
   })
 
   it('throws with error message if response is not ok and error message exists', async () => {
-    mockFetch({ json: () => Promise.resolve({ message: 'fail!' }) }, false)
+    const mockHeaders = new Headers()
+    mockHeaders.set('content-type', 'application/json')
+    mockFetch(
+      {
+        json: () => Promise.resolve({ message: 'fail!' }),
+        headers: mockHeaders,
+      },
+      false
+    )
     await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow('fail!')
   })
 
@@ -103,6 +111,34 @@ describe('fetcher', () => {
   it('throws with fallback error if response is not ok and JSON parsing fails', async () => {
     // Mock a response that fails JSON parsing
     mockFetch({ json: () => Promise.reject(new Error('Invalid JSON')) }, false)
+    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(/fetch/i)
+  })
+
+  it('throws with error.err if response is not ok and error.err exists', async () => {
+    const mockHeaders = new Headers()
+    mockHeaders.set('content-type', 'application/json')
+    mockFetch(
+      {
+        json: () => Promise.resolve({ err: 'Error occurred!' }),
+        headers: mockHeaders,
+      },
+      false
+    )
+    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+      'Error occurred!'
+    )
+  })
+
+  it('throws with fallback error if response is not ok and content-type is not JSON', async () => {
+    const mockHeaders = new Headers()
+    mockHeaders.set('content-type', 'text/html')
+    mockFetch(
+      {
+        json: () => Promise.resolve({ message: 'fail!' }),
+        headers: mockHeaders,
+      },
+      false
+    )
     await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(/fetch/i)
   })
 })
