@@ -142,6 +142,7 @@ export { useDeleteVariable } from 'hooks/useDeleteVariable'
  * @public
  */
 export { useBulkUpdateVariables } from 'hooks/useBulkUpdateVariables'
+export { useInvalidateVariables } from 'hooks/useInvalidateVariables'
 /**
  * React hook to fetch published Figma Variables from a file.
  *

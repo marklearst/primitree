@@ -59,7 +59,7 @@ export const useUpdateVariable = () => {
               ...payload,
             },
           ],
-        } as unknown as Record<string, unknown>
+        }
       )
     }
   )

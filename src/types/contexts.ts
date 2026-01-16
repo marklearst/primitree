@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { SWRConfiguration } from 'swr'
 import type { LocalVariablesResponse, PublishedVariablesResponse } from 'types'
 
 /**
@@ -43,6 +44,16 @@ export interface FigmaTokenContextType {
    * Allows FigmaVars to function without a live API request.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
+  /**
+   * Unique identifier for this provider instance, used to avoid SWR cache collisions.
+   * @internal
+   */
+  providerId?: string
+  /**
+   * Optional SWR configuration to customize caching, revalidation, and error handling behavior.
+   * Applied to all SWR hooks within this provider.
+   */
+  swrConfig?: SWRConfiguration | undefined
 }
 
 /**
@@ -86,4 +97,24 @@ export interface FigmaVarsProviderProps {
    * Optional fallback variable JSON file used when the API is unavailable or skipped.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
+  /**
+   * Optional SWR configuration to customize caching, revalidation, and error handling.
+   * Common options: `revalidateOnFocus`, `dedupingInterval`, `errorRetryCount`, `onError`, etc.
+   *
+   * @example
+   * ```tsx
+   * <FigmaVarsProvider
+   *   token={token}
+   *   fileKey={fileKey}
+   *   swrConfig={{
+   *     revalidateOnFocus: false,
+   *     dedupingInterval: 5000,
+   *     errorRetryCount: 3,
+   *   }}
+   * >
+   *   <App />
+   * </FigmaVarsProvider>
+   * ```
+   */
+  swrConfig?: SWRConfiguration
 }

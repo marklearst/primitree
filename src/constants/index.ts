@@ -14,46 +14,11 @@ export const FIGMA_API_BASE_URL = 'https://api.figma.com'
 
 export const FIGMA_FILES_ENDPOINT = `${FIGMA_API_BASE_URL}/v1/files`
 
-const FIGMA_V1_VARIABLES_ENDPOINT_BASE = `${FIGMA_API_BASE_URL}/v1/variables`
-
-/**
- * Builds the Figma Variables endpoint URL for a given file key.
- *
- * @param fileKey - The unique key of the Figma file.
- * @returns The URL string to access variables in the specified file.
- *
- * @example
- * ```ts
- * const url = FIGMA_VARIABLES_ENDPOINT('your-file-key')
- * ```
- */
-export const FIGMA_VARIABLES_ENDPOINT = (fileKey: string) =>
-  `${FIGMA_FILES_ENDPOINT}/${fileKey}/variables`
-
 export const FIGMA_PUBLISHED_VARIABLES_PATH = (fileKey: string) =>
   `/v1/files/${fileKey}/variables/published`
 
 export const FIGMA_FILE_VARIABLES_PATH = (fileKey: string) =>
   `/v1/files/${fileKey}/variables`
-
-/**
- * The base endpoint for creating new variables via POST requests.
- */
-export const FIGMA_POST_VARIABLES_ENDPOINT = FIGMA_V1_VARIABLES_ENDPOINT_BASE
-
-/**
- * Builds the URL to access a specific Figma variable by its ID.
- *
- * @param variableId - The unique ID of the Figma variable.
- * @returns The URL string to access the variable.
- *
- * @example
- * ```ts
- * const url = FIGMA_VARIABLE_BY_ID_ENDPOINT('variable-id')
- * ```
- */
-export const FIGMA_VARIABLE_BY_ID_ENDPOINT = (variableId: string) =>
-  `${FIGMA_V1_VARIABLES_ENDPOINT_BASE}/${variableId}`
 
 /**
  * Builds the URL to fetch local variables for a given Figma file.

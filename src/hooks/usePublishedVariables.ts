@@ -44,7 +44,8 @@ import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
  * ```
  */
 export const usePublishedVariables = () => {
-  const { token, fileKey, fallbackFile } = useFigmaTokenContext()
+  const { token, fileKey, fallbackFile, providerId, swrConfig } =
+    useFigmaTokenContext()
 
   const url = fileKey ? FIGMA_PUBLISHED_VARIABLES_PATH(fileKey) : null
 
@@ -54,7 +55,7 @@ export const usePublishedVariables = () => {
   const key = hasLive
     ? ([url as string, token as string] as const)
     : hasFallback
-      ? (['fallback', 'fallback'] as const)
+      ? ([`fallback-${providerId ?? 'default'}`, 'fallback'] as const)
       : null
 
   const swrResponse = useSWR<PublishedVariablesResponse>(
@@ -71,11 +72,12 @@ export const usePublishedVariables = () => {
       }
 
       if (!u || !t) {
-        return undefined as unknown as PublishedVariablesResponse
+        throw new Error('Missing URL or token for live API request')
       }
 
       return fetcher<PublishedVariablesResponse>(u, t)
-    }
+    },
+    swrConfig
   )
 
   return swrResponse

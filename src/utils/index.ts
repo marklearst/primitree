@@ -11,7 +11,7 @@
  *
  * @example
  * ```ts
- * import { filterVariables } from '@figma-vars/hooks/utils';
+ * import { filterVariables, isFigmaApiError } from '@figma-vars/hooks/utils';
  *
  * const filtered = filterVariables(allVariables, { resolvedType: 'COLOR' });
  * ```
@@ -19,3 +19,9 @@
  * @public
  */
 export { filterVariables } from 'utils/filterVariables'
+export {
+  isFigmaApiError,
+  getErrorStatus,
+  getErrorMessage,
+  hasErrorStatus,
+} from 'utils/errorHelpers'

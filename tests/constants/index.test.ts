@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   FIGMA_API_BASE_URL,
   FIGMA_FILES_ENDPOINT,
-  FIGMA_VARIABLES_ENDPOINT,
-  FIGMA_POST_VARIABLES_ENDPOINT,
-  FIGMA_VARIABLE_BY_ID_ENDPOINT,
   FIGMA_LOCAL_VARIABLES_ENDPOINT,
+  FIGMA_FILE_VARIABLES_PATH,
+  FIGMA_PUBLISHED_VARIABLES_PATH,
   CONTENT_TYPE_JSON,
   FIGMA_TOKEN_HEADER,
   ERROR_MSG_TOKEN_REQUIRED,
@@ -27,23 +26,17 @@ describe('constants', () => {
       expect(FIGMA_FILES_ENDPOINT).toBe('https://api.figma.com/v1/files')
     })
 
-    it('should generate correct variables endpoint', () => {
+    it('should generate correct file variables path', () => {
       const fileKey = 'test-file-key'
-      expect(FIGMA_VARIABLES_ENDPOINT(fileKey)).toBe(
-        'https://api.figma.com/v1/files/test-file-key/variables'
+      expect(FIGMA_FILE_VARIABLES_PATH(fileKey)).toBe(
+        '/v1/files/test-file-key/variables'
       )
     })
 
-    it('should have correct post variables endpoint', () => {
-      expect(FIGMA_POST_VARIABLES_ENDPOINT).toBe(
-        'https://api.figma.com/v1/variables'
-      )
-    })
-
-    it('should generate correct variable by ID endpoint', () => {
-      const variableId = 'test-variable-id'
-      expect(FIGMA_VARIABLE_BY_ID_ENDPOINT(variableId)).toBe(
-        'https://api.figma.com/v1/variables/test-variable-id'
+    it('should generate correct published variables path', () => {
+      const fileKey = 'test-file-key'
+      expect(FIGMA_PUBLISHED_VARIABLES_PATH(fileKey)).toBe(
+        '/v1/files/test-file-key/variables/published'
       )
     })
 
