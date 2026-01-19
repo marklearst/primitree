@@ -82,6 +82,8 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org/'
+          always-auth: true
+          token: ${{ secrets.NPM_TOKEN }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -93,6 +95,4 @@ jobs:
         run: pnpm run build
 
       - name: Publish to NPM
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --access public
