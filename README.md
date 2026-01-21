@@ -179,7 +179,7 @@ Pass `fallbackFile` (object or JSON string) to `FigmaVarsProvider` to bypass liv
 
 ```tsx
 import exportedVariables from './figma-variables.json'
-;<FigmaVarsProvider
+<FigmaVarsProvider
   token={null}
   fileKey={null}
   fallbackFile={exportedVariables}>
