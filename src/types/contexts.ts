@@ -42,8 +42,18 @@ export interface FigmaTokenContextType {
   /**
    * Optional fallback variable JSON file for offline or static use cases.
    * Allows FigmaVars to function without a live API request.
+   * @deprecated Use parsedFallbackFile instead. This is kept for backward compatibility.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
+  /**
+   * Pre-parsed fallback variable data. Set automatically by FigmaVarsProvider
+   * when fallbackFile is provided. Hooks should prefer this over fallbackFile.
+   * @internal
+   */
+  parsedFallbackFile?:
+    | LocalVariablesResponse
+    | PublishedVariablesResponse
+    | undefined
   /**
    * Unique identifier for this provider instance, used to avoid SWR cache collisions.
    * @internal
