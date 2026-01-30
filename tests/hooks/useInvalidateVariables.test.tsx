@@ -44,8 +44,10 @@ describe('useInvalidateVariables', () => {
       const mockMutate = vi.fn()
       mockedUseSWRConfig.mockReturnValue({ mutate: mockMutate })
       mockedUseFigmaTokenContext.mockReturnValue({
+        token: 'test-token',
         fileKey: 'test-file-key',
         providerId: 'test-provider-id',
+        fallbackFile: '{}',
       })
 
       const { result } = renderHook(() => useInvalidateVariables())
@@ -57,13 +59,13 @@ describe('useInvalidateVariables', () => {
       // Check local variables invalidation
       expect(mockMutate).toHaveBeenCalledWith([
         'https://api.figma.com/v1/files/test-file-key/variables/local',
-        'token-placeholder',
+        'test-token',
       ])
 
       // Check published variables invalidation
       expect(mockMutate).toHaveBeenCalledWith([
-        '/v1/files/test-file-key/variables/published',
-        'token-placeholder',
+        'https://api.figma.com/v1/files/test-file-key/variables/published',
+        'test-token',
       ])
 
       // Check fallback cache invalidation
@@ -77,8 +79,10 @@ describe('useInvalidateVariables', () => {
       const mockMutate = vi.fn()
       mockedUseSWRConfig.mockReturnValue({ mutate: mockMutate })
       mockedUseFigmaTokenContext.mockReturnValue({
+        token: 'test-token',
         fileKey: 'test-file-key',
         providerId: undefined,
+        fallbackFile: undefined,
       })
 
       const { result } = renderHook(() => useInvalidateVariables())
@@ -145,8 +149,10 @@ describe('useInvalidateVariables', () => {
       const mockMutate = vi.fn()
       mockedUseSWRConfig.mockReturnValue({ mutate: mockMutate })
       mockedUseFigmaTokenContext.mockReturnValue({
+        token: 'test-token',
         fileKey: 'test-file-key',
         providerId: 'test-provider-id',
+        fallbackFile: '{}',
       })
 
       const { result } = renderHook(() => useInvalidateVariables())
@@ -159,7 +165,7 @@ describe('useInvalidateVariables', () => {
       expect(mockMutate).toHaveBeenCalledWith(
         [
           'https://api.figma.com/v1/files/test-file-key/variables/local',
-          'token-placeholder',
+          'test-token',
         ],
         undefined,
         { revalidate: true }
@@ -167,7 +173,10 @@ describe('useInvalidateVariables', () => {
 
       // Check published variables revalidation
       expect(mockMutate).toHaveBeenCalledWith(
-        ['/v1/files/test-file-key/variables/published', 'token-placeholder'],
+        [
+          'https://api.figma.com/v1/files/test-file-key/variables/published',
+          'test-token',
+        ],
         undefined,
         { revalidate: true }
       )
@@ -184,8 +193,10 @@ describe('useInvalidateVariables', () => {
       const mockMutate = vi.fn()
       mockedUseSWRConfig.mockReturnValue({ mutate: mockMutate })
       mockedUseFigmaTokenContext.mockReturnValue({
+        token: 'test-token',
         fileKey: 'test-file-key',
         providerId: undefined,
+        fallbackFile: undefined,
       })
 
       const { result } = renderHook(() => useInvalidateVariables())

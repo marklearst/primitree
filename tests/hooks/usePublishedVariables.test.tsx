@@ -272,19 +272,20 @@ describe('usePublishedVariables', () => {
       unknown,
       ([url, token]: readonly [string, string]) => Promise<unknown>,
     ]
+    // Key uses absolute URL for consistency
     expect(key).toEqual([
-      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'https://api.figma.com/v1/files/test-key/variables/published',
       'test-token',
     ])
     expect(typeof fetcher).toBe('function')
 
     const resultData = await fetcher([
-      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'https://api.figma.com/v1/files/test-key/variables/published',
       'test-token',
     ] as const)
     expect(resultData).toEqual(mockPublishedVariablesResponse)
     expect(mockedApiFetcher).toHaveBeenCalledWith(
-      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'https://api.figma.com/v1/files/test-key/variables/published',
       'test-token'
     )
   })
@@ -398,16 +399,16 @@ describe('usePublishedVariables', () => {
       unknown,
       (url: string, token: string) => Promise<unknown>,
     ]
-    // Verify it's using the published endpoint, not local
+    // Verify it's using the published endpoint with absolute URL
     expect(key).toEqual([
-      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'https://api.figma.com/v1/files/test-key/variables/published',
       'test-token',
     ])
     expect(typeof fetcher).toBe('function')
 
     // Call the custom fetcher directly to test the fallbackFile logic
     const resultData = await fetcher(
-      FIGMA_PUBLISHED_VARIABLES_PATH('test-key'),
+      'https://api.figma.com/v1/files/test-key/variables/published',
       'test-token'
     )
     expect(resultData).toEqual(mockPublishedVariablesResponse)
@@ -430,9 +431,10 @@ describe('usePublishedVariables', () => {
       (url: string, token: string) => Promise<unknown>,
     ]
     // Key should match pattern: ['fallback-${providerId}', 'fallback']
+    // React's useId() returns format like :r1:, :r2:, etc.
     expect(Array.isArray(key)).toBe(true)
     const keyArray = key as [string, string]
-    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-\d+$/)
+    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-/)
     expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 
