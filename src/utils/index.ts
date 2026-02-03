@@ -24,4 +24,10 @@ export {
   getErrorStatus,
   getErrorMessage,
   hasErrorStatus,
+  isRateLimited,
+  getRetryAfter,
 } from 'utils/errorHelpers'
+export {
+  isLocalVariablesResponse,
+  isPublishedVariablesResponse,
+} from 'utils/typeGuards'
