@@ -418,6 +418,7 @@ Customize SWR behavior globally through the provider:
 ### Hooks
 
 - **Queries**: `useVariables` (local), `usePublishedVariables` (library/published), `useVariableCollections`, `useVariableModes`, `useFigmaToken`
+- **Granular Selectors**: `useCollectionById`, `useModesByCollection`, `useVariableById` (optimized selectors for specific entities)
 - **Mutations**: `useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`
 - **Cache**: `useInvalidateVariables` (invalidate/revalidate cache)
 
@@ -425,7 +426,8 @@ Customize SWR behavior globally through the provider:
 
 - **Filtering**: `filterVariables` (filter by type, name, etc.)
 - **Error Handling**: `isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`
-- **Type Guards**: `isLocalVariablesResponse`, `isPublishedVariablesResponse` (runtime validation)
+- **Type Guards**: `isLocalVariablesResponse`, `isPublishedVariablesResponse`, `validateFallbackData` (runtime validation)
+- **SWR Keys**: `getVariablesKey`, `getPublishedVariablesKey`, `getInvalidationKeys` (centralized cache key construction)
 - **Core helpers**: `fetcher`, `mutator`, constants for endpoints and headers
 
 ### Types
