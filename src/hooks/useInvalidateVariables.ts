@@ -1,6 +1,6 @@
 import { useSWRConfig } from 'swr'
 import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
+import { getInvalidationKeys } from 'utils/swrKeys'
 
 /**
  * Hook that provides cache invalidation utilities for Figma variables.
@@ -8,6 +8,9 @@ import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
  * @remarks
  * Returns functions to invalidate and revalidate SWR cache for variables hooks.
  * Use this after mutations to ensure fresh data is fetched.
+ *
+ * Supports both live API usage (with token and fileKey) and fallback-only usage
+ * (with fallbackFile but no fileKey).
  *
  * @returns Object with `invalidate` and `revalidate` functions.
  *
@@ -30,61 +33,49 @@ import { FIGMA_PUBLISHED_VARIABLES_PATH } from 'constants/index'
  */
 export const useInvalidateVariables = () => {
   const { mutate } = useSWRConfig()
-  const { fileKey, providerId } = useFigmaTokenContext()
+  const { token, fileKey, fallbackFile, providerId } = useFigmaTokenContext()
+
+  const hasFallback = Boolean(fallbackFile)
 
   /**
    * Invalidates all variable-related SWR cache entries.
    * This will cause all variable hooks to refetch on next access.
+   *
+   * Works for both live API usage (with token/fileKey) and fallback-only usage.
    */
   const invalidate = () => {
-    if (!fileKey) return
+    // Get all possible keys that should be invalidated
+    const keys = getInvalidationKeys({
+      fileKey,
+      token,
+      providerId,
+      hasFallback,
+    })
 
-    // Invalidate local variables
-    const localKey = [
-      `https://api.figma.com/v1/files/${fileKey}/variables/local`,
-      'token-placeholder',
-    ] as const
-    mutate(localKey)
-
-    // Invalidate published variables
-    const publishedKey = [
-      FIGMA_PUBLISHED_VARIABLES_PATH(fileKey),
-      'token-placeholder',
-    ] as const
-    mutate(publishedKey)
-
-    // Invalidate fallback cache if exists
-    if (providerId) {
-      const fallbackKey = [`fallback-${providerId}`, 'fallback'] as const
-      mutate(fallbackKey)
+    // Invalidate each key
+    for (const key of keys) {
+      mutate(key)
     }
   }
 
   /**
    * Revalidates all variable-related SWR cache entries immediately.
    * This will trigger immediate refetch of all variable hooks.
+   *
+   * Works for both live API usage (with token/fileKey) and fallback-only usage.
    */
   const revalidate = () => {
-    if (!fileKey) return
+    // Get all possible keys that should be revalidated
+    const keys = getInvalidationKeys({
+      fileKey,
+      token,
+      providerId,
+      hasFallback,
+    })
 
-    // Revalidate local variables
-    const localKey = [
-      `https://api.figma.com/v1/files/${fileKey}/variables/local`,
-      'token-placeholder',
-    ] as const
-    mutate(localKey, undefined, { revalidate: true })
-
-    // Revalidate published variables
-    const publishedKey = [
-      FIGMA_PUBLISHED_VARIABLES_PATH(fileKey),
-      'token-placeholder',
-    ] as const
-    mutate(publishedKey, undefined, { revalidate: true })
-
-    // Revalidate fallback cache if exists
-    if (providerId) {
-      const fallbackKey = [`fallback-${providerId}`, 'fallback'] as const
-      mutate(fallbackKey, undefined, { revalidate: true })
+    // Revalidate each key
+    for (const key of keys) {
+      mutate(key, undefined, { revalidate: true })
     }
   }
 
