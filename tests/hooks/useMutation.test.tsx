@@ -132,4 +132,74 @@ describe('useMutation', () => {
     // The mutation function should have been called
     expect(mutationFn).toHaveBeenCalled()
   })
+
+  it('should handle race condition when multiple mutations are triggered', async () => {
+    const firstData = { id: 1, name: 'First' }
+    const secondData = { id: 2, name: 'Second' }
+
+    let resolveFirst: (value: unknown) => void
+    let resolveSecond: (value: unknown) => void
+
+    const mutationFn = vi.fn((payload: { id: number }) => {
+      if (payload.id === 1) {
+        return new Promise(resolve => {
+          resolveFirst = resolve
+        })
+      }
+      return new Promise(resolve => {
+        resolveSecond = resolve
+      })
+    })
+
+    const { result } = renderHook(() => useMutation(mutationFn))
+
+    // Start first mutation
+    act(() => {
+      result.current.mutate({ id: 1 })
+    })
+
+    expect(result.current.status).toBe('loading')
+
+    // Start second mutation before first completes
+    act(() => {
+      result.current.mutate({ id: 2 })
+    })
+
+    // Complete first mutation (should be ignored)
+    await act(async () => {
+      resolveFirst!(firstData)
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    // Complete second mutation (should be used)
+    await act(async () => {
+      resolveSecond!(secondData)
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    // Should have the second mutation's result
+    expect(result.current.data).toEqual(secondData)
+    expect(result.current.status).toBe('success')
+  })
+
+  it('should rethrow error when throwOnError is enabled', async () => {
+    const mockError = new Error('Mutation Failed')
+    const mutationFn = vi.fn().mockRejectedValue(mockError)
+    const { result } = renderHook(() =>
+      useMutation(mutationFn, { throwOnError: true })
+    )
+
+    let caughtError: Error | undefined
+    await act(async () => {
+      try {
+        await result.current.mutate({ payload: 'test' })
+      } catch (err) {
+        caughtError = err as Error
+      }
+    })
+
+    expect(caughtError).toEqual(mockError)
+    expect(result.current.status).toBe('error')
+    expect(result.current.error).toEqual(mockError)
+  })
 })

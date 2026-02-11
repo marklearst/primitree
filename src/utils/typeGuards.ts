@@ -124,10 +124,9 @@ export function isPublishedVariablesResponse(
 export function validateFallbackData(
   data: unknown
 ): LocalVariablesResponse | PublishedVariablesResponse | undefined {
+  // Both isLocalVariablesResponse and isPublishedVariablesResponse check the same structure,
+  // so we only need to check one. Using isLocalVariablesResponse as the canonical check.
   if (isLocalVariablesResponse(data)) {
-    return data
-  }
-  if (isPublishedVariablesResponse(data)) {
     return data
   }
   return undefined
