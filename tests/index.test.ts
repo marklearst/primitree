@@ -20,6 +20,13 @@ describe('main index barrel file', () => {
     // Check utils export
     expect(indexModule.filterVariables).toBeDefined()
     expect(typeof indexModule.filterVariables).toBe('function')
+    expect(indexModule.withRetry).toBeDefined()
+    expect(indexModule.redactToken).toBeDefined()
+    expect(indexModule.isRateLimited).toBeDefined()
+    expect(indexModule.getRetryAfter).toBeDefined()
+    expect(indexModule.isLocalVariablesResponse).toBeDefined()
+    expect(indexModule.isPublishedVariablesResponse).toBeDefined()
+    expect(indexModule.validateFallbackData).toBeDefined()
 
     // Check that types are exported (they should be available as type exports)
     // We can't directly test type exports, but we can check the module structure

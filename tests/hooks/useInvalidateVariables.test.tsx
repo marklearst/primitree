@@ -47,7 +47,7 @@ describe('useInvalidateVariables', () => {
         token: 'test-token',
         fileKey: 'test-file-key',
         providerId: 'test-provider-id',
-        fallbackFile: '{}',
+        parsedFallbackFile: {},
       })
 
       const { result } = renderHook(() => useInvalidateVariables())
@@ -152,7 +152,7 @@ describe('useInvalidateVariables', () => {
         token: 'test-token',
         fileKey: 'test-file-key',
         providerId: 'test-provider-id',
-        fallbackFile: '{}',
+        parsedFallbackFile: {},
       })
 
       const { result } = renderHook(() => useInvalidateVariables())
