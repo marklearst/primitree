@@ -485,4 +485,62 @@ describe('mutator', () => {
       expect(result).toEqual({ id: '123' })
     })
   })
+
+  describe('baseUrl override', () => {
+    it('should use custom baseUrl when provided', async () => {
+      const customFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: 'not-null',
+        json: () => Promise.resolve({ id: '123' }),
+      })
+
+      await mutator('/v1/files/abc/variables', token, 'CREATE', body, {
+        fetch: customFetch as typeof fetch,
+        baseUrl: 'https://proxy.example.com',
+      })
+
+      expect(customFetch).toHaveBeenCalledWith(
+        'https://proxy.example.com/v1/files/abc/variables',
+        expect.any(Object)
+      )
+    })
+
+    it('should use default baseUrl when not provided', async () => {
+      const customFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: 'not-null',
+        json: () => Promise.resolve({ id: '123' }),
+      })
+
+      await mutator('/v1/files/abc/variables', token, 'CREATE', body, {
+        fetch: customFetch as typeof fetch,
+      })
+
+      expect(customFetch).toHaveBeenCalledWith(
+        'https://api.figma.com/v1/files/abc/variables',
+        expect.any(Object)
+      )
+    })
+
+    it('should ignore baseUrl when URL is already absolute', async () => {
+      const customFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: 'not-null',
+        json: () => Promise.resolve({ id: '123' }),
+      })
+
+      await mutator('https://other.api.com/endpoint', token, 'CREATE', body, {
+        fetch: customFetch as typeof fetch,
+        baseUrl: 'https://proxy.example.com',
+      })
+
+      expect(customFetch).toHaveBeenCalledWith(
+        'https://other.api.com/endpoint',
+        expect.any(Object)
+      )
+    })
+  })
 })
