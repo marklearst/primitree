@@ -173,6 +173,93 @@ describe('mutator', () => {
     )
   })
 
+  it('should extract error message from text/plain response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/plain' : null),
+      },
+      text: () => Promise.resolve('Service Unavailable'),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'Service Unavailable'
+    )
+  })
+
+  it('should extract error message from text/html response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/html' : null),
+      },
+      text: () => Promise.resolve('<html><body>Bad Gateway</body></html>'),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      '<html><body>Bad Gateway</body></html>'
+    )
+  })
+
+  it('should truncate long text error responses', async () => {
+    const longHtml = '<html>' + 'x'.repeat(300) + '</html>'
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/html' : null),
+      },
+      text: () => Promise.resolve(longHtml),
+    })
+    try {
+      await mutator(url, token, 'CREATE', body)
+    } catch (err) {
+      expect((err as Error).message).toHaveLength(203) // 200 chars + "..."
+      expect((err as Error).message.endsWith('...')).toBe(true)
+    }
+  })
+
+  it('should use default message when text body is empty', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/plain' : null),
+      },
+      text: () => Promise.resolve(''),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
+  it('should use default message when content-type is null', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: {
+        get: () => null,
+      },
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
+  it('should use default message when text() throws', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/plain' : null),
+      },
+      text: () => Promise.reject(new Error('Read error')),
+    })
+    await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
+      'An API error occurred'
+    )
+  })
+
   it('should use default errorMessage when both err and message are falsy', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

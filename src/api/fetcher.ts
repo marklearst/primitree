@@ -141,19 +141,33 @@ export async function fetcher<TResponse = unknown>(
         }
       }
 
-      // Try to extract error message from JSON response
+      // Try to extract error message from response body
       try {
-        const contentType = response.headers.get('content-type')
-        if (contentType?.includes('application/json')) {
+        const contentType = response.headers.get('content-type') ?? ''
+        if (contentType.includes('application/json')) {
           const errorData = await response.json()
           if (errorData?.message) {
             errorMessage = errorData.message
           } else if (errorData?.err) {
             errorMessage = errorData.err
           }
+        } else if (
+          contentType.includes('text/plain') ||
+          contentType.includes('text/html')
+        ) {
+          // For text responses (e.g., 502 Bad Gateway), use the body text
+          const textBody = await response.text()
+          if (textBody) {
+            // Truncate long HTML/text responses to a reasonable length
+            const maxLength = 200
+            errorMessage =
+              textBody.length > maxLength
+                ? `${textBody.slice(0, maxLength)}...`
+                : textBody
+          }
         }
       } catch {
-        // Ignore JSON parse errors, use default message
+        // Ignore parse errors, use default message
       }
 
       throw new FigmaApiError(errorMessage, statusCode, retryAfter)
