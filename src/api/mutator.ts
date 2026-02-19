@@ -24,6 +24,11 @@ export interface MutatorOptions {
    * Optional fetch implementation override (useful for testing or custom fetch implementations).
    */
   fetch?: typeof fetch
+  /**
+   * Optional base URL override. Defaults to 'https://api.figma.com'.
+   * Useful for testing with mocks or proxies.
+   */
+  baseUrl?: string
 }
 
 /**
@@ -81,6 +86,7 @@ export async function mutator<TResponse = unknown>(
     signal: providedSignal,
     timeout,
     fetch: customFetch = fetch,
+    baseUrl = FIGMA_API_BASE_URL,
   } = options ?? {}
 
   // Create timeout signal if timeout is provided and no signal is provided
@@ -121,7 +127,7 @@ export async function mutator<TResponse = unknown>(
     const requestUrl =
       url.startsWith('http://') || url.startsWith('https://')
         ? url
-        : `${FIGMA_API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
+        : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 
     const response = await customFetch(requestUrl, init)
 
