@@ -31,3 +31,5 @@ export {
   isLocalVariablesResponse,
   isPublishedVariablesResponse,
 } from 'utils/typeGuards'
+export { redactToken } from 'utils/redactToken'
+export type { RedactTokenOptions } from 'utils/redactToken'
