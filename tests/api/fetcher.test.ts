@@ -377,6 +377,118 @@ describe('fetcher', () => {
       )
     })
 
+    it('should extract error message from text/plain response', async () => {
+      const mockHeaders = new Headers()
+      mockHeaders.set('content-type', 'text/plain')
+
+      mockFetch(
+        {
+          status: 503,
+          text: () => Promise.resolve('Service Unavailable'),
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+        'Service Unavailable'
+      )
+    })
+
+    it('should extract error message from text/html response', async () => {
+      const mockHeaders = new Headers()
+      mockHeaders.set('content-type', 'text/html')
+
+      mockFetch(
+        {
+          status: 502,
+          text: () => Promise.resolve('<html><body>Bad Gateway</body></html>'),
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+        '<html><body>Bad Gateway</body></html>'
+      )
+    })
+
+    it('should truncate long text error responses', async () => {
+      const mockHeaders = new Headers()
+      mockHeaders.set('content-type', 'text/html')
+
+      const longHtml = '<html>' + 'x'.repeat(300) + '</html>'
+
+      mockFetch(
+        {
+          status: 502,
+          text: () => Promise.resolve(longHtml),
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      try {
+        await fetcher(DUMMY_URL, DUMMY_TOKEN)
+      } catch (err) {
+        expect((err as Error).message).toHaveLength(203) // 200 chars + "..."
+        expect((err as Error).message.endsWith('...')).toBe(true)
+      }
+    })
+
+    it('should use default message when text body is empty', async () => {
+      const mockHeaders = new Headers()
+      mockHeaders.set('content-type', 'text/plain')
+
+      mockFetch(
+        {
+          status: 503,
+          text: () => Promise.resolve(''),
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+        'An error occurred while fetching data from the Figma API'
+      )
+    })
+
+    it('should use default message when content-type is null', async () => {
+      const mockHeaders = new Headers()
+      // No content-type set
+
+      mockFetch(
+        {
+          status: 500,
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+        'An error occurred while fetching data from the Figma API'
+      )
+    })
+
+    it('should use default message when text() throws', async () => {
+      const mockHeaders = new Headers()
+      mockHeaders.set('content-type', 'text/plain')
+
+      mockFetch(
+        {
+          status: 503,
+          text: () => Promise.reject(new Error('Read error')),
+          headers: mockHeaders,
+        },
+        false
+      )
+
+      await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+        'An error occurred while fetching data from the Figma API'
+      )
+    })
+
     it('should not parse Retry-After for non-429 errors', async () => {
       const mockHeaders = new Headers()
       mockHeaders.set('content-type', 'application/json')
