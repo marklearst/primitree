@@ -495,4 +495,33 @@ describe('useVariables', () => {
 
     spy.mockRestore()
   })
+
+  it('should use live key when fallbackFile exists but parsedFallbackFile is invalid', () => {
+    const spy = vi
+      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
+      .mockReturnValue({
+        token: 'test-token',
+        fileKey: 'test-key',
+        fallbackFile: '{invalid-json}',
+        parsedFallbackFile: undefined,
+        providerId: 'test-provider',
+      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
+
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => useVariables())
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      ['https://api.figma.com/v1/files/test-key/variables/local', 'test-token'],
+      expect.any(Function),
+      undefined
+    )
+
+    spy.mockRestore()
+  })
 })

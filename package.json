@@ -1,6 +1,6 @@
 {
   "name": "@figma-vars/hooks",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Typed React hooks for managing Figma Variables, modes, tokens, and bindings via API.",
   "author": "Mark Learst",
   "license": "MIT",

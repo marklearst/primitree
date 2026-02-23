@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 4.1.1 (2026-02-17)
+
+### 🐛 Fixed
+
+- **Root export parity**: Re-exported `withRetry`, `redactToken`, rate-limit helpers, and runtime validation guards from the package root so documented imports from `@figma-vars/hooks` work as expected.
+- **Fallback key edge case**: Updated variables hooks and invalidation logic to only treat fallback mode as active when `parsedFallbackFile` is valid, preventing invalid fallback strings from forcing fallback SWR keys.
+- **Test coverage**: Added regression coverage for invalid fallback + live credentials and expanded index export checks for newly documented utilities.
+
 ## 4.0.0 (2025-12-29)
 
 ### ⚠️ BREAKING CHANGES
