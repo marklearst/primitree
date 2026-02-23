@@ -119,7 +119,7 @@ export function isPublishedVariablesResponse(
  * @param data - The data to validate
  * @returns The validated data or undefined
  *
- * @internal
+ * @public
  */
 export function validateFallbackData(
   data: unknown

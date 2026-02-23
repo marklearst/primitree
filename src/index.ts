@@ -85,10 +85,17 @@ export {
  */
 export {
   filterVariables,
+  withRetry,
+  redactToken,
   isFigmaApiError,
   getErrorStatus,
   getErrorMessage,
   hasErrorStatus,
+  isRateLimited,
+  getRetryAfter,
+  isLocalVariablesResponse,
+  isPublishedVariablesResponse,
+  validateFallbackData,
 } from 'utils'
 
 /**
