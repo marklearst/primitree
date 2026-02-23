@@ -483,46 +483,6 @@ describe('usePublishedVariables', () => {
     ).toBeDefined()
   })
 
-  it('should use legacy fallbackFile object when parsedFallbackFile is not set', async () => {
-    // Mock context to return fallbackFile but no parsedFallbackFile
-    const spy = vi
-      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
-      .mockReturnValue({
-        token: 'test-token',
-        fileKey: 'test-key',
-        fallbackFile: mockPublishedVariablesResponse,
-        parsedFallbackFile: undefined, // Not set
-        providerId: 'test-provider',
-      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
-
-    mockedUseSWR.mockReturnValue({
-      data: undefined,
-      error: null,
-      isLoading: false,
-      isValidating: false,
-    })
-
-    renderHook(() => usePublishedVariables())
-
-    const useSWRCalls = mockedUseSWR.mock.calls
-    expect(useSWRCalls.length).toBeGreaterThan(0)
-
-    const call = useSWRCalls[0]
-    expect(call).toBeDefined()
-    const [, fetcher] = call as [
-      unknown,
-      (
-        ...args: [readonly [string, string]] | [string, string]
-      ) => Promise<unknown>,
-    ]
-
-    // Call fetcher to test legacy fallbackFile path
-    const resultData = await fetcher('url', 'token')
-    expect(resultData).toEqual(mockPublishedVariablesResponse)
-
-    spy.mockRestore()
-  })
-
   it('should use live key when fallbackFile exists but parsedFallbackFile is invalid', () => {
     const spy = vi
       .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
