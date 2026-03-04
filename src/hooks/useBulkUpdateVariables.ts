@@ -15,21 +15,35 @@ import { mutator } from 'api/mutator'
  * This hook is designed to perform a batch operation for creating, updating, and deleting variables, collections, and modes.
  * It provides an ergonomic API with `mutate` and loading/error state for easy integration.
  *
+ * ## Return Value
+ *
+ * The `mutate` function returns `Promise<TData | undefined>`:
+ * - On success: Returns the API response data
+ * - On error: Returns `undefined` (error stored in `error` state)
+ *
+ * Use `isSuccess`/`isError` flags or check the return value to handle results.
+ *
+ * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
+ * `data` (API response), and `error` (if failed).
+ *
  * @example
  * ```tsx
  * import { useBulkUpdateVariables } from '@figma-vars/hooks';
  *
  * function BulkUpdateButton() {
- *   const { mutate, isLoading, error } = useBulkUpdateVariables();
+ *   const { mutate, isLoading, isError, error } = useBulkUpdateVariables();
  *
- *   const handleBulkUpdate = () => {
- *     mutate({
+ *   const handleBulkUpdate = async () => {
+ *     const result = await mutate({
  *       variables: [{ action: 'UPDATE', id: 'VariableId:123', name: 'new-name' }],
  *     });
+ *     if (result) {
+ *       console.log('Bulk update successful');
+ *     }
  *   };
  *
  *   if (isLoading) return <div>Updating...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isError) return <div>Error: {error?.message}</div>;
  *   return <button onClick={handleBulkUpdate}>Bulk Update</button>;
  * }
  * ```
