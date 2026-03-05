@@ -13,17 +13,33 @@ import { mutator } from 'api/mutator'
  * @remarks
  * This hook provides a `mutate` function to trigger the deletion and exposes loading and error states.
  *
+ * ## Return Value
+ *
+ * The `mutate` function returns `Promise<TData | undefined>`:
+ * - On success: Returns the API response data
+ * - On error: Returns `undefined` (error stored in `error` state)
+ *
+ * Use `isSuccess`/`isError` flags or check the return value to handle results.
+ *
+ * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
+ * `data` (API response), and `error` (if failed).
+ *
  * @example
  * ```tsx
  * import { useDeleteVariable } from '@figma-vars/hooks';
  *
  * function DeleteVariableButton({ id }: { id: string }) {
- *   const { mutate, isLoading, error } = useDeleteVariable();
+ *   const { mutate, isLoading, isError, error } = useDeleteVariable();
  *
- *   const onDelete = () => mutate(id);
+ *   const onDelete = async () => {
+ *     const result = await mutate(id);
+ *     if (result) {
+ *       console.log('Deleted successfully');
+ *     }
+ *   };
  *
  *   if (isLoading) return <div>Deleting...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   if (isError) return <div>Error: {error?.message}</div>;
  *   return <button onClick={onDelete}>Delete Variable</button>;
  * }
  * ```

@@ -122,7 +122,7 @@ export function withRetry<T>(
     }
 
     // This should never be reached, but TypeScript needs it
-    /* istanbul ignore next */
+    /* c8 ignore next */
     throw lastError ?? new Error('Retry failed')
   }
 }
