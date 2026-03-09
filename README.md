@@ -10,23 +10,24 @@ A fast, typed React 19.2.3 hooks library for the Figma Variables API: fetch, upd
 
 Built for the modern web, this library provides a suite of hooks to fetch, manage, and mutate your design tokens/variables, making it easy to sync them between Figma and your React applications, Storybooks, or design system dashboards.
 
-![Status](https://img.shields.io/badge/status-stable-brightgreen)
-![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/marklearst/figma-vars-hooks/branch/main/graph/badge.svg)](https://codecov.io/gh/marklearst/figma-vars-hooks)
-![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
-![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)
-![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks)
-![GitHub code size](https://img.shields.io/github/languages/code-size/marklearst/figma-vars-hooks)
+| Package                                                                                                               | Quality                                                                                                                                        | Activity                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [![npm version](https://img.shields.io/npm/v/%40figma-vars%2Fhooks)](https://www.npmjs.com/package/@figma-vars/hooks) | ![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/ci.yml/badge.svg)                                                       | ![GitHub last commit](https://img.shields.io/github/last-commit/marklearst/figma-vars-hooks) |
+| ![npm downloads](https://img.shields.io/npm/dm/%40figma-vars%2Fhooks)                                                 | [![codecov](https://codecov.io/gh/marklearst/figma-vars-hooks/branch/main/graph/badge.svg)](https://codecov.io/gh/marklearst/figma-vars-hooks) | ![Status](https://img.shields.io/badge/status-stable-brightgreen)                            |
+| ![bundle size](https://img.shields.io/bundlephobia/minzip/%40figma-vars%2Fhooks)                                      | ![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)                                                                     | ![License](https://img.shields.io/github/license/marklearst/figma-vars-hooks)                |
+| ![node version](https://img.shields.io/node/v/%40figma-vars%2Fhooks)                                                  | ![TypeScript](https://img.shields.io/badge/TypeScript-100%25_Strict-blue?logo=typescript)                                                      |                                                                                              |
 
-## 📌 Why 3.1.1
+## 📌 Why 4.0.0
 
-- ✨ **New DX Features**: SWR configuration support, error handling utilities, cache invalidation helpers
-- 🔧 **React 19.2 Ready**: Optimized hooks with proper cleanup and stable function references
-- 🛡️ **Better Error Handling**: `FigmaApiError` class with HTTP status codes for better error differentiation
-- ✅ **Type Safety**: Removed unsafe type assertions, improved type definitions throughout
-- 🚀 **Performance**: Hardened SWR usage (stable keys, `null` to disable, cleaner fallback handling)
+- ✨ **New Utilities**: `withRetry()` for automatic retry with exponential backoff, `redactToken()` for safe logging
+- 🔧 **Flexible API**: `baseUrl` option for fetcher/mutator, `caseInsensitive` option for filterVariables
+- 🛡️ **Better Error Handling**: Improved parsing for non-JSON API responses (HTML, plain text)
+- 🐛 **Critical Bug Fix**: SWR cache keys now correctly separate fallback and live data
+- 📚 **Improved Docs**: Comprehensive mutation return type documentation with examples
 - 📦 **Modern Tooling**: Node 20+ toolchain, strict TypeScript, and ESM-first packaging with CJS interop
 - 🖥️ **CLI Export Tool**: Automate variable exports with `figma-vars-export` for CI/CD (Enterprise required)
+
+> ⚠️ **Breaking Change**: `useFigmaToken` is now a named export. See [Migration Guide](#-migration-guide-3x--40).
 
 ## 🚀 Features at a Glance
 
@@ -424,11 +425,13 @@ Customize SWR behavior globally through the provider:
 
 ### Utilities
 
-- **Filtering**: `filterVariables` (filter by type, name, etc.)
-- **Error Handling**: `isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`
+- **Filtering**: `filterVariables` (filter by type, name, with optional `caseInsensitive` matching)
+- **Retry**: `withRetry` (automatic retry with exponential backoff for rate limits)
+- **Security**: `redactToken` (safely redact tokens for logging/display)
+- **Error Handling**: `isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`, `isRateLimited`, `getRetryAfter`
 - **Type Guards**: `isLocalVariablesResponse`, `isPublishedVariablesResponse`, `validateFallbackData` (runtime validation)
 - **SWR Keys**: `getVariablesKey`, `getPublishedVariablesKey`, `getInvalidationKeys` (centralized cache key construction)
-- **Core helpers**: `fetcher`, `mutator`, constants for endpoints and headers
+- **Core helpers**: `fetcher`, `mutator` (with `baseUrl` option), constants for endpoints and headers
 
 ### Types
 
@@ -454,13 +457,30 @@ Customize SWR behavior globally through the provider:
 - Never commit PATs or file keys to git, Storybook static builds, or client bundles.
 - Use environment variables (`process.env` / `import.meta.env`) and secret managers; keep them server-side where possible.
 - Prefer `fallbackFile` with `token={null}`/`fileKey={null}` for demos and public Storybooks.
-- Avoid logging tokens or keys; scrub them from error messages and analytics.
+- Use `redactToken()` when logging tokens for debugging:
+
+```ts
+import { redactToken } from '@figma-vars/hooks'
+
+// Safe logging
+console.log('Using token:', redactToken(token))
+// Output: "Using token: figd_***...***cret"
+```
 
 ## 📈 Rate Limits
 
 - Figma enforces per-token limits. Rely on SWR/TanStack caching, avoid unnecessary refetches, and prefer fallback JSON for static sites.
 - Use `swrConfig` to customize `dedupingInterval` and `errorRetryCount` to optimize API usage.
-- Handle `429` rate limit errors with `isFigmaApiError` and implement exponential backoff if needed.
+- Use `withRetry()` utility for automatic retry with exponential backoff on 429 errors:
+
+```ts
+import { withRetry, fetcher } from '@figma-vars/hooks'
+
+const fetchWithRetry = withRetry(() => fetcher('/v1/files/KEY/variables/local', token), {
+  maxRetries: 3,
+  onRetry: (attempt, delay) => console.log(`Retry ${attempt}...`),
+})
+```
 
 ## 📚 Storybook & Next.js
 
@@ -511,11 +531,50 @@ export function Providers({ children }: { children: React.ReactNode }) {
 - `pnpm run build`, `pnpm test`, `pnpm run test:coverage`
 - `pnpm run check:publint`, `pnpm run check:attw`, `pnpm run check:size`
 
-## 🧭 Release Checklist (for 3.1.0)
+## 🧭 Release Checklist (for 4.0.0)
 
 - Run `pnpm run check:release`
-- Tag `v3.1.0` (CI publishes to npm)
-- Update dist-tags on npm if needed (`latest` → 3.1.0)
+- Run `pnpm version major` (creates `v4.0.0` tag)
+- CI publishes to npm automatically
+- Update dist-tags on npm if needed (`latest` → 4.0.0)
+
+## 🔄 Migration Guide (3.x → 4.0)
+
+### Breaking Change: `useFigmaToken` Export
+
+```tsx
+// Before (3.x) - NO LONGER WORKS
+import useFigmaToken from '@figma-vars/hooks'
+
+// After (4.0) - USE THIS
+import { useFigmaToken } from '@figma-vars/hooks'
+```
+
+### New Utilities (opt-in)
+
+```ts
+import { withRetry, redactToken, filterVariables } from '@figma-vars/hooks'
+
+// Automatic retry with exponential backoff
+const fetchWithRetry = withRetry(() => myApiCall(), { maxRetries: 3 })
+
+// Safe token logging
+console.log('Token:', redactToken(token)) // "figd_***...***cret"
+
+// Case-insensitive filtering
+filterVariables(vars, { name: 'primary', caseInsensitive: true })
+```
+
+### Custom API Base URL
+
+```ts
+import { fetcher, mutator } from '@figma-vars/hooks/core'
+
+// Use mock server for testing
+await fetcher('/v1/files/KEY/variables/local', token, {
+  baseUrl: 'http://localhost:3000',
+})
+```
 
 ---
 

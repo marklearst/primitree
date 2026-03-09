@@ -6,6 +6,184 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 4.0.0 (2025-12-29)
+
+### ⚠️ BREAKING CHANGES
+
+#### **`useFigmaToken` Export Changed**
+
+`useFigmaToken` is now a **named export** instead of a default export for consistency with the rest of the library:
+
+```tsx
+// Before (3.x) - NO LONGER WORKS
+import useFigmaToken from '@figma-vars/hooks'
+
+// After (4.0) - USE THIS
+import { useFigmaToken } from '@figma-vars/hooks'
+```
+
+**Why?** Named exports enable better tree-shaking, align with other hooks in the library, and support future package splitting.
+
+### ✨ Added - New Utilities
+
+#### **`withRetry()` - Automatic Retry with Exponential Backoff**
+
+New utility for wrapping async operations with automatic retry logic, especially useful for rate-limited API calls:
+
+```ts
+import { withRetry } from '@figma-vars/hooks'
+
+const fetchWithRetry = withRetry(() => fetcher('/api/endpoint', token), {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 30000,
+  retryOnlyRateLimits: true, // Only retry 429 errors
+  onRetry: (attempt, delayMs, error) => {
+    console.log(`Retry ${attempt} after ${delayMs}ms`)
+  },
+})
+
+const data = await fetchWithRetry()
+```
+
+**Features:**
+
+- Respects `Retry-After` header from Figma API
+- Configurable exponential backoff
+- Optional callback for retry notifications
+- Can retry all errors or only rate limits (429)
+
+#### **`redactToken()` - Safe Token Logging**
+
+New utility to safely redact Figma tokens for logging or display:
+
+```ts
+import { redactToken } from '@figma-vars/hooks'
+
+redactToken('figd_abc123xyz789secret')
+// Returns: 'figd_***...***cret'
+
+redactToken('short', { prefixLength: 2, suffixLength: 2 })
+// Returns: '***...***' (too short, fully redacted)
+
+redactToken(null) // Returns: ''
+```
+
+**Options:**
+
+- `prefixLength` - Characters to show at start (default: 5)
+- `suffixLength` - Characters to show at end (default: 5)
+- `redactionString` - Replacement string (default: `'***...***'`)
+
+#### **`baseUrl` Option for API Utilities**
+
+Both `fetcher` and `mutator` now accept a `baseUrl` option to override the default Figma API endpoint:
+
+```ts
+import { fetcher, mutator } from '@figma-vars/hooks/core'
+
+// Use a mock server for testing
+const data = await fetcher('/v1/files/KEY/variables/local', token, {
+  baseUrl: 'http://localhost:3000',
+})
+
+// Or use Figma Enterprise endpoint
+await mutator('/v1/files/KEY/variables', token, 'UPDATE', payload, {
+  baseUrl: 'https://enterprise.figma.com',
+})
+```
+
+#### **`caseInsensitive` Option for `filterVariables()`**
+
+Added case-insensitive name matching to the `filterVariables` utility:
+
+```ts
+import { filterVariables } from '@figma-vars/hooks'
+
+// Case-sensitive (default)
+filterVariables(variables, { name: 'Primary' })
+// Matches: "Primary Color", not "primary color"
+
+// Case-insensitive
+filterVariables(variables, { name: 'primary', caseInsensitive: true })
+// Matches: "Primary Color", "primary color", "PRIMARY"
+```
+
+### 🐛 Fixed - Critical Bug Fixes
+
+#### **SWR Key Caching Issue**
+
+Fixed a critical bug where fallback data could be cached under live API keys when both credentials and fallback were provided. Now:
+
+- If `fallbackFile` is provided, data is always cached under fallback-specific keys
+- Prevents stale fallback data from blocking actual API calls
+- Ensures cache consistency when switching between fallback and live modes
+
+#### **Improved Error Parsing for Non-JSON Responses**
+
+Fixed error handling when Figma API returns HTML or plain text errors (e.g., 502 Bad Gateway):
+
+```ts
+// Before: Generic "An API error occurred" message
+// After: Actual response body (truncated to 200 chars for HTML)
+```
+
+The `fetcher` and `mutator` now check `Content-Type` headers and parse errors appropriately.
+
+### 📚 Documentation
+
+#### **Mutation Return Type Semantics**
+
+Added comprehensive JSDoc documentation explaining mutation hook return values:
+
+- `mutate()` returns `Promise<TData | undefined>`
+- On success: returns `TData`
+- On error with `throwOnError: false` (default): returns `undefined`, error available in state
+- On error with `throwOnError: true`: throws the error
+
+All mutation hooks (`useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`) now have detailed examples showing all three usage patterns.
+
+### 🔧 Changed
+
+- **Named Exports**: `useFigmaToken` changed from default to named export (see Breaking Changes)
+- **Coverage Comments**: Changed `/* istanbul ignore next */` to `/* c8 ignore next */` for proper Vitest V8 coverage exclusion
+
+### 🎯 Migration Guide (3.x → 4.0)
+
+**1. Update `useFigmaToken` import (required if used):**
+
+```tsx
+// Find this in your code:
+import useFigmaToken from '@figma-vars/hooks'
+
+// Replace with:
+import { useFigmaToken } from '@figma-vars/hooks'
+```
+
+**2. New utilities are opt-in:**
+
+- Use `withRetry()` to add automatic retry logic to API calls
+- Use `redactToken()` before logging tokens
+- Use `baseUrl` option when testing with mock servers
+- Use `caseInsensitive: true` for flexible variable filtering
+
+**3. Automatic improvements (no action needed):**
+
+- SWR caching now works correctly with fallback + live credentials
+- Better error messages for non-JSON API responses
+- Improved documentation for mutation return types
+
+### 🙏 Acknowledgments
+
+This release addresses issues identified through a comprehensive Codex audit. All 25 audit items have been validated and resolved where applicable.
+
+## 3.1.1 (2025-12-28)
+
+### 📚 Documentation
+
+- Minor documentation file updates
+
 ## 3.1.0 (2025-12-27)
 
 ### 🐛 Fixed - Critical TypeScript & Runtime Issues
