@@ -18,16 +18,10 @@ import { getVariablesKey } from 'utils/swrKeys'
  * @public
  */
 export const useVariables = () => {
-  const {
-    token,
-    fileKey,
-    fallbackFile,
-    parsedFallbackFile,
-    providerId,
-    swrConfig,
-  } = useFigmaTokenContext()
+  const { token, fileKey, parsedFallbackFile, providerId, swrConfig } =
+    useFigmaTokenContext()
 
-  const hasFallback = Boolean(fallbackFile || parsedFallbackFile)
+  const hasFallback = Boolean(parsedFallbackFile)
 
   const key = getVariablesKey({
     fileKey,
@@ -42,12 +36,6 @@ export const useVariables = () => {
       // Use pre-parsed fallback file from provider (handles both string and object fallbackFile)
       if (parsedFallbackFile) {
         return parsedFallbackFile as LocalVariablesResponse
-      }
-
-      // Legacy support: if fallbackFile is an object but parsedFallbackFile wasn't set
-      // This can happen if the provider didn't validate the structure correctly
-      if (fallbackFile && typeof fallbackFile === 'object') {
-        return fallbackFile as LocalVariablesResponse
       }
 
       // At this point we expect live credentials; guard just in case

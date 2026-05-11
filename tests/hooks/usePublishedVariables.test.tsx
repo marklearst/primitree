@@ -455,6 +455,7 @@ describe('usePublishedVariables', () => {
         token: null,
         fileKey: null,
         fallbackFile: mockPublishedVariablesResponse,
+        parsedFallbackFile: mockPublishedVariablesResponse,
       } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
 
     mockedUseSWR.mockReturnValue({
@@ -518,6 +519,38 @@ describe('usePublishedVariables', () => {
     // Call fetcher to test legacy fallbackFile path
     const resultData = await fetcher('url', 'token')
     expect(resultData).toEqual(mockPublishedVariablesResponse)
+
+    spy.mockRestore()
+  })
+
+  it('should use live key when fallbackFile exists but parsedFallbackFile is invalid', () => {
+    const spy = vi
+      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
+      .mockReturnValue({
+        token: 'test-token',
+        fileKey: 'test-key',
+        fallbackFile: '{invalid-json}',
+        parsedFallbackFile: undefined,
+        providerId: 'test-provider',
+      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
+
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => usePublishedVariables())
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      [
+        'https://api.figma.com/v1/files/test-key/variables/published',
+        'test-token',
+      ],
+      expect.any(Function),
+      undefined
+    )
 
     spy.mockRestore()
   })
