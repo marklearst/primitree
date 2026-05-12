@@ -33,9 +33,10 @@ import { getInvalidationKeys } from 'utils/swrKeys'
  */
 export const useInvalidateVariables = () => {
   const { mutate } = useSWRConfig()
-  const { token, fileKey, fallbackFile, providerId } = useFigmaTokenContext()
+  const { token, fileKey, parsedFallbackFile, providerId } =
+    useFigmaTokenContext()
 
-  const hasFallback = Boolean(fallbackFile)
+  const hasFallback = Boolean(parsedFallbackFile)
 
   /**
    * Invalidates all variable-related SWR cache entries.
