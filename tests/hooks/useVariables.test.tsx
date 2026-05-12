@@ -467,42 +467,31 @@ describe('useVariables', () => {
     spy.mockRestore()
   })
 
-  it('should use legacy fallbackFile object when parsedFallbackFile is not set', async () => {
-    // Mock context to return fallbackFile but no parsedFallbackFile
+  it('should use live key when fallbackFile exists but parsedFallbackFile is invalid', () => {
     const spy = vi
       .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
       .mockReturnValue({
         token: 'test-token',
         fileKey: 'test-key',
-        fallbackFile: mockLocalVariablesResponse,
-        parsedFallbackFile: undefined, // Not set
+        fallbackFile: '{invalid-json}',
+        parsedFallbackFile: undefined,
         providerId: 'test-provider',
       } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
 
     mockedUseSWR.mockReturnValue({
       data: undefined,
-      error: null,
+      error: undefined,
       isLoading: false,
       isValidating: false,
     })
 
     renderHook(() => useVariables())
 
-    const useSWRCalls = mockedUseSWR.mock.calls
-    expect(useSWRCalls.length).toBeGreaterThan(0)
-
-    const call = useSWRCalls[0]
-    expect(call).toBeDefined()
-    const [, fetcher] = call as [
-      unknown,
-      (
-        ...args: [readonly [string, string]] | [string, string]
-      ) => Promise<unknown>,
-    ]
-
-    // Call fetcher to test legacy fallbackFile path
-    const resultData = await fetcher('url', 'token')
-    expect(resultData).toEqual(mockLocalVariablesResponse)
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      ['https://api.figma.com/v1/files/test-key/variables/local', 'test-token'],
+      expect.any(Function),
+      undefined
+    )
 
     spy.mockRestore()
   })
