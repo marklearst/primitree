@@ -29,6 +29,8 @@ Built for the modern web, this library provides a suite of hooks to fetch, manag
 
 > ⚠️ **Breaking Change**: `useFigmaToken` is now a named export. See [Migration Guide](#-migration-guide-3x--40).
 
+> ✅ **4.1.1 patch**: Fixed root utility exports and fallback key handling when fallback JSON is invalid.
+
 ## 🚀 Features at a Glance
 
 - **Modern React 19.2 hooks** for variables, collections, modes, and published variables
@@ -302,7 +304,7 @@ if (isLocalVariablesResponse(data)) {
 
 ### Error Utilities
 
-v3 introduces powerful error handling utilities for type-safe error checking:
+The library includes powerful error handling utilities for type-safe error checking:
 
 ```tsx
 import { isFigmaApiError, getErrorStatus, getErrorMessage, hasErrorStatus } from '@figma-vars/hooks'
@@ -531,12 +533,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
 - `pnpm run build`, `pnpm test`, `pnpm run test:coverage`
 - `pnpm run check:publint`, `pnpm run check:attw`, `pnpm run check:size`
 
-## 🧭 Release Checklist (for 4.0.0)
+## 🧭 Release Checklist (4.x)
 
 - Run `pnpm run check:release`
-- Run `pnpm version major` (creates `v4.0.0` tag)
+- Bump the version with `pnpm version patch|minor|major` (creates matching git tag, e.g. `v4.1.1`)
+- Push commit + tags (`git push && git push --tags`) so release workflows can run
 - CI publishes to npm automatically
-- Update dist-tags on npm if needed (`latest` → 4.0.0)
+- Update dist-tags on npm if needed (`latest` → current stable)
+
+**Backfill tags if missing:**
+
+```bash
+git tag -a v4.1.0 <commit-sha-for-4.1.0> -m "v4.1.0"
+git tag -a v4.1.1 <commit-sha-for-4.1.1> -m "v4.1.1"
+git push --tags
+```
 
 ## 🔄 Migration Guide (3.x → 4.0)
 
