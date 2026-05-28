@@ -1,5 +1,10 @@
 packages:
-  - '.'
+  - 'packages/*'
+  - 'apps/*'
+
+overrides:
+  vite: ^6.3.5
 
 onlyBuiltDependencies:
+  - '@biomejs/biome'
   - esbuild
