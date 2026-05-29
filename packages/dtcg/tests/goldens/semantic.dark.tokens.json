@@ -1,0 +1,52 @@
+{
+  "semantic": {
+    "color": {
+      "bg": {
+        "brand": {
+          "$type": "color",
+          "$value": "{primitives.color.blue.300}",
+          "$description": "Brand background",
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:201",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic",
+              "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+            }
+          }
+        },
+        "accent": {
+          "$type": "color",
+          "$value": "{semantic.color.bg.brand}",
+          "$description": "Accent = brand for now",
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:203",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic"
+            }
+          }
+        }
+      },
+      "text": {
+        "primary": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.96, 0.96, 0.98],
+            "alpha": 1,
+            "hex": "#f5f5fa"
+          },
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:202",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic",
+              "scopes": ["TEXT_FILL"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "density": {
+    "control": {
+      "height": {
+        "$type": "dimension",
+        "$value": {
+          "value": 40,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.figma-vars": {
+            "variableId": "VariableID:3:301",
+            "collectionId": "VariableCollectionId:3:300",
+            "collectionName": "Density",
+            "scopes": ["WIDTH_HEIGHT"]
+          }
+        }
+      }
+    }
+  }
+}

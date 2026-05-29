@@ -1,0 +1,75 @@
+{
+  "name": "@figma-vars/dtcg",
+  "version": "0.1.0",
+  "description": "Convert Figma variables JSON into DTCG 2025.10 design tokens with a standards-compliant Resolver for modes, plus token flattening and context resolution utilities.",
+  "author": "Mark Learst",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "default": "./dist/index.js"
+    }
+  },
+  "keywords": [
+    "figma",
+    "figma variables",
+    "design tokens",
+    "dtcg",
+    "w3c design tokens",
+    "resolver",
+    "style-dictionary",
+    "terrazzo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "directory": "packages/dtcg"
+  },
+  "bugs": {
+    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+  },
+  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/marklearst"
+  },
+  "dependencies": {
+    "@figma-vars/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "@vitest/coverage-v8": "^2.0.5",
+    "tsup": "^8.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^2.0.5"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "semantic": {
+    "color": {
+      "bg": {
+        "brand": {
+          "$type": "color",
+          "$value": "{primitives.color.blue.500}",
+          "$description": "Brand background",
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:201",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic",
+              "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+            }
+          }
+        },
+        "accent": {
+          "$type": "color",
+          "$value": "{semantic.color.bg.brand}",
+          "$description": "Accent = brand for now",
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:203",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic"
+            }
+          }
+        }
+      },
+      "text": {
+        "primary": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.1, 0.1, 0.12],
+            "alpha": 1,
+            "hex": "#1a1a1f"
+          },
+          "$extensions": {
+            "com.figma-vars": {
+              "variableId": "VariableID:2:202",
+              "collectionId": "VariableCollectionId:2:200",
+              "collectionName": "Semantic",
+              "scopes": ["TEXT_FILL"]
+            }
+          }
+        }
+      }
+    },
+    "space": {
+      "page": {
+        "$type": "dimension",
+        "$value": "{primitives.space.2}",
+        "$description": "Page padding; single value across modes",
+        "$extensions": {
+          "com.figma-vars": {
+            "variableId": "VariableID:2:204",
+            "collectionId": "VariableCollectionId:2:200",
+            "collectionName": "Semantic",
+            "scopes": ["GAP"]
+          }
+        }
+      }
+    }
+  }
+}
