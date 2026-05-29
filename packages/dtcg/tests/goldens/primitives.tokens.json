@@ -6,7 +6,11 @@
           "$type": "color",
           "$value": {
             "colorSpace": "srgb",
-            "components": [0.55, 0.7, 1],
+            "components": [
+              0.55,
+              0.7,
+              1
+            ],
             "alpha": 1,
             "hex": "#8cb3ff"
           },
@@ -15,7 +19,9 @@
               "variableId": "VariableID:1:102",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
-              "scopes": ["ALL_SCOPES"]
+              "scopes": [
+                "ALL_SCOPES"
+              ]
             }
           }
         },
@@ -23,7 +29,11 @@
           "$type": "color",
           "$value": {
             "colorSpace": "srgb",
-            "components": [0.2, 0.4, 1],
+            "components": [
+              0.2,
+              0.4,
+              1
+            ],
             "alpha": 1,
             "hex": "#3366ff"
           },
@@ -33,7 +43,9 @@
               "variableId": "VariableID:1:101",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
-              "scopes": ["ALL_SCOPES"],
+              "scopes": [
+                "ALL_SCOPES"
+              ],
               "codeSyntax": {
                 "WEB": "var(--color-blue-500)"
               }
@@ -55,7 +67,9 @@
             "variableId": "VariableID:1:103",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
-            "scopes": ["CORNER_RADIUS"]
+            "scopes": [
+              "CORNER_RADIUS"
+            ]
           }
         }
       }
@@ -72,7 +86,10 @@
             "variableId": "VariableID:1:104",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
-            "scopes": ["GAP", "WIDTH_HEIGHT"]
+            "scopes": [
+              "GAP",
+              "WIDTH_HEIGHT"
+            ]
           }
         }
       }
@@ -87,7 +104,9 @@
               "variableId": "VariableID:1:105",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
-              "scopes": ["FONT_FAMILY"]
+              "scopes": [
+                "FONT_FAMILY"
+              ]
             }
           }
         }
@@ -118,7 +137,9 @@
             "variableId": "VariableID:1:107",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
-            "scopes": ["OPACITY"]
+            "scopes": [
+              "OPACITY"
+            ]
           }
         }
       }
