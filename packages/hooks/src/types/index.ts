@@ -25,5 +25,5 @@
  * ```
  */
 export * from '@figma-vars/core/types'
-export * from 'types/hooks'
-export * from 'types/contexts'
+export * from './hooks'
+export * from './contexts'

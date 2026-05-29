@@ -49,7 +49,7 @@
   },
   "scripts": {
     "build": "tsc && vite build",
-    "postbuild": "cp dist/index.d.ts dist/index.d.cts || copy dist/index.d.ts dist/index.d.cts && cp dist/core.d.ts dist/core.d.cts || copy dist/core.d.ts dist/core.d.cts && cp dist/core/index.d.ts dist/core/index.d.cts || copy dist/core\\index.d.ts dist/core\\index.d.cts",
+    "postbuild": "node scripts/postbuild.mjs",
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "test:ui": "vitest --ui",
@@ -81,11 +81,11 @@
     },
     "./core": {
       "import": {
-        "types": "./dist/core/index.d.ts",
+        "types": "./dist/core.d.ts",
         "default": "./dist/core.mjs"
       },
       "require": {
-        "types": "./dist/core/index.d.cts",
+        "types": "./dist/core.d.cts",
         "default": "./dist/core.cjs"
       },
       "default": "./dist/core.mjs"
@@ -103,28 +103,28 @@
     "@figma-vars/core": "workspace:*"
   },
   "devDependencies": {
-    "@arethetypeswrong/cli": "^0.17.0",
-    "@size-limit/preset-small-lib": "^11.1.5",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.0.3",
-    "@types/react": "^19.2.7",
+    "@arethetypeswrong/cli": "^0.18.4",
+    "@microsoft/api-extractor": "^7.58.9",
+    "@size-limit/preset-small-lib": "^12.1.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.5.2",
-    "@vitest/coverage-v8": "^2.0.5",
-    "@vitest/ui": "2.1.9",
-    "dotenv": "^16.5.0",
-    "jsdom": "^26.1.0",
-    "publint": "^0.3.1",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "size-limit": "^11.1.5",
-    "swr": "^2.3.7",
-    "typescript": "~5.8.3",
-    "vite": "^6.3.5",
-    "vite-plugin-dts": "^4.5.4",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^2.0.5"
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
+    "dotenv": "^17.4.2",
+    "jsdom": "^29.1.1",
+    "publint": "^0.3.21",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "size-limit": "^12.1.0",
+    "swr": "^2.4.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.1.3",
+    "vite-plugin-dts": "^5.0.3",
+    "vitest": "^4.1.10"
   },
   "size-limit": [
     {

@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import type { SWRConfiguration } from 'swr'
-import type { LocalVariablesResponse, PublishedVariablesResponse } from 'types'
+import type {
+  LocalVariablesResponse,
+  PublishedVariablesResponse,
+} from '@figma-vars/core'
 
 /**
  * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
@@ -51,9 +54,7 @@ export interface FigmaTokenContextType {
    * @internal
    */
   parsedFallbackFile?:
-    | LocalVariablesResponse
-    | PublishedVariablesResponse
-    | undefined
+    LocalVariablesResponse | PublishedVariablesResponse | undefined
   /**
    * Unique identifier for this provider instance, used to avoid SWR cache collisions.
    * @internal

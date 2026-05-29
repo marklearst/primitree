@@ -24,7 +24,7 @@
  *
  * @public
  */
-export { useVariables } from 'hooks/useVariables'
+export { useVariables } from './useVariables'
 /**
  * React hook to select and memoize variable collections from the loaded Figma variables data.
  *
@@ -39,7 +39,7 @@ export { useVariables } from 'hooks/useVariables'
  *
  * @public
  */
-export { useVariableCollections } from 'hooks/useVariableCollections'
+export { useVariableCollections } from './useVariableCollections'
 /**
  * React hook to select and memoize variable modes from the loaded Figma variables data.
  *
@@ -54,7 +54,7 @@ export { useVariableCollections } from 'hooks/useVariableCollections'
  *
  * @public
  */
-export { useVariableModes } from 'hooks/useVariableModes'
+export { useVariableModes } from './useVariableModes'
 /**
  * React hook to access the Figma Personal Access Token from context.
  *
@@ -69,7 +69,7 @@ export { useVariableModes } from 'hooks/useVariableModes'
  *
  * @public
  */
-export { default as useFigmaToken } from 'hooks/useFigmaToken'
+export { default as useFigmaToken } from './useFigmaToken'
 /**
  * React hook to create a new Figma variable in the current file.
  *
@@ -87,7 +87,7 @@ export { default as useFigmaToken } from 'hooks/useFigmaToken'
  *
  * @public
  */
-export { useCreateVariable } from 'hooks/useCreateVariable'
+export { useCreateVariable } from './useCreateVariable'
 /**
  * React hook to update an existing Figma variable by ID.
  *
@@ -105,7 +105,7 @@ export { useCreateVariable } from 'hooks/useCreateVariable'
  *
  * @public
  */
-export { useUpdateVariable } from 'hooks/useUpdateVariable'
+export { useUpdateVariable } from './useUpdateVariable'
 /**
  * React hook to delete a Figma variable by ID.
  *
@@ -123,7 +123,7 @@ export { useUpdateVariable } from 'hooks/useUpdateVariable'
  *
  * @public
  */
-export { useDeleteVariable } from 'hooks/useDeleteVariable'
+export { useDeleteVariable } from './useDeleteVariable'
 /**
  * React hook to perform a bulk update of multiple Figma variables in a single request.
  *
@@ -141,8 +141,8 @@ export { useDeleteVariable } from 'hooks/useDeleteVariable'
  *
  * @public
  */
-export { useBulkUpdateVariables } from 'hooks/useBulkUpdateVariables'
-export { useInvalidateVariables } from 'hooks/useInvalidateVariables'
+export { useBulkUpdateVariables } from './useBulkUpdateVariables'
+export { useInvalidateVariables } from './useInvalidateVariables'
 /**
  * React hook to fetch published Figma Variables from a file.
  *
@@ -160,7 +160,7 @@ export { useInvalidateVariables } from 'hooks/useInvalidateVariables'
  *
  * @public
  */
-export { usePublishedVariables } from 'hooks/usePublishedVariables'
+export { usePublishedVariables } from './usePublishedVariables'
 /**
  * React hook to select a single variable by ID from loaded Figma variables data.
  *
@@ -175,7 +175,7 @@ export { usePublishedVariables } from 'hooks/usePublishedVariables'
  *
  * @public
  */
-export { useVariableById } from 'hooks/useVariableById'
+export { useVariableById } from './useVariableById'
 /**
  * React hook to select a single variable collection by ID from loaded Figma variables data.
  *
@@ -190,7 +190,7 @@ export { useVariableById } from 'hooks/useVariableById'
  *
  * @public
  */
-export { useCollectionById } from 'hooks/useCollectionById'
+export { useCollectionById } from './useCollectionById'
 /**
  * React hook to select modes for a specific variable collection.
  *
@@ -205,4 +205,4 @@ export { useCollectionById } from 'hooks/useCollectionById'
  *
  * @public
  */
-export { useModesByCollection } from 'hooks/useModesByCollection'
+export { useModesByCollection } from './useModesByCollection'

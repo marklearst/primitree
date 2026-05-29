@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
   "formatter": {
     "indentStyle": "space",
     "indentWidth": 2,
@@ -21,7 +21,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "style": {
         "useBlockStatements": "error",
         "useImportType": "off"
@@ -31,18 +31,17 @@
       }
     }
   },
-  "organizeImports": {
-    "enabled": false
-  },
+  "assist": { "actions": { "source": { "organizeImports": "off" } } },
   "files": {
-    "include": ["packages", "apps"],
-    "ignore": [
-      "dist/**",
-      "node_modules/**",
-      "docs-site/**",
-      ".turbo/**",
-      "coverage/**",
-      "**/tests/goldens/**"
+    "includes": [
+      "**/packages/**",
+      "**/apps/**",
+      "!**/dist/**",
+      "!**/node_modules/**",
+      "!**/docs-site/**",
+      "!**/.turbo/**",
+      "!**/coverage/**",
+      "!**/tests/goldens/**"
     ]
   }
 }

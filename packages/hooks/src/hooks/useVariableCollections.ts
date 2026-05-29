@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { useVariables } from 'hooks/useVariables'
-import type { FigmaCollection } from 'types'
+import { useVariables } from './useVariables'
+import type { FigmaCollection } from '../types'
 
 /**
  * React hook that extracts and memoizes all variable collections from loaded Figma variables data.

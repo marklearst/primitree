@@ -27,6 +27,18 @@ export { figmaColorToDTCG, colorToHex, isFigmaColor } from './color'
 export { inferTokenType } from './inferType'
 export { slugify, sanitizeSegment, toPathSegments, uniqueSlugs } from './naming'
 
+export { emitCss, cssVarName, cssValue } from './pipeline/css'
+export type { EmitCssOptions } from './pipeline/css'
+export { emitTailwind } from './pipeline/tailwind'
+export { emitTypescript } from './pipeline/typescript'
+export { buildPipeline } from './pipeline/build'
+export type {
+  PipelineFile,
+  BuildPipelineOptions,
+  BuildPipelineResult,
+  PipelineSummary,
+} from './pipeline/build'
+
 export { isToken, isReferenceValue } from './types'
 export type {
   DTCGColorValue,

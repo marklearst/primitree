@@ -1,0 +1,110 @@
+/**
+ * A small but realistic Figma variables export used by `figma-vars init` so
+ * a scaffolded repo works before the first real export lands.
+ */
+export const sampleVariables = {
+  status: 200,
+  error: false,
+  meta: {
+    variableCollections: {
+      'VariableCollectionId:1:1': {
+        id: 'VariableCollectionId:1:1',
+        name: 'Primitives',
+        modes: [{ modeId: '1:0', name: 'Value' }],
+        defaultModeId: '1:0',
+        hiddenFromPublishing: false,
+        variableIds: [
+          'VariableID:1:10',
+          'VariableID:1:11',
+          'VariableID:1:12',
+          'VariableID:1:13',
+        ],
+      },
+      'VariableCollectionId:2:1': {
+        id: 'VariableCollectionId:2:1',
+        name: 'Theme',
+        modes: [
+          { modeId: '2:0', name: 'Light' },
+          { modeId: '2:1', name: 'Dark' },
+        ],
+        defaultModeId: '2:0',
+        hiddenFromPublishing: false,
+        variableIds: ['VariableID:2:10', 'VariableID:2:11'],
+      },
+    },
+    variables: {
+      'VariableID:1:10': {
+        id: 'VariableID:1:10',
+        name: 'color/gray/900',
+        variableCollectionId: 'VariableCollectionId:1:1',
+        resolvedType: 'COLOR',
+        valuesByMode: { '1:0': { r: 0.09, g: 0.09, b: 0.11, a: 1 } },
+        description: '',
+        hiddenFromPublishing: false,
+        scopes: ['ALL_SCOPES'],
+        codeSyntax: {},
+      },
+      'VariableID:1:11': {
+        id: 'VariableID:1:11',
+        name: 'color/gray/50',
+        variableCollectionId: 'VariableCollectionId:1:1',
+        resolvedType: 'COLOR',
+        valuesByMode: { '1:0': { r: 0.98, g: 0.98, b: 0.99, a: 1 } },
+        description: '',
+        hiddenFromPublishing: false,
+        scopes: ['ALL_SCOPES'],
+        codeSyntax: {},
+      },
+      'VariableID:1:12': {
+        id: 'VariableID:1:12',
+        name: 'radius/md',
+        variableCollectionId: 'VariableCollectionId:1:1',
+        resolvedType: 'FLOAT',
+        valuesByMode: { '1:0': 8 },
+        description: '',
+        hiddenFromPublishing: false,
+        scopes: ['CORNER_RADIUS'],
+        codeSyntax: {},
+      },
+      'VariableID:1:13': {
+        id: 'VariableID:1:13',
+        name: 'space/4',
+        variableCollectionId: 'VariableCollectionId:1:1',
+        resolvedType: 'FLOAT',
+        valuesByMode: { '1:0': 16 },
+        description: '',
+        hiddenFromPublishing: false,
+        scopes: ['GAP'],
+        codeSyntax: {},
+      },
+      'VariableID:2:10': {
+        id: 'VariableID:2:10',
+        name: 'color/bg/surface',
+        variableCollectionId: 'VariableCollectionId:2:1',
+        resolvedType: 'COLOR',
+        valuesByMode: {
+          '2:0': { type: 'VARIABLE_ALIAS', id: 'VariableID:1:11' },
+          '2:1': { type: 'VARIABLE_ALIAS', id: 'VariableID:1:10' },
+        },
+        description: 'Page background',
+        hiddenFromPublishing: false,
+        scopes: ['FRAME_FILL'],
+        codeSyntax: {},
+      },
+      'VariableID:2:11': {
+        id: 'VariableID:2:11',
+        name: 'color/text/default',
+        variableCollectionId: 'VariableCollectionId:2:1',
+        resolvedType: 'COLOR',
+        valuesByMode: {
+          '2:0': { type: 'VARIABLE_ALIAS', id: 'VariableID:1:10' },
+          '2:1': { type: 'VARIABLE_ALIAS', id: 'VariableID:1:11' },
+        },
+        description: 'Default text color',
+        hiddenFromPublishing: false,
+        scopes: ['TEXT_FILL'],
+        codeSyntax: {},
+      },
+    },
+  },
+}

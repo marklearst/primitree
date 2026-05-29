@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { FigmaTokenContext } from './FigmaTokenContext'
-import type { FigmaTokenContextType } from 'types/contexts'
+import type { FigmaTokenContextType } from '../types/contexts'
 
 export const useFigmaTokenContext = (): FigmaTokenContextType => {
   const context = useContext(FigmaTokenContext)

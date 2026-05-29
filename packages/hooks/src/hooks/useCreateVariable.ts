@@ -1,5 +1,5 @@
-import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { useMutation } from 'hooks/useMutation'
+import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
+import { useMutation } from './useMutation'
 import type { CreateVariablePayload } from '@figma-vars/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { useVariableModes } from 'hooks/useVariableModes'
-import type { VariableMode } from 'types'
+import { useVariableModes } from './useVariableModes'
+import type { VariableMode } from '../types'
 
 /**
  * React hook that selects modes for a specific variable collection.

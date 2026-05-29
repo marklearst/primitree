@@ -18,6 +18,7 @@
  * ```
  */
 export * from './normalize/index'
+export * from './diff/index'
 
 export { fetcher } from './api/fetcher'
 export type { FetcherOptions } from './api/fetcher'
