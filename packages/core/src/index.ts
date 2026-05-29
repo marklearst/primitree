@@ -17,6 +17,8 @@
  * const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
  * ```
  */
+export * from './normalize/index'
+
 export { fetcher } from './api/fetcher'
 export type { FetcherOptions } from './api/fetcher'
 export { mutator } from './api/mutator'
