@@ -13,6 +13,9 @@ The repositioning release: FigmaVars is now a token pipeline platform, not just 
 - **`@figma-vars/core`** — framework-agnostic Figma Variables client, normalizer for any variables JSON shape, alias-graph resolution, and semantic diffing.
 - **`@figma-vars/dtcg`** — Figma variables JSON to DTCG 2025.10 token files + Resolver document, plus CSS/Tailwind v4/TypeScript emitters.
 - **`@figma-vars/cli`** — `figma-vars build | diff | check | init | export`. Drop in a variables JSON, get a production token pipeline.
+- **`@figma-vars/mcp`** — MCP server exposing your tokens to AI agents (`list_collections`, `get_token`, `resolve_context`, `search_tokens`, `diff_tokens`).
+
+There is also a fully client-side playground app (`apps/playground`): drop a variables JSON, preview collections/modes, download the pipeline as a zip.
 
 ### ✨ Added — Local-token hooks (work on every Figma plan)
 
