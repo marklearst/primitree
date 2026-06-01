@@ -1,0 +1,243 @@
+{
+  "status": 200,
+  "error": false,
+  "meta": {
+    "variableCollections": {
+      "VariableCollectionId:1:100": {
+        "id": "VariableCollectionId:1:100",
+        "name": "Primitives",
+        "key": "prim-key",
+        "modes": [{ "modeId": "1:0", "name": "Value" }],
+        "defaultModeId": "1:0",
+        "remote": false,
+        "hiddenFromPublishing": false,
+        "variableIds": [
+          "VariableID:1:101",
+          "VariableID:1:102",
+          "VariableID:1:103",
+          "VariableID:1:104",
+          "VariableID:1:105",
+          "VariableID:1:106",
+          "VariableID:1:107"
+        ]
+      },
+      "VariableCollectionId:2:200": {
+        "id": "VariableCollectionId:2:200",
+        "name": "Semantic",
+        "key": "sem-key",
+        "modes": [
+          { "modeId": "2:0", "name": "Light" },
+          { "modeId": "2:1", "name": "Dark" }
+        ],
+        "defaultModeId": "2:0",
+        "remote": false,
+        "hiddenFromPublishing": false,
+        "variableIds": [
+          "VariableID:2:201",
+          "VariableID:2:202",
+          "VariableID:2:203",
+          "VariableID:2:204"
+        ]
+      },
+      "VariableCollectionId:3:300": {
+        "id": "VariableCollectionId:3:300",
+        "name": "Density",
+        "key": "den-key",
+        "modes": [
+          { "modeId": "3:0", "name": "Comfortable" },
+          { "modeId": "3:1", "name": "Compact" }
+        ],
+        "defaultModeId": "3:0",
+        "remote": false,
+        "hiddenFromPublishing": false,
+        "variableIds": ["VariableID:3:301"]
+      }
+    },
+    "variables": {
+      "VariableID:1:101": {
+        "id": "VariableID:1:101",
+        "name": "color/blue/500",
+        "key": "v101",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "COLOR",
+        "valuesByMode": {
+          "1:0": { "r": 0.2, "g": 0.4, "b": 1, "a": 1 }
+        },
+        "remote": false,
+        "description": "Primary blue",
+        "hiddenFromPublishing": false,
+        "scopes": ["ALL_SCOPES"],
+        "codeSyntax": { "WEB": "var(--color-blue-500)" }
+      },
+      "VariableID:1:102": {
+        "id": "VariableID:1:102",
+        "name": "color/blue/300",
+        "key": "v102",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "COLOR",
+        "valuesByMode": {
+          "1:0": { "r": 0.55, "g": 0.7, "b": 1, "a": 1 }
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["ALL_SCOPES"],
+        "codeSyntax": {}
+      },
+      "VariableID:1:103": {
+        "id": "VariableID:1:103",
+        "name": "radius/sm",
+        "key": "v103",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "FLOAT",
+        "valuesByMode": {
+          "1:0": 4
+        },
+        "remote": false,
+        "description": "Small corner radius",
+        "hiddenFromPublishing": false,
+        "scopes": ["CORNER_RADIUS"],
+        "codeSyntax": {}
+      },
+      "VariableID:1:104": {
+        "id": "VariableID:1:104",
+        "name": "space/2",
+        "key": "v104",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "FLOAT",
+        "valuesByMode": {
+          "1:0": 8
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["GAP", "WIDTH_HEIGHT"],
+        "codeSyntax": {}
+      },
+      "VariableID:1:105": {
+        "id": "VariableID:1:105",
+        "name": "font/family/sans",
+        "key": "v105",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "STRING",
+        "valuesByMode": {
+          "1:0": "Inter"
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["FONT_FAMILY"],
+        "codeSyntax": {}
+      },
+      "VariableID:1:106": {
+        "id": "VariableID:1:106",
+        "name": "feature/rounded",
+        "key": "v106",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "BOOLEAN",
+        "valuesByMode": {
+          "1:0": true
+        },
+        "remote": false,
+        "description": "Toggle rounded corners",
+        "hiddenFromPublishing": true,
+        "scopes": [],
+        "codeSyntax": {}
+      },
+      "VariableID:1:107": {
+        "id": "VariableID:1:107",
+        "name": "opacity/disabled",
+        "key": "v107",
+        "variableCollectionId": "VariableCollectionId:1:100",
+        "resolvedType": "FLOAT",
+        "valuesByMode": {
+          "1:0": 0.4
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["OPACITY"],
+        "codeSyntax": {}
+      },
+      "VariableID:2:201": {
+        "id": "VariableID:2:201",
+        "name": "color/bg/brand",
+        "key": "v201",
+        "variableCollectionId": "VariableCollectionId:2:200",
+        "resolvedType": "COLOR",
+        "valuesByMode": {
+          "2:0": { "type": "VARIABLE_ALIAS", "id": "VariableID:1:101" },
+          "2:1": { "type": "VARIABLE_ALIAS", "id": "VariableID:1:102" }
+        },
+        "remote": false,
+        "description": "Brand background",
+        "hiddenFromPublishing": false,
+        "scopes": ["FRAME_FILL", "SHAPE_FILL"],
+        "codeSyntax": {}
+      },
+      "VariableID:2:202": {
+        "id": "VariableID:2:202",
+        "name": "color/text/primary",
+        "key": "v202",
+        "variableCollectionId": "VariableCollectionId:2:200",
+        "resolvedType": "COLOR",
+        "valuesByMode": {
+          "2:0": { "r": 0.1, "g": 0.1, "b": 0.12, "a": 1 },
+          "2:1": { "r": 0.96, "g": 0.96, "b": 0.98, "a": 1 }
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["TEXT_FILL"],
+        "codeSyntax": {}
+      },
+      "VariableID:2:203": {
+        "id": "VariableID:2:203",
+        "name": "color/bg/accent",
+        "key": "v203",
+        "variableCollectionId": "VariableCollectionId:2:200",
+        "resolvedType": "COLOR",
+        "valuesByMode": {
+          "2:0": { "type": "VARIABLE_ALIAS", "id": "VariableID:2:201" },
+          "2:1": { "type": "VARIABLE_ALIAS", "id": "VariableID:2:201" }
+        },
+        "remote": false,
+        "description": "Accent = brand for now",
+        "hiddenFromPublishing": false,
+        "scopes": [],
+        "codeSyntax": {}
+      },
+      "VariableID:2:204": {
+        "id": "VariableID:2:204",
+        "name": "space/page",
+        "key": "v204",
+        "variableCollectionId": "VariableCollectionId:2:200",
+        "resolvedType": "FLOAT",
+        "valuesByMode": {
+          "2:0": { "type": "VARIABLE_ALIAS", "id": "VariableID:1:104" }
+        },
+        "remote": false,
+        "description": "Page padding; single value across modes",
+        "hiddenFromPublishing": false,
+        "scopes": ["GAP"],
+        "codeSyntax": {}
+      },
+      "VariableID:3:301": {
+        "id": "VariableID:3:301",
+        "name": "control/height",
+        "key": "v301",
+        "variableCollectionId": "VariableCollectionId:3:300",
+        "resolvedType": "FLOAT",
+        "valuesByMode": {
+          "3:0": 40,
+          "3:1": 32
+        },
+        "remote": false,
+        "description": "",
+        "hiddenFromPublishing": false,
+        "scopes": ["WIDTH_HEIGHT"],
+        "codeSyntax": {}
+      }
+    }
+  }
+}
