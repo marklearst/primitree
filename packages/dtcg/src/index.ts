@@ -16,6 +16,7 @@ export {
   mergeDocuments,
   flattenTokens,
   resolveTokenValues,
+  resolveTokenValuesSafe,
   applyResolver,
   listContexts,
   listPermutations,

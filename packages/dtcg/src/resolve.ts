@@ -136,6 +136,63 @@ export function resolveTokenValues(
 }
 
 /**
+ * Tolerant variant of {@link resolveTokenValues}: unresolvable references are
+ * collected as errors instead of aborting the whole resolution.
+ *
+ * @public
+ */
+export function resolveTokenValuesSafe(flat: FlatToken[]): {
+  values: Map<string, DTCGTokenValue>
+  errors: ReferenceResolutionError[]
+} {
+  const values = new Map<string, DTCGTokenValue>()
+  const errors: ReferenceResolutionError[] = []
+  const byPath = new Map<string, DTCGToken>()
+  for (const { path, token } of flat) {
+    byPath.set(path, token)
+  }
+
+  function resolvePath(path: string, seen: string[]): DTCGTokenValue {
+    const cached = values.get(path)
+    if (cached !== undefined) {
+      return cached
+    }
+    if (seen.includes(path)) {
+      throw new ReferenceResolutionError(
+        `Reference cycle: ${[...seen, path].join(' -> ')}`,
+        path
+      )
+    }
+    const token = byPath.get(path)
+    if (!token) {
+      throw new ReferenceResolutionError(
+        `Reference target "${path}" does not exist`,
+        path
+      )
+    }
+    let value = token.$value
+    if (isReferenceValue(value)) {
+      value = resolvePath(value.slice(1, -1), [...seen, path])
+    }
+    values.set(path, value)
+    return value
+  }
+
+  for (const { path } of flat) {
+    try {
+      resolvePath(path, [])
+    } catch (err) {
+      if (err instanceof ReferenceResolutionError) {
+        errors.push(err)
+      } else {
+        throw err
+      }
+    }
+  }
+  return { values, errors }
+}
+
+/**
  * List the modifier axes and their contexts declared by a resolver.
  *
  * @public

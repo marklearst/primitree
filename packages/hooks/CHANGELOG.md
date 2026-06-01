@@ -6,6 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 5.0.0 (2026-07-06)
+
+The repositioning release: FigmaVars is now a token pipeline platform, not just a hooks library. `@figma-vars/hooks` ships alongside three new packages from the same monorepo:
+
+- **`@figma-vars/core`** — framework-agnostic Figma Variables client, normalizer for any variables JSON shape, alias-graph resolution, and semantic diffing.
+- **`@figma-vars/dtcg`** — Figma variables JSON to DTCG 2025.10 token files + Resolver document, plus CSS/Tailwind v4/TypeScript emitters.
+- **`@figma-vars/cli`** — `figma-vars build | diff | check | init | export`. Drop in a variables JSON, get a production token pipeline.
+
+### ✨ Added — Local-token hooks (work on every Figma plan)
+
+New hooks that consume built token artifacts instead of the Enterprise-gated REST API. No Personal Access Token, no network, SSR-safe:
+
+```tsx
+import { TokensProvider, useToken, useTheme } from '@figma-vars/hooks'
+
+;<TokensProvider
+  tokens={files}
+  resolver={resolver}>
+  <App />
+</TokensProvider>
+
+const brand = useToken('semantic.color.bg.brand') // { value, css, cssVar }
+const { setContext } = useTheme() // setContext('semantic', 'dark')
+```
+
+- `TokensProvider` — accepts DTCG documents (single, array, or the file map produced by `figma-vars build`) plus an optional DTCG Resolver.
+- `useToken(path)` — one token: raw token, reference-resolved value, CSS-formatted value, and `var()` accessor.
+- `useTokens()` — every token, flattened, with resolved values.
+- `useTheme()` — read/switch resolver contexts (Figma modes) at runtime.
+
+### 🔄 Changed
+
+- Internals now live in `@figma-vars/core` and are re-exported, so existing imports keep working. The `@figma-vars/hooks/core` subpath re-exports `@figma-vars/core`; new code should depend on that package directly.
+- Type declarations are bundled (single `index.d.ts`/`index.d.cts`); deep `dist/*` paths (never public API) no longer exist.
+- Toolchain: Vite 8, Vitest 4, TypeScript 6, Biome 2. CI runs on Node 22.
+
+### 📦 Migration from 4.x
+
+No source changes required for documented APIs:
+
+- All 4.x hook/provider/utility imports from `@figma-vars/hooks` work unchanged.
+- All 4.x imports from `@figma-vars/hooks/core` work unchanged (now backed by `@figma-vars/core`).
+- Peer dependencies are unchanged (`react ^19.2.3`, `swr ^2.3.7`).
+- The `figma-vars-export` bin still ships with this package; prefer the new `figma-vars export` from `@figma-vars/cli`.
+
+If you imported from undocumented deep paths (e.g. `@figma-vars/hooks/dist/...`), switch to the package root or `@figma-vars/core`.
+
 ## 4.2.0 (2026-07-06)
 
 ### ✨ Added

@@ -1,0 +1,24 @@
+import { useContext } from 'react'
+import { TokensContext, type TokensContextValue } from './TokensContext'
+
+/**
+ * Access every token provided by the nearest {@link TokensProvider}: the
+ * merged document, flattened tokens, resolved values, and context controls.
+ *
+ * @throws Error when used outside a TokensProvider.
+ *
+ * @example
+ * ```tsx
+ * const { flat, valuesByPath } = useTokens()
+ * const colors = flat.filter(t => t.token.$type === 'color')
+ * ```
+ *
+ * @public
+ */
+export function useTokens(): TokensContextValue {
+  const context = useContext(TokensContext)
+  if (!context) {
+    throw new Error('useTokens must be used within a <TokensProvider>')
+  }
+  return context
+}

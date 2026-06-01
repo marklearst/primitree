@@ -1,7 +1,7 @@
 {
   "name": "@figma-vars/hooks",
-  "version": "4.2.0",
-  "description": "Typed React hooks for managing Figma Variables, modes, tokens, and bindings via API.",
+  "version": "5.0.0",
+  "description": "Typed React hooks for Figma Variables and design tokens: consume built DTCG artifacts on any plan (useToken, useTheme), or manage variables live via the REST API.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
@@ -100,7 +100,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figma-vars/core": "workspace:*"
+    "@figma-vars/core": "workspace:*",
+    "@figma-vars/dtcg": "workspace:*"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.4",
