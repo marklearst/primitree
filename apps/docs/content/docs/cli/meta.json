@@ -1,0 +1,4 @@
+{
+  "title": "CLI",
+  "pages": ["build", "diff", "check", "init", "export"]
+}

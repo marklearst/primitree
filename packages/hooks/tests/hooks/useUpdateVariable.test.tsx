@@ -9,12 +9,12 @@ import {
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   FIGMA_FILE_VARIABLES_PATH,
-} from '@figma-vars/core'
-import type { UpdateVariablePayload } from '@figma-vars/core'
+} from '@figmavars/core'
+import type { UpdateVariablePayload } from '@figmavars/core'
 
 // Mock the mutator to avoid actual API calls
-vi.mock('@figma-vars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figma-vars/core')>()),
+vi.mock('@figmavars/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@figmavars/core')>()),
   mutator: vi.fn(),
 }))
 

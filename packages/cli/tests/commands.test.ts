@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -30,6 +31,19 @@ async function readOut(...segments: string[]): Promise<string> {
   return fs.readFile(path.join(tmpDir, ...segments), 'utf8')
 }
 
+describe('figma-vars global help', () => {
+  it('accepts --help as a successful global option', () => {
+    const cliPath = path.join(import.meta.dirname, '../dist/index.js')
+    const result = spawnSync(process.execPath, [cliPath, '--help'], {
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Usage:')
+    expect(result.stderr).toBe('')
+  })
+})
+
 describe('figma-vars build', () => {
   it('writes the full pipeline to the output directory', async () => {
     const out = path.join(tmpDir, 'design-tokens')
@@ -52,7 +66,7 @@ describe('figma-vars build', () => {
 
     await expect(
       readOut('design-tokens', 'design-tokens.workflow.yml')
-    ).resolves.toContain('npx @figma-vars/cli build')
+    ).resolves.toContain('npx @figmavars/cli build')
   })
 
   it('supports --terrazzo and opt-out flags', async () => {
@@ -140,7 +154,7 @@ describe('figma-vars init', () => {
     await runInit(parseArgs([repo]))
 
     const pkg = JSON.parse(await readOut('my-tokens', 'package.json'))
-    expect(pkg.devDependencies['@figma-vars/cli']).toBeDefined()
+    expect(pkg.devDependencies['@figmavars/cli']).toBeDefined()
     expect(pkg.scripts.build).toContain('figma-vars build')
 
     await expect(readOut('my-tokens', 'variables.json')).resolves.toContain(

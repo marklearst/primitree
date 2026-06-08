@@ -1,0 +1,38 @@
+---
+title: figma-vars check
+description: Validate a Figma variables export or a built design-tokens directory.
+---
+
+```bash
+figma-vars check <path> [options]
+```
+
+`<path>` is either:
+
+- a `variables.json` export (validates structure and referential integrity)
+- a built `design-tokens/` directory (validates DTCG files and resolver)
+
+## Usage
+
+```bash
+figma-vars check variables.json
+figma-vars check design-tokens
+```
+
+Use before opening a PR or in CI after `figma-vars build`.
+
+## What it validates
+
+**Variables export**
+
+- Required meta fields present
+- Collection and variable references resolve
+- Alias targets exist
+
+**Built directory**
+
+- DTCG schema expectations
+- Resolver references valid token files
+- No orphaned mode files
+
+Exit code non-zero on failure.

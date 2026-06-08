@@ -1,0 +1,34 @@
+---
+title: figma-vars export
+description: Download variables JSON from the Figma REST API (Enterprise required).
+---
+
+```bash
+figma-vars export [options]
+```
+
+Requires Enterprise and a personal access token with `file_variables:read`.
+
+## Usage
+
+```bash
+export FIGMA_TOKEN=figd_...
+export FIGMA_FILE_KEY=your-file-key
+
+figma-vars export --out variables.json
+```
+
+Or pass the file key explicitly while keeping the token in the environment:
+
+```bash
+figma-vars export --file-key "$FIGMA_FILE_KEY" --out variables.json
+```
+
+## After export
+
+```bash
+figma-vars build variables.json
+figma-vars diff previous.json variables.json
+```
+
+Teams without Enterprise should use [plugin export](/docs/getting-started/export-variables) instead. The rest of the pipeline is identical.

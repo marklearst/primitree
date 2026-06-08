@@ -1,4 +1,6 @@
-# @figma-vars/mcp
+# @figmavars/mcp
+
+Requires Node.js 20 or newer and is published as an ESM package.
 
 An MCP server that makes your design tokens **AI-legible**. Point it at a Figma variables export (or a `figma-vars build` output) and any MCP client — Cursor, Claude Code, Windsurf — can query your real tokens instead of hallucinating hex values.
 
@@ -9,7 +11,7 @@ An MCP server that makes your design tokens **AI-legible**. Point it at a Figma 
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figma-vars/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
     }
   }
 }
@@ -31,6 +33,6 @@ An MCP server that makes your design tokens **AI-legible**. Point it at a Figma 
 
 Agents generating UI code guess at colors and spacing unless the design system is in their context. This server turns your token source of truth into five cheap, structured calls — local-first, no Figma API access, no Enterprise plan, nothing uploaded.
 
-Part of [FigmaVars](https://github.com/marklearst/figma-vars-hooks): [`@figma-vars/cli`](https://www.npmjs.com/package/@figma-vars/cli) builds the pipeline, this package serves it to agents.
+Part of [FigmaVars](https://github.com/marklearst/figmavars): [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) builds the pipeline, this package serves it to agents.
 
 MIT © Mark Learst

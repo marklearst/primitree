@@ -3,7 +3,7 @@ import type { SWRConfiguration } from 'swr'
 import type {
   LocalVariablesResponse,
   PublishedVariablesResponse,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 /**
  * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
@@ -17,7 +17,7 @@ import type {
  *
  * @example
  * ```tsx
- * import { useFigmaTokenContext } from '@figma-vars/hooks';
+ * import { useFigmaTokenContext } from '@figmavars/hooks';
  *
  * function TokenStatus() {
  *   const { token, fileKey } = useFigmaTokenContext();
@@ -79,7 +79,7 @@ export interface FigmaTokenContextType {
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figma-vars/hooks';
+ * import { FigmaVarsProvider } from '@figmavars/hooks';
  *
  * // At the root of your app:
  * <FigmaVarsProvider token={myToken} fileKey={myFileKey}>

@@ -1,5 +1,5 @@
 {
-  "name": "@figma-vars/cli",
+  "name": "@figmavars/cli",
   "version": "5.0.0",
   "description": "The FigmaVars CLI: export Figma variables, build a DTCG design token pipeline, diff token changes, and validate output.",
   "author": "Mark Learst",
@@ -11,14 +11,6 @@
   "files": [
     "dist"
   ],
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
-    }
-  },
   "keywords": [
     "figma",
     "figma variables",
@@ -30,13 +22,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "url": "git+https://github.com/marklearst/figmavars.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+    "url": "https://github.com/marklearst/figmavars/issues"
   },
-  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -56,8 +48,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figma-vars/core": "workspace:*",
-    "@figma-vars/dtcg": "workspace:*"
+    "@figmavars/core": "workspace:*",
+    "@figmavars/dtcg": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

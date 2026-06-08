@@ -1,0 +1,80 @@
+---
+title: Local Token Hooks
+description: Use built DTCG artifacts in React without the Figma API.
+---
+
+Generate artifacts once:
+
+```bash
+npx @figmavars/cli build variables.json
+```
+
+Then wire them into your app.
+
+## Setup
+
+```tsx
+import { TokensProvider, useToken, useTokens, useTheme } from '@figmavars/hooks'
+import primitives from './design-tokens/tokens/primitives.tokens.json'
+import semantic from './design-tokens/tokens/semantic.tokens.json'
+import semanticDark from './design-tokens/tokens/semantic.dark.tokens.json'
+import resolver from './design-tokens/tokens/tokens.resolver.json'
+
+export function App() {
+  return (
+    <TokensProvider
+      tokens={{
+        'primitives.tokens.json': primitives,
+        'semantic.tokens.json': semantic,
+        'semantic.dark.tokens.json': semanticDark,
+      }}
+      resolver={resolver}>
+      <Toolbar />
+    </TokensProvider>
+  )
+}
+```
+
+## useToken
+
+```tsx
+function BrandButton() {
+  const brand = useToken('semantic.color.bg.brand')
+  // brand.value  -> resolved DTCG value under active contexts
+  // brand.css    -> '#3366ff'
+  // brand.cssVar -> 'var(--semantic-color-bg-brand)'
+
+  return <button style={{ background: brand.css ?? undefined }}>Brand</button>
+}
+```
+
+Paths use dot notation matching the flattened token tree.
+
+## useTheme
+
+Switch resolver contexts when the user changes theme or density:
+
+```tsx
+function ThemeToggle() {
+  const { contexts, availableContexts, setContext } = useTheme()
+
+  return (
+    <button
+      onClick={() =>
+        setContext('semantic', contexts.semantic === 'dark' ? 'light' : 'dark')
+      }>
+      Theme: {contexts.semantic}
+    </button>
+  )
+}
+```
+
+A Figma collection "Theme" with Light/Dark modes maps to `setContext('theme', 'dark')`.
+
+## useTokens
+
+Returns every flattened token with resolved values. Useful for debug panels or design system documentation inside your app.
+
+## SSR
+
+No network calls. Safe for SSR and static export as long as JSON imports are available at build time.

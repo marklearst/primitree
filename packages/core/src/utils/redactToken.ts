@@ -12,7 +12,7 @@
  *
  * @example
  * ```ts
- * import { redactToken } from '@figma-vars/hooks/utils';
+ * import { redactToken } from '@figmavars/hooks/utils';
  *
  * console.log(redactToken('figd_abc123xyz789def456'));
  * // Output: 'figd_***...***456'

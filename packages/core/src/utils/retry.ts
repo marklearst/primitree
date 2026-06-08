@@ -52,7 +52,7 @@ export interface RetryOptions {
  *
  * @example
  * ```ts
- * import { withRetry, fetcher } from '@figma-vars/hooks';
+ * import { withRetry, fetcher } from '@figmavars/hooks';
  *
  * const fetchWithRetry = withRetry(
  *   () => fetcher(url, token),

@@ -1,0 +1,44 @@
+---
+title: DTCG 2025.10
+description: How FigmaVars maps Figma variables to Design Tokens Community Group format.
+---
+
+FigmaVars emits [DTCG 2025.10](https://www.designtokens.org) documents. That is the stable spec Style Dictionary, Terrazzo, and modern tooling expect.
+
+## Mapping rules
+
+| Figma              | DTCG                                       |
+| ------------------ | ------------------------------------------ |
+| Collection         | Token file (e.g. `primitives.tokens.json`) |
+| Variable name path | Nested token keys                          |
+| Alias              | `{reference.path}`                         |
+| COLOR              | `$type: color`                             |
+| FLOAT              | `$type: dimension` or inferred type        |
+| STRING             | `$type` inferred from name/value           |
+
+## Extensions
+
+Figma-specific metadata is preserved under `$extensions`:
+
+- Variable ID (for diffing)
+- Scopes
+- Code syntax hints
+- Collection ID
+
+That keeps exports traceable back to Figma and enables ID-based diffs.
+
+## Multiple modes
+
+A collection's default mode lives in the main file. Additional Figma modes become sibling files:
+
+```
+semantic.tokens.json       # Light (default)
+semantic.dark.tokens.json  # Dark mode
+```
+
+The [Resolver](/docs/concepts/resolver) ties them together at runtime.
+
+## Further reading
+
+- [Pipeline output](/docs/getting-started/pipeline-output)
+- `@figmavars/dtcg` package on npm for programmatic conversion

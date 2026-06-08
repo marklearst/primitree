@@ -221,7 +221,7 @@ function normalizeVariable(
  *
  * @example
  * ```ts
- * import { normalizeVariables } from '@figma-vars/core'
+ * import { normalizeVariables } from '@figmavars/core'
  * import { readFileSync } from 'node:fs'
  *
  * const normalized = normalizeVariables(readFileSync('variables.json', 'utf8'))

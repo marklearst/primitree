@@ -12,9 +12,7 @@ import type {
  * @public
  */
 export type AliasResolutionErrorCode =
-  | 'CYCLE'
-  | 'MISSING_TARGET'
-  | 'MISSING_VALUE'
+  'CYCLE' | 'MISSING_TARGET' | 'MISSING_VALUE'
 
 /**
  * Error thrown when a variable's alias chain cannot be resolved to a

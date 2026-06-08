@@ -1,4 +1,4 @@
-import { buildPipeline, type BuildPipelineOptions } from '@figma-vars/dtcg'
+import { buildPipeline, type BuildPipelineOptions } from '@figmavars/dtcg'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile, writePipelineFiles } from '../io'
 

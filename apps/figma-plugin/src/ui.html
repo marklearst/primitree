@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>FigmaVars Export</title>
+    <!-- UI_STYLES -->
+  </head>
+  <body>
+    <main class="shell">
+      <header class="head">
+        <p class="kicker">FigmaVars</p>
+        <h1>Export variables</h1>
+        <p class="lede">
+          Full local export for <code>figma-vars build</code>. Works on any
+          Figma plan.
+        </p>
+      </header>
+
+      <p
+        class="file"
+        id="file-name">
+        …
+      </p>
+
+      <label class="check">
+        <input
+          type="checkbox"
+          id="exclude-hidden" />
+        Skip variables hidden from publishing
+      </label>
+
+      <button
+        type="button"
+        class="primary"
+        id="export-btn">
+        Export JSON
+      </button>
+
+      <div
+        class="stats announcer"
+        id="stats"
+        role="status"
+        aria-atomic="true"></div>
+
+      <div
+        class="actions hidden"
+        id="actions">
+        <button
+          type="button"
+          class="ghost"
+          id="download-btn">
+          Download
+        </button>
+        <button
+          type="button"
+          class="ghost"
+          id="copy-btn">
+          Copy
+        </button>
+      </div>
+
+      <p
+        class="error announcer"
+        id="error"
+        role="alert"
+        aria-atomic="true"></p>
+
+      <footer class="foot">
+        <a
+          href="https://figmavars.com/docs/getting-started"
+          target="_blank"
+          rel="noreferrer">
+          Docs
+        </a>
+        <span>·</span>
+        <a
+          href="https://figmavars.com/docs/cli/build"
+          target="_blank"
+          rel="noreferrer">
+          figma-vars build
+        </a>
+      </footer>
+    </main>
+    <!-- UI_SCRIPT -->
+  </body>
+</html>

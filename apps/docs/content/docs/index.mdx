@@ -1,0 +1,59 @@
+---
+title: Introduction
+description: FigmaVars turns a Figma variables export into a production design token pipeline.
+---
+
+FigmaVars is a local-first toolkit for design tokens. Export `variables.json` from Figma on any plan, run one CLI command, and commit a full pipeline: DTCG 2025.10 files, a Resolver for modes, CSS, Tailwind v4, TypeScript, CI, semantic diffs, React hooks, and an MCP server.
+
+## Why this exists
+
+Figma's Variables REST API is Enterprise-only. Most teams still get tokens out through plugin exports or Dev Mode. Those JSON files are useful, but they are not what your app imports.
+
+FigmaVars closes that gap without a hosted converter or a drag-and-drop-only workflow.
+
+## Quick start
+
+```bash
+npx @figmavars/cli build variables.json
+```
+
+That writes a `design-tokens/` directory you can commit. See [Getting started](/docs/getting-started) for the full walkthrough.
+
+## Packages
+
+| Package            | Purpose                                       |
+| ------------------ | --------------------------------------------- |
+| `@figmavars/cli`   | Build, diff, check, init, export              |
+| `@figmavars/dtcg`  | Figma JSON to DTCG + CSS/Tailwind/TS emitters |
+| `@figmavars/core`  | Normalizer, alias resolution, semantic diff   |
+| `@figmavars/hooks` | React hooks for built tokens or live API      |
+| `@figmavars/mcp`   | MCP server for editors and agents             |
+
+## What you get
+
+<Cards>
+  <Card
+    title='Getting started'
+    href='/docs/getting-started'
+    description='Install, export, build, commit'
+  />
+  <Card
+    title='CLI reference'
+    href='/docs/cli'
+    description='Every command and flag'
+  />
+  <Card
+    title='React hooks'
+    href='/docs/hooks'
+    description='Local tokens on any plan'
+  />
+  <Card
+    title='MCP server'
+    href='/docs/mcp'
+    description='Query tokens from your IDE'
+  />
+</Cards>
+
+## Playground
+
+Want to preview output before installing anything? The [playground](/docs/playground) runs in the browser. Read the docs first. Use the playground when you want a zip without touching your terminal.

@@ -10,14 +10,14 @@ Please be respectful and inclusive. Harassment, discrimination, or inappropriate
 
 This is a pnpm + Turborepo monorepo:
 
-| Path              | Package                                                                 |
-| ----------------- | ----------------------------------------------------------------------- |
-| `packages/core`   | `@figma-vars/core` — normalizer, alias resolution, diffing, REST client |
-| `packages/dtcg`   | `@figma-vars/dtcg` — Figma JSON → DTCG 2025.10 + Resolver, emitters     |
-| `packages/cli`    | `@figma-vars/cli` — `figma-vars build/diff/check/init/export`           |
-| `packages/hooks`  | `@figma-vars/hooks` — React hooks (local tokens + live API)             |
-| `packages/mcp`    | `@figma-vars/mcp` — MCP server for AI agents                            |
-| `apps/playground` | Client-side playground app                                              |
+| Path              | Package                                                                |
+| ----------------- | ---------------------------------------------------------------------- |
+| `packages/core`   | `@figmavars/core` — normalizer, alias resolution, diffing, REST client |
+| `packages/dtcg`   | `@figmavars/dtcg` — Figma JSON → DTCG 2025.10 + Resolver, emitters     |
+| `packages/cli`    | `@figmavars/cli` — `figma-vars build/diff/check/init/export`           |
+| `packages/hooks`  | `@figmavars/hooks` — React hooks (local tokens + live API)             |
+| `packages/mcp`    | `@figmavars/mcp` — MCP server for AI agents                            |
+| `apps/playground` | Client-side playground app                                             |
 
 ## Getting started
 
@@ -33,14 +33,14 @@ pnpm lint           # biome format
 Work on a single package:
 
 ```bash
-pnpm --filter @figma-vars/dtcg test:watch
-pnpm --filter figma-vars-playground dev
+pnpm --filter @figmavars/dtcg test:watch
+pnpm --filter figmavars-playground dev
 ```
 
 ## Making changes
 
 - Follow the existing code style (Biome/Prettier are wired into pre-commit).
-- Add or update tests — every package has a `tests/` folder; the dtcg package uses golden files (`UPDATE_GOLDENS=1 pnpm --filter @figma-vars/dtcg test` to refresh them intentionally).
+- Add or update tests — every package has a `tests/` folder; the dtcg package uses golden files (`UPDATE_GOLDENS=1 pnpm --filter @figmavars/dtcg test` to refresh them intentionally).
 - Update the relevant package README for user-facing changes, and `packages/hooks/CHANGELOG.md` for anything released.
 
 ## Commit and PR guidelines

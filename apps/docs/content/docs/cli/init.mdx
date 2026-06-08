@@ -1,0 +1,29 @@
+---
+title: figma-vars init
+description: Scaffold a new design tokens repository with sample data or your own export.
+---
+
+```bash
+figma-vars init [directory] [options]
+```
+
+## Usage
+
+```bash
+figma-vars init my-design-tokens
+figma-vars init . --from ./variables.json
+```
+
+Creates:
+
+- `variables.json` (sample or copied from `--from`)
+- optional initial `figma-vars build` output when `--build` is passed
+
+## Options
+
+| Option          | Description                                  |
+| --------------- | -------------------------------------------- |
+| `--from <file>` | Seed with your export instead of sample data |
+| `--build`       | Run build immediately after scaffold         |
+
+Good starting point for a dedicated tokens repo or a `packages/tokens` workspace in a monorepo.

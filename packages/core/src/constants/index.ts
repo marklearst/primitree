@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Constants and error messages used across the @figma-vars/hooks library.
+ * Constants and error messages used across the @figmavars/hooks library.
  *
  * @remarks
  * Includes base URLs for the Figma API, endpoint builders, HTTP content types, header keys, and consistent error message strings for various failure scenarios.

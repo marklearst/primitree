@@ -493,8 +493,12 @@ describe('mutator', () => {
         status: 429,
         headers: {
           get: (name: string) => {
-            if (name === 'content-type') return 'application/json'
-            if (name === 'Retry-After') return '60'
+            if (name === 'content-type') {
+              return 'application/json'
+            }
+            if (name === 'Retry-After') {
+              return '60'
+            }
             return null
           },
         },
@@ -518,8 +522,12 @@ describe('mutator', () => {
         status: 429,
         headers: {
           get: (name: string) => {
-            if (name === 'content-type') return 'application/json'
-            if (name === 'Retry-After') return 'invalid'
+            if (name === 'content-type') {
+              return 'application/json'
+            }
+            if (name === 'Retry-After') {
+              return 'invalid'
+            }
             return null
           },
         },
@@ -535,8 +543,12 @@ describe('mutator', () => {
         status: 404,
         headers: {
           get: (name: string) => {
-            if (name === 'content-type') return 'application/json'
-            if (name === 'Retry-After') return '60'
+            if (name === 'content-type') {
+              return 'application/json'
+            }
+            if (name === 'Retry-After') {
+              return '60'
+            }
             return null
           },
         },

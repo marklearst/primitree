@@ -1,5 +1,5 @@
 {
-  "name": "@figma-vars/mcp",
+  "name": "@figmavars/mcp",
   "version": "5.0.0",
   "description": "MCP server that makes your design tokens AI-legible: list, get, resolve, search, and diff Figma variables / DTCG tokens from any MCP client.",
   "author": "Mark Learst",
@@ -30,13 +30,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "url": "git+https://github.com/marklearst/figmavars.git",
     "directory": "packages/mcp"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+    "url": "https://github.com/marklearst/figmavars/issues"
   },
-  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -56,8 +56,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figma-vars/core": "workspace:*",
-    "@figma-vars/dtcg": "workspace:*",
+    "@figmavars/core": "workspace:*",
+    "@figmavars/dtcg": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },

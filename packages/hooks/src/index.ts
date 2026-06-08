@@ -1,14 +1,14 @@
 /**
  * @packageDocumentation
  *
- * Entry point for **@figma-vars/hooks** — a modern, idiomatic React hooks library for Figma Variables via the REST API.
+ * Entry point for **@figmavars/hooks** — a modern, idiomatic React hooks library for Figma Variables via the REST API.
  *
  * @remarks
  * Exposes all providers, hooks, utilities, and types needed to build robust Figma variable dashboards, plugins, and design system tools.
  * Each export group below has its own summary and real-world usage example for rapid onboarding and type-safe integration.
  *
  * MIT Licensed. Author: Mark Learst.
- * Docs: {@link https://github.com/marklearst/figma-vars-hooks}
+ * Docs: {@link https://github.com/marklearst/figmavars}
  */
 
 /**
@@ -20,7 +20,7 @@
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figma-vars/hooks';
+ * import { FigmaVarsProvider } from '@figmavars/hooks';
  *
  * function App() {
  *   return (
@@ -45,7 +45,7 @@ export { FigmaVarsProvider } from './contexts'
  *
  * @example
  * ```tsx
- * import { useVariables, useCreateVariable } from '@figma-vars/hooks';
+ * import { useVariables, useCreateVariable } from '@figmavars/hooks';
  *
  * function Example() {
  *   const { data, isLoading } = useVariables();
@@ -80,7 +80,7 @@ export {
  *
  * @example
  * ```tsx
- * import { TokensProvider, useToken, useTheme } from '@figma-vars/hooks';
+ * import { TokensProvider, useToken, useTheme } from '@figmavars/hooks';
  *
  * function Brand() {
  *   const brand = useToken('semantic.color.bg.brand');
@@ -112,7 +112,7 @@ export type {
  *
  * @example
  * ```tsx
- * import { useFigmaTokenContext } from '@figma-vars/hooks';
+ * import { useFigmaTokenContext } from '@figmavars/hooks';
  * const { token, fileKey } = useFigmaTokenContext();
  * ```
  */
@@ -126,7 +126,7 @@ export { useFigmaTokenContext } from './contexts'
  *
  * @example
  * ```ts
- * import { filterVariables, isFigmaApiError, getErrorStatus } from '@figma-vars/hooks';
+ * import { filterVariables, isFigmaApiError, getErrorStatus } from '@figmavars/hooks';
  * const filtered = filterVariables(variables, { resolvedType: 'COLOR' });
  *
  * // Error handling
@@ -158,7 +158,7 @@ export {
  *
  * @example
  * ```ts
- * import type { FigmaVariable, CreateVariablePayload } from '@figma-vars/hooks';
+ * import type { FigmaVariable, CreateVariablePayload } from '@figmavars/hooks';
  * ```
  */
 export * from './types'

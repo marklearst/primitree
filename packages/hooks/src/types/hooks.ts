@@ -1,4 +1,4 @@
-import type { VariableMode, UpdateVariablePayload } from '@figma-vars/core'
+import type { VariableMode, UpdateVariablePayload } from '@figmavars/core'
 
 /**
  * Arguments for updating a Figma variable via the useUpdateVariable hook.
@@ -11,7 +11,7 @@ import type { VariableMode, UpdateVariablePayload } from '@figma-vars/core'
  *
  * @example
  * ```ts
- * import type { UpdateVariableArgs } from '@figma-vars/hooks';
+ * import type { UpdateVariableArgs } from '@figmavars/hooks';
  *
  * const args: UpdateVariableArgs = {
  *   variableId: 'VariableID:123:456',
@@ -41,7 +41,7 @@ export interface UpdateVariableArgs {
  *
  * @example
  * ```ts
- * import { useVariableModes } from '@figma-vars/hooks';
+ * import { useVariableModes } from '@figmavars/hooks';
  *
  * function ThemeSwitcher() {
  *   const { modes, modesById } = useVariableModes();

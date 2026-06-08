@@ -1,7 +1,7 @@
 {
-  "name": "figma-vars",
+  "name": "figmavars",
   "private": true,
-  "description": "FigmaVars — turn a Figma variables export into a production design token pipeline. Monorepo for @figma-vars/* packages.",
+  "description": "FigmaVars — turn a Figma variables export into a production design token pipeline. Monorepo for @figmavars/* packages.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
@@ -11,13 +11,17 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "node --test scripts/check-release.test.mjs && turbo run test",
     "test:coverage": "turbo run test:coverage",
+    "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",
-    "lint": "biome format --write .",
+    "lint": "biome lint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:release": "turbo run build check:publint check:attw check:size",
+    "check:release-metadata": "node scripts/check-release.mjs",
+    "check:publint": "publint packages/core && publint packages/dtcg && publint packages/cli && publint packages/hooks && publint packages/mcp",
+    "check:attw": "attw --pack packages/core --profile node16 && attw --pack packages/dtcg && attw --pack packages/hooks && attw --pack packages/mcp --profile esm-only",
+    "check:release": "pnpm run build && pnpm run check:release-metadata && pnpm run check:publint && pnpm run check:attw && pnpm --filter @figmavars/hooks run check:size",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -26,10 +30,12 @@
     ]
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.4",
     "@biomejs/biome": "^2.5.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
+    "publint": "^0.3.21",
     "turbo": "^2.10.3"
   }
 }

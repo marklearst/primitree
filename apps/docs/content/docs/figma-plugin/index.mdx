@@ -1,0 +1,75 @@
+---
+title: Figma Plugin
+description: Official FigmaVars plugin to export all local variables on any Figma plan.
+---
+
+The **FigmaVars Export** plugin reads every local variable collection in the current file and downloads `variables.json` in the format `figma-vars build` expects.
+
+Works on **any Figma plan**. No Enterprise REST API. No third-party exporter.
+
+## Install (development)
+
+From the monorepo:
+
+```bash
+pnpm --filter figmavars-plugin build
+```
+
+In Figma desktop:
+
+1. Plugins → Development → **Import plugin from manifest**
+2. Select `apps/figma-plugin/dist/manifest.json`
+3. Run **FigmaVars Export** on a file with variables
+
+## What it exports
+
+Full local variables via the Plugin API:
+
+```ts
+figma.variables.getLocalVariableCollectionsAsync()
+figma.variables.getLocalVariablesAsync()
+```
+
+Output matches the REST local variables response shape:
+
+```json
+{
+  "status": 200,
+  "error": false,
+  "meta": {
+    "variableCollections": { ... },
+    "variables": { ... }
+  }
+}
+```
+
+Aliases stay as `{ "type": "VARIABLE_ALIAS", "id": "..." }`. Modes, scopes, and code syntax are preserved.
+
+## After export
+
+```bash
+figma-vars build variables.json
+figma-vars check design-tokens
+git add variables.json design-tokens/
+```
+
+Or use the [playground](/playground) to preview before installing the CLI.
+
+## Options
+
+- **Skip variables hidden from publishing** — omits variables with Figma's "Hide from publishing" flag
+
+## Library variables
+
+v1 exports **local** variables in the open file. Team library collections must be enabled in the file UI; remote library-only tokens are not merged automatically. Local remotes (imported library variables used in-file) export with the rest.
+
+## Monorepo layout
+
+| Path                     | Role                                 |
+| ------------------------ | ------------------------------------ |
+| `apps/figma-plugin`      | Figma UI + sandbox code              |
+| `packages/plugin-export` | REST-shaped serializer (unit tested) |
+
+## Figma MCP vs FigmaVars MCP
+
+See [Figma MCP vs FigmaVars](/docs/concepts/figma-mcp) for how this plugin fits with Figma's selection-based MCP and your repo-side `@figmavars/mcp` server.

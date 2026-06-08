@@ -55,7 +55,7 @@ export interface MutatorOptions {
  *
  * @example
  * ```ts
- * import { mutator } from '@figma-vars/hooks/api';
+ * import { mutator } from '@figmavars/core';
  *
  * async function updateVariable(fileKey: string, token: string, variableId: string) {
  *   const url = `https://api.figma.com/v1/files/${fileKey}/variables`;
@@ -92,17 +92,15 @@ export async function mutator<TResponse = unknown>(
   // Create timeout signal if timeout is provided and no signal is provided
   // Note: If both providedSignal and timeout are provided, providedSignal takes precedence
   let timeoutId: ReturnType<typeof setTimeout> | undefined
-  let timeoutAbortController: AbortController | undefined
+  let signal = providedSignal
 
-  const signal =
-    providedSignal ||
-    (timeout
-      ? ((timeoutAbortController = new AbortController()),
-        (timeoutId = setTimeout(() => {
-          timeoutAbortController?.abort()
-        }, timeout)),
-        timeoutAbortController.signal)
-      : undefined)
+  if (!signal && timeout) {
+    const timeoutAbortController = new AbortController()
+    timeoutId = setTimeout(() => {
+      timeoutAbortController.abort()
+    }, timeout)
+    signal = timeoutAbortController.signal
+  }
 
   try {
     const methodMap: Record<VariableAction, 'POST' | 'PUT' | 'DELETE'> = {

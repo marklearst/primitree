@@ -1,0 +1,13 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "getting-started",
+    "figma-plugin",
+    "cli",
+    "hooks",
+    "mcp",
+    "concepts",
+    "playground"
+  ]
+}

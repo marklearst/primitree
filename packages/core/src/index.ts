@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
  *
- * Entry point for **@figma-vars/core** — the framework-agnostic foundation of the
+ * Entry point for **@figmavars/core** — the framework-agnostic foundation of the
  * FigmaVars toolchain.
  *
  * @remarks
@@ -12,7 +12,7 @@
  *
  * @example
  * ```ts
- * import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT } from '@figma-vars/core'
+ * import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT } from '@figmavars/core'
  *
  * const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
  * ```

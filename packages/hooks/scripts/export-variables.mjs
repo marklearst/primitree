@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import fs from 'fs/promises'
-import path from 'path'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
 const FIGMA_TOKEN = process.env.FIGMA_TOKEN || process.env.FIGMA_PAT
 
@@ -31,7 +31,7 @@ Environment Variables:
 
 Examples:
   # Using npx (no install needed)
-  FIGMA_TOKEN=xxx npx figma-vars-export --file-key abc123 --out ./variables.json
+  FIGMA_TOKEN=xxx npx --package @figmavars/hooks figma-vars-export --file-key abc123 --out ./variables.json
 
   # After installing the package
   FIGMA_TOKEN=xxx figma-vars-export --file-key abc123 --out ./variables.json

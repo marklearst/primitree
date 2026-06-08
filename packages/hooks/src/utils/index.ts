@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Barrel file for stateless utility functions in @figma-vars/hooks.
+ * Barrel file for stateless utility functions in @figmavars/hooks.
  *
  * @summary
  * Provides centralized exports of utility functions for manipulating and querying Figma variables and design tokens.
@@ -11,15 +11,15 @@
  *
  * @example
  * ```ts
- * import { filterVariables, isFigmaApiError } from '@figma-vars/hooks/utils';
+ * import { filterVariables, isFigmaApiError } from '@figmavars/hooks/utils';
  *
  * const filtered = filterVariables(allVariables, { resolvedType: 'COLOR' });
  * ```
  *
  * @public
  */
-export { filterVariables } from '@figma-vars/core'
-export type { FilterVariablesCriteria } from '@figma-vars/core'
+export { filterVariables } from '@figmavars/core'
+export type { FilterVariablesCriteria } from '@figmavars/core'
 export {
   isFigmaApiError,
   getErrorStatus,
@@ -27,13 +27,13 @@ export {
   hasErrorStatus,
   isRateLimited,
   getRetryAfter,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 export {
   isLocalVariablesResponse,
   isPublishedVariablesResponse,
   validateFallbackData,
-} from '@figma-vars/core'
-export { redactToken } from '@figma-vars/core'
-export type { RedactTokenOptions } from '@figma-vars/core'
-export { withRetry } from '@figma-vars/core'
-export type { RetryOptions } from '@figma-vars/core'
+} from '@figmavars/core'
+export { redactToken } from '@figmavars/core'
+export type { RedactTokenOptions } from '@figmavars/core'
+export { withRetry } from '@figmavars/core'
+export type { RetryOptions } from '@figmavars/core'

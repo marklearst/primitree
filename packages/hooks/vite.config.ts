@@ -23,7 +23,7 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         core: resolve(__dirname, 'src/core/index.ts'),
       },
-      name: '@figma-vars/hooks',
+      name: '@figmavars/hooks',
       fileName: (format, entryName) =>
         `${entryName}.${format === 'es' ? 'mjs' : 'cjs'}`,
       formats: ['es', 'cjs'],
@@ -34,8 +34,8 @@ export default defineConfig({
         'react-dom',
         'react/jsx-runtime',
         'swr',
-        /^@figma-vars\/core/,
-        /^@figma-vars\/dtcg/,
+        /^@figmavars\/core/,
+        /^@figmavars\/dtcg/,
       ],
       output: {
         globals: {

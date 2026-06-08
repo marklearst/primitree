@@ -1,0 +1,13 @@
+{
+  "name": "FigmaVars Export",
+  "id": "figmavars-export",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "documentAccess": "dynamic-page",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "reasoning": "v1 exports download locally. No network calls."
+  }
+}

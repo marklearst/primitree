@@ -56,7 +56,7 @@ export interface FetcherOptions {
  *
  * @example
  * ```ts
- * import { fetcher } from '@figma-vars/hooks/api';
+ * import { fetcher } from '@figmavars/core';
  *
  * async function loadVariables(fileKey: string, token: string) {
  *   const url = `https://api.figma.com/v1/files/${fileKey}/variables`;
@@ -92,17 +92,15 @@ export async function fetcher<TResponse = unknown>(
   // Create timeout signal if timeout is provided and no signal is provided
   // Note: If both providedSignal and timeout are provided, providedSignal takes precedence
   let timeoutId: ReturnType<typeof setTimeout> | undefined
-  let timeoutAbortController: AbortController | undefined
+  let signal = providedSignal
 
-  const signal =
-    providedSignal ||
-    (timeout
-      ? ((timeoutAbortController = new AbortController()),
-        (timeoutId = setTimeout(() => {
-          timeoutAbortController?.abort()
-        }, timeout)),
-        timeoutAbortController.signal)
-      : undefined)
+  if (!signal && timeout) {
+    const timeoutAbortController = new AbortController()
+    timeoutId = setTimeout(() => {
+      timeoutAbortController.abort()
+    }, timeout)
+    signal = timeoutAbortController.signal
+  }
 
   try {
     const requestUrl =

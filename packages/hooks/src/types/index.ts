@@ -1,7 +1,7 @@
 /****
  * @packageDocumentation
  *
- * OSS barrel file for all public types and interfaces in @figma-vars/hooks.
+ * OSS barrel file for all public types and interfaces in @figmavars/hooks.
  *
  * @remarks
  * This module re-exports all Figma domain types (variables, collections, modes, API response models), mutation argument/result types, and all context/provider types for robust type-safe integration. Import types directly from this barrel for application code, plugins, API adapters, or custom UI tooling. All official Figma variable, mutation, and provider types are available from this entry point—see below for usage.
@@ -16,7 +16,7 @@
  *   UpdateVariableArgs,
  *   FigmaVarsProviderProps,
  *   MutationResult,
- * } from '@figma-vars/hooks';
+ * } from '@figmavars/hooks';
  *
  * // Use for type-safe props, mutation payloads, and UI mapping:
  * function MyFeature(props: { variable: FigmaVariable; onUpdate: (args: UpdateVariableArgs) => void }) {
@@ -24,6 +24,6 @@
  * }
  * ```
  */
-export * from '@figma-vars/core/types'
+export * from '@figmavars/core/types'
 export * from './hooks'
 export * from './contexts'

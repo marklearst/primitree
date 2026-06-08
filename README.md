@@ -4,9 +4,9 @@
 
 **Drop in your Figma variables. Leave with a production design-token pipeline.**
 
-[![CI](https://github.com/marklearst/figma-vars-hooks/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/figma-vars-hooks/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/%40figma-vars%2Fcli?label=%40figma-vars%2Fcli)](https://www.npmjs.com/package/@figma-vars/cli)
-[![npm](https://img.shields.io/npm/v/%40figma-vars%2Fhooks?label=%40figma-vars%2Fhooks)](https://www.npmjs.com/package/@figma-vars/hooks)
+[![CI](https://github.com/marklearst/figmavars/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/figmavars/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/%40figmavars%2Fcli?label=%40figmavars%2Fcli)](https://www.npmjs.com/package/@figmavars/cli)
+[![npm](https://img.shields.io/npm/v/%40figmavars%2Fhooks?label=%40figmavars%2Fhooks)](https://www.npmjs.com/package/@figmavars/hooks)
 [![DTCG](https://img.shields.io/badge/DTCG-2025.10-7b8cff)](https://www.designtokens.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -19,7 +19,7 @@ Figma's Variables REST API is Enterprise-only. Your design tokens shouldn't be.
 FigmaVars takes the **variables JSON anyone can export on any Figma plan** (via a plugin like TokensBrücke, a Dev Mode export, or `figma-vars export` on Enterprise) and turns it into everything your codebase actually needs:
 
 ```sh
-npx @figma-vars/cli build variables.json
+npx @figmavars/cli build variables.json
 ```
 
 ```
@@ -40,23 +40,24 @@ design-tokens/
 
 Aliases survive as DTCG `{references}`. Figma modes become standard Resolver contexts (`light`/`dark`, `compact`/`comfortable`). Figma metadata (variable ids, scopes, code syntax) is preserved under `$extensions` — so the pipeline is round-trippable and diffable.
 
-## Try it without installing anything
+## Documentation
 
-The **[playground](apps/playground)** runs 100% client-side: drag in a `variables.json`, preview every collection, mode, and color, then download the whole pipeline as a zip. Your tokens never leave the browser tab.
+**[Read the docs](apps/docs)** first. Every command, package, output file, and hook is documented there.
 
 ```sh
-pnpm --filter figma-vars-playground dev
+pnpm --filter figmavars-docs dev   # site + docs + playground at localhost:3000
 ```
 
 ## The toolkit
 
-| Package                               | What it does                                                                                                                           |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@figma-vars/cli`](packages/cli)     | `build` a pipeline, `diff` two exports semantically, `check` exports and built tokens, `init` a tokens repo, `export` via the REST API |
-| [`@figma-vars/dtcg`](packages/dtcg)   | Pure functions: Figma JSON → DTCG 2025.10 + Resolver, CSS/Tailwind/TypeScript emitters, context resolution                             |
-| [`@figma-vars/core`](packages/core)   | Normalizer for every variables JSON shape, alias-graph resolution, semantic diffing, typed REST client                                 |
-| [`@figma-vars/hooks`](packages/hooks) | React hooks: consume built tokens on any plan (`useToken`, `useTheme`) or manage variables live via the REST API                       |
-| [`@figma-vars/mcp`](packages/mcp)     | MCP server so AI agents can query your tokens: list, get, resolve, search, diff                                                        |
+| Package                                  | What it does                                                                                                                           |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@figmavars/cli`](packages/cli)         | `build` a pipeline, `diff` two exports semantically, `check` exports and built tokens, `init` a tokens repo, `export` via the REST API |
+| [`@figmavars/dtcg`](packages/dtcg)       | Pure functions: Figma JSON → DTCG 2025.10 + Resolver, CSS/Tailwind/TypeScript emitters, context resolution                             |
+| [`@figmavars/core`](packages/core)       | Normalizer for every variables JSON shape, alias-graph resolution, semantic diffing, typed REST client                                 |
+| [`@figmavars/hooks`](packages/hooks)     | React hooks: consume built tokens on any plan (`useToken`, `useTheme`) or manage variables live via the REST API                       |
+| [`@figmavars/mcp`](packages/mcp)         | MCP server so AI agents can query your tokens: list, get, resolve, search, diff                                                        |
+| [`apps/figma-plugin`](apps/figma-plugin) | Official Figma plugin: export all local variables to `variables.json` on any plan                                                      |
 
 ## Review token changes like code
 
@@ -86,7 +87,7 @@ Wire it into CI with `--fail-on-breaking` (exit code 2) and every design-token c
 The v5 hooks consume **built artifacts**, not the Enterprise API — no Personal Access Token, no network, SSR-safe:
 
 ```tsx
-import { TokensProvider, useToken, useTheme } from '@figma-vars/hooks'
+import { TokensProvider, useToken, useTheme } from '@figmavars/hooks'
 
 function Brand() {
   const brand = useToken('semantic.color.bg.brand') // { value, css, cssVar }
@@ -110,7 +111,7 @@ The live-API hooks (`useVariables`, mutations, SWR caching) are still here for E
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figma-vars/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
     }
   }
 }

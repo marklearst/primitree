@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { diffVariables, formatDiffMarkdown } from '@figma-vars/core'
+import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile } from '../io'
 

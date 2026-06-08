@@ -18,6 +18,11 @@
     },
     "globals": ["vitest", "describe", "it", "expect"]
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -36,12 +41,14 @@
     "includes": [
       "**/packages/**",
       "**/apps/**",
-      "!**/dist/**",
-      "!**/node_modules/**",
-      "!**/docs-site/**",
-      "!**/.turbo/**",
-      "!**/coverage/**",
-      "!**/tests/goldens/**"
+      "!!**/dist",
+      "!!**/node_modules",
+      "!!**/docs-site",
+      "!!**/.next",
+      "!!**/.source",
+      "!!**/.turbo",
+      "!!**/coverage",
+      "!!**/tests/goldens"
     ]
   }
 }

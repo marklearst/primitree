@@ -7,7 +7,7 @@ import {
 } from '../src/naming'
 import { colorToHex, figmaColorToDTCG } from '../src/color'
 import { inferTokenType } from '../src/inferType'
-import type { NormalizedVariable } from '@figma-vars/core'
+import type { NormalizedVariable } from '@figmavars/core'
 
 describe('slugify', () => {
   it('kebab-cases arbitrary names', () => {

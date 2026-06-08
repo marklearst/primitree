@@ -1,9 +1,9 @@
-# @figma-vars/dtcg
+# @figmavars/dtcg
 
 Convert Figma variables JSON into **DTCG 2025.10 design tokens** with a standards-compliant **Resolver** for modes — as pure functions that run in Node, browsers, and edge runtimes.
 
 ```ts
-import { toDTCG } from '@figma-vars/dtcg'
+import { toDTCG } from '@figmavars/dtcg'
 
 const { files, resolver, warnings } = toDTCG(variablesJson)
 // files:    { 'primitives.tokens.json': {...}, 'semantic.dark.tokens.json': {...}, ... }
@@ -28,20 +28,20 @@ import {
   resolveTokenValuesSafe, // same, collecting errors instead
   listContexts, // resolver -> { semantic: ['light','dark'], ... }
   listPermutations, // every context combination
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 ```
 
 ## Pipeline emitters
 
 ```ts
-import { buildPipeline, emitCss, emitTailwind, emitTypescript } from '@figma-vars/dtcg'
+import { buildPipeline, emitCss, emitTailwind, emitTypescript } from '@figmavars/dtcg'
 
 const { files } = buildPipeline(variablesJson)
 // [{ path: 'tokens/semantic.tokens.json', contents: '...' }, { path: 'css/tokens.css', ... }, ...]
 ```
 
-`buildPipeline` returns everything as in-memory files — the CLI writes them to disk, the [playground](https://github.com/marklearst/figma-vars-hooks) zips them in the browser.
+`buildPipeline` returns everything as in-memory files — the CLI writes them to disk, the [playground](https://github.com/marklearst/figmavars) zips them in the browser.
 
-Most people should use [`@figma-vars/cli`](https://www.npmjs.com/package/@figma-vars/cli) (`figma-vars build`); reach for this package when embedding the conversion in your own tools.
+Most people should use [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) (`figma-vars build`); reach for this package when embedding the conversion in your own tools.
 
 MIT © Mark Learst

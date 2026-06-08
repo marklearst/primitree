@@ -1,0 +1,52 @@
+---
+title: figma-vars diff
+description: Semantic diff between two Figma variables exports with stable ID matching.
+---
+
+```bash
+figma-vars diff <before.json> <after.json> [options]
+```
+
+## Why ID-based diffing
+
+String diffs treat a rename as delete + add. That hides breaking changes from reviewers.
+
+FigmaVars matches variables by **stable Figma IDs**, so renames show up as renames and value changes are grouped per collection and mode.
+
+## Usage
+
+```bash
+figma-vars diff backup/variables.json variables.json
+figma-vars diff old.json new.json --markdown > CHANGELOG.md
+figma-vars diff old.json new.json --fail-on-breaking
+```
+
+## Options
+
+| Option               | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `--markdown`         | Print markdown instead of plain text          |
+| `--fail-on-breaking` | Exit code 2 when renames or removals detected |
+
+## Example output
+
+```markdown
+Variables: 1 renamed, 1 value changes.
+**Breaking changes detected.**
+
+### Renamed variables (breaking)
+
+- `color/bg/brand` -> `color/bg/primary` (Semantic)
+
+| Variable         | Collection | Mode    | Before | After |
+| ---------------- | ---------- | ------- | ------ | ----- |
+| `control/height` | Density    | Compact | 32     | 28    |
+```
+
+## CI integration
+
+```yaml
+- run: figma-vars diff design-tokens/variables.json exports/variables.json --fail-on-breaking
+```
+
+See [Semantic diffing](/docs/concepts/diffing) for the matching rules.

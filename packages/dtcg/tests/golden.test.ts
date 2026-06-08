@@ -8,7 +8,7 @@ import { toDTCG } from '../src/emit'
  * committed under tests/goldens. Any change to the emitter that alters the
  * output must update the goldens intentionally:
  *
- *   UPDATE_GOLDENS=1 pnpm --filter @figma-vars/dtcg test
+ *   UPDATE_GOLDENS=1 pnpm --filter @figmavars/dtcg test
  */
 const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')

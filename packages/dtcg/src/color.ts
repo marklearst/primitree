@@ -1,4 +1,4 @@
-import type { Color } from '@figma-vars/core'
+import type { Color } from '@figmavars/core'
 import type { DTCGColorValue } from './types'
 
 function channelToHex(channel: number): string {

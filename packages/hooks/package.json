@@ -1,5 +1,5 @@
 {
-  "name": "@figma-vars/hooks",
+  "name": "@figmavars/hooks",
   "version": "5.0.0",
   "description": "Typed React hooks for Figma Variables and design tokens: consume built DTCG artifacts on any plan (useToken, useTheme), or manage variables live via the REST API.",
   "author": "Mark Learst",
@@ -17,7 +17,7 @@
   },
   "files": [
     "dist",
-    "scripts"
+    "scripts/export-variables.mjs"
   ],
   "bin": {
     "figma-vars-export": "./scripts/export-variables.mjs"
@@ -37,13 +37,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "url": "git+https://github.com/marklearst/figmavars.git",
     "directory": "packages/hooks"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+    "url": "https://github.com/marklearst/figmavars/issues"
   },
-  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -55,6 +55,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit",
     "create:docs": "npx typedoc src/index.ts --out docs-site/api",
     "check:publint": "publint",
     "check:attw": "attw --pack .",
@@ -100,8 +101,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figma-vars/core": "workspace:*",
-    "@figma-vars/dtcg": "workspace:*"
+    "@figmavars/core": "workspace:*",
+    "@figmavars/dtcg": "workspace:*"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.4",

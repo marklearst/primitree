@@ -31,7 +31,7 @@ Example MCP client config:
     "mcpServers": {
       "design-tokens": {
         "command": "npx",
-        "args": ["-y", "@figma-vars/mcp", "--tokens", "./variables.json"]
+        "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
       }
     }
   }

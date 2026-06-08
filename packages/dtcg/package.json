@@ -1,5 +1,5 @@
 {
-  "name": "@figma-vars/dtcg",
+  "name": "@figmavars/dtcg",
   "version": "5.0.0",
   "description": "Convert Figma variables JSON into DTCG 2025.10 design tokens with a standards-compliant Resolver for modes, plus token flattening and context resolution utilities.",
   "author": "Mark Learst",
@@ -37,13 +37,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "url": "git+https://github.com/marklearst/figmavars.git",
     "directory": "packages/dtcg"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+    "url": "https://github.com/marklearst/figmavars/issues"
   },
-  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -63,7 +63,7 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figma-vars/core": "workspace:*"
+    "@figmavars/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
