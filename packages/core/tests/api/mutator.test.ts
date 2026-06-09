@@ -57,19 +57,35 @@ describe('mutator', () => {
     )
   })
 
-  it('should call fetch with PUT for UPDATE action and return JSON', async () => {
+  it('uses POST for UPDATE because the request body selects the action', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      body: 'not-null', // Ensure body is truthy to pass the check
+      body: 'not-null',
       json: () => Promise.resolve({ id: '123' }),
     })
-    const result = await mutator(url, token, 'UPDATE', body)
+
+    await mutator(url, token, 'UPDATE', {
+      variables: [{ action: 'UPDATE', id: 'VariableID:1', name: 'Brand' }],
+    })
+
     expect(fetch).toHaveBeenCalledWith(
-      `${FIGMA_API_BASE_URL}${url}`,
-      expect.objectContaining({ method: 'PUT' })
+      fullUrl,
+      expect.objectContaining({ method: 'POST' })
     )
-    expect(result).toEqual({ id: '123' })
+  })
+
+  it('uses POST for DELETE because the request body selects the action', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 204, body: null })
+
+    await mutator(url, token, 'DELETE', {
+      variables: [{ action: 'DELETE', id: 'VariableID:1' }],
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      fullUrl,
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 
   it('should not prefix base URL when url is already absolute', async () => {
@@ -111,6 +127,24 @@ describe('mutator', () => {
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
       'Bad Request'
     )
+  })
+
+  it('removes the access token from API-provided error text', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: `Rejected credential ${token}` }),
+    })
+
+    const error = await mutator(url, token, 'UPDATE', {}).catch(
+      (caught: unknown) => caught
+    )
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).not.toContain(token)
   })
 
   it('should throw error with message from response', async () => {
