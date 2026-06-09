@@ -7,7 +7,10 @@ import { fetcher as apiFetcher } from '@figmavars/core'
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { useVariables } from '../../src/hooks/useVariables'
 import * as useFigmaTokenContextModule from '../../src/contexts/useFigmaTokenContext'
-import { mockLocalVariablesResponse } from '../mocks/variables'
+import {
+  mockLocalVariablesResponse,
+  mockPublishedVariablesResponse,
+} from '../mocks/variables'
 import type { ReactNode } from 'react'
 
 // Mock the useSWR hook
@@ -447,6 +450,10 @@ describe('useVariables', () => {
         fileKey: null,
         fallbackFile: mockLocalVariablesResponse,
         parsedFallbackFile: mockLocalVariablesResponse,
+        validatedFallback: {
+          kind: 'local',
+          data: mockLocalVariablesResponse,
+        },
       } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
 
     mockedUseSWR.mockReturnValue({
@@ -490,6 +497,42 @@ describe('useVariables', () => {
 
     expect(mockedUseSWR).toHaveBeenCalledWith(
       ['https://api.figma.com/v1/files/test-key/variables/local', 'test-token'],
+      expect.any(Function),
+      undefined
+    )
+
+    spy.mockRestore()
+  })
+
+  it('ignores published fallback data and retains the live key', () => {
+    const spy = vi
+      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
+      .mockReturnValue({
+        token: 'test-token',
+        fileKey: 'test-file',
+        fallbackFile: mockPublishedVariablesResponse,
+        parsedFallbackFile: mockPublishedVariablesResponse,
+        validatedFallback: {
+          kind: 'published',
+          data: mockPublishedVariablesResponse,
+        },
+        providerId: 'test-provider',
+      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
+
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => useVariables())
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      [
+        'https://api.figma.com/v1/files/test-file/variables/local',
+        'test-token',
+      ],
       expect.any(Function),
       undefined
     )

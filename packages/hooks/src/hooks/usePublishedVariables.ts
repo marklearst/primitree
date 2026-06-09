@@ -44,10 +44,12 @@ import { getPublishedVariablesKey } from '../utils/swrKeys'
  * ```
  */
 export const usePublishedVariables = () => {
-  const { token, fileKey, parsedFallbackFile, providerId, swrConfig } =
+  const { token, fileKey, validatedFallback, providerId, swrConfig } =
     useFigmaTokenContext()
 
-  const hasFallback = Boolean(parsedFallbackFile)
+  const publishedFallback =
+    validatedFallback?.kind === 'published' ? validatedFallback.data : undefined
+  const hasFallback = Boolean(publishedFallback)
 
   const key = getPublishedVariablesKey({
     fileKey,
@@ -59,9 +61,9 @@ export const usePublishedVariables = () => {
   const swrResponse = useSWR<PublishedVariablesResponse>(
     key,
     async (...args: [readonly [string, string]] | [string, string]) => {
-      // Use pre-parsed fallback file from provider (handles both string and object fallbackFile)
-      if (parsedFallbackFile) {
-        return parsedFallbackFile as PublishedVariablesResponse
+      // Use only validated published fallback data for this endpoint.
+      if (publishedFallback) {
+        return publishedFallback
       }
 
       const [u, t] = Array.isArray(args[0])

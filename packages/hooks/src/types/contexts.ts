@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { SWRConfiguration } from 'swr'
 import type {
+  ClassifiedFallbackData,
+  FallbackDataKind,
   LocalVariablesResponse,
   PublishedVariablesResponse,
 } from '@figmavars/core'
@@ -56,6 +58,11 @@ export interface FigmaTokenContextType {
   parsedFallbackFile?:
     LocalVariablesResponse | PublishedVariablesResponse | undefined
   /**
+   * Validated fallback data with its runtime response kind.
+   * @internal
+   */
+  validatedFallback?: ClassifiedFallbackData | undefined
+  /**
    * Unique identifier for this provider instance, used to avoid SWR cache collisions.
    * @internal
    */
@@ -108,6 +115,11 @@ export interface FigmaVarsProviderProps {
    * Optional fallback variable JSON file used when the API is unavailable or skipped.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
+  /**
+   * Explicit response kind for fallback data that cannot be inferred, such as
+   * an API response containing empty collection and variable maps.
+   */
+  fallbackKind?: FallbackDataKind
   /**
    * Optional SWR configuration to customize caching, revalidation, and error handling.
    * Common options: `revalidateOnFocus`, `dedupingInterval`, `errorRetryCount`, `onError`, etc.

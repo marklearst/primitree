@@ -4,7 +4,12 @@ import type {
   FigmaVarsProviderProps,
 } from '../types/contexts'
 import { FigmaTokenContext } from './FigmaTokenContext'
-import { validateFallbackData } from '@figmavars/core'
+import { classifyFallbackData } from '@figmavars/core'
+
+const INVALID_FALLBACK_WARNING =
+  '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+
+const FALLBACK_PARSE_ERROR = '[figmavars] Failed to parse fallbackFile JSON.'
 
 /**
  * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
@@ -36,6 +41,7 @@ export const FigmaVarsProvider = ({
   token,
   fileKey,
   fallbackFile,
+  fallbackKind,
   swrConfig,
 }: FigmaVarsProviderProps) => {
   // Generate a unique provider ID for this instance to avoid SWR cache collisions
@@ -47,62 +53,42 @@ export const FigmaVarsProvider = ({
 
   // Parse fallback JSON once and cache the result
   // Errors are caught and stored to prevent provider from crashing during render
-  const parsedFallbackFile = useMemo(() => {
-    if (!fallbackFile) {
+  const validatedFallback = useMemo(() => {
+    if (fallbackFile === undefined) {
       return undefined
     }
 
-    // If already parsed (object), validate structure using type guard
-    if (typeof fallbackFile === 'object') {
-      const validated = validateFallbackData(fallbackFile)
-      if (validated) {
-        return validated
-      }
-      // Invalid structure - log warning but don't crash
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          '[figmavars] fallbackFile object does not match expected Figma Variables API response structure. ' +
-            'Expected { meta: { variableCollections: {...}, variables: {...} } }'
-        )
-      }
-      return undefined
-    }
+    let parsed: unknown = fallbackFile
 
     // If string, parse JSON with error handling
     if (typeof fallbackFile === 'string') {
       try {
-        const parsed: unknown = JSON.parse(fallbackFile)
-        const validated = validateFallbackData(parsed)
-        if (validated) {
-          return validated
-        }
-        // Invalid structure - log warning but don't crash
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            '[figmavars] Parsed fallbackFile JSON does not match expected Figma Variables API response structure. ' +
-              'Expected { meta: { variableCollections: {...}, variables: {...} } }'
-          )
-        }
-        return undefined
-      } catch (error) {
+        parsed = JSON.parse(fallbackFile) as unknown
+      } catch {
         // Log error but don't crash the provider
         if (process.env.NODE_ENV !== 'production') {
-          console.error(
-            `[figmavars] Failed to parse fallbackFile JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          console.error(FALLBACK_PARSE_ERROR)
         }
         return undefined
       }
     }
 
-    return undefined
-  }, [fallbackFile])
+    const classified = classifyFallbackData(parsed, fallbackKind)
+    if (!classified && process.env.NODE_ENV !== 'production') {
+      console.warn(INVALID_FALLBACK_WARNING)
+    }
+
+    return classified
+  }, [fallbackFile, fallbackKind])
+
+  const parsedFallbackFile = validatedFallback?.data
 
   const value: FigmaTokenContextType = useMemo(() => {
     const base = {
       token,
       fileKey,
       providerId,
+      validatedFallback,
       ...(swrConfig !== undefined && { swrConfig }),
     }
 
@@ -115,7 +101,15 @@ export const FigmaVarsProvider = ({
       fallbackFile, // Keep for backward compatibility
       parsedFallbackFile, // Pre-parsed version for hooks to use
     }
-  }, [token, fileKey, fallbackFile, parsedFallbackFile, providerId, swrConfig])
+  }, [
+    token,
+    fileKey,
+    fallbackFile,
+    parsedFallbackFile,
+    providerId,
+    swrConfig,
+    validatedFallback,
+  ])
 
   return (
     <FigmaTokenContext.Provider value={value}>

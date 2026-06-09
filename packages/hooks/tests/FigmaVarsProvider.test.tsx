@@ -6,6 +6,7 @@ import {
   mockLocalVariablesResponse,
   mockPublishedVariablesResponse,
 } from './mocks/variables'
+import type { FallbackDataKind } from '@figmavars/core'
 
 const TestComponent = () => {
   const { token, fileKey } = useFigmaTokenContext()
@@ -18,11 +19,13 @@ const TestComponent = () => {
 }
 
 const FallbackTestComponent = () => {
-  const { fallbackFile, parsedFallbackFile } = useFigmaTokenContext()
+  const { fallbackFile, parsedFallbackFile, validatedFallback } =
+    useFigmaTokenContext()
   return (
     <div>
       <p>Has Fallback: {fallbackFile ? 'yes' : 'no'}</p>
       <p>Has Parsed Fallback: {parsedFallbackFile ? 'yes' : 'no'}</p>
+      <p>Validated Fallback Kind: {validatedFallback?.kind ?? 'none'}</p>
     </div>
   )
 }
@@ -164,6 +167,95 @@ describe('FigmaVarsProvider', () => {
     expect(screen.getByText('Has Parsed Fallback: yes')).toBeInTheDocument()
   })
 
+  it('accepts an empty response when fallbackKind is local', () => {
+    const emptyFallback = {
+      meta: {
+        variableCollections: {},
+        variables: {},
+      },
+    }
+
+    render(
+      <FigmaVarsProvider
+        token='test-token'
+        fileKey='test-file-key'
+        fallbackFile={emptyFallback}
+        fallbackKind='local'>
+        <FallbackTestComponent />
+      </FigmaVarsProvider>
+    )
+
+    expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
+    expect(screen.getByText('Has Parsed Fallback: yes')).toBeInTheDocument()
+    expect(
+      screen.getByText('Validated Fallback Kind: local')
+    ).toBeInTheDocument()
+  })
+
+  it('warns and leaves an untagged empty response unclassified', () => {
+    process.env.NODE_ENV = 'development'
+    const emptyFallback = {
+      meta: {
+        variableCollections: {},
+        variables: {},
+      },
+    }
+
+    render(
+      <FigmaVarsProvider
+        token='test-token'
+        fileKey='test-file-key'
+        fallbackFile={emptyFallback}>
+        <FallbackTestComponent />
+      </FigmaVarsProvider>
+    )
+
+    expect(screen.getByText('Has Parsed Fallback: no')).toBeInTheDocument()
+    expect(
+      screen.getByText('Validated Fallback Kind: none')
+    ).toBeInTheDocument()
+    expect(console.warn).toHaveBeenCalledWith(
+      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+    )
+  })
+
+  it('rejects a hostile runtime fallbackKind without logging fallback contents', () => {
+    process.env.NODE_ENV = 'development'
+    const fallbackContents = 'do-not-log-fallback-contents'
+    const localFallback = {
+      meta: {
+        variableCollections: {
+          collection: {
+            modes: [],
+            description: fallbackContents,
+          },
+        },
+        variables: {},
+      },
+    } as unknown as typeof mockLocalVariablesResponse
+
+    render(
+      <FigmaVarsProvider
+        token='test-token'
+        fileKey='test-file-key'
+        fallbackFile={localFallback}
+        fallbackKind={'unexpected' as FallbackDataKind}>
+        <FallbackTestComponent />
+      </FigmaVarsProvider>
+    )
+
+    expect(screen.getByText('Has Parsed Fallback: no')).toBeInTheDocument()
+    expect(
+      screen.getByText('Validated Fallback Kind: none')
+    ).toBeInTheDocument()
+    expect(console.warn).toHaveBeenCalledWith(
+      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+    )
+    expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
+      fallbackContents
+    )
+  })
+
   it('handles invalid JSON string gracefully without crashing', () => {
     const invalidJson = '{ invalid json }'
 
@@ -197,7 +289,7 @@ describe('FigmaVarsProvider', () => {
     )
 
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('fallbackFile object does not match expected')
+      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
     )
   })
 
@@ -215,15 +307,14 @@ describe('FigmaVarsProvider', () => {
     )
 
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Parsed fallbackFile JSON does not match expected'
-      )
+      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
     )
   })
 
-  it('logs error with error message for JSON parse error in non-production mode', () => {
+  it('logs a fixed generic error without JSON source contents for parse failures', () => {
     process.env.NODE_ENV = 'development'
-    const invalidJson = '{ invalid json }'
+    const sourceContents = 'do-not-log-json-source'
+    const invalidJson = `{ "secret": "${sourceContents}" `
 
     render(
       <FigmaVarsProvider
@@ -235,7 +326,10 @@ describe('FigmaVarsProvider', () => {
     )
 
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to parse fallbackFile JSON')
+      '[figmavars] Failed to parse fallbackFile JSON.'
+    )
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(
+      sourceContents
     )
   })
 
@@ -256,7 +350,7 @@ describe('FigmaVarsProvider', () => {
     )
 
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('Unknown error')
+      '[figmavars] Failed to parse fallbackFile JSON.'
     )
 
     // Restore original
