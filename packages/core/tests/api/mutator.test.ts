@@ -5,6 +5,7 @@ import {
   FIGMA_API_BASE_URL,
   ERROR_MSG_TOKEN_REQUIRED,
 } from '../../src/constants'
+import { FigmaApiError } from '../../src/types/figma'
 
 const mockFetch = vi.fn() as any
 global.fetch = mockFetch
@@ -65,26 +66,36 @@ describe('mutator', () => {
       json: () => Promise.resolve({ id: '123' }),
     })
 
-    await mutator(url, token, 'UPDATE', {
+    const payload = {
       variables: [{ action: 'UPDATE', id: 'VariableID:1', name: 'Brand' }],
-    })
+    }
+
+    await mutator(url, token, 'UPDATE', payload)
 
     expect(fetch).toHaveBeenCalledWith(
       fullUrl,
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
     )
   })
 
   it('uses POST for DELETE because the request body selects the action', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 204, body: null })
 
-    await mutator(url, token, 'DELETE', {
+    const payload = {
       variables: [{ action: 'DELETE', id: 'VariableID:1' }],
-    })
+    }
+
+    await mutator(url, token, 'DELETE', payload)
 
     expect(fetch).toHaveBeenCalledWith(
       fullUrl,
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
     )
   })
 
@@ -129,7 +140,7 @@ describe('mutator', () => {
     )
   })
 
-  it('removes the access token from API-provided error text', async () => {
+  it('redacts repeated access tokens while preserving JSON error text', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 400,
@@ -137,14 +148,106 @@ describe('mutator', () => {
         get: (name: string) =>
           name === 'content-type' ? 'application/json' : null,
       },
-      json: () => Promise.resolve({ err: `Rejected credential ${token}` }),
+      json: () =>
+        Promise.resolve({
+          err: `Rejected credential ${token}; echoed ${token} safely`,
+        }),
     })
 
     const error = await mutator(url, token, 'UPDATE', {}).catch(
       (caught: unknown) => caught
     )
-    expect(error).toBeInstanceOf(Error)
-    expect((error as Error).message).not.toContain(token)
+    expect(error).toBeInstanceOf(FigmaApiError)
+    expect((error as FigmaApiError).message).toBe(
+      'Rejected credential [redacted]; echoed [redacted] safely'
+    )
+    expect((error as FigmaApiError).statusCode).toBe(400)
+  })
+
+  it('redacts repeated access tokens while preserving text error text', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/plain' : null),
+      },
+      text: () =>
+        Promise.resolve(`Proxy saw ${token}, then repeated ${token} safely`),
+    })
+
+    const error = await mutator(url, token, 'UPDATE', {}).catch(
+      (caught: unknown) => caught
+    )
+    expect(error).toBeInstanceOf(FigmaApiError)
+    expect((error as FigmaApiError).message).toBe(
+      'Proxy saw [redacted], then repeated [redacted] safely'
+    )
+    expect((error as FigmaApiError).statusCode).toBe(503)
+  })
+
+  it('redacts an access token that straddles the text truncation boundary', async () => {
+    const prefix = 'x'.repeat(195)
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'text/plain' : null),
+      },
+      text: () => Promise.resolve(`${prefix}${token} remains secret`),
+    })
+
+    const error = await mutator(url, token, 'UPDATE', {}).catch(
+      (caught: unknown) => caught
+    )
+    expect(error).toBeInstanceOf(FigmaApiError)
+    expect((error as FigmaApiError).message).toBe(`${prefix}[reda...`)
+    expect((error as FigmaApiError).statusCode).toBe(502)
+  })
+
+  it('ignores a malformed err field and preserves API error metadata', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: {
+        get: (name: string) => {
+          if (name === 'content-type') return 'application/json'
+          if (name === 'Retry-After') return '17'
+          return null
+        },
+      },
+      json: () =>
+        Promise.resolve({
+          err: { credential: token },
+          message: 'Proxy rejected the request',
+        }),
+    })
+
+    const error = await mutator(url, token, 'UPDATE', {}).catch(
+      (caught: unknown) => caught
+    )
+    expect(error).toBeInstanceOf(FigmaApiError)
+    expect((error as FigmaApiError).message).toBe('Proxy rejected the request')
+    expect((error as FigmaApiError).statusCode).toBe(429)
+    expect((error as FigmaApiError).retryAfter).toBe(17)
+  })
+
+  it('falls back when the API message is a truthy non-string', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: (name: string) =>
+          name === 'content-type' ? 'application/json' : null,
+      },
+      json: () => Promise.resolve({ err: null, message: 123 }),
+    })
+
+    const error = await mutator(url, token, 'UPDATE', {}).catch(
+      (caught: unknown) => caught
+    )
+    expect(error).toBeInstanceOf(FigmaApiError)
+    expect((error as FigmaApiError).message).toBe('An API error occurred')
+    expect((error as FigmaApiError).statusCode).toBe(400)
   })
 
   it('should throw error with message from response', async () => {

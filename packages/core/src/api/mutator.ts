@@ -149,8 +149,17 @@ export async function mutator<TResponse = unknown>(
       try {
         const contentType = response.headers.get('content-type') ?? ''
         if (contentType.includes('application/json')) {
-          const errorData = await response.json()
-          errorMessage = errorData.err || errorData.message || errorMessage
+          const errorData: unknown = await response.json()
+          if (typeof errorData === 'object' && errorData !== null) {
+            const { err, message } = errorData as {
+              err?: unknown
+              message?: unknown
+            }
+            errorMessage =
+              (typeof err === 'string' && err) ||
+              (typeof message === 'string' && message) ||
+              errorMessage
+          }
         } else if (
           contentType.includes('text/plain') ||
           contentType.includes('text/html')
@@ -158,12 +167,13 @@ export async function mutator<TResponse = unknown>(
           // For text responses (e.g., 502 Bad Gateway), use the body text
           const textBody = await response.text()
           if (textBody) {
+            const redactedTextBody = textBody.replaceAll(token, '[redacted]')
             // Truncate long HTML/text responses to a reasonable length
             const maxLength = 200
             errorMessage =
-              textBody.length > maxLength
-                ? `${textBody.slice(0, maxLength)}...`
-                : textBody
+              redactedTextBody.length > maxLength
+                ? `${redactedTextBody.slice(0, maxLength)}...`
+                : redactedTextBody
           }
         }
       } catch {

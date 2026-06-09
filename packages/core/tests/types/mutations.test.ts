@@ -10,19 +10,22 @@ describe('Figma mutation payload types', () => {
   it('accepts temporary ids and extended collection fields on create', () => {
     const collection: VariableCollectionChange = {
       action: 'CREATE',
+      id: 'tempCollection',
       name: 'Theme extension',
       parentVariableCollectionId: 'VariableCollectionId:1',
       initialModeIdToParentModeIdMapping: { '1:dark': 'tempDark' },
     }
     const mode: VariableModeChange = {
       action: 'CREATE',
+      id: 'tempDark',
       name: 'Dark',
-      variableCollectionId: 'VariableCollectionId:temp',
+      variableCollectionId: 'tempCollection',
     }
     const variable: VariableChange = {
       action: 'CREATE',
+      id: 'tempBackground',
       name: 'color/bg',
-      variableCollectionId: 'VariableCollectionId:temp',
+      variableCollectionId: 'tempCollection',
       resolvedType: 'COLOR',
     }
     const removedOverride: VariableModeValue = {
@@ -35,8 +38,20 @@ describe('Figma mutation payload types', () => {
       modeId: '1:dark',
       value: { r: 1, g: 0, b: 0 },
     }
+    const rgba: VariableModeValue = {
+      variableId: 'VariableID:1',
+      modeId: '1:dark',
+      value: { r: 1, g: 0, b: 0, a: 0.5 },
+    }
 
-    expect([collection, mode, variable, removedOverride, rgb]).toHaveLength(5)
+    expect([
+      collection,
+      mode,
+      variable,
+      removedOverride,
+      rgb,
+      rgba,
+    ]).toHaveLength(6)
   })
 
   it('requires ids for update and delete actions', () => {
