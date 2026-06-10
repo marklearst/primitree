@@ -8,7 +8,7 @@ import {
 } from '@figmavars/core'
 import { figmaColorToDTCG, isFigmaColor } from './color'
 import { inferTokenType } from './inferType'
-import { toPathSegments, uniqueSlugs } from './naming'
+import { allocateUniqueSlugs, toPathSegments } from './naming'
 import type {
   DTCGDocument,
   DTCGGroup,
@@ -301,14 +301,16 @@ export function toDTCG(
   const normalized = normalizeVariables(input)
   const warnings = [...normalized.warnings]
 
-  const collectionSlugs = uniqueSlugs(normalized.collections.map(c => c.name))
-  const slugsById = new Map<string, string>()
-  for (const collection of normalized.collections) {
-    slugsById.set(
+  const collectionSlugList = allocateUniqueSlugs(
+    normalized.collections,
+    collection => collection.name
+  )
+  const slugsById = new Map(
+    normalized.collections.map((collection, index) => [
       collection.id,
-      collectionSlugs.get(collection.name) ?? 'tokens'
-    )
-  }
+      collectionSlugList[index] as string,
+    ])
+  )
 
   const ctx: EmitContext = {
     normalized,
@@ -360,17 +362,26 @@ export function toDTCG(
       continue
     }
 
-    const modeSlugs = uniqueSlugs(collection.modes.map(m => m.name))
+    const modeSlugList = allocateUniqueSlugs(
+      collection.modes,
+      mode => mode.name
+    )
+    const modeSlugsById = new Map(
+      collection.modes.map((mode, index) => [
+        mode.id,
+        modeSlugList[index] as string,
+      ])
+    )
     const contexts: ResolverModifier['contexts'] = {}
     const defaultMode = collection.modes.find(
       m => m.id === collection.defaultModeId
     )
     if (defaultMode) {
-      contexts[modeSlugs.get(defaultMode.name) ?? 'default'] = []
+      contexts[modeSlugsById.get(defaultMode.id) ?? 'default'] = []
     }
 
     for (const mode of extraModes) {
-      const modeSlug = modeSlugs.get(mode.name) ?? 'mode'
+      const modeSlug = modeSlugsById.get(mode.id) ?? 'mode'
       const modeFileName = `${slug}.${modeSlug}.tokens.json`
       const modeRoot: DTCGGroup = {}
       for (const variableId of collection.variableIds) {
@@ -396,7 +407,7 @@ export function toDTCG(
       contexts,
     }
     if (defaultMode) {
-      modifier.default = modeSlugs.get(defaultMode.name) ?? defaultMode.name
+      modifier.default = modeSlugsById.get(defaultMode.id) ?? defaultMode.name
     }
     modifiers[slug] = modifier
   }
