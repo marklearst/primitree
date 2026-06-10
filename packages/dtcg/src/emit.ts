@@ -7,6 +7,7 @@ import {
   type VariableValue,
 } from '@figmavars/core'
 import { figmaColorToDTCG, isFigmaColor } from './color'
+import { createDictionary, hasOwn } from './dictionary'
 import { inferTokenType } from './inferType'
 import { allocateUniqueSlugs, toPathSegments } from './naming'
 import type {
@@ -92,6 +93,22 @@ function buildTokenPaths(
     }
     claimed.add(key)
     paths.set(variable.id, segments)
+  }
+
+  const strictPrefixes = new Set<string>()
+  for (const segments of paths.values()) {
+    for (let index = 1; index < segments.length; index += 1) {
+      strictPrefixes.add(segments.slice(0, index).join('.'))
+    }
+  }
+
+  for (const [id, segments] of paths) {
+    if (strictPrefixes.has(segments.join('.'))) {
+      paths.set(id, [...segments, '$root'])
+      warnings.push(
+        `Token path "${segments.join('.')}" is also a group; moved the token to "$root"`
+      )
+    }
   }
 
   return paths
@@ -227,40 +244,34 @@ function buildToken(
 function insertToken(
   root: DTCGGroup,
   segments: string[],
-  token: DTCGToken,
-  warnings: string[]
+  token: DTCGToken
 ): void {
   let node: DTCGGroup = root
   for (let i = 0; i < segments.length - 1; i += 1) {
     const segment = segments[i] as string
-    const existing = node[segment]
-    if (existing === undefined) {
-      const next: DTCGGroup = {}
+    if (!hasOwn(node, segment)) {
+      const next: DTCGGroup = createDictionary()
       node[segment] = next
       node = next
-    } else if (isToken(existing)) {
-      // A leaf token already claims this group name; move it to `base`.
-      warnings.push(
-        `"${segments.slice(0, i + 1).join('.')}" is both a token and a group; ` +
-          'moved the token to "base"'
-      )
-      const group: DTCGGroup = { base: existing }
-      node[segment] = group
-      node = group
-    } else {
-      node = existing
+      continue
     }
+
+    const existing = node[segment]
+    if (existing === undefined || isToken(existing)) {
+      throw new Error(
+        `Internal token path collision at "${segments
+          .slice(0, i + 1)
+          .join('.')}": token blocks a group after canonicalization`
+      )
+    }
+    node = existing
   }
   const leaf = segments[segments.length - 1] as string
-  const existing = node[leaf]
-  if (existing !== undefined && !isToken(existing)) {
-    // A group already claims this leaf name; store the token as `base` inside.
-    warnings.push(
-      `"${segments.join('.')}" is both a token and a group; ` +
-        'stored the token as "base" inside the group'
+  if (hasOwn(node, leaf)) {
+    throw new Error(
+      `Internal token path collision at "${segments.join('.')}": ` +
+        'path remained occupied after canonicalization'
     )
-    ;(existing as DTCGGroup).base = token
-    return
   }
   node[leaf] = token
 }
@@ -323,14 +334,14 @@ export function toDTCG(
   }
   ctx.tokenPaths = buildTokenPaths(normalized, slugsById, warnings)
 
-  const files: Record<string, DTCGDocument> = {}
-  const sets: Record<string, ResolverSet> = {}
-  const modifiers: Record<string, ResolverModifier> = {}
+  const files = createDictionary<DTCGDocument>()
+  const sets = createDictionary<ResolverSet>()
+  const modifiers = createDictionary<ResolverModifier>()
 
   for (const collection of normalized.collections) {
     const slug = slugsById.get(collection.id) as string
     const baseFileName = `${slug}.tokens.json`
-    const baseRoot: DTCGGroup = {}
+    const baseRoot: DTCGGroup = createDictionary()
 
     for (const variableId of collection.variableIds) {
       const variable = normalized.variablesById[variableId]
@@ -348,7 +359,7 @@ export function toDTCG(
         collection.defaultModeId
       )
       if (token) {
-        insertToken(baseRoot, segments, token, warnings)
+        insertToken(baseRoot, segments, token)
       }
     }
 
@@ -372,7 +383,7 @@ export function toDTCG(
         modeSlugList[index] as string,
       ])
     )
-    const contexts: ResolverModifier['contexts'] = {}
+    const contexts: ResolverModifier['contexts'] = createDictionary()
     const defaultMode = collection.modes.find(
       m => m.id === collection.defaultModeId
     )
@@ -383,7 +394,7 @@ export function toDTCG(
     for (const mode of extraModes) {
       const modeSlug = modeSlugsById.get(mode.id) ?? 'mode'
       const modeFileName = `${slug}.${modeSlug}.tokens.json`
-      const modeRoot: DTCGGroup = {}
+      const modeRoot: DTCGGroup = createDictionary()
       for (const variableId of collection.variableIds) {
         const variable = normalized.variablesById[variableId]
         if (!variable) {
@@ -395,7 +406,7 @@ export function toDTCG(
         }
         const token = buildToken(ctx, variable, collection, mode.id)
         if (token) {
-          insertToken(modeRoot, segments, token, warnings)
+          insertToken(modeRoot, segments, token)
         }
       }
       files[modeFileName] = modeRoot

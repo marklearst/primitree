@@ -6,6 +6,7 @@ import type {
   DTCGTokenValue,
   ResolverDocument,
 } from './types'
+import { createDictionary, hasOwn } from './dictionary'
 import { isReferenceValue, isToken } from './types'
 
 /** A flattened token with its dot-joined path. @public */
@@ -21,7 +22,7 @@ export interface FlatToken {
  * @public
  */
 export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
-  const result: DTCGGroup = {}
+  const result: DTCGGroup = createDictionary()
 
   function mergeInto(target: DTCGGroup, source: DTCGGroup): void {
     for (const [key, value] of Object.entries(source)) {
@@ -29,11 +30,11 @@ export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
         target[key] = value
         continue
       }
-      const existing = target[key]
+      const existing = hasOwn(target, key) ? target[key] : undefined
       if (existing !== undefined && !isToken(existing)) {
         mergeInto(existing, value)
       } else {
-        const next: DTCGGroup = {}
+        const next: DTCGGroup = createDictionary()
         mergeInto(next, value)
         target[key] = next
       }
@@ -56,7 +57,7 @@ export function flattenTokens(document: DTCGDocument): FlatToken[] {
 
   function walk(group: DTCGGroup, prefix: string[]): void {
     for (const [key, value] of Object.entries(group)) {
-      if (key.startsWith('$')) {
+      if (key.startsWith('$') && key !== '$root') {
         continue
       }
       if (isToken(value)) {
@@ -200,7 +201,7 @@ export function resolveTokenValuesSafe(flat: FlatToken[]): {
 export function listContexts(
   resolver: ResolverDocument
 ): Record<string, string[]> {
-  const result: Record<string, string[]> = {}
+  const result = createDictionary<string[]>()
   for (const [name, modifier] of Object.entries(resolver.modifiers ?? {})) {
     result[name] = Object.keys(modifier.contexts)
   }
@@ -208,7 +209,13 @@ export function listContexts(
 }
 
 function isRef(source: DTCGRef | DTCGDocument): source is DTCGRef {
-  return typeof (source as DTCGRef).$ref === 'string'
+  return (
+    typeof source === 'object' &&
+    source !== null &&
+    !Array.isArray(source) &&
+    hasOwn(source, '$ref') &&
+    typeof (source as DTCGRef).$ref === 'string'
+  )
 }
 
 function refToFileName(ref: string): string {
@@ -245,47 +252,56 @@ export function applyResolver(
   ): DTCGDocument[] {
     return sources.map(source => {
       if (isRef(source)) {
-        const file = files[refToFileName(source.$ref)]
-        if (!file) {
+        const fileName = refToFileName(source.$ref)
+        if (!hasOwn(files, fileName)) {
           throw new ReferenceResolutionError(
             `Resolver references missing file "${source.$ref}"`,
             source.$ref
           )
         }
-        return file
+        return files[fileName] as DTCGDocument
       }
       return source
     })
   }
 
   for (const entry of resolver.resolutionOrder) {
+    if (!isRef(entry)) {
+      continue
+    }
     const ref = entry.$ref
     const setMatch = ref.match(/^#\/sets\/(.+)$/)
     if (setMatch) {
-      const set = resolver.sets?.[setMatch[1] as string]
-      if (set) {
-        ordered.push(...sourcesToDocuments(set.sources))
+      const name = setMatch[1] as string
+      if (resolver.sets && hasOwn(resolver.sets, name)) {
+        const set = resolver.sets[name]
+        if (set) {
+          ordered.push(...sourcesToDocuments(set.sources))
+        }
       }
       continue
     }
     const modifierMatch = ref.match(/^#\/modifiers\/(.+)$/)
     if (modifierMatch) {
       const name = modifierMatch[1] as string
-      const modifier = resolver.modifiers?.[name]
-      if (!modifier) {
+      if (!resolver.modifiers || !hasOwn(resolver.modifiers, name)) {
         continue
       }
+      const modifier = resolver.modifiers[name] as NonNullable<
+        ResolverDocument['modifiers']
+      >[string]
       const contextNames = Object.keys(modifier.contexts)
+      const selected = hasOwn(input, name) ? input[name] : undefined
       const chosen =
-        input[name] ?? modifier.default ?? (contextNames[0] as string)
-      const sources = modifier.contexts[chosen]
-      if (!sources) {
+        selected ?? modifier.default ?? (contextNames[0] as string | undefined)
+      if (typeof chosen !== 'string' || !hasOwn(modifier.contexts, chosen)) {
         throw new ReferenceResolutionError(
           `Unknown context "${chosen}" for modifier "${name}" ` +
             `(available: ${contextNames.join(', ')})`,
           ref
         )
       }
+      const sources = modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>
       ordered.push(...sourcesToDocuments(sources))
     }
   }
