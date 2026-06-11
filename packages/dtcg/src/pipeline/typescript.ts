@@ -42,7 +42,7 @@ export function emitTypescript(
   lines.push('export const tokenVars = {')
   for (const path of paths) {
     lines.push(
-      `  ${stringLiteral(path)}: ${stringLiteral(`var(${cssVarName(path)})`)},`
+      `  [${stringLiteral(path)}]: ${stringLiteral(`var(${cssVarName(path)})`)},`
     )
   }
   lines.push('} as const satisfies Record<TokenPath, string>')
@@ -54,7 +54,7 @@ export function emitTypescript(
     const value = resolved.get(path)
     const css = value === undefined ? null : cssValue(value)
     const literal = css === null ? JSON.stringify(value) : stringLiteral(css)
-    lines.push(`  ${stringLiteral(path)}: ${literal},`)
+    lines.push(`  [${stringLiteral(path)}]: ${literal},`)
   }
   lines.push('} as const')
   lines.push('')
