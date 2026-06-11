@@ -42,9 +42,9 @@ Flags: `--json`, `--out <file>`, `--fail-on-breaking` (exit code 2 — your CI g
 
 Validate an export (shape, alias cycles, dangling targets, per-mode resolvability) or a built tokens directory (every context permutation must merge, every reference must resolve). Exit code 1 on problems.
 
-### `figma-vars init [dir] [--from variables.json]`
+### `figma-vars init [dir] [--from variables.json] [--name name] [--force]`
 
-Scaffold a complete tokens repo: `variables.json` (sample data unless `--from`), the generated pipeline, `package.json` with `build`/`check`/`diff`/`backup` scripts, and the CI workflow wired at `.github/workflows/`.
+Scaffold a complete tokens repo: `variables.json` (sample data unless `--from`), the generated pipeline, `package.json` with `build`/`check`/`diff`/`backup` scripts, and the CI workflow wired at `.github/workflows/`. Init always builds the initial pipeline. `--force` replaces generated files only and preserves unrelated files.
 
 ### `figma-vars export --file-key <key>`
 
