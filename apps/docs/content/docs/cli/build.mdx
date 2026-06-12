@@ -39,9 +39,13 @@ Writes a complete pipeline. See [Pipeline output](/docs/getting-started/pipeline
 The same logic lives in `@figmavars/dtcg`:
 
 ```ts
-import { buildPipeline } from '@figmavars/dtcg'
-import { normalizeVariables } from '@figmavars/core'
+import { buildPipeline, type BuildPipelineResult } from '@figmavars/dtcg'
 
-const normalized = normalizeVariables(figmaJson)
-const files = buildPipeline(normalized, { transformer: 'style-dictionary' })
+const result: BuildPipelineResult = buildPipeline(figmaJson, {
+  transformer: 'style-dictionary',
+})
+
+for (const file of result.files) {
+  console.log(file.path, file.contents)
+}
 ```

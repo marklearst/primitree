@@ -160,7 +160,3 @@ hit "Download pipeline (.zip)" — screen-record for the README hero GIF.
       Figmalion, News.design
 - [ ] Open a "Show and tell" in the Style Dictionary and Terrazzo discussion
       boards (the generated configs feed their tools — friendly ecosystem play)
-
-```
-
-```

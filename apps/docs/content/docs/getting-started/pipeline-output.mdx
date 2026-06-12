@@ -58,8 +58,20 @@ Tailwind v4 `@theme` mappings generated from the same resolved values. Add to yo
 TypeScript helpers:
 
 - `TokenPath` union of every token path
-- `token()` / `cssVar()` accessors
-- resolved value map for tooling
+- `tokenVars` map of theme-aware CSS `var()` accessors
+- `tokenValues` map of resolved default-context values
+
+```ts
+import {
+  tokenValues,
+  tokenVars,
+  type TokenPath,
+} from './design-tokens/ts/tokens'
+
+const path: TokenPath = 'semantic.color.bg.brand'
+console.log(tokenValues[path])
+console.log(tokenVars[path])
+```
 
 ## Transformer config
 
@@ -67,7 +79,7 @@ TypeScript helpers:
 
 ## design-tokens.workflow.yml
 
-GitHub Actions template: checkout, install CLI, rebuild on `variables.json` changes, optionally fail on breaking diffs.
+GitHub Actions template: checkout, install the CLI, rebuild on `variables.json` changes, and commit generated output.
 
 ## Skip outputs
 

@@ -11,19 +11,24 @@ figma-vars init [directory] [options]
 
 ```bash
 figma-vars init my-design-tokens
-figma-vars init . --from ./variables.json
+figma-vars init my-design-tokens --from ./exports/variables.json
 ```
 
 Creates:
 
 - `variables.json` (sample or copied from `--from`)
-- optional initial `figma-vars build` output when `--build` is passed
+- the full generated token pipeline
+- a `package.json` with build, check, diff, and backup scripts
+- a GitHub Actions workflow in `.github/workflows/`
+
+The initial pipeline is always generated during `init`.
 
 ## Options
 
-| Option          | Description                                  |
-| --------------- | -------------------------------------------- |
-| `--from <file>` | Seed with your export instead of sample data |
-| `--build`       | Run build immediately after scaffold         |
+| Option          | Description                                                     |
+| --------------- | --------------------------------------------------------------- |
+| `--from <file>` | Seed with your export instead of sample data                    |
+| `--name <name>` | Set the project name (defaults to the destination directory)    |
+| `--force`       | Replace scaffold-owned files while preserving unrelated content |
 
 Good starting point for a dedicated tokens repo or a `packages/tokens` workspace in a monorepo.

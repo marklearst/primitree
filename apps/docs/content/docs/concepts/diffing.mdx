@@ -19,18 +19,32 @@ Same ID, different resolved value in a specific mode → value change table entr
 
 - Removed variables
 - Renamed variables (path consumers may break)
+- Variables moved between collections
+- Variable type changes
+- Removed or renamed collections
+- Removed or renamed modes
 
 **Non-breaking:**
 
 - New variables
+- New collections or modes
 - Value tweaks you accept intentionally
+- Description changes
 
 ## Markdown output
 
-Use `--markdown` for PR descriptions:
+Markdown is the default. Write it directly to a file for a PR description:
 
 ```bash
-figma-vars diff main/variables.json pr/variables.json --markdown >> PR_BODY.md
+figma-vars diff main/variables.json pr/variables.json --out PR_BODY.md
+```
+
+`--out <file>` writes the selected format to a file instead of standard output.
+
+Use `--json` for machine-readable output:
+
+```bash
+figma-vars diff main/variables.json pr/variables.json --json --out diff.json
 ```
 
 ## MCP
