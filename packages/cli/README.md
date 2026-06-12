@@ -28,6 +28,10 @@ Flags: `--terrazzo`, `--style-dictionary`, `--no-css`, `--no-tailwind`, `--no-ts
 
 Semantic changelog between two exports. Matching is by **stable Figma IDs**, so renames are renames — not remove+add:
 
+```sh
+figma-vars diff backup/variables.json variables.json
+```
+
 ```
 Variables: 1 renamed, 1 value changes.
 **Breaking changes detected.**
