@@ -32,7 +32,7 @@ export function BrandLogo({
     return (
       <Link
         href='/'
-        className='inline-flex transition-opacity hover:opacity-90'>
+        className='brand-logo-link inline-flex transition-opacity'>
         {inner}
       </Link>
     )

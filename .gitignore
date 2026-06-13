@@ -51,5 +51,8 @@ TODO.md
 coverage
 private
 docs-site
+/playwright-report/
+/test-results/
+/.playwright-cli/
 
 .env
