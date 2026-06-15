@@ -12,7 +12,9 @@ import {
 import sampleVariables from '@/lib/playground/sample-variables.json'
 import '@/components/playground/playground.css'
 
-type Tab = 'tokens' | 'files'
+const tabs = ['tokens', 'files'] as const
+
+type Tab = (typeof tabs)[number]
 
 export function PlaygroundApp() {
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -22,6 +24,42 @@ export function PlaygroundApp() {
   const [tab, setTab] = useState<Tab>('tokens')
   const [openFile, setOpenFile] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const tokensTabRef = useRef<HTMLButtonElement>(null)
+  const filesTabRef = useRef<HTMLButtonElement>(null)
+
+  const tabRefs = {
+    tokens: tokensTabRef,
+    files: filesTabRef,
+  } as const
+
+  const onTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    currentTab: Tab
+  ) => {
+    const currentIndex = tabs.indexOf(currentTab)
+    let nextTab: Tab | undefined
+
+    switch (event.key) {
+      case 'ArrowRight':
+        nextTab = tabs[(currentIndex + 1) % tabs.length]
+        break
+      case 'ArrowLeft':
+        nextTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length]
+        break
+      case 'Home':
+        nextTab = tabs[0]
+        break
+      case 'End':
+        nextTab = tabs[tabs.length - 1]
+        break
+      default:
+        return
+    }
+
+    event.preventDefault()
+    setTab(nextTab)
+    tabRefs[nextTab].current?.focus()
+  }
 
   const load = useCallback((text: string, name: string) => {
     try {
@@ -79,14 +117,14 @@ export function PlaygroundApp() {
 
   return (
     <div className='pg-shell'>
+      {!preview ? <p className='pg-kicker'>Playground</p> : null}
+      <h1 className={`pg-title${preview ? ' pg-visually-hidden' : ''}`}>
+        Drop your variables.
+        <br /> <em>Preview the pipeline.</em>
+      </h1>
+
       {!preview && (
         <section className='pg-landing'>
-          <p className='pg-kicker'>Playground</p>
-          <h1>
-            Drop your variables.
-            <br />
-            <em>Preview the pipeline.</em>
-          </h1>
           <p className='pg-lede'>
             Same engine as{' '}
             <Link
@@ -147,7 +185,13 @@ export function PlaygroundApp() {
             </div>
           </fieldset>
 
-          {error ? <div className='pg-error'>{error}</div> : null}
+          {error ? (
+            <div
+              className='pg-error'
+              role='alert'>
+              {error}
+            </div>
+          ) : null}
         </section>
       )}
 
@@ -198,68 +242,102 @@ export function PlaygroundApp() {
           {Object.keys(preview.contexts).length > 0 ? (
             <section className='pg-contexts'>
               {Object.entries(preview.contexts).map(([axis, contexts]) => (
-                <div
+                <fieldset
                   className='pg-axis'
                   key={axis}>
-                  <span className='pg-axis-name'>{axis}</span>
+                  <legend className='pg-axis-name'>{axis}</legend>
                   <div className='pg-axis-options'>
                     {contexts.map(context => (
-                      <button
-                        type='button'
+                      <label
                         key={context}
-                        className={`pg-chip${selection[axis] === context ? ' active' : ''}`}
-                        onClick={() =>
-                          setSelection(prev => ({ ...prev, [axis]: context }))
-                        }>
-                        {context}
-                      </button>
+                        className='pg-chip'>
+                        <input
+                          type='radio'
+                          name={`context-${axis}`}
+                          value={context}
+                          checked={selection[axis] === context}
+                          onChange={() =>
+                            setSelection(previous => ({
+                              ...previous,
+                              [axis]: context,
+                            }))
+                          }
+                        />
+                        <span>{context}</span>
+                      </label>
                     ))}
                   </div>
-                </div>
+                </fieldset>
               ))}
             </section>
           ) : null}
 
-          <nav className='pg-tabs'>
+          <div
+            className='pg-tabs'
+            role='tablist'
+            aria-label='Preview output'>
             <button
+              ref={tokensTabRef}
               type='button'
+              id='pg-tab-tokens'
+              role='tab'
+              aria-selected={tab === 'tokens'}
+              aria-controls='pg-panel-tokens'
+              tabIndex={tab === 'tokens' ? 0 : -1}
               className={`pg-tab${tab === 'tokens' ? ' active' : ''}`}
-              onClick={() => setTab('tokens')}>
+              onClick={() => setTab('tokens')}
+              onKeyDown={event => onTabKeyDown(event, 'tokens')}>
               Tokens
             </button>
             <button
+              ref={filesTabRef}
               type='button'
+              id='pg-tab-files'
+              role='tab'
+              aria-selected={tab === 'files'}
+              aria-controls='pg-panel-files'
+              tabIndex={tab === 'files' ? 0 : -1}
               className={`pg-tab${tab === 'files' ? ' active' : ''}`}
-              onClick={() => setTab('files')}>
+              onClick={() => setTab('files')}
+              onKeyDown={event => onTabKeyDown(event, 'files')}>
               Generated files
             </button>
-          </nav>
+          </div>
 
-          {tab === 'tokens' ? (
-            <>
-              {colorTokens.length > 0 ? (
-                <section>
-                  <h3>Colors</h3>
-                  <div className='pg-swatches'>
-                    {colorTokens.map(token => (
-                      <div
-                        className='pg-swatch'
-                        key={token.path}
-                        title={token.path}>
-                        <span
-                          className='pg-swatch-chip'
-                          style={{ background: token.css ?? 'transparent' }}
-                        />
-                        <span className='pg-swatch-path'>{token.path}</span>
-                        <code className='pg-swatch-value'>{token.css}</code>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-              {otherTokens.length > 0 ? (
-                <section>
-                  <h3>Everything else</h3>
+          <section
+            className='pg-tab-panel'
+            id='pg-panel-tokens'
+            role='tabpanel'
+            aria-labelledby='pg-tab-tokens'
+            hidden={tab !== 'tokens'}>
+            {colorTokens.length > 0 ? (
+              <section>
+                <h3>Colors</h3>
+                <div className='pg-swatches'>
+                  {colorTokens.map(token => (
+                    <div
+                      className='pg-swatch'
+                      key={token.path}
+                      title={token.path}>
+                      <span
+                        className='pg-swatch-chip'
+                        style={{ background: token.css ?? 'transparent' }}
+                      />
+                      <span className='pg-swatch-path'>{token.path}</span>
+                      <code className='pg-swatch-value'>{token.css}</code>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            {otherTokens.length > 0 ? (
+              <section>
+                <h3>Everything else</h3>
+                <section
+                  className='pg-table-region'
+                  aria-label='Generated tokens'
+                  // biome-ignore lint/a11y/noNoninteractiveTabindex: This labeled overflow region must be focusable so keyboard users can scroll its wide table.
+                  tabIndex={0}>
                   <table className='pg-token-table'>
                     <thead>
                       <tr>
@@ -287,36 +365,39 @@ export function PlaygroundApp() {
                     </tbody>
                   </table>
                 </section>
-              ) : null}
-            </>
-          ) : null}
+              </section>
+            ) : null}
+          </section>
 
-          {tab === 'files' ? (
-            <section className='pg-files'>
-              <ul className='pg-file-list'>
-                {preview.pipeline.files.map(file => (
-                  <li key={file.path}>
-                    <button
-                      type='button'
-                      className={`pg-file${openFile === file.path ? ' active' : ''}`}
-                      onClick={() =>
-                        setOpenFile(openFile === file.path ? null : file.path)
-                      }>
-                      {file.path}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <pre className='pg-file-view'>
-                <code>
-                  {openFile
-                    ? preview.pipeline.files.find(f => f.path === openFile)
-                        ?.contents
-                    : 'Select a file to preview its contents.'}
-                </code>
-              </pre>
-            </section>
-          ) : null}
+          <section
+            className='pg-tab-panel pg-files'
+            id='pg-panel-files'
+            role='tabpanel'
+            aria-labelledby='pg-tab-files'
+            hidden={tab !== 'files'}>
+            <ul className='pg-file-list'>
+              {preview.pipeline.files.map(file => (
+                <li key={file.path}>
+                  <button
+                    type='button'
+                    className={`pg-file${openFile === file.path ? ' active' : ''}`}
+                    onClick={() =>
+                      setOpenFile(openFile === file.path ? null : file.path)
+                    }>
+                    {file.path}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <pre className='pg-file-view'>
+              <code>
+                {openFile
+                  ? preview.pipeline.files.find(f => f.path === openFile)
+                      ?.contents
+                  : 'Select a file to preview its contents.'}
+              </code>
+            </pre>
+          </section>
         </section>
       ) : null}
 
