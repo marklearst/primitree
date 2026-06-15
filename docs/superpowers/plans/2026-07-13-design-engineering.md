@@ -146,7 +146,7 @@ test('documentation page owns a main landmark', async ({ page }) => {
 - [ ] **Step 3: Run the browser test and record RED**
 
 ```bash
-pnpm test:e2e -- tests/e2e/docs-shell.spec.ts
+pnpm exec playwright test tests/e2e/docs-shell.spec.ts --project=docs
 ```
 
 Expected: the mobile disclosure and `main` landmarks do not exist; the 375 px shell may overflow/collapse the logo.
@@ -209,7 +209,7 @@ declarations into the media query.
 - [ ] **Step 6: Verify GREEN and docs build**
 
 ```bash
-pnpm test:e2e -- tests/e2e/docs-shell.spec.ts
+pnpm exec playwright test tests/e2e/docs-shell.spec.ts --project=docs
 pnpm --filter figmavars-docs typecheck
 pnpm --filter figmavars-docs build
 ```
@@ -290,7 +290,7 @@ test('embedded playground announces malformed JSON', async ({ page }) => {
 - [ ] **Step 2: Run the test and record RED**
 
 ```bash
-pnpm test:e2e -- tests/e2e/docs-playground.spec.ts
+pnpm exec playwright test tests/e2e/docs-playground.spec.ts --project=docs
 ```
 
 Expected: after preview there is no h1, tabs/radios lack roles/state, errors lack `role="alert"`, and the table has no contained region.
@@ -361,7 +361,7 @@ hover selector behind the fine-pointer media query.
 - [ ] **Step 6: Verify GREEN**
 
 ```bash
-pnpm test:e2e -- tests/e2e/docs-playground.spec.ts
+pnpm exec playwright test tests/e2e/docs-playground.spec.ts --project=docs
 pnpm --filter figmavars-docs typecheck
 pnpm --filter figmavars-docs build
 ```
@@ -430,7 +430,7 @@ button and assert both are at most `0.001` seconds.
 - [ ] **Step 3: Run and record RED**
 
 ```bash
-pnpm test:e2e -- tests/e2e/standalone-playground.spec.ts
+pnpm exec playwright test tests/e2e/standalone-playground.spec.ts --project=standalone-playground
 ```
 
 Expected: semantic and overflow assertions fail.
@@ -451,7 +451,7 @@ smooth scrolling.
 - [ ] **Step 5: Verify GREEN and package gates**
 
 ```bash
-pnpm test:e2e -- tests/e2e/standalone-playground.spec.ts
+pnpm exec playwright test tests/e2e/standalone-playground.spec.ts --project=standalone-playground
 pnpm --filter figmavars-playground test
 pnpm --filter figmavars-playground typecheck
 pnpm --filter figmavars-playground build
