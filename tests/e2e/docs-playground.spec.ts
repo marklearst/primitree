@@ -1,8 +1,25 @@
 import { devices, expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
+import sampleVariables from '../../apps/docs/lib/playground/sample-variables.json' with { type: 'json' }
 
 const widths = [320, 375] as const
 const pageHeading = 'Drop your variables. Preview the pipeline.'
+
+function warningVariablesBuffer() {
+  const payload = structuredClone(sampleVariables) as unknown as {
+    meta: {
+      variables: Record<string, { valuesByMode: Record<string, unknown> }>
+    }
+  }
+  const colorVariable = payload.meta.variables['VariableID:1:102']
+
+  if (!colorVariable) {
+    throw new Error('The local sample is missing its warning color variable')
+  }
+
+  colorVariable.valuesByMode['1:0'] = 'not-a-color'
+  return Buffer.from(JSON.stringify(payload))
+}
 
 async function expectNoDocumentOverflow(page: Page) {
   const overflow = await page.evaluate(
@@ -36,7 +53,15 @@ async function expectEveryTouchTarget(locator: Locator) {
 async function expectVisibleOutline(locator: Locator) {
   const outline = await locator.evaluate(element => {
     const style = getComputedStyle(element)
+    const accentProbe = document.createElement('span')
+    accentProbe.style.color = 'var(--color-fv-accent)'
+    document.body.append(accentProbe)
+    const accentColor = getComputedStyle(accentProbe).color
+    accentProbe.remove()
+
     return {
+      accentColor,
+      color: style.outlineColor,
       style: style.outlineStyle,
       width: Number.parseFloat(style.outlineWidth),
     }
@@ -44,6 +69,7 @@ async function expectVisibleOutline(locator: Locator) {
 
   expect(outline.style).not.toBe('none')
   expect(outline.width).toBeGreaterThanOrEqual(2)
+  expect(outline.color).toBe(outline.accentColor)
 }
 
 async function expectTabState(
@@ -174,6 +200,29 @@ for (const width of widths) {
     await expectEveryTouchTarget(page.locator('.pg-chip'))
     await expectEveryTouchTarget(page.locator('.pg-tab'))
     await expectEveryTouchTarget(page.locator('.pg-file'))
+    await expectNoDocumentOverflow(page)
+  })
+
+  test(`warnings disclosure is touch and keyboard usable at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 812 })
+    await page.goto('/playground')
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'warning-variables.json',
+      mimeType: 'application/json',
+      buffer: warningVariablesBuffer(),
+    })
+
+    const summary = page.locator('.pg-warnings > summary')
+    await expect(summary).toBeVisible()
+    await expect(summary).toContainText('warning')
+    await expectEveryTouchTarget(summary)
+
+    await page.getByRole('button', { name: 'Download pipeline (.zip)' }).focus()
+    await page.keyboard.press('Tab')
+    await expect(summary).toBeFocused()
+    await expectVisibleOutline(summary)
     await expectNoDocumentOverflow(page)
   })
 }
