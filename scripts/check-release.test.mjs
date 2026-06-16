@@ -32,19 +32,7 @@ const scriptPath = fileURLToPath(
 )
 
 function exportMap(config) {
-  return Object.fromEntries(
-    config.requiredExports.map(name => {
-      const targets = config.exportTargets[name]
-      return [
-        name,
-        targets.length === 1
-          ? targets[0]
-          : Object.fromEntries(
-              targets.map((target, index) => [`condition${index}`, target])
-            ),
-      ]
-    })
-  )
+  return structuredClone(config.expectedExports)
 }
 
 function canonicalManifest(config) {
@@ -124,6 +112,23 @@ function mutatePublic(index, mutate) {
   return packages
 }
 
+function exportSignatures(config) {
+  const signatures = []
+  function visit(value, path) {
+    if (typeof value === 'string') {
+      signatures.push(`${path}=${value}`)
+      return
+    }
+    for (const [condition, child] of Object.entries(value)) {
+      visit(child, `${path}:${condition}`)
+    }
+  }
+  for (const [name, value] of Object.entries(config.expectedExports ?? {})) {
+    visit(value, name)
+  }
+  return signatures
+}
+
 test('exports one immutable dependency-ordered release inventory', () => {
   assert.deepEqual(
     PUBLIC_RELEASE_PACKAGES.map(config => config.name),
@@ -133,6 +138,89 @@ test('exports one immutable dependency-ordered release inventory', () => {
       '@figmavars/cli',
       '@figmavars/hooks',
       '@figmavars/mcp',
+    ]
+  )
+  assert.deepEqual(
+    PUBLIC_RELEASE_PACKAGES.map(config => ({
+      name: config.name,
+      attwProfile: config.attwProfile,
+      requiredFiles: config.requiredFiles,
+      requiredBin: config.requiredBin,
+      requiredBinTarget: config.requiredBinTarget,
+      exportSignatures: exportSignatures(config),
+    })),
+    [
+      {
+        name: '@figmavars/core',
+        attwProfile: 'node16',
+        requiredFiles: ['dist'],
+        requiredBin: undefined,
+        requiredBinTarget: undefined,
+        exportSignatures: [
+          '.:import:types=./dist/index.d.ts',
+          '.:import:default=./dist/index.js',
+          '.:require:types=./dist/index.d.cts',
+          '.:require:default=./dist/index.cjs',
+          '.:default=./dist/index.js',
+          './types:import:types=./dist/types.d.ts',
+          './types:import:default=./dist/types.js',
+          './types:require:types=./dist/types.d.cts',
+          './types:require:default=./dist/types.cjs',
+          './types:default=./dist/types.js',
+        ],
+      },
+      {
+        name: '@figmavars/dtcg',
+        attwProfile: 'strict',
+        requiredFiles: ['dist'],
+        requiredBin: undefined,
+        requiredBinTarget: undefined,
+        exportSignatures: [
+          '.:import:types=./dist/index.d.ts',
+          '.:import:default=./dist/index.js',
+          '.:require:types=./dist/index.d.cts',
+          '.:require:default=./dist/index.cjs',
+          '.:default=./dist/index.js',
+        ],
+      },
+      {
+        name: '@figmavars/cli',
+        attwProfile: null,
+        requiredFiles: ['dist'],
+        requiredBin: 'figma-vars',
+        requiredBinTarget: './dist/index.js',
+        exportSignatures: [],
+      },
+      {
+        name: '@figmavars/hooks',
+        attwProfile: 'strict',
+        requiredFiles: ['dist', 'scripts/export-variables.mjs'],
+        requiredBin: 'figma-vars-export',
+        requiredBinTarget: './scripts/export-variables.mjs',
+        exportSignatures: [
+          '.:import:types=./dist/index.d.ts',
+          '.:import:default=./dist/index.mjs',
+          '.:require:types=./dist/index.d.cts',
+          '.:require:default=./dist/index.cjs',
+          '.:default=./dist/index.mjs',
+          './core:import:types=./dist/core.d.ts',
+          './core:import:default=./dist/core.mjs',
+          './core:require:types=./dist/core.d.cts',
+          './core:require:default=./dist/core.cjs',
+          './core:default=./dist/core.mjs',
+        ],
+      },
+      {
+        name: '@figmavars/mcp',
+        attwProfile: 'esm-only',
+        requiredFiles: ['dist'],
+        requiredBin: 'figma-vars-mcp',
+        requiredBinTarget: './dist/index.js',
+        exportSignatures: [
+          '.:import:types=./dist/index.d.ts',
+          '.:import:default=./dist/index.js',
+        ],
+      },
     ]
   )
   assert.deepEqual(
@@ -167,6 +255,9 @@ test('exports one immutable dependency-ordered release inventory', () => {
     assert.equal(Object.isFrozen(config.requiredFiles), true)
     assert.equal(Object.isFrozen(config.requiredExports), true)
     assert.equal(Object.isFrozen(config.exportTargets), true)
+    if (config.expectedExports !== undefined) {
+      assert.equal(Object.isFrozen(config.expectedExports), true)
+    }
     assert.equal(
       Object.isFrozen(config.requiredInternalRuntimeDependencies),
       true
@@ -263,7 +354,7 @@ test('rejects missing, extra, duplicate, and malformed files entries', () => {
   ]) {
     assert.throws(
       () => validate({ publicPackages: mutatePublic(0, mutation) }),
-      /files must be exactly/
+      /files/
     )
   }
 })
@@ -274,13 +365,33 @@ test('rejects missing, extra, malformed, and redirected export targets', () => {
     pkg => (pkg.manifest.exports['./extra'] = './dist/extra.js'),
     pkg => (pkg.manifest.exports = new Map()),
     pkg => (pkg.manifest.exports['.'] = []),
-    pkg => (pkg.manifest.exports['.'].condition0 = '../outside.js'),
-    pkg => (pkg.manifest.exports['.'].condition0 = './dist/wrong.js'),
+    pkg => (pkg.manifest.exports['.'].import.default = '../outside.js'),
+    pkg => (pkg.manifest.exports['.'].import.default = './dist/wrong.js'),
   ]
   for (const mutation of mutations) {
     assert.throws(
       () => validate({ publicPackages: mutatePublic(0, mutation) }),
       /export/
+    )
+  }
+})
+
+test('rejects changed conditional export semantics even when targets are reused', () => {
+  const swapTargets = pkg => {
+    const entry = pkg.manifest.exports['.']
+    const importTarget = entry.import.default
+    entry.import.default = entry.require.default
+    entry.require.default = importTarget
+  }
+  const duplicateCondition = pkg => {
+    const entry = pkg.manifest.exports['.']
+    entry.browser = entry.import.default
+  }
+
+  for (const mutation of [swapTargets, duplicateCondition]) {
+    assert.throws(
+      () => validate({ publicPackages: mutatePublic(0, mutation) }),
+      /export .* structure must match the release inventory/
     )
   }
 })
@@ -309,6 +420,17 @@ test('rejects a missing, unexpected, misplaced, or non-workspace internal edge',
       delete pkg.manifest.dependencies['@figmavars/core']
       pkg.manifest.devDependencies = { '@figmavars/core': 'workspace:*' }
     },
+    pkg => {
+      delete pkg.manifest.dependencies['@figmavars/core']
+      pkg.manifest.optionalDependencies = {
+        '@figmavars/core': 'workspace:*',
+      }
+    },
+    pkg => {
+      delete pkg.manifest.dependencies['@figmavars/core']
+      pkg.manifest.peerDependencies = { '@figmavars/core': 'workspace:*' }
+    },
+    pkg => (pkg.manifest.dependencies = new Map()),
   ]
   for (const mutation of mutations) {
     assert.throws(
@@ -350,6 +472,58 @@ test('rejects non-plain package records and manifest containers', () => {
       }),
     /manifest must be a plain object/
   )
+})
+
+test('rejects accessor properties without invoking them', () => {
+  let manifestGetterInvoked = false
+  const publicPackages = mutatePublic(0, pkg => {
+    Object.defineProperty(pkg.manifest, 'description', {
+      enumerable: true,
+      get() {
+        manifestGetterInvoked = true
+        throw new Error('getter must not execute')
+      },
+    })
+  })
+
+  assert.throws(
+    () => validate({ publicPackages }),
+    /description must be an enumerable data property/
+  )
+  assert.equal(manifestGetterInvoked, false)
+
+  let recordGetterInvoked = false
+  const records = makePublicPackages()
+  Object.defineProperty(records[0], 'manifestPath', {
+    enumerable: true,
+    get() {
+      recordGetterInvoked = true
+      throw new Error('record getter must not execute')
+    },
+  })
+  assert.throws(
+    () => validate({ publicPackages: records }),
+    /public package\.manifestPath must be an enumerable data property/
+  )
+  assert.equal(recordGetterInvoked, false)
+
+  let optionGetterInvoked = false
+  const options = {
+    privatePackages: makePrivatePackages(),
+    tag: 'v5.0.0',
+  }
+  Object.defineProperty(options, 'publicPackages', {
+    enumerable: true,
+    get() {
+      optionGetterInvoked = true
+      throw new Error('option getter must not execute')
+    },
+  })
+  assert.throws(
+    () => validateReleaseManifests(options),
+    /validation options\.publicPackages must be an enumerable data property/
+  )
+  assert.equal(optionGetterInvoked, false)
 })
 
 test('rejects missing, duplicate, and sixth public workspaces', () => {
@@ -485,6 +659,22 @@ test('discovers workspace manifests without following symlink entries', t => {
   assert.throws(
     () => discoverWorkspaceManifestPaths(root),
     /packages\/broken\/package\.json must be a regular file/
+  )
+
+  rmSync(join(root, 'packages', 'broken'), { recursive: true, force: true })
+  mkdirSync(join(root, 'packages', '%2e%2e'))
+  writeFileSync(join(root, 'packages', '%2e%2e', 'package.json'), '{}\n')
+  assert.deepEqual(discoverWorkspaceManifestPaths(root), [
+    'packages/%2e%2e/package.json',
+    'packages/real/package.json',
+  ])
+
+  rmSync(join(root, 'apps'), { recursive: true, force: true })
+  mkdirSync(join(root, 'actual-apps'))
+  symlinkSync('actual-apps', join(root, 'apps'))
+  assert.throws(
+    () => discoverWorkspaceManifestPaths(root),
+    /apps must not be a symbolic link/
   )
 })
 

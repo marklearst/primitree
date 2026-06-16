@@ -1,5 +1,5 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
-import { resolve, sep } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   PUBLIC_RELEASE_PACKAGES,
@@ -67,26 +67,66 @@ function validateJsonValue(value, label, errors, ancestors = new WeakSet()) {
     typeof value === 'boolean' ||
     (typeof value === 'number' && Number.isFinite(value))
   ) {
-    return
+    return true
   }
   if (typeof value !== 'object') {
     errors.push(`${label} must contain only JSON values`)
-    return
+    return false
   }
   if (ancestors.has(value)) {
     errors.push(`${label} must not contain circular data`)
-    return
+    return false
   }
   if (!Array.isArray(value) && !isPlainObject(value)) {
     errors.push(`${label} must contain only arrays and plain objects`)
-    return
+    return false
   }
 
+  let valid = true
   ancestors.add(value)
-  for (const [key, child] of Object.entries(value)) {
-    validateJsonValue(child, `${label}.${key}`, errors, ancestors)
+  const descriptors = Object.getOwnPropertyDescriptors(value)
+  const keys = Reflect.ownKeys(descriptors)
+  const dataKeys = Array.isArray(value)
+    ? keys.filter(key => key !== 'length')
+    : keys
+
+  if (Array.isArray(value)) {
+    const expectedKeys = Array.from({ length: value.length }, (_, index) =>
+      String(index)
+    )
+    if (
+      !sameStringSet(
+        dataKeys.filter(key => typeof key === 'string'),
+        expectedKeys
+      ) ||
+      dataKeys.some(key => typeof key !== 'string')
+    ) {
+      errors.push(`${label} must be a dense JSON array without extra keys`)
+      valid = false
+    }
+  }
+
+  for (const key of dataKeys) {
+    const propertyLabel = `${label}.${String(key)}`
+    const descriptor = descriptors[key]
+    if (
+      typeof key !== 'string' ||
+      descriptor === undefined ||
+      !descriptor.enumerable ||
+      !Object.hasOwn(descriptor, 'value')
+    ) {
+      errors.push(`${propertyLabel} must be an enumerable data property`)
+      valid = false
+      continue
+    }
+    if (
+      !validateJsonValue(descriptor.value, propertyLabel, errors, ancestors)
+    ) {
+      valid = false
+    }
   }
   ancestors.delete(value)
+  return valid
 }
 
 function containsLegacyNamespace(value, seen = new WeakSet()) {
@@ -156,13 +196,32 @@ function collectExportTargets(value, label, requiredFiles, errors) {
   return targets
 }
 
+function exactJsonStructure(actual, expected) {
+  if (actual === expected) return true
+  if (Array.isArray(actual) || Array.isArray(expected)) {
+    return (
+      Array.isArray(actual) &&
+      Array.isArray(expected) &&
+      actual.length === expected.length &&
+      actual.every((value, index) => exactJsonStructure(value, expected[index]))
+    )
+  }
+  if (!isPlainObject(actual) || !isPlainObject(expected)) return false
+  const actualKeys = Object.keys(actual)
+  const expectedKeys = Object.keys(expected)
+  return (
+    sameStringSet(actualKeys, expectedKeys) &&
+    expectedKeys.every(key => exactJsonStructure(actual[key], expected[key]))
+  )
+}
+
 function validateCanonicalMetadata(pkg, config, errors) {
   const { manifest, manifestPath, licenseText } = pkg
   if (!isPlainObject(manifest)) {
     errors.push(`${manifestPath} manifest must be a plain object`)
     return
   }
-  validateJsonValue(manifest, `${manifestPath} manifest`, errors)
+  if (!validateJsonValue(manifest, `${manifestPath} manifest`, errors)) return
 
   if (manifest.name !== config.name) {
     errors.push(`${manifestPath} must be named ${config.name}`)
@@ -236,15 +295,9 @@ function validateCanonicalMetadata(pkg, config, errors) {
   }
 
   const exportObject = manifest.exports
-  const exportKeys = isPlainObject(exportObject)
-    ? Object.keys(exportObject)
-    : []
-  if (
-    (exportObject !== undefined && !isPlainObject(exportObject)) ||
-    !sameStringSet(exportKeys, config.requiredExports)
-  ) {
+  if (!exactJsonStructure(exportObject, config.expectedExports)) {
     errors.push(
-      `${manifestPath} exports must be exactly ${config.requiredExports.join(', ') || '(none)'}`
+      `${manifestPath} export map structure must match the release inventory`
     )
   }
   if (isPlainObject(exportObject)) {
@@ -338,32 +391,79 @@ function validateCanonicalMetadata(pkg, config, errors) {
   }
 }
 
-function assertPackageArray(value, name) {
-  if (!Array.isArray(value)) {
-    throw new Error(
-      `Release metadata check failed:\n- ${name} must be an array`
-    )
+function ownDataValue(object, key, label, errors, required = true) {
+  const descriptor = Object.getOwnPropertyDescriptor(object, key)
+  if (descriptor === undefined) {
+    if (required) errors.push(`${label}.${key} is required`)
+    return undefined
+  }
+  if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+    errors.push(`${label}.${key} must be an enumerable data property`)
+    return undefined
+  }
+  return descriptor.value
+}
+
+function readPackageRecord(pkg, label, errors) {
+  if (!isPlainObject(pkg)) {
+    errors.push(`${label} record must be a plain object`)
+    return undefined
+  }
+  return {
+    path: ownDataValue(pkg, 'path', label, errors),
+    manifestPath: ownDataValue(pkg, 'manifestPath', label, errors),
+    manifest: ownDataValue(pkg, 'manifest', label, errors),
+    licenseText: ownDataValue(pkg, 'licenseText', label, errors, false),
   }
 }
 
-export function validateReleaseManifests({
-  publicPackages,
-  privatePackages,
-  tag,
-}) {
-  assertPackageArray(publicPackages, 'publicPackages')
-  assertPackageArray(privatePackages, 'privatePackages')
+export function validateReleaseManifests(options) {
+  if (!isPlainObject(options)) {
+    throw new Error(
+      'Release metadata check failed:\n- validation options must be a plain object'
+    )
+  }
+
+  const optionErrors = []
+  const publicPackages = ownDataValue(
+    options,
+    'publicPackages',
+    'validation options',
+    optionErrors
+  )
+  const privatePackages = ownDataValue(
+    options,
+    'privatePackages',
+    'validation options',
+    optionErrors
+  )
+  const tag = ownDataValue(
+    options,
+    'tag',
+    'validation options',
+    optionErrors,
+    false
+  )
+  if (!Array.isArray(publicPackages)) {
+    optionErrors.push('publicPackages must be an array')
+  }
+  if (!Array.isArray(privatePackages)) {
+    optionErrors.push('privatePackages must be an array')
+  }
+  if (optionErrors.length > 0) {
+    throw new Error(
+      `Release metadata check failed:\n- ${optionErrors.join('\n- ')}`
+    )
+  }
 
   const errors = []
   const versions = new Set()
   const seenPublic = new Set()
   const seenWorkspaces = new Set()
 
-  for (const pkg of publicPackages) {
-    if (!isPlainObject(pkg)) {
-      errors.push('public package record must be a plain object')
-      continue
-    }
+  for (const input of publicPackages) {
+    const pkg = readPackageRecord(input, 'public package', errors)
+    if (pkg === undefined) continue
     const { path, manifestPath, manifest } = pkg
     if (typeof manifestPath !== 'string') {
       errors.push('public package manifestPath must be a string')
@@ -407,11 +507,9 @@ export function validateReleaseManifests({
     errors.push(`package version ${version} must use MAJOR.MINOR.PATCH`)
   }
 
-  for (const pkg of privatePackages) {
-    if (!isPlainObject(pkg)) {
-      errors.push('private package record must be a plain object')
-      continue
-    }
+  for (const input of privatePackages) {
+    const pkg = readPackageRecord(input, 'private package', errors)
+    if (pkg === undefined) continue
     const { manifestPath, manifest } = pkg
     if (typeof manifestPath !== 'string') {
       errors.push('private package manifestPath must be a string')
@@ -429,7 +527,9 @@ export function validateReleaseManifests({
       errors.push(`${manifestPath} manifest must be a plain object`)
       continue
     }
-    validateJsonValue(manifest, `${manifestPath} manifest`, errors)
+    if (!validateJsonValue(manifest, `${manifestPath} manifest`, errors)) {
+      continue
+    }
     if (manifest.private !== true) {
       errors.push(`${manifestPath} must be private`)
     }
@@ -459,18 +559,23 @@ export function validateReleaseManifests({
   }
 }
 
-function rootUrlFrom(root) {
-  if (root instanceof URL) return root
-  return pathToFileURL(`${resolve(root)}${sep}`)
+function rootPathFrom(root) {
+  return root instanceof URL ? fileURLToPath(root) : resolve(root)
 }
 
 export function discoverWorkspaceManifestPaths(root) {
-  const rootUrl = rootUrlFrom(root)
+  const rootPath = rootPathFrom(root)
   const paths = []
 
   for (const group of ['packages', 'apps']) {
-    const groupUrl = new URL(`${group}/`, rootUrl)
-    for (const entry of readdirSync(groupUrl, { withFileTypes: true }).sort(
+    const groupPath = join(rootPath, group)
+    const groupStatus = lstatSync(groupPath)
+    if (groupStatus.isSymbolicLink() || !groupStatus.isDirectory()) {
+      throw new Error(
+        `${group} must not be a symbolic link and must be a directory`
+      )
+    }
+    for (const entry of readdirSync(groupPath, { withFileTypes: true }).sort(
       (left, right) => left.name.localeCompare(right.name)
     )) {
       if (entry.isSymbolicLink()) {
@@ -478,10 +583,10 @@ export function discoverWorkspaceManifestPaths(root) {
       }
       if (!entry.isDirectory()) continue
       const manifestPath = `${group}/${entry.name}/package.json`
-      const manifestUrl = new URL(manifestPath, rootUrl)
+      const manifestFilePath = join(groupPath, entry.name, 'package.json')
       let status
       try {
-        status = lstatSync(manifestUrl)
+        status = lstatSync(manifestFilePath)
       } catch (error) {
         if (error?.code === 'ENOENT') continue
         throw error
@@ -497,23 +602,24 @@ export function discoverWorkspaceManifestPaths(root) {
 }
 
 function readManifest(rootUrl, manifestPath) {
-  const manifestUrl = new URL(manifestPath, rootUrl)
-  const licenseUrl = new URL('LICENSE', manifestUrl)
+  const rootPath = rootPathFrom(rootUrl)
+  const manifestFilePath = join(rootPath, ...manifestPath.split('/'))
+  const licensePath = join(dirname(manifestFilePath), 'LICENSE')
   let licenseText
-  if (existsSync(fileURLToPath(licenseUrl))) {
-    const status = lstatSync(licenseUrl)
+  if (existsSync(licensePath)) {
+    const status = lstatSync(licensePath)
     if (status.isSymbolicLink() || !status.isFile()) {
       throw new Error(
         `${manifestPath.replace(/package\.json$/, 'LICENSE')} must be a regular file`
       )
     }
-    licenseText = readFileSync(licenseUrl, 'utf8')
+    licenseText = readFileSync(licensePath, 'utf8')
   }
 
   return {
     path: manifestPath.replace(/\/package\.json$/, ''),
     manifestPath,
-    manifest: JSON.parse(readFileSync(manifestUrl, 'utf8')),
+    manifest: JSON.parse(readFileSync(manifestFilePath, 'utf8')),
     licenseText,
   }
 }
