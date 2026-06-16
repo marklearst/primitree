@@ -106,6 +106,9 @@ importers:
       esbuild:
         specifier: ^0.27.0
         version: 0.27.7
+      jsdom:
+        specifier: 29.1.1
+        version: 29.1.1
       typescript:
         specifier: ~6.0.3
         version: 6.0.3

@@ -27,6 +27,8 @@ const errorEl = document.getElementById('error') as HTMLParagraphElement
 
 let latestJson = ''
 let latestFileName = 'variables.json'
+let resultGeneration = 0
+let copyResetTimer: ReturnType<typeof setTimeout> | undefined
 
 function showError(message: string) {
   errorEl.textContent = message
@@ -36,19 +38,41 @@ function clearError() {
   errorEl.textContent = ''
 }
 
+function clearExportResult() {
+  resultGeneration += 1
+  if (copyResetTimer !== undefined) {
+    clearTimeout(copyResetTimer)
+    copyResetTimer = undefined
+  }
+  latestJson = ''
+  latestFileName = 'variables.json'
+  statsEl.textContent = ''
+  actionsEl.classList.add('hidden')
+  copyBtn.textContent = 'Copy'
+}
+
+function setExporting(exporting: boolean) {
+  exportBtn.disabled = exporting
+  excludeHidden.disabled = exporting
+  downloadBtn.disabled = exporting
+  copyBtn.disabled = exporting
+  exportBtn.textContent = exporting ? 'Exporting…' : 'Export JSON'
+}
+
 exportBtn.addEventListener('click', () => {
   clearError()
-  statsEl.textContent = ''
-  exportBtn.disabled = true
-  exportBtn.textContent = 'Exporting…'
+  clearExportResult()
+  setExporting(true)
   parent.postMessage(
     { pluginMessage: { type: 'export', excludeHidden: excludeHidden.checked } },
     '*'
   )
 })
 
+excludeHidden.addEventListener('change', clearExportResult)
+
 downloadBtn.addEventListener('click', () => {
-  if (!latestJson) {
+  if (!latestJson || downloadBtn.disabled) {
     return
   }
   const blob = new Blob([latestJson], { type: 'application/json' })
@@ -61,17 +85,29 @@ downloadBtn.addEventListener('click', () => {
 })
 
 copyBtn.addEventListener('click', async () => {
-  if (!latestJson) {
+  if (!latestJson || copyBtn.disabled) {
     return
   }
   clearError()
+  const jsonToCopy = latestJson
+  const copyGeneration = resultGeneration
   try {
-    await navigator.clipboard.writeText(latestJson)
+    await navigator.clipboard.writeText(jsonToCopy)
+    if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+      return
+    }
     copyBtn.textContent = 'Copied'
-    setTimeout(() => {
+    copyResetTimer = setTimeout(() => {
+      if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+        return
+      }
       copyBtn.textContent = 'Copy'
+      copyResetTimer = undefined
     }, 1200)
   } catch {
+    if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+      return
+    }
     showError('Clipboard blocked. Use Download instead.')
   }
 })
@@ -87,15 +123,15 @@ window.onmessage = event => {
     return
   }
 
-  exportBtn.disabled = false
-  exportBtn.textContent = 'Export JSON'
-
   if (msg.type === 'error') {
+    clearExportResult()
+    setExporting(false)
     showError(msg.message)
     return
   }
 
   if (msg.type === 'exported') {
+    clearExportResult()
     latestJson = msg.json
     latestFileName = msg.summary.fileName
     statsEl.textContent =
@@ -103,5 +139,6 @@ window.onmessage = event => {
       `${msg.summary.variables} variables · ` +
       `${msg.summary.modes} modes`
     actionsEl.classList.remove('hidden')
+    setExporting(false)
   }
 }
