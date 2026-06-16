@@ -3,21 +3,15 @@ import type { ReactNode } from 'react'
 import { renderHook } from '@testing-library/react'
 import { FigmaVarsProvider } from '../src/contexts/FigmaVarsProvider'
 
-// Wrapper component that provides the Figma context with credentials from environment variables.
+export const TEST_FIGMA_TOKEN = 'figmavars-test-token'
+export const TEST_FIGMA_FILE_KEY = 'figmavars-test-file'
+
+// Wrapper component that provides deterministic unit-test credentials.
 export const TestWrapper = ({ children }: { children: ReactNode }) => {
-  const token = process.env.VITE_FIGMA_TOKEN
-  const fileKey = process.env.VITE_FIGMA_FILE_KEY
-
-  if (!token || !fileKey) {
-    throw new Error(
-      'VITE_FIGMA_TOKEN and VITE_FIGMA_FILE_KEY must be defined in your .env file for integration tests.'
-    )
-  }
-
   return (
     <FigmaVarsProvider
-      token={token}
-      fileKey={fileKey}>
+      token={TEST_FIGMA_TOKEN}
+      fileKey={TEST_FIGMA_FILE_KEY}>
       {children}
     </FigmaVarsProvider>
   )

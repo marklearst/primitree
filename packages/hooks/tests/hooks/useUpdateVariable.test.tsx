@@ -1,7 +1,11 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { renderHookWithWrapper } from '../test-utils'
+import {
+  renderHookWithWrapper,
+  TEST_FIGMA_FILE_KEY,
+  TEST_FIGMA_TOKEN,
+} from '../test-utils'
 import { useUpdateVariable } from '../../src/hooks/useUpdateVariable'
 import * as FigmaTokenHook from '../../src/contexts/useFigmaTokenContext'
 import {
@@ -29,7 +33,7 @@ describe('useUpdateVariable', () => {
   it('should return an error state if figma fileKey is not provided', async () => {
     const spy = vi
       .spyOn(FigmaTokenHook, 'useFigmaTokenContext')
-      .mockReturnValue({ token: 'test-token', fileKey: null })
+      .mockReturnValue({ token: TEST_FIGMA_TOKEN, fileKey: null })
 
     const { result } = renderHook(() => useUpdateVariable())
 
@@ -87,13 +91,10 @@ describe('useUpdateVariable', () => {
       await result.current.mutate({ variableId, payload })
     })
 
-    const expectedToken = process.env.VITE_FIGMA_TOKEN
-    const expectedFileKey = process.env.VITE_FIGMA_FILE_KEY
-
     expect(mockedMutator).toHaveBeenCalledTimes(1)
     expect(mockedMutator).toHaveBeenCalledWith(
-      FIGMA_FILE_VARIABLES_PATH(expectedFileKey!),
-      expectedToken,
+      FIGMA_FILE_VARIABLES_PATH(TEST_FIGMA_FILE_KEY),
+      TEST_FIGMA_TOKEN,
       'UPDATE',
       {
         variables: [
