@@ -255,8 +255,18 @@ test('exports one immutable dependency-ordered release inventory', () => {
     assert.equal(Object.isFrozen(config.requiredFiles), true)
     assert.equal(Object.isFrozen(config.requiredExports), true)
     assert.equal(Object.isFrozen(config.exportTargets), true)
+    for (const targets of Object.values(config.exportTargets)) {
+      assert.equal(Object.isFrozen(targets), true)
+    }
     if (config.expectedExports !== undefined) {
-      assert.equal(Object.isFrozen(config.expectedExports), true)
+      const pending = [config.expectedExports]
+      while (pending.length > 0) {
+        const value = pending.pop()
+        assert.equal(Object.isFrozen(value), true)
+        for (const child of Object.values(value)) {
+          if (child !== null && typeof child === 'object') pending.push(child)
+        }
+      }
     }
     assert.equal(
       Object.isFrozen(config.requiredInternalRuntimeDependencies),
@@ -387,8 +397,16 @@ test('rejects changed conditional export semantics even when targets are reused'
     const entry = pkg.manifest.exports['.']
     entry.browser = entry.import.default
   }
+  const reorderConditions = pkg => {
+    const entry = pkg.manifest.exports['.']
+    pkg.manifest.exports['.'] = {
+      require: entry.require,
+      import: entry.import,
+      default: entry.default,
+    }
+  }
 
-  for (const mutation of [swapTargets, duplicateCondition]) {
+  for (const mutation of [swapTargets, duplicateCondition, reorderConditions]) {
     assert.throws(
       () => validate({ publicPackages: mutatePublic(0, mutation) }),
       /export .* structure must match the release inventory/
@@ -524,6 +542,57 @@ test('rejects accessor properties without invoking them', () => {
     /validation options\.publicPackages must be an enumerable data property/
   )
   assert.equal(optionGetterInvoked, false)
+
+  let versionGetterInvoked = false
+  const versionAccessorPackages = mutatePublic(0, pkg => {
+    Object.defineProperty(pkg.manifest, 'version', {
+      enumerable: true,
+      get() {
+        versionGetterInvoked = true
+        throw new Error('version getter must not execute')
+      },
+    })
+  })
+  assert.throws(
+    () => validate({ publicPackages: versionAccessorPackages }),
+    /version must be an enumerable data property/
+  )
+  assert.equal(versionGetterInvoked, false)
+
+  let licenseGetterInvoked = false
+  const licenseAccessorPackages = mutatePublic(0, pkg => {
+    pkg.licenseText = {
+      get trimEnd() {
+        licenseGetterInvoked = true
+        throw new Error('license getter must not execute')
+      },
+    }
+  })
+  assert.throws(
+    () => validate({ publicPackages: licenseAccessorPackages }),
+    /packages\/core\/LICENSE must match/
+  )
+  assert.equal(licenseGetterInvoked, false)
+
+  let tagCoercionInvoked = false
+  const hostileTag = {
+    [Symbol.toPrimitive]() {
+      tagCoercionInvoked = true
+      throw new Error('tag coercion must not execute')
+    },
+  }
+  assert.throws(() => validate({ tag: hostileTag }), /release tag <object>/)
+  assert.equal(tagCoercionInvoked, false)
+})
+
+test('rejects circular manifest data without recursing forever', () => {
+  const publicPackages = mutatePublic(0, pkg => {
+    pkg.manifest.circular = pkg.manifest
+  })
+  assert.throws(
+    () => validate({ publicPackages }),
+    /manifest\.circular must not contain circular data/
+  )
 })
 
 test('rejects missing, duplicate, and sixth public workspaces', () => {
