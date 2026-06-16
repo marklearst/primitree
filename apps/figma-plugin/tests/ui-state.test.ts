@@ -266,6 +266,85 @@ describe('Figma plugin UI export state', () => {
     expect(error.textContent).toBe('')
   })
 
+  it('keeps a newer copy success authoritative when an older attempt rejects', async () => {
+    const { copyButton, error } = getFixture()
+    let rejectFirstWrite: ((reason: Error) => void) | undefined
+    writeText
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectFirstWrite = reject
+          })
+      )
+      .mockResolvedValueOnce(undefined)
+
+    dispatchExported()
+    copyButton.click()
+    copyButton.click()
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledTimes(2)
+    expect(copyButton.textContent).toBe('Copied')
+    expect(error.textContent).toBe('')
+
+    rejectFirstWrite?.(new Error('older permission failure'))
+    await flushPromises()
+
+    expect(copyButton.textContent).toBe('Copied')
+    expect(error.textContent).toBe('')
+  })
+
+  it('ignores an older copy success after newer feedback finishes', async () => {
+    const { copyButton, error } = getFixture()
+    let resolveFirstWrite: (() => void) | undefined
+    writeText
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            resolveFirstWrite = resolve
+          })
+      )
+      .mockResolvedValueOnce(undefined)
+
+    dispatchExported()
+    copyButton.click()
+    copyButton.click()
+    await flushPromises()
+
+    expect(copyButton.textContent).toBe('Copied')
+    vi.advanceTimersByTime(1200)
+    expect(copyButton.textContent).toBe('Copy')
+
+    resolveFirstWrite?.()
+    await flushPromises()
+
+    expect(copyButton.textContent).toBe('Copy')
+    expect(error.textContent).toBe('')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('gives the newest copy attempt sole ownership of its feedback timer', async () => {
+    const { excludeHidden, copyButton } = getFixture()
+    dispatchExported()
+
+    copyButton.click()
+    await flushPromises()
+    expect(copyButton.textContent).toBe('Copied')
+
+    vi.advanceTimersByTime(600)
+    copyButton.click()
+    await flushPromises()
+
+    expect.soft(copyButton.textContent).toBe('Copied')
+    expect.soft(vi.getTimerCount()).toBe(1)
+    vi.advanceTimersByTime(600)
+    expect.soft(copyButton.textContent).toBe('Copied')
+
+    excludeHidden.checked = true
+    excludeHidden.dispatchEvent(new window.Event('change', { bubbles: true }))
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('clears an old copy reset timer before feedback for a new result', async () => {
     const { copyButton } = getFixture()
 

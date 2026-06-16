@@ -28,6 +28,7 @@ const errorEl = document.getElementById('error') as HTMLParagraphElement
 let latestJson = ''
 let latestFileName = 'variables.json'
 let resultGeneration = 0
+let copyAttempt = 0
 let copyResetTimer: ReturnType<typeof setTimeout> | undefined
 
 function showError(message: string) {
@@ -38,12 +39,17 @@ function clearError() {
   errorEl.textContent = ''
 }
 
-function clearExportResult() {
-  resultGeneration += 1
+function retireCopyAttempt() {
+  copyAttempt += 1
   if (copyResetTimer !== undefined) {
     clearTimeout(copyResetTimer)
     copyResetTimer = undefined
   }
+}
+
+function clearExportResult() {
+  resultGeneration += 1
+  retireCopyAttempt()
   latestJson = ''
   latestFileName = 'variables.json'
   statsEl.textContent = ''
@@ -89,23 +95,29 @@ copyBtn.addEventListener('click', async () => {
     return
   }
   clearError()
+  retireCopyAttempt()
   const jsonToCopy = latestJson
   const copyGeneration = resultGeneration
+  const activeCopyAttempt = copyAttempt
+  const canUpdateFeedback = () =>
+    copyGeneration === resultGeneration &&
+    jsonToCopy === latestJson &&
+    activeCopyAttempt === copyAttempt
   try {
     await navigator.clipboard.writeText(jsonToCopy)
-    if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+    if (!canUpdateFeedback()) {
       return
     }
     copyBtn.textContent = 'Copied'
     copyResetTimer = setTimeout(() => {
-      if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+      if (!canUpdateFeedback()) {
         return
       }
       copyBtn.textContent = 'Copy'
       copyResetTimer = undefined
     }, 1200)
   } catch {
-    if (copyGeneration !== resultGeneration || jsonToCopy !== latestJson) {
+    if (!canUpdateFeedback()) {
       return
     }
     showError('Clipboard blocked. Use Download instead.')
