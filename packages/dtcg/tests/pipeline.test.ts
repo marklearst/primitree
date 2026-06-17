@@ -247,4 +247,20 @@ describe('buildPipeline', () => {
     expect(config?.contents).toContain("'tokens/semantic.tokens.json'")
     expect(config?.contents).not.toContain('semantic.dark.tokens.json')
   })
+
+  it('pins generated workflow actions to reviewed revisions', () => {
+    const result = buildPipeline(fixture)
+    const workflow = result.files.find(
+      file => file.path === 'design-tokens.workflow.yml'
+    )?.contents
+
+    expect(workflow).toContain(
+      'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4'
+    )
+    expect(workflow).toContain(
+      'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4'
+    )
+    expect(workflow).not.toContain('actions/checkout@v4')
+    expect(workflow).not.toContain('actions/setup-node@v4')
+  })
 })
