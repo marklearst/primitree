@@ -178,6 +178,57 @@ test('accepts exactly five ordered artifacts and performs no writes', async t =>
   }
 })
 
+test('release checks require all seven artifact files to remain byte-identical', async t => {
+  const fixture = makeFixture(t)
+  const { checkReleaseArtifacts, verifyReleaseArtifacts } =
+    await releaseArtifactsModule()
+
+  const unchanged = checkReleaseArtifacts({
+    artifactDirectory: fixture.directory,
+    runChecks: () => {},
+  })
+  assert.equal(unchanged.version, VERSION)
+
+  assert.throws(
+    () =>
+      checkReleaseArtifacts({
+        artifactDirectory: fixture.directory,
+        runChecks: () => {
+          for (const artifact of fixture.manifest.artifacts) {
+            const bytes = Buffer.from(`coherent replacement:${artifact.name}\n`)
+            writeFileSync(path.join(fixture.directory, artifact.file), bytes)
+            artifact.sha256 = digest(bytes)
+          }
+          fixture.rewriteManifest()
+          fixture.rewriteChecksums()
+        },
+      }),
+    /release artifact bytes changed during validation checks/
+  )
+
+  const coherentlyReplaced = verifyReleaseArtifacts({
+    artifactDirectory: fixture.directory,
+  })
+  assert.equal(coherentlyReplaced.version, VERSION)
+  assert.deepEqual(
+    coherentlyReplaced.artifacts.map(artifact => artifact.sha256),
+    fixture.manifest.artifacts.map(artifact => artifact.sha256)
+  )
+})
+
+test('release checks reject asynchronous check injection', async t => {
+  const fixture = makeFixture(t)
+  const { checkReleaseArtifacts } = await releaseArtifactsModule()
+  assert.throws(
+    () =>
+      checkReleaseArtifacts({
+        artifactDirectory: fixture.directory,
+        runChecks: async () => {},
+      }),
+    /runChecks must be a synchronous function/
+  )
+})
+
 test('rejects an invalid artifact directory', async t => {
   await t.test('missing', async t => {
     const parent = mkdtempSync(path.join(tmpdir(), 'figmavars-missing-'))
@@ -215,6 +266,31 @@ test('rejects an invalid artifact directory', async t => {
     assert.throws(
       () => verifyReleaseArtifacts({ artifactDirectory: link }),
       /artifact directory.*real directory/i
+    )
+  })
+
+  await t.test('symlinked parent', async t => {
+    const fixture = makeFixture(t)
+    const external = mkdtempSync(
+      path.join(tmpdir(), 'figmavars-parent-target-')
+    )
+    const root = mkdtempSync(path.join(tmpdir(), 'figmavars-parent-link-'))
+    t.after(() => rmSync(external, { recursive: true, force: true }))
+    t.after(() => rmSync(root, { recursive: true, force: true }))
+    renameSync(fixture.directory, path.join(external, 'npm'))
+    if (
+      !createSymlinkOrSkip(t, external, path.join(root, 'artifacts'), 'dir')
+    ) {
+      return
+    }
+
+    const { verifyReleaseArtifacts } = await releaseArtifactsModule()
+    assert.throws(
+      () =>
+        verifyReleaseArtifacts({
+          artifactDirectory: path.join(root, 'artifacts', 'npm'),
+        }),
+      /artifact directory parent.*real directory/i
     )
   })
 
