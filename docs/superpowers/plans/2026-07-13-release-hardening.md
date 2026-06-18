@@ -695,12 +695,23 @@ The `publish` job has `needs: [quality, consumer-compatibility]` and runs only
 for tags that passed the quality job's strict stable-tag gate. It uses pinned
 setup-node with exact Node `22.13.0` plus
 `registry-url: 'https://registry.npmjs.org'` and `scope: '@figmavars'`, then
-downloads `npm-packages-${{ github.sha }}` to `artifacts/npm`.
+downloads `npm-packages-${{ github.sha }}` to `artifacts/npm`. Bind the job to
+the exact GitHub environment `npm`. A missing environment reference may create
+an unprotected record; it does not configure or prove protection, `NPM_TOKEN`,
+or trusted-publisher settings. An administrator must configure them before a
+tag run.
 
 Repeat the exact seven-file, manifest, regular-file, checksum-order, and digest
 validation from the consumer job before publication. Read the stable version
-from the downloaded manifest, require `v$VERSION` to equal
-`$GITHUB_REF_NAME`, and name every tarball literally:
+from the downloaded manifest and require `v$VERSION` to equal
+`$GITHUB_REF_NAME`. Before each literal publish command, query the exact
+package/version with `--registry=https://registry.npmjs.org`. Only exact npm
+`E404` permits publication. For an existing version, compute the local tarball
+SRI as `sha512-${base64 SHA-512 bytes}` and require equality with
+`dist.integrity`, a valid `dist.attestations.url`, and
+`dist.attestations.provenance.predicateType ===
+https://slsa.dev/provenance/v1`; then skip that package. Any other error or
+metadata mismatch fails closed. Keep the five tarball commands literal:
 
 ```bash
 VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
@@ -715,6 +726,9 @@ It does not checkout, install dependencies, test, or build. Retain
 `NODE_AUTH_TOKEN` and
 `NPM_CONFIG_PROVENANCE: 'true'` until the later trusted-publishing migration.
 Only this job receives the npm secret and `id-token: write` permission.
+This makes **Re-run failed jobs** on the original run the only supported
+selective recovery path: it downloads the unchanged same-run artifact and
+skips only matching packages that the same attempt already published.
 
 - [ ] **Step 8: Add safe concurrency and verify workflows locally**
 
@@ -786,7 +800,8 @@ Leave every item unchecked and explicitly external:
 - verify `@figmavars` ownership, 2FA, and new-package rights;
 - bootstrap each package if npm requires an initial token-authenticated publish;
 - configure trusted publishing for all five packages before removing token auth;
-- create protected npm and GitHub environments/rulesets;
+- create protected npm and GitHub environments/rulesets, including the exact
+  GitHub environment `npm`, its `NPM_TOKEN`, and trusted-publisher settings;
 - decide the stale `v4.2.0` tag separately;
 - recreate `v5.0.0` only at the final verified commit;
 - push the single intended tag, never a blanket `--tags` push;
@@ -794,22 +809,31 @@ Leave every item unchecked and explicitly external:
 
 - [ ] **Step 3: Document failure recovery without rebuilding**
 
-Use `VERSION=5.0.0` and `ARTIFACT_DIR=artifacts/npm` in command examples. Begin
-every recovery by running the macOS-provided `shasum` command below. GitHub's
-Linux jobs use `sha256sum --check SHA256SUMS` instead.
+Make **Re-run failed jobs** on the original tag workflow run the only supported
+selective recovery path. It must download the unchanged same-run artifact and
+must not rebuild or accept a locally substituted tarball. The idempotent
+publish step queries each exact package/version at the public npm registry.
+Only `E404` publishes a missing package; an existing version is skipped only
+after `dist.integrity` matches the local SRI and `dist.attestations` proves the
+SLSA v1 provenance predicate. Any other state fails closed.
+
+Use `VERSION=5.0.0` and `ARTIFACT_DIR=artifacts/npm` in audit examples. Begin
+every audit with the macOS-provided `shasum` command below. GitHub's Linux jobs
+use `sha256sum --check SHA256SUMS` instead.
 
 ```bash
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
-npm view "@figmavars/core@$VERSION" version
-npm view "@figmavars/dtcg@$VERSION" version
-npm view "@figmavars/cli@$VERSION" version
-npm view "@figmavars/hooks@$VERSION" version
-npm view "@figmavars/mcp@$VERSION" version
+npm view "@figmavars/core@$VERSION" version --registry=https://registry.npmjs.org
+npm view "@figmavars/dtcg@$VERSION" version --registry=https://registry.npmjs.org
+npm view "@figmavars/cli@$VERSION" version --registry=https://registry.npmjs.org
+npm view "@figmavars/hooks@$VERSION" version --registry=https://registry.npmjs.org
+npm view "@figmavars/mcp@$VERSION" version --registry=https://registry.npmjs.org
 ```
 
-Document that a 404 identifies a missing package and any other error stops
-recovery. Show one exact same-byte retry per package, to be run only when that
-package is missing:
+Document that only exact `E404` identifies a missing package and any other
+error stops recovery. Keep the five commands below as literal references to
+what CI conditionally executes, and forbid maintainers from executing them
+locally because local publication cannot preserve provenance:
 
 ```bash
 npm publish "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
@@ -819,12 +843,11 @@ npm publish "$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz" --registry=https://regi
 npm publish "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
 ```
 
-For wrong dist-tags, use `npm dist-tag ls`, then show
-`npm dist-tag add "@figmavars/core@$VERSION" latest` and
-`npm dist-tag rm @figmavars/core next`; repeat explicitly for the affected
-package, never republish. For bad contents, show
-`npm deprecate "@figmavars/core@$VERSION" "Use 5.0.1; this release contains invalid package contents"`
-and require a new patch version rather than overwrite/unpublish.
+For wrong dist-tags, pin `npm dist-tag ls`, `npm dist-tag add`, and
+`npm dist-tag rm` to `--registry=https://registry.npmjs.org`; repair the
+affected package without republishing. Pin `npm deprecate` to the same registry
+for bad contents and require a new patch version rather than
+overwrite/unpublish.
 
 For artifact recovery, show a fresh directory and immutable run coordinates:
 
@@ -835,17 +858,26 @@ RECOVERY_DIR=$(mktemp -d)
 gh run download "$RUN_ID" \
   --name "npm-packages-$COMMIT_SHA" \
   --dir "$RECOVERY_DIR"
-(cd "$RECOVERY_DIR" && shasum -a 256 -c SHA256SUMS)
+ARTIFACT_DIR="$RECOVERY_DIR"
+export ARTIFACT_DIR
+# Call verifyReleaseArtifacts with this absolute ARTIFACT_DIR.
+VERSION=$(node -p "require('$ARTIFACT_DIR/manifest.json').version")
+(cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
 
-If npm succeeded but the GitHub Release failed, recreate release metadata from
-the existing tag and saved files without moving the tag. Before any npm package
-was published, a wrong tag may be deleted locally with `git tag -d
-"v$VERSION"` and remotely with `git push origin ":refs/tags/v$VERSION"`, then
-recreated only after verification. After any npm publication, do not move the
-tag; stop, preserve provenance, deprecate if necessary, and release a patch.
-For credential/trusted-publisher failures, preserve the directory/checksums and
-retry the same files only after authentication is repaired.
+The recovered-directory procedure must run the exact seven-file schema and hash
+validator against `ARTIFACT_DIR`, derive `VERSION` from that verified manifest,
+and keep every conditional decision bound to those paths. The artifact is for
+audit; repair authentication and use **Re-run failed jobs** on the same run.
+
+Before moving a pushed wrong tag, identify its exact old workflow run. Cancel
+only if that run is still active, wait until the run and every job are terminal,
+and require proof that the publish job never started. Then query all five package versions with the
+explicit public registry and require all five results to be `E404`. Only after
+that cancellation -> terminal -> publish job never started -> all five absent
+sequence may the maintainer delete, recreate, and push the single tag. If the
+publish job started or any state is uncertain, preserve provenance, never move
+the tag, and release a patch.
 
 - [ ] **Step 4: Link one source of truth**
 
