@@ -143,12 +143,8 @@ hit "Download pipeline (.zip)" — screen-record for the README hero GIF.
 
 ## Launch checklist
 
-- [ ] Do not push the existing local `v5.0.0` tag; it predates the
-      `@figmavars` migration.
-- [ ] After the release commit is on `main` and CI is green, recreate
-      `v5.0.0` at that verified commit and push only the fresh tag.
-      (tag push triggers the npm publish workflow; verify NPM_TOKEN secret)
-- [ ] Verify all five packages on npm (cli, core, dtcg, hooks, mcp)
+- [ ] Complete the [release runbook](../releasing.md); release procedure and
+      recovery steps live there exclusively.
 - [ ] Deploy `apps/playground/dist` (GitHub Pages / Netlify / Vercel — it's
       static; `pnpm --filter figmavars-playground build`)
 - [ ] Record the 60s GIF and embed at the top of the root README

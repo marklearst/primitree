@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -42,6 +43,14 @@ const contributing = readFileSync(
   new URL('../CONTRIBUTING.md', import.meta.url),
   'utf8'
 )
+const announcement = readFileSync(
+  new URL('../docs/launch/announcement.md', import.meta.url),
+  'utf8'
+)
+const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
+const releaseRunbook = existsSync(releaseRunbookUrl)
+  ? readFileSync(releaseRunbookUrl, 'utf8')
+  : ''
 const workspaceConfig = readFileSync(
   new URL('../pnpm-workspace.yaml', import.meta.url),
   'utf8'
@@ -227,6 +236,22 @@ function assertInOrder(source, markers, label) {
 
 function occurrences(source, value) {
   return source.split(value).length - 1
+}
+
+function extractMarkdownSection(source, heading) {
+  const marker = `${heading}\n`
+  const start = source.indexOf(marker)
+  assert.notEqual(start, -1, `missing documentation section ${heading}`)
+  const bodyStart = start + marker.length
+  const remaining = source.slice(bodyStart)
+  const nextHeading = remaining.search(/^## /m)
+  return nextHeading === -1 ? remaining : remaining.slice(0, nextHeading)
+}
+
+function extractFirstBashBlock(section, label) {
+  const match = /```bash\n([\s\S]*?)\n```/.exec(section)
+  assert.ok(match, `${label} must contain a bash command block`)
+  return match[1]
 }
 
 function assertStrictArtifactValidation(job, { requireTag }) {
@@ -1344,5 +1369,183 @@ test('publishes only independently validated stable tarballs', () => {
       commands[4],
     ],
     'publish validation and release flow'
+  )
+})
+
+test('links one release runbook from maintainer and launch documentation', () => {
+  assert.notEqual(releaseRunbook, '', 'docs/releasing.md must exist')
+  assert.match(contributing, /\[release runbook\]\(docs\/releasing\.md\)/i)
+  assert.match(announcement, /\[release runbook\]\(\.\.\/releasing\.md\)/i)
+  assert.doesNotMatch(announcement, /npm publish/)
+  assert.doesNotMatch(announcement, /git push --tags/)
+})
+
+test('freezes the exact local preflight and supported toolchain boundaries', () => {
+  const preflight = extractMarkdownSection(releaseRunbook, '## Local preflight')
+  assert.equal(
+    extractFirstBashBlock(preflight, 'local preflight'),
+    [
+      'pnpm install --frozen-lockfile',
+      'pnpm run format:check',
+      'pnpm run lint',
+      'pnpm run typecheck',
+      'pnpm run test',
+      'pnpm run test:coverage',
+      'pnpm run test:e2e',
+      'pnpm run check:release',
+    ].join('\n')
+  )
+  assert.match(preflight, /Node >=22\.13\.0/)
+  assert.match(preflight, /pnpm 11\.10\.0/)
+  assert.match(preflight, /Node\s+20\.0\.0[\s\S]*consumer/i)
+})
+
+test('documents stable-only semantics and the exact seven-file artifact boundary', () => {
+  const semantics = extractMarkdownSection(
+    releaseRunbook,
+    '## Stable release semantics'
+  )
+  assert.match(semantics, /stable releases only/i)
+  assert.match(semantics, /exact `vMAJOR\.MINOR\.PATCH`/)
+  assert.match(semantics, /dist-tag `latest`/)
+  assert.match(semantics, /prerelease versions are not supported/i)
+  assert.match(semantics, /future[\s\S]*separate design/i)
+
+  const artifactBoundary = extractMarkdownSection(
+    releaseRunbook,
+    '## Release artifact boundary'
+  )
+  for (const filename of [
+    'figmavars-core-$VERSION.tgz',
+    'figmavars-dtcg-$VERSION.tgz',
+    'figmavars-cli-$VERSION.tgz',
+    'figmavars-hooks-$VERSION.tgz',
+    'figmavars-mcp-$VERSION.tgz',
+    'manifest.json',
+    'SHA256SUMS',
+  ]) {
+    assert.ok(
+      artifactBoundary.includes(filename),
+      `artifact boundary must include ${filename}`
+    )
+  }
+  assert.match(
+    artifactBoundary,
+    /exactly seven regular,[\s\S]*non-symlink files/i
+  )
+  assert.match(
+    artifactBoundary,
+    /manifest\.json[\s\S]*separate[\s\S]*validation[\s\S]*SHA256SUMS/i
+  )
+})
+
+test('keeps dry-run and external npm and GitHub proof boundaries explicit', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
+  assert.equal(checklist.length, 8)
+  assert.ok(checklist.every(item => item[1] === ' '))
+  for (const phrase of [
+    '@figmavars ownership, 2FA, and new-package rights',
+    'token-authenticated publish',
+    'trusted publishing for all five packages',
+    'protected npm and GitHub environments and rulesets',
+    'stale `v4.2.0` tag',
+    '`v5.0.0` only at the final verified commit',
+    'single intended tag',
+    'npm provenance',
+  ]) {
+    assert.match(external, new RegExp(phrase.replaceAll('.', '\\.')))
+  }
+  assert.doesNotMatch(external, /- \[[xX]\]/)
+  assert.doesNotMatch(releaseRunbook, /git push --tags/)
+  assert.match(
+    releaseRunbook,
+    /npm publish --dry-run[\s\S]*does not publish or mutate the registry/i
+  )
+  assert.match(releaseRunbook, /dry-run[\s\S]*can[\s\S]*read credentials/i)
+  assert.match(
+    releaseRunbook,
+    /dry-run[\s\S]*not proof of npm access[\s\S]*provenance/i
+  )
+  assert.match(
+    releaseRunbook,
+    /current\s+workflow does not create a GitHub Release[\s\S]*manual/i
+  )
+})
+
+test('freezes same-byte recovery queries and retries in dependency order', () => {
+  const recovery = extractMarkdownSection(
+    releaseRunbook,
+    '## Partial publication recovery'
+  )
+  const viewCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
+    packageName => `npm view "@figmavars/${packageName}@$VERSION" version`
+  )
+  const publishCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
+    packageName =>
+      `npm publish "$ARTIFACT_DIR/figmavars-${packageName}-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts`
+  )
+
+  assertInOrder(recovery, viewCommands, 'partial publication queries')
+  assertInOrder(recovery, publishCommands, 'same-byte publication retries')
+  for (const command of [...viewCommands, ...publishCommands]) {
+    assert.equal(occurrences(releaseRunbook, command), 1)
+  }
+  assert.match(recovery, /Only npm `E404` means that a package is missing/)
+  assert.match(recovery, /Any other error[\s\S]*stops[\s\S]*recovery/i)
+  assert.match(recovery, /same verified bytes/i)
+  assert.match(recovery, /Never rebuild/i)
+  assert.match(recovery, /shasum -a 256 -c SHA256SUMS/)
+  assert.match(recovery, /Linux[\s\S]*sha256sum --check SHA256SUMS/i)
+})
+
+test('documents dist-tag, invalid-content, and immutable artifact recovery', () => {
+  const recovery = extractMarkdownSection(
+    releaseRunbook,
+    '## Partial publication recovery'
+  )
+  for (const command of [
+    'npm dist-tag ls "@figmavars/core"',
+    'npm dist-tag add "@figmavars/core@$VERSION" latest',
+    'npm dist-tag rm "@figmavars/core" next',
+    'npm deprecate "@figmavars/core@$VERSION" "Use 5.0.1; this release contains invalid package contents"',
+    'RUN_ID=123456789',
+    'COMMIT_SHA=0123456789abcdef0123456789abcdef01234567',
+    'RECOVERY_DIR=$(mktemp -d)',
+    'gh run download "$RUN_ID"',
+    '--name "npm-packages-$COMMIT_SHA"',
+    '--dir "$RECOVERY_DIR"',
+    '(cd "$RECOVERY_DIR" && shasum -a 256 -c SHA256SUMS)',
+  ]) {
+    assert.ok(recovery.includes(command), `recovery must contain ${command}`)
+  }
+  assert.match(recovery, /bad package contents[\s\S]*new patch version/i)
+  assert.match(recovery, /do not[\s\S]*(?:overwrite|unpublish)/i)
+  assert.match(recovery, /immutable run ID and commit SHA/i)
+})
+
+test('preserves tag and provenance boundaries during recovery', () => {
+  const recovery = extractMarkdownSection(
+    releaseRunbook,
+    '## Partial publication recovery'
+  )
+  assert.match(recovery, /git tag -d "v\$VERSION"/)
+  assert.match(recovery, /git push origin ":refs\/tags\/v\$VERSION"/)
+  assert.match(
+    recovery,
+    /wrong tag[\s\S]*only before any npm package[\s\S]*has been[\s\S]*published/i
+  )
+  assert.match(recovery, /after any npm publication[\s\S]*do not move the tag/i)
+  assert.match(recovery, /preserve provenance/i)
+  assert.match(
+    recovery,
+    /GitHub Release[\s\S]*existing tag[\s\S]*without moving the tag/i
+  )
+  assert.match(
+    recovery,
+    /credential[\s\S]*preserve[\s\S]*checksums[\s\S]*only missing[\s\S]*packages/i
   )
 })

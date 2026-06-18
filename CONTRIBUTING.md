@@ -50,6 +50,12 @@ pnpm --filter figmavars-playground dev
 - Use conventional commits (`fix:`, `feat:`, `docs:`, `refactor:`, with an optional package scope like `feat(dtcg):`).
 - Open pull requests against `main`; CI must pass (build, tests, coverage, publint/attw/size for hooks).
 
+## Releasing
+
+Maintainers must follow the [release runbook](docs/releasing.md). It is the
+single source of truth for local preflight, external npm and GitHub steps, and
+partial-publication recovery.
+
 ## Bug reports & feature requests
 
 Use GitHub Issues, with as much detail as possible (steps, exports that reproduce it — scrub anything confidential first).
