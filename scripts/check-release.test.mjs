@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { parse as parseYaml } from 'yaml'
 import {
   discoverWorkspaceManifestPaths,
   validateReleaseManifests,
@@ -60,6 +61,128 @@ const APPROVED_ACTIONS = new Set([
   'codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45',
 ])
 
+const EXPECTED_ACTION_REFS = [
+  'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+  'pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa',
+  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
+  'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+  'codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45',
+  'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
+  'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093',
+  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
+  'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093',
+]
+
+const CODECOV_SECRET_REFERENCE = '${{ secrets.CODECOV_TOKEN }}'
+const NPM_SECRET_REFERENCE = '${{ secrets.NPM_TOKEN }}'
+
+function isPlainRecord(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function collectPropertyValues(value, propertyName, collected = []) {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectPropertyValues(entry, propertyName, collected)
+    }
+    return collected
+  }
+  if (!isPlainRecord(value)) return collected
+
+  for (const [key, child] of Object.entries(value)) {
+    if (key === propertyName) collected.push(child)
+    collectPropertyValues(child, propertyName, collected)
+  }
+  return collected
+}
+
+function collectSecretOccurrences(value, collected = []) {
+  if (typeof value === 'string') {
+    if (/\bsecrets\b/i.test(value)) collected.push(value)
+    return collected
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) collectSecretOccurrences(entry, collected)
+    return collected
+  }
+  if (!isPlainRecord(value)) return collected
+
+  for (const [key, child] of Object.entries(value)) {
+    if (/\bsecrets\b/i.test(key)) collected.push(`<mapping-key:${key}>`)
+    collectSecretOccurrences(child, collected)
+  }
+  return collected
+}
+
+function findWorkflowStep(job, name) {
+  assert.ok(Array.isArray(job.steps), `workflow job must define steps: ${name}`)
+  const matches = job.steps.filter(step => step?.name === name)
+  assert.equal(matches.length, 1, `workflow must define one ${name} step`)
+  return matches[0]
+}
+
+function assertWorkflowTrustPolicy(source) {
+  const document = parseYaml(source)
+  assert.ok(isPlainRecord(document), 'workflow must be a YAML mapping')
+  assert.ok(isPlainRecord(document.jobs), 'workflow jobs must be a mapping')
+  assert.deepEqual(
+    Object.keys(document.jobs),
+    ['quality', 'consumer-compatibility', 'publish'],
+    'workflow must contain exactly the reviewed jobs'
+  )
+
+  const actionRefs = collectPropertyValues(document, 'uses')
+  for (const action of actionRefs) {
+    assert.equal(typeof action, 'string', 'workflow action must be a string')
+    assert.equal(
+      APPROVED_ACTIONS.has(action),
+      true,
+      `unapproved workflow action ${action}`
+    )
+  }
+  assert.deepEqual(
+    actionRefs,
+    EXPECTED_ACTION_REFS,
+    'workflow actions must exactly match the reviewed sequence'
+  )
+
+  assert.deepEqual(document.permissions, { contents: 'read' })
+  const quality = document.jobs.quality
+  const consumer = document.jobs['consumer-compatibility']
+  const publish = document.jobs.publish
+  assert.equal(
+    Object.hasOwn(quality, 'permissions'),
+    false,
+    'quality must inherit the read-only workflow permissions'
+  )
+  assert.equal(
+    Object.hasOwn(consumer, 'permissions'),
+    false,
+    'consumer-compatibility must inherit the read-only workflow permissions'
+  )
+  assert.deepEqual(publish.permissions, {
+    contents: 'read',
+    'id-token': 'write',
+  })
+
+  const codecovStep = findWorkflowStep(quality, 'Upload to Codecov')
+  const publishStep = findWorkflowStep(publish, 'Publish npm packages')
+  assert.equal(codecovStep.with?.token, CODECOV_SECRET_REFERENCE)
+  assert.equal(publishStep.env?.NODE_AUTH_TOKEN, NPM_SECRET_REFERENCE)
+  assert.deepEqual(
+    collectSecretOccurrences(document),
+    [CODECOV_SECRET_REFERENCE, NPM_SECRET_REFERENCE],
+    'workflow may contain only the reviewed secret references'
+  )
+
+  return document
+}
+
 function extractWorkflowJobs(source) {
   const jobsHeader = /^jobs:\s*$/m.exec(source)
   assert.ok(jobsHeader, 'workflow must contain a top-level jobs mapping')
@@ -79,12 +202,6 @@ function extractWorkflowJobs(source) {
     )
   }
   return jobs
-}
-
-function extractActionRefs(source) {
-  return [
-    ...source.matchAll(/^\s*(?:-\s+)?uses:\s*([^\s#]+)(?:\s+#.*)?$/gm),
-  ].map(match => match[1])
 }
 
 function extractNamedStep(job, name) {
@@ -929,8 +1046,9 @@ test('keeps only the intended pnpm workspace build policy', () => {
 })
 
 test('pins repository actions and exposes only the three reviewed jobs', () => {
+  const document = assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
-  const actionRefs = extractActionRefs(workflow)
+  const actionRefs = collectPropertyValues(document, 'uses')
 
   assert.deepEqual(
     [...jobs.keys()],
@@ -965,7 +1083,60 @@ test('pins repository actions and exposes only the three reviewed jobs', () => {
   assert.doesNotMatch(publish, /actions\/checkout@|pnpm\/action-setup@/)
 })
 
+test('rejects YAML forms that bypass workflow trust-boundary checks', () => {
+  assert.doesNotThrow(() => assertWorkflowTrustPolicy(workflow))
+
+  const rogueJob = workflow.replace(
+    '  quality:\n',
+    [
+      '  "rogue":',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses : owner/unreviewed-action@v1',
+      '  quality:',
+      '',
+    ].join('\n')
+  )
+  assert.throws(
+    () => assertWorkflowTrustPolicy(rogueJob),
+    /exactly the reviewed jobs/
+  )
+
+  const spacedActionKey = workflow.replace(
+    /uses: actions\/checkout@[a-f0-9]{40}/,
+    'uses : owner/unreviewed-action@v1'
+  )
+  assert.throws(
+    () => assertWorkflowTrustPolicy(spacedActionKey),
+    /unapproved workflow action/
+  )
+
+  const elevatedQuality = workflow.replace(
+    '  quality:\n',
+    '  quality:\n    permissions:\n      contents: write\n'
+  )
+  assert.throws(
+    () => assertWorkflowTrustPolicy(elevatedQuality),
+    /quality must inherit the read-only workflow permissions/
+  )
+
+  const bracketSecret = workflow.replace(
+    '  consumer-compatibility:\n',
+    [
+      '  consumer-compatibility:',
+      '    env:',
+      `      EXFILTRATE: "\${{ secrets['UNREVIEWED_TOKEN'] }}"`,
+      '',
+    ].join('\n')
+  )
+  assert.throws(
+    () => assertWorkflowTrustPolicy(bracketSecret),
+    /only the reviewed secret references/
+  )
+})
+
 test('freezes workflow triggers permissions concurrency and secret boundaries', () => {
+  assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
   const quality = jobs.get('quality')
   const consumer = jobs.get('consumer-compatibility')
