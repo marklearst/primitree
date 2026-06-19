@@ -436,15 +436,19 @@ jobs:
               } catch {
                 fail('npm registry attestation URL is missing or invalid')
               }
+              const expectedAttestationPath =
+                `/-/npm/v1/attestations/${packageName.replace('/', '%2f')}@${version}`
               if (
                 parsedAttestationUrl.protocol !== 'https:' ||
                 parsedAttestationUrl.hostname !== 'registry.npmjs.org' ||
                 parsedAttestationUrl.port !== '' ||
                 parsedAttestationUrl.username !== '' ||
                 parsedAttestationUrl.password !== '' ||
-                !parsedAttestationUrl.pathname.startsWith('/-/npm/v1/attestations/')
+                parsedAttestationUrl.pathname !== expectedAttestationPath ||
+                parsedAttestationUrl.search !== '' ||
+                parsedAttestationUrl.hash !== ''
               ) {
-                fail('npm registry attestation URL must be an absolute HTTPS URL')
+                fail('npm registry attestation URL must match the package and version')
               }
               if (
                 metadata.dist?.attestations?.provenance?.predicateType !==
