@@ -31,6 +31,14 @@ async function expectNoDocumentOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1)
 }
 
+async function gotoPlayground(page: Page) {
+  await page.goto('/playground')
+  await expect(page.locator('.pg-shell')).toHaveAttribute(
+    'data-hydrated',
+    'true'
+  )
+}
+
 async function expectEveryTouchTarget(locator: Locator) {
   const targets = await locator.evaluateAll(elements =>
     elements.map(element => {
@@ -102,7 +110,7 @@ for (const width of widths) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 812 })
-    await page.goto('/playground')
+    await gotoPlayground(page)
 
     await expect(page.getByRole('main')).toHaveCount(1)
     const heading = page.getByRole('heading', {
@@ -119,7 +127,7 @@ for (const width of widths) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 812 })
-    await page.goto('/playground')
+    await gotoPlayground(page)
 
     await page.getByRole('button', { name: 'Try the sample' }).click()
 
@@ -207,7 +215,7 @@ for (const width of widths) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 812 })
-    await page.goto('/playground')
+    await gotoPlayground(page)
     await page.locator('input[type="file"]').setInputFiles({
       name: 'warning-variables.json',
       mimeType: 'application/json',
@@ -231,7 +239,7 @@ test('embedded playground tabs and context radios support the keyboard', async (
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 })
-  await page.goto('/playground')
+  await gotoPlayground(page)
   await page.getByRole('button', { name: 'Try the sample' }).click()
 
   const tablist = page.getByRole('tablist', { name: 'Preview output' })
@@ -323,7 +331,7 @@ test('embedded playground tabs and context radios support the keyboard', async (
 })
 
 test('embedded playground announces malformed JSON', async ({ page }) => {
-  await page.goto('/playground')
+  await gotoPlayground(page)
   await page.locator('input[type="file"]').setInputFiles({
     name: 'broken.json',
     mimeType: 'application/json',
@@ -351,7 +359,7 @@ test('touch contexts do not apply playground hover enhancements', async ({
 
   try {
     const page = await context.newPage()
-    await page.goto('/playground')
+    await gotoPlayground(page)
     expect(
       await page.evaluate(
         () => matchMedia('(hover: hover) and (pointer: fine)').matches
@@ -381,7 +389,7 @@ test('embedded playground preserves reduced-motion behavior', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/playground')
+  await gotoPlayground(page)
 
   const durations = await page.locator('.pg-dropzone').evaluate(element =>
     getComputedStyle(element)

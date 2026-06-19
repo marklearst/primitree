@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   analyze,
   downloadBlob,
@@ -17,6 +17,7 @@ const tabs = ['tokens', 'files'] as const
 type Tab = (typeof tabs)[number]
 
 export function PlaygroundApp() {
+  const [hydrated, setHydrated] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -31,6 +32,10 @@ export function PlaygroundApp() {
     tokens: tokensTabRef,
     files: filesTabRef,
   } as const
+
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
 
   const onTabKeyDown = (
     event: React.KeyboardEvent<HTMLButtonElement>,
@@ -116,7 +121,9 @@ export function PlaygroundApp() {
   const otherTokens = tokens.filter(t => t.type !== 'color')
 
   return (
-    <div className='pg-shell'>
+    <div
+      className='pg-shell'
+      data-hydrated={hydrated}>
       {!preview ? <p className='pg-kicker'>Playground</p> : null}
       <h1 className={`pg-title${preview ? ' pg-visually-hidden' : ''}`}>
         Drop your variables.
