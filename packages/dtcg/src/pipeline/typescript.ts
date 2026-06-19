@@ -29,7 +29,9 @@ export function emitTypescript(
     ' * Values reflect the default context of every modifier axis.',
     ' */',
     '',
-    'export type TokenPath =',
+    paths.length === 0
+      ? 'export type TokenPath = never'
+      : 'export type TokenPath =',
   ]
   for (const path of paths) {
     lines.push(`  | ${stringLiteral(path)}`)
