@@ -5,7 +5,11 @@ export interface ExportMode {
   name: string
 }
 
-export interface ExportCollection {
+export interface ExportExtendedMode extends ExportMode {
+  parentModeId: string
+}
+
+interface ExportCollectionBase {
   id: string
   name: string
   key?: string
@@ -15,6 +19,27 @@ export interface ExportCollection {
   hiddenFromPublishing?: boolean
   remote?: boolean
 }
+
+export interface ExportRootCollection extends ExportCollectionBase {
+  /** Legacy ordinary exports may omit the discriminator. */
+  isExtension?: false
+  parentVariableCollectionId?: never
+  rootVariableCollectionId?: never
+  variableOverrides?: never
+}
+
+export interface ExportExtendedCollection extends Omit<
+  ExportCollectionBase,
+  'modes'
+> {
+  isExtension: true
+  parentVariableCollectionId: string
+  rootVariableCollectionId: string
+  variableOverrides: Record<string, Record<string, unknown>>
+  modes: ExportExtendedMode[]
+}
+
+export type ExportCollection = ExportRootCollection | ExportExtendedCollection
 
 export interface ExportVariable {
   id: string

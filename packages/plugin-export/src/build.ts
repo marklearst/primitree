@@ -12,21 +12,77 @@ export interface BuildExportOptions {
   excludeHidden?: boolean
 }
 
+function aliasesExcludedVariableId(
+  value: unknown,
+  excludedVariableIds: ReadonlySet<string>
+): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    value.type === 'VARIABLE_ALIAS' &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    excludedVariableIds.has(value.id)
+  )
+}
+
 function aliasesExcludedVariable(
   variable: ExportVariable,
   excludedVariableIds: ReadonlySet<string>
 ): boolean {
-  return Object.values(variable.valuesByMode).some(value => {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      'type' in value &&
-      value.type === 'VARIABLE_ALIAS' &&
-      'id' in value &&
-      typeof value.id === 'string' &&
-      excludedVariableIds.has(value.id)
+  return Object.values(variable.valuesByMode).some(value =>
+    aliasesExcludedVariableId(value, excludedVariableIds)
+  )
+}
+
+function cloneSerializedValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(cloneSerializedValue)
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        cloneSerializedValue(nestedValue),
+      ])
     )
-  })
+  }
+
+  return value
+}
+
+function cloneSerializedRecord(
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [
+      key,
+      cloneSerializedValue(value),
+    ])
+  )
+}
+
+function cloneVariableOverrides(
+  overrides: Record<string, Record<string, unknown>>,
+  excludedVariableIds: ReadonlySet<string>
+): Record<string, Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(overrides)
+      .filter(([variableId]) => !excludedVariableIds.has(variableId))
+      .map(([variableId, valuesByMode]) => [
+        variableId,
+        Object.fromEntries(
+          Object.entries(valuesByMode)
+            .filter(
+              ([, value]) =>
+                !aliasesExcludedVariableId(value, excludedVariableIds)
+            )
+            .map(([modeId, value]) => [modeId, cloneSerializedValue(value)])
+        ),
+      ])
+  )
 }
 
 /**
@@ -63,29 +119,50 @@ export function buildLocalVariablesExport(
     }
   }
 
-  const variableMap: LocalVariablesExport['meta']['variables'] = {}
+  const variableMap = Object.create(
+    null
+  ) as LocalVariablesExport['meta']['variables']
   for (const variable of variables) {
     if (excludedVariableIds.has(variable.id)) {
       continue
     }
     variableMap[variable.id] = {
       ...variable,
-      valuesByMode: { ...variable.valuesByMode },
+      valuesByMode: cloneSerializedRecord(variable.valuesByMode),
       scopes: variable.scopes ? [...variable.scopes] : [],
       codeSyntax: variable.codeSyntax ? { ...variable.codeSyntax } : {},
       updatedAt: '',
     }
   }
 
-  const variableCollections: LocalVariablesExport['meta']['variableCollections'] =
-    {}
+  const variableCollections = Object.create(
+    null
+  ) as LocalVariablesExport['meta']['variableCollections']
   for (const collection of collections) {
+    const variableIds = collection.variableIds.filter(variableId =>
+      collection.isExtension
+        ? !excludedVariableIds.has(variableId)
+        : variableMap[variableId] !== undefined
+    )
+
+    if (collection.isExtension) {
+      variableCollections[collection.id] = {
+        ...collection,
+        modes: collection.modes.map(mode => ({ ...mode })),
+        variableIds,
+        variableOverrides: cloneVariableOverrides(
+          collection.variableOverrides,
+          excludedVariableIds
+        ),
+        updatedAt: '',
+      }
+      continue
+    }
+
     variableCollections[collection.id] = {
       ...collection,
-      modes: collection.modes.map(m => ({ ...m })),
-      variableIds: collection.variableIds.filter(
-        variableId => variableMap[variableId] !== undefined
-      ),
+      modes: collection.modes.map(mode => ({ ...mode })),
+      variableIds,
       updatedAt: '',
     }
   }
