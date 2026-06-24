@@ -248,6 +248,10 @@ jobs:
           await import('@figmavars/mcp')
           NODE
 
+          mkdir -p dist
+          printf '%s\n' "await import('@figmavars/mcp')" > dist/index.js
+          node dist/index.js
+
           node --input-type=commonjs <<'NODE'
           require('@figmavars/core')
           require('@figmavars/core/types')

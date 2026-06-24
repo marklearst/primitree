@@ -628,7 +628,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         attwProfile: 'esm-only',
         requiredFiles: ['dist'],
         requiredBin: 'figma-vars-mcp',
-        requiredBinTarget: './dist/index.js',
+        requiredBinTarget: './dist/cli.js',
         exportSignatures: [
           '.:import:types=./dist/index.d.ts',
           '.:import:default=./dist/index.js',
@@ -1456,6 +1456,8 @@ test('tests only downloaded tarballs at the Node 20 consumer floor', () => {
   ]) {
     assert.match(install, new RegExp(`import\\('${specifier}'\\)`))
   }
+  assert.match(install, /mkdir -p dist/)
+  assert.match(install, /node dist\/index\.js/)
   for (const specifier of [
     '@figmavars/core',
     '@figmavars/core/types',
@@ -1475,6 +1477,8 @@ test('tests only downloaded tarballs at the Node 20 consumer floor', () => {
       'sha256sum --check SHA256SUMS',
       'NPM_CONFIG_USERCONFIG=/dev/null npm install',
       "await import('@figmavars/core')",
+      'mkdir -p dist',
+      'node dist/index.js',
       './node_modules/.bin/figma-vars --help',
     ],
     'consumer validation and smoke flow'
