@@ -7,6 +7,7 @@ import {
   RELEASE_FUNDING,
   RELEASE_FUNDING_TYPE,
   RELEASE_HOMEPAGE,
+  RELEASE_NODE_ENGINE,
   RELEASE_REPOSITORY,
   RELEASE_REPOSITORY_TYPE,
 } from './release-config.mjs'
@@ -14,7 +15,6 @@ import {
 const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const EXPECTED_AUTHOR = 'Mark Learst'
 const EXPECTED_LICENSE = 'MIT'
-const EXPECTED_CONSUMER_ENGINE = '>=20.0.0'
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'optionalDependencies',
@@ -273,8 +273,8 @@ function validateCanonicalMetadata(pkg, config, errors) {
   if (manifest.funding?.url !== RELEASE_FUNDING) {
     errors.push(`${manifestPath} must use the canonical funding URL`)
   }
-  if (manifest.engines?.node !== EXPECTED_CONSUMER_ENGINE) {
-    errors.push(`${manifestPath} must support Node ${EXPECTED_CONSUMER_ENGINE}`)
+  if (manifest.engines?.node !== RELEASE_NODE_ENGINE) {
+    errors.push(`${manifestPath} must support Node ${RELEASE_NODE_ENGINE}`)
   }
 
   const publishConfig = manifest.publishConfig
@@ -538,9 +538,6 @@ export function validateReleaseManifests(options) {
     }
     if (manifest.private !== true) {
       errors.push(`${manifestPath} must be private`)
-    }
-    if (typeof version === 'string' && manifest.version !== version) {
-      errors.push(`${manifestPath} must use version ${version}`)
     }
   }
 

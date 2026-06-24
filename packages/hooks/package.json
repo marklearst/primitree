@@ -45,7 +45,7 @@
   },
   "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "build": "tsc && vite build",
@@ -63,8 +63,7 @@
     "check:release": "pnpm run build && pnpm run check:publint && pnpm run check:attw && pnpm run check:size"
   },
   "peerDependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^19.0.0",
     "swr": "^2.3.7"
   },
   "sideEffects": false,

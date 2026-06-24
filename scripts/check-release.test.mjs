@@ -465,7 +465,7 @@ function canonicalManifest(config) {
     },
     bugs: { url: RELEASE_BUGS },
     homepage: RELEASE_HOMEPAGE,
-    engines: { node: '>=20.0.0' },
+    engines: { node: '>=24.0.0' },
     publishConfig: { access: 'public', provenance: true },
     funding: { type: RELEASE_FUNDING_TYPE, url: RELEASE_FUNDING },
   }
@@ -740,7 +740,7 @@ const metadataCases = [
   [
     'consumer engine',
     pkg => (pkg.manifest.engines.node = '>=22'),
-    /support Node >=20\.0\.0/,
+    /support Node >=24\.0\.0/,
   ],
   [
     'publish access',
@@ -1109,13 +1109,10 @@ test('rejects wrong names, license copies, versions, and tags', () => {
   assert.throws(() => validate({ tag: 'v5.0.1' }), /does not match/)
 })
 
-test('rejects private workspace version drift', () => {
+test('allows private workspace version independence from the public release train', () => {
   const privatePackages = makePrivatePackages()
   privatePackages[0].manifest.version = '4.0.0'
-  assert.throws(
-    () => validate({ privatePackages }),
-    /packages\/plugin-export\/package\.json must use version 5\.0\.0/
-  )
+  assert.doesNotThrow(() => validate({ privatePackages }))
 })
 
 test('discovers workspace manifests without following symlink entries', t => {
@@ -1195,19 +1192,35 @@ test('a tag ref without a tag name fails closed', () => {
   assert.match(result.stderr, /release tag .* must use vMAJOR\.MINOR\.PATCH/)
 })
 
-test('separates the source toolchain floor from public package runtimes', () => {
-  assert.equal(rootManifest.engines.node, '>=22.13.0')
+test('requires Node 24 for the source workspace and every public package', () => {
+  assert.equal(rootManifest.engines.node, '>=24.0.0')
+  assert.equal(rootManifest.engines.pnpm, '>=11.0.0')
   assert.equal(rootManifest.packageManager, 'pnpm@11.10.0')
   assert.deepEqual(
     publicManifests.map(manifest => manifest.engines?.node),
-    Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=20.0.0')
+    Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=24.0.0')
   )
-  assert.match(contributing, /source development requires Node >=22\.13\.0/i)
-  assert.match(contributing, /pnpm 11\.10\.0/i)
-  assert.match(
-    contributing,
-    /public packages[\s\S]*runtime-tested[\s\S]*Node 20\.0\.0/i
+})
+
+test('requires the React 19 hooks peer without a React DOM peer', () => {
+  const hooks = publicManifests.find(
+    manifest => manifest.name === '@figmavars/hooks'
   )
+  assert.ok(hooks)
+  assert.equal(hooks.peerDependencies?.react, '^19.0.0')
+  assert.equal(Object.hasOwn(hooks.peerDependencies ?? {}, 'react-dom'), false)
+})
+
+test('configures Changesets for the fixed public release train', () => {
+  const changesetConfigUrl = new URL('../.changeset/config.json', import.meta.url)
+  assert.equal(existsSync(changesetConfigUrl), true)
+  const changesetConfig = JSON.parse(readFileSync(changesetConfigUrl, 'utf8'))
+  assert.deepEqual(changesetConfig.fixed, [
+    PUBLIC_RELEASE_PACKAGES.map(config => config.name),
+  ])
+  assert.equal(changesetConfig.access, 'public')
+  assert.equal(changesetConfig.baseBranch, 'main')
+  assert.equal(changesetConfig.privatePackages.version, false)
 })
 
 test('keeps only the intended pnpm workspace build policy', () => {
