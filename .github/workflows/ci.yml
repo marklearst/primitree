@@ -205,4 +205,3 @@ jobs:
         run: node scripts/github-release.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_NOTES_PATH: docs/launch/v5.0.0.md

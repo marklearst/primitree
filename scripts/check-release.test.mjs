@@ -36,6 +36,10 @@ const workflow = readFileSync(
   new URL('../.github/workflows/ci.yml', import.meta.url),
   'utf8'
 )
+const githubReleaseScript = readFileSync(
+  new URL('./github-release.mjs', import.meta.url),
+  'utf8'
+)
 const rootManifest = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8')
 )
@@ -1392,7 +1396,11 @@ test('creates an immutable-safe GitHub Release in a separate least-privilege job
   )
   assert.match(releaseStep, /node scripts\/github-release\.mjs/)
   assert.match(releaseStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/)
-  assert.match(source, /docs\/launch\/v5\.0\.0\.md/)
+  assert.doesNotMatch(source, /RELEASE_NOTES_PATH|docs\/launch\/v5\.0\.0\.md/)
+  assert.match(
+    githubReleaseScript,
+    /`docs\/launch\/v\$\{verified\.version\}\.md`/
+  )
   assert.match(source, /name: npm-packages-\$\{\{ github\.sha \}\}/)
 })
 
@@ -1411,6 +1419,11 @@ test('keeps reviewed v5 release notes project-focused', () => {
     v5ReleaseNotes,
     /NPM_TOKEN|OIDC|GitHub Actions|workflow|provenance|publish job|bootstrap/i
   )
+  assert.match(
+    v5ReleaseNotes,
+    /\[README\]\(https:\/\/github\.com\/marklearst\/figmavars\/blob\/v5\.0\.0\/README\.md\)/
+  )
+  assert.doesNotMatch(v5ReleaseNotes, /\[README\]\(\.\.\/\.\.\/README\.md\)/)
   assert.doesNotMatch(v5ReleaseNotes, /—/)
 })
 
@@ -1484,7 +1497,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     '## External npm and GitHub steps'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
-  assert.equal(checklist.length, 8)
+  assert.equal(checklist.length, 10)
   assert.ok(checklist.every(item => item[1] === ' '))
   for (const phrase of [
     '@figmavars ownership, 2FA, and new-package rights',
@@ -1495,6 +1508,8 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     'stale `v4.2.0` tag',
     '`v5.0.0` only at the final verified commit',
     'single intended tag',
+    'immutable releases',
+    'release tag updates and deletions',
     'npm provenance',
   ]) {
     assert.match(external, new RegExp(phrase.replaceAll('.', '\\.')))
@@ -1516,6 +1531,16 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   assert.match(external, /may create an unprotected environment record/i)
   assert.match(external, /administrator[\s\S]*before a tag run/i)
+  assert.match(external, /Administration[\s\S]*read/)
+  assert.match(external, /job-scoped `GITHUB_TOKEN`[\s\S]*cannot perform/i)
+  assert.match(
+    external,
+    /ruleset[\s\S]*release tag updates and deletions[\s\S]*immutable releases[\s\S]*after\s+publish/i
+  )
+  assert.match(
+    external,
+    /X-GitHub-Api-Version: 2026-03-10[\s\S]*\/repos\/marklearst\/figmavars\/immutable-releases[\s\S]*--jq '\.enabled == true'[\s\S]*= true/
+  )
 })
 
 test('freezes same-byte recovery queries and retries in dependency order', () => {
