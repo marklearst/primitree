@@ -52,6 +52,7 @@
     "postbuild": "node scripts/postbuild.mjs",
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
+    "test:ssr": "pnpm run build && vitest run tests/ssr.test.tsx",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
