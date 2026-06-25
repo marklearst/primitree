@@ -50,7 +50,7 @@ export default defineConfig({
     {
       command: `pnpm --filter figmavars-docs exec next dev --webpack --hostname 127.0.0.1 --port ${docsPort}`,
       url: docsBaseUrl,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {

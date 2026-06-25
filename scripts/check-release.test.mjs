@@ -1217,7 +1217,10 @@ test('requires the React 19 hooks peer without a React DOM peer', () => {
 })
 
 test('configures Changesets for the fixed public release train', () => {
-  const changesetConfigUrl = new URL('../.changeset/config.json', import.meta.url)
+  const changesetConfigUrl = new URL(
+    '../.changeset/config.json',
+    import.meta.url
+  )
   assert.equal(existsSync(changesetConfigUrl), true)
   const changesetConfig = JSON.parse(readFileSync(changesetConfigUrl, 'utf8'))
   assert.deepEqual(changesetConfig.fixed, [
