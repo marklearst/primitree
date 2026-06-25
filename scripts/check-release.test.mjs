@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -49,6 +47,10 @@ const announcement = readFileSync(
   new URL('../docs/launch/announcement.md', import.meta.url),
   'utf8'
 )
+const v5ReleaseNotesUrl = new URL('../docs/launch/v5.0.0.md', import.meta.url)
+const v5ReleaseNotes = existsSync(v5ReleaseNotesUrl)
+  ? readFileSync(v5ReleaseNotesUrl, 'utf8')
+  : ''
 const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
 const releaseRunbook = existsSync(releaseRunbookUrl)
   ? readFileSync(releaseRunbookUrl, 'utf8')
@@ -82,31 +84,34 @@ const publicManifests = PUBLIC_RELEASE_PACKAGES.map(config =>
 )
 
 const APPROVED_ACTIONS = new Set([
-  'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
-  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
-  'pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa',
-  'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
-  'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093',
-  'codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45',
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271',
+  'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+  'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
+  'codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f',
 ])
 
 const EXPECTED_ACTION_REFS = [
-  'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
-  'pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa',
-  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
-  'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
-  'codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45',
-  'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
-  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
-  'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093',
-  'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020',
-  'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093',
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+  'codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f',
+  'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
 ]
 
 const CODECOV_SECRET_REFERENCE = '${{ secrets.CODECOV_TOKEN }}'
 const NPM_SECRET_REFERENCE = '${{ secrets.NPM_TOKEN }}'
-const NPM_REGISTRY = 'https://registry.npmjs.org'
-const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1'
 const RELEASE_PUBLISH_PACKAGES = [
   { name: '@figmavars/core', stem: 'core' },
   { name: '@figmavars/dtcg', stem: 'dtcg' },
@@ -170,7 +175,7 @@ function assertWorkflowTrustPolicy(source) {
   assert.ok(isPlainRecord(document.jobs), 'workflow jobs must be a mapping')
   assert.deepEqual(
     Object.keys(document.jobs),
-    ['quality', 'consumer-compatibility', 'publish'],
+    ['quality', 'packed-consumer', 'publish', 'github-release'],
     'workflow must contain exactly the reviewed jobs'
   )
 
@@ -191,8 +196,9 @@ function assertWorkflowTrustPolicy(source) {
 
   assert.deepEqual(document.permissions, { contents: 'read' })
   const quality = document.jobs.quality
-  const consumer = document.jobs['consumer-compatibility']
+  const consumer = document.jobs['packed-consumer']
   const publish = document.jobs.publish
+  const githubRelease = document.jobs['github-release']
   assert.equal(
     Object.hasOwn(quality, 'permissions'),
     false,
@@ -201,17 +207,21 @@ function assertWorkflowTrustPolicy(source) {
   assert.equal(
     Object.hasOwn(consumer, 'permissions'),
     false,
-    'consumer-compatibility must inherit the read-only workflow permissions'
+    'packed-consumer must inherit the read-only workflow permissions'
   )
   assert.deepEqual(publish.permissions, {
     contents: 'read',
     'id-token': 'write',
   })
+  assert.deepEqual(githubRelease.permissions, { contents: 'write' })
 
   const codecovStep = findWorkflowStep(quality, 'Upload to Codecov')
-  const publishStep = findWorkflowStep(publish, 'Publish npm packages')
+  const publishStep = findWorkflowStep(
+    publish,
+    'Publish and verify npm packages'
+  )
   assert.equal(codecovStep.with?.token, CODECOV_SECRET_REFERENCE)
-  assert.equal(publishStep.env?.NODE_AUTH_TOKEN, NPM_SECRET_REFERENCE)
+  assert.equal(publishStep.env?.NPM_TOKEN, NPM_SECRET_REFERENCE)
   assert.deepEqual(
     collectSecretOccurrences(document),
     [CODECOV_SECRET_REFERENCE, NPM_SECRET_REFERENCE],
@@ -292,160 +302,6 @@ function assertNoBlanketTagPush(source) {
     source,
     /\bgit\s+push[^\n]*(?:--tags\b|refs\/tags\/\*|refs\/tags\/[^\s]*\*)/
   )
-}
-
-function publishWorkflowScript() {
-  const document = parseYaml(workflow)
-  return findWorkflowStep(document.jobs.publish, 'Publish npm packages').run
-}
-
-function releaseTarballPath(root, stem, version = '5.0.0') {
-  return join(root, 'artifacts', 'npm', `figmavars-${stem}-${version}.tgz`)
-}
-
-function validRegistryMetadata(root, { name, stem }, version = '5.0.0') {
-  const integrity = `sha512-${createHash('sha512')
-    .update(readFileSync(releaseTarballPath(root, stem, version)))
-    .digest('base64')}`
-  return {
-    name,
-    version,
-    dist: {
-      integrity,
-      attestations: {
-        url: `${NPM_REGISTRY}/-/npm/v1/attestations/${name.replace('/', '%2f')}@${version}`,
-        provenance: { predicateType: PROVENANCE_PREDICATE },
-      },
-    },
-  }
-}
-
-function createPublishHarness() {
-  const root = mkdtempSync(join(tmpdir(), 'figmavars-publish-rerun-'))
-  const artifactDirectory = join(root, 'artifacts', 'npm')
-  const binDirectory = join(root, 'bin')
-  const logPath = join(root, 'npm-calls.jsonl')
-  mkdirSync(artifactDirectory, { recursive: true })
-  mkdirSync(binDirectory)
-  writeFileSync(
-    join(artifactDirectory, 'manifest.json'),
-    `${JSON.stringify({ version: '5.0.0' })}\n`
-  )
-  for (const { name, stem } of RELEASE_PUBLISH_PACKAGES) {
-    writeFileSync(releaseTarballPath(root, stem), `${name} release bytes\n`)
-  }
-
-  const npmPath = join(binDirectory, 'npm')
-  writeFileSync(
-    npmPath,
-    [
-      '#!/usr/bin/env node',
-      "import { appendFileSync } from 'node:fs'",
-      'const args = process.argv.slice(2)',
-      "appendFileSync(process.env.NPM_MOCK_LOG, JSON.stringify(args) + '\\n')",
-      "const states = JSON.parse(process.env.NPM_MOCK_STATES || '{}')",
-      "if (args[0] === 'view') {",
-      '  const state = states[args[1]]',
-      '  if (!state) {',
-      "    process.stderr.write('npm error code E500\\nmissing mock state\\n')",
-      '    process.exit(1)',
-      '  }',
-      "  if (state.kind === 'missing') {",
-      "    process.stderr.write('npm error code E404\\n')",
-      '    process.exit(1)',
-      '  }',
-      "  if (state.kind === 'error') {",
-      "    process.stderr.write(state.stderr || 'npm error code E500\\n')",
-      '    process.exit(state.status || 1)',
-      '  }',
-      "  if (state.kind === 'raw') {",
-      "    process.stdout.write(state.output || '')",
-      '    process.exit(0)',
-      '  }',
-      '  process.stdout.write(JSON.stringify(state.metadata))',
-      '  process.exit(0)',
-      '}',
-      "if (args[0] === 'publish') {",
-      '  const state = states.__publish?.[args[1]]',
-      "  if (state?.kind === 'error') {",
-      "    process.stderr.write(state.stderr || 'npm error code E500\\n')",
-      '    process.exit(state.status || 1)',
-      '  }',
-      '  process.exit(0)',
-      '}',
-      "process.stderr.write('unexpected npm command\\n')",
-      'process.exit(1)',
-      '',
-    ].join('\n')
-  )
-  chmodSync(npmPath, 0o755)
-
-  return {
-    binDirectory,
-    root,
-    run(states) {
-      writeFileSync(logPath, '')
-      const result = spawnSync('bash', ['-c', publishWorkflowScript()], {
-        cwd: root,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${binDirectory}:${process.env.PATH}`,
-          NPM_MOCK_LOG: logPath,
-          NPM_MOCK_STATES: JSON.stringify(states),
-          NODE_AUTH_TOKEN: 'figmavars-test-token',
-          NPM_CONFIG_PROVENANCE: 'true',
-        },
-      })
-      const log = readFileSync(logPath, 'utf8')
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map(line => JSON.parse(line))
-      return { ...result, log }
-    },
-  }
-}
-
-function assertStrictArtifactValidation(job, { requireTag }) {
-  const step = extractNamedStep(job, 'Validate release artifact boundary')
-  assert.match(step, /node --input-type=module/)
-  assert.match(
-    step,
-    /readdirSync\(artifactDirectory, \{ withFileTypes: true \}\)/
-  )
-  assert.match(step, /entries\.length !== 7/)
-  assert.match(step, /!entry\.isFile\(\) \|\| entry\.isSymbolicLink\(\)/)
-  assert.match(step, /hasExactKeys\(manifest, \['version', 'artifacts'\]\)/)
-  assert.match(
-    step,
-    /\^\(0\|\[1-9\]\\d\*\)\\\.\(0\|\[1-9\]\\d\*\)\\\.\(0\|\[1-9\]\\d\*\)\$\//
-  )
-  assert.match(
-    step,
-    /manifest\.artifacts\.length !== expectedArtifacts\.length/
-  )
-  assert.match(step, /\^\[a-f0-9\]\{64\}\$\//)
-  assert.match(step, /canonicalChecksums/)
-  assert.match(step, /createHash\('sha256'\)/)
-  assert.match(step, /computedDigest !== artifact\.sha256/)
-
-  for (const [name, file] of [
-    ['@figmavars/core', 'figmavars-core-${version}.tgz'],
-    ['@figmavars/dtcg', 'figmavars-dtcg-${version}.tgz'],
-    ['@figmavars/cli', 'figmavars-cli-${version}.tgz'],
-    ['@figmavars/hooks', 'figmavars-hooks-${version}.tgz'],
-    ['@figmavars/mcp', 'figmavars-mcp-${version}.tgz'],
-  ]) {
-    assert.match(step, new RegExp(name.replace('/', '\\/')))
-    assert.match(step, new RegExp(file.replaceAll('$', '\\$')))
-  }
-
-  if (requireTag) {
-    assert.match(step, /GITHUB_REF_NAME/)
-    assert.match(step, /`v\$\{version\}`/)
-  }
-  return step
 }
 
 function exportMap(config) {
@@ -1240,14 +1096,22 @@ test('keeps only the intended pnpm workspace build policy', () => {
   assert.doesNotMatch(workspaceConfig, /minimumReleaseAgeExclude/)
 })
 
-test('pins repository actions and exposes only the three reviewed jobs', () => {
+test('runs the focused release workflow helpers in the root test command', () => {
+  assert.equal(
+    rootManifest.scripts['test:release-workflow'],
+    'node --test scripts/release-publish.test.mjs scripts/github-release.test.mjs'
+  )
+  assert.match(rootManifest.scripts.test, /pnpm run test:release-workflow/)
+})
+
+test('pins repository actions and exposes only the four reviewed jobs', () => {
   const document = assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
   const actionRefs = collectPropertyValues(document, 'uses')
 
   assert.deepEqual(
     [...jobs.keys()],
-    ['quality', 'consumer-compatibility', 'publish']
+    ['quality', 'packed-consumer', 'publish', 'github-release']
   )
   assert.ok(actionRefs.length > 0)
   for (const action of actionRefs) {
@@ -1263,19 +1127,26 @@ test('pins repository actions and exposes only the three reviewed jobs', () => {
   }
 
   const quality = jobs.get('quality')
-  const consumer = jobs.get('consumer-compatibility')
+  const consumer = jobs.get('packed-consumer')
   const publish = jobs.get('publish')
+  const githubRelease = jobs.get('github-release')
   assert.ok(quality)
   assert.ok(consumer)
   assert.ok(publish)
-  assert.equal(occurrences(workflow, 'actions/checkout@'), 1)
+  assert.ok(githubRelease)
+  assert.equal(occurrences(workflow, 'actions/checkout@'), 4)
   assert.equal(occurrences(workflow, 'pnpm/action-setup@'), 1)
-  assert.equal(occurrences(workflow, 'actions/setup-node@'), 3)
-  assert.equal(occurrences(workflow, 'actions/download-artifact@'), 2)
+  assert.equal(occurrences(workflow, 'actions/setup-node@'), 4)
+  assert.equal(occurrences(workflow, 'actions/download-artifact@'), 3)
   assert.match(quality, /actions\/checkout@[a-f0-9]{40}/)
   assert.match(quality, /pnpm\/action-setup@[a-f0-9]{40}/)
-  assert.doesNotMatch(consumer, /actions\/checkout@|pnpm\/action-setup@/)
-  assert.doesNotMatch(publish, /actions\/checkout@|pnpm\/action-setup@/)
+  assert.match(consumer, /actions\/checkout@[a-f0-9]{40}/)
+  assert.match(publish, /actions\/checkout@[a-f0-9]{40}/)
+  assert.match(githubRelease, /actions\/checkout@[a-f0-9]{40}/)
+  assert.doesNotMatch(
+    `${consumer}\n${publish}\n${githubRelease}`,
+    /pnpm\/action-setup@/
+  )
 })
 
 test('rejects YAML forms that bypass workflow trust-boundary checks', () => {
@@ -1316,9 +1187,9 @@ test('rejects YAML forms that bypass workflow trust-boundary checks', () => {
   )
 
   const bracketSecret = workflow.replace(
-    '  consumer-compatibility:\n',
+    '  packed-consumer:\n',
     [
-      '  consumer-compatibility:',
+      '  packed-consumer:',
       '    env:',
       `      EXFILTRATE: "\${{ secrets['UNREVIEWED_TOKEN'] }}"`,
       '',
@@ -1334,11 +1205,13 @@ test('freezes workflow triggers permissions concurrency and secret boundaries', 
   assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
   const quality = jobs.get('quality')
-  const consumer = jobs.get('consumer-compatibility')
+  const consumer = jobs.get('packed-consumer')
   const publish = jobs.get('publish')
+  const githubRelease = jobs.get('github-release')
   assert.ok(quality)
   assert.ok(consumer)
   assert.ok(publish)
+  assert.ok(githubRelease)
 
   assert.match(workflow, /push:\n    branches: \[main\]\n    tags: \['v\*'\]/)
   assert.match(workflow, /pull_request:\n    branches: \[main\]/)
@@ -1358,9 +1231,13 @@ test('freezes workflow triggers permissions concurrency and secret boundaries', 
     /permissions:\n      contents: read\n      id-token: write/
   )
   assert.equal(occurrences(workflow, 'id-token: write'), 1)
-  assert.equal(occurrences(workflow, 'NODE_AUTH_TOKEN:'), 1)
-  assert.equal(occurrences(workflow, 'NPM_CONFIG_PROVENANCE:'), 1)
+  assert.equal(occurrences(workflow, 'NPM_TOKEN:'), 1)
   assert.equal(occurrences(workflow, 'secrets.NPM_TOKEN'), 1)
+  assert.match(githubRelease, /permissions:\n      contents: write/)
+  assert.doesNotMatch(
+    githubRelease,
+    /environment:\s*npm|id-token:|NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.NPM_TOKEN/
+  )
 })
 
 test('builds and uploads one exact release artifact in quality', () => {
@@ -1386,9 +1263,9 @@ test('builds and uploads one exact release artifact in quality', () => {
       'pnpm run test:e2e:install',
       'pnpm run test:e2e',
       'pnpm run check:release-metadata',
-      'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
+      'node scripts/release-publish.mjs exact-main',
       'pnpm run check:release:built',
-      'codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45',
+      'codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f',
       'name: npm-packages-${{ github.sha }}',
     ],
     'quality job'
@@ -1412,7 +1289,7 @@ test('builds and uploads one exact release artifact in quality', () => {
 })
 
 test('tests only downloaded tarballs at the Node 24.18.0 consumer floor', () => {
-  const consumer = extractWorkflowJobs(workflow).get('consumer-compatibility')
+  const consumer = extractWorkflowJobs(workflow).get('packed-consumer')
   assert.ok(consumer)
   assert.match(consumer, /needs: quality/)
   assert.match(consumer, /node-version: 24\.18\.0/)
@@ -1420,374 +1297,121 @@ test('tests only downloaded tarballs at the Node 24.18.0 consumer floor', () => 
   assert.doesNotMatch(consumer, /\$\{\{\s*secrets\.|id-token:\s*write/)
   assert.doesNotMatch(
     consumer,
-    /pnpm install|pnpm run (?:build|typecheck|test)|actions\/checkout@|pnpm\/action-setup@/
+    /\bpnpm\b|npm install --global|--frozen-lockfile/
   )
+  assert.match(consumer, /actions\/checkout@[a-f0-9]{40}/)
+  assert.match(consumer, /persist-credentials: false/)
 
   const download = extractNamedStep(consumer, 'Download npm release artifact')
   assert.match(download, /name: npm-packages-\$\{\{ github\.sha \}\}/)
   assert.match(download, /path: artifacts\/npm/)
   assert.doesNotMatch(download, /run-id:/)
-  assertStrictArtifactValidation(consumer, { requireTag: true })
-
-  const install = extractNamedStep(consumer, 'Install and smoke-test tarballs')
-  for (const flag of [
-    'NPM_CONFIG_USERCONFIG=/dev/null npm install',
-    '--registry=https://registry.npmjs.org',
-    '--engine-strict',
-    '--ignore-scripts',
-    '--package-lock=false',
-    '--no-save',
-    '--audit=false',
-    '--fund=false',
-  ]) {
-    assert.match(install, new RegExp(flag.replaceAll('/', '\\/')))
-  }
-  assert.match(install, /ARTIFACT_DIR="\$\(realpath artifacts\/npm\)"/)
-
-  const tarballs = [
-    '"$ARTIFACT_DIR/figmavars-core-$VERSION.tgz"',
-    '"$ARTIFACT_DIR/figmavars-dtcg-$VERSION.tgz"',
-    '"$ARTIFACT_DIR/figmavars-cli-$VERSION.tgz"',
-    '"$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz"',
-    '"$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz"',
-  ]
-  assertInOrder(install, tarballs, 'consumer tarball install')
-  for (const tarball of tarballs) assert.equal(occurrences(install, tarball), 1)
-
-  for (const specifier of [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
-    '@figmavars/mcp',
-  ]) {
-    assert.match(install, new RegExp(`import\\('${specifier}'\\)`))
-  }
-  assert.match(install, /mkdir -p dist/)
-  assert.match(install, /node dist\/index\.js/)
-  for (const specifier of [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
-  ]) {
-    assert.match(install, new RegExp(`require\\('${specifier}'\\)`))
-  }
-  for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
-    assert.match(install, new RegExp(`node_modules/\\.bin/${bin} --help`))
-  }
+  const install = extractNamedStep(consumer, 'Verify and smoke-test tarballs')
+  assert.match(install, /node scripts\/release-publish\.mjs packed-consumer/)
+  assert.doesNotMatch(install, /npm publish|secrets\.|NPM_TOKEN/)
   assertInOrder(
     consumer,
     [
-      'Validate release artifact boundary',
-      'sha256sum --check SHA256SUMS',
-      'NPM_CONFIG_USERCONFIG=/dev/null npm install',
-      "await import('@figmavars/core')",
-      'mkdir -p dist',
-      'node dist/index.js',
-      './node_modules/.bin/figma-vars --help',
+      'Download npm release artifact',
+      'node scripts/release-publish.mjs packed-consumer',
     ],
-    'consumer validation and smoke flow'
+    'packed consumer validation'
   )
 })
 
-test('publishes only independently validated stable tarballs', () => {
+test('publishes through one pinned dual-mode helper and then verifies the public registry', () => {
   const workflowDocument = assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
-  const consumer = jobs.get('consumer-compatibility')
   const publish = jobs.get('publish')
-  assert.ok(consumer)
   assert.ok(publish)
   assert.equal(workflowDocument.jobs.publish.environment, 'npm')
-  assert.match(publish, /needs: \[quality, consumer-compatibility\]/)
+  assert.match(publish, /needs: \[quality, packed-consumer\]/)
   assert.match(publish, /if: github\.ref_type == 'tag'/)
+  assert.match(publish, /timeout-minutes: 30/)
   assert.match(publish, /node-version: 24\.18\.0/)
-  assert.match(publish, /registry-url: ['"]https:\/\/registry\.npmjs\.org['"]/)
-  assert.match(publish, /scope: ['"]@figmavars['"]/)
-  assert.doesNotMatch(publish, /cache:|actions\/checkout@|pnpm\/action-setup@/)
-  assert.doesNotMatch(
+  assert.match(publish, /npm install --global npm@11\.18\.0/)
+  assert.match(publish, /test "\$\(npm --version\)" = "11\.18\.0"/)
+  assert.doesNotMatch(publish, /registry-url:|scope:/)
+  assert.doesNotMatch(publish, /pnpm|turbo|run: .*build/)
+
+  const exactMain = extractNamedStep(
     publish,
-    /npm install|pnpm|pnpm run|turbo|test:|run: .*build/
+    'Require tag at current origin main'
   )
-
-  const download = extractNamedStep(publish, 'Download npm release artifact')
-  assert.match(download, /name: npm-packages-\$\{\{ github\.sha \}\}/)
-  assert.match(download, /path: artifacts\/npm/)
-  assert.doesNotMatch(download, /run-id:/)
-  const consumerValidation = assertStrictArtifactValidation(consumer, {
-    requireTag: true,
-  })
-  const publishValidation = assertStrictArtifactValidation(publish, {
-    requireTag: true,
-  })
-  assert.equal(publishValidation, consumerValidation)
-
-  const publishStep = extractNamedStep(publish, 'Publish npm packages')
-  const commands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
-    packageName =>
-      `npm publish "artifacts/npm/figmavars-${packageName}-\${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts`
+  assert.match(exactMain, /node scripts\/release-publish\.mjs exact-main/)
+  const publishStep = extractNamedStep(
+    publish,
+    'Publish and verify npm packages'
   )
-  assertInOrder(publishStep, commands, 'npm publication')
-  for (const command of commands) {
-    assert.equal(occurrences(publishStep, command), 1)
-  }
-  const stateChecks = RELEASE_PUBLISH_PACKAGES.map(
-    ({ name, stem }) =>
-      `${stem.toUpperCase()}_STATE=$(release_state "${name}" "artifacts/npm/figmavars-${stem}-\${VERSION}.tgz")`
-  )
-  assertInOrder(
-    publishStep,
-    stateChecks.flatMap((stateCheck, index) => [stateCheck, commands[index]]),
-    'idempotent npm publication'
+  assert.equal(publishStep.env?.includes, undefined)
+  assert.match(publishStep, /node scripts\/release-publish\.mjs publish/)
+  assert.match(publishStep, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/)
+  assert.doesNotMatch(publishStep, /NODE_AUTH_TOKEN|registry-url:/)
+  const consumerStep = extractNamedStep(
+    publish,
+    'Verify clean public registry consumer'
   )
   assert.match(
-    publishStep,
-    /npm view "\$\{package_name\}@\$\{VERSION\}" --json --registry=https:\/\/registry\.npmjs\.org/
+    consumerStep,
+    /node scripts\/release-publish\.mjs public-consumer/
   )
-  assert.match(publishStep, /createHash\('sha512'\)/)
-  assert.match(publishStep, /digest\('base64'\)/)
-  assert.match(publishStep, /metadata\.dist\?\.integrity/)
-  assert.match(publishStep, /metadata\.dist\?\.attestations\?\.url/)
-  assert.match(
-    publishStep,
-    /metadata\.dist\?\.attestations\?\.provenance\?\.predicateType/
-  )
-  assert.match(publishStep, /hostname !== 'registry\.npmjs\.org'/)
-  assert.match(publishStep, /port !== ''/)
-  assert.match(publishStep, /packageName\.replace\('\/', '%2f'\)/)
-  assert.match(publishStep, /pathname !== expectedAttestationPath/)
-  assert.match(publishStep, /search !== ''/)
-  assert.match(publishStep, /hash !== ''/)
-  assert.doesNotMatch(publishStep, /pathname\.startsWith/)
-  assert.match(publishStep, /https:\/\/slsa\.dev\/provenance\/v1/)
-  assert.match(
-    publishStep,
-    /sed -nE 's\/\^npm \(error\|ERR!\) code \(\[A-Z0-9\]\+\)\$\/\\2\/p'/
-  )
-  assert.match(publishStep, /"\$error_code" == 'E404'/)
-  assert.match(publishStep, /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/)
-  assert.match(publishStep, /NPM_CONFIG_PROVENANCE: ['"]true['"]/)
-  assert.doesNotMatch(publishStep, /\*\.tgz|artifacts\/npm\/\*|-r publish/)
+  assert.doesNotMatch(consumerStep, /NPM_TOKEN|secrets\.|id-token:/)
   assertInOrder(
     publish,
     [
-      'Validate release artifact boundary',
-      'sha256sum --check SHA256SUMS',
-      commands[0],
-      commands[4],
+      'npm install --global npm@11.18.0',
+      'test "$(npm --version)" = "11.18.0"',
+      'node scripts/release-publish.mjs exact-main',
+      'node scripts/release-publish.mjs publish',
+      'node scripts/release-publish.mjs public-consumer',
     ],
-    'publish validation and release flow'
+    'publish and public verification flow'
   )
 })
 
-test('re-runs a partial publication from the same artifact without republishing', () => {
-  const harness = createPublishHarness()
-  try {
-    const missingStates = Object.fromEntries(
-      RELEASE_PUBLISH_PACKAGES.map(({ name }) => [
-        `${name}@5.0.0`,
-        { kind: 'missing' },
-      ])
-    )
-    const first = harness.run({
-      ...missingStates,
-      __publish: {
-        'artifacts/npm/figmavars-hooks-5.0.0.tgz': {
-          kind: 'error',
-          stderr: 'npm error code E503\n',
-        },
-      },
-    })
-    assert.notEqual(first.status, 0)
-    assert.deepEqual(
-      first.log.filter(args => args[0] === 'publish').map(args => args[1]),
-      [
-        'artifacts/npm/figmavars-core-5.0.0.tgz',
-        'artifacts/npm/figmavars-dtcg-5.0.0.tgz',
-        'artifacts/npm/figmavars-cli-5.0.0.tgz',
-        'artifacts/npm/figmavars-hooks-5.0.0.tgz',
-      ]
-    )
+test('creates an immutable-safe GitHub Release in a separate least-privilege job', () => {
+  const document = assertWorkflowTrustPolicy(workflow)
+  const releaseJob = document.jobs['github-release']
+  assert.deepEqual(releaseJob.needs, ['publish'])
+  assert.equal(releaseJob.if, "github.ref_type == 'tag'")
+  assert.equal(releaseJob['timeout-minutes'], 15)
+  assert.deepEqual(releaseJob.permissions, { contents: 'write' })
+  assert.equal(Object.hasOwn(releaseJob, 'environment'), false)
+  assert.deepEqual(collectSecretOccurrences(releaseJob), [])
 
-    const rerunStates = { ...missingStates }
-    for (const config of RELEASE_PUBLISH_PACKAGES.slice(0, 3)) {
-      rerunStates[`${config.name}@5.0.0`] = {
-        kind: 'present',
-        metadata: validRegistryMetadata(harness.root, config),
-      }
-    }
-    const rerun = harness.run(rerunStates)
-    assert.equal(rerun.status, 0, rerun.stderr)
-    assert.deepEqual(
-      rerun.log.filter(args => args[0] === 'view'),
-      RELEASE_PUBLISH_PACKAGES.map(({ name }) => [
-        'view',
-        `${name}@5.0.0`,
-        '--json',
-        `--registry=${NPM_REGISTRY}`,
-      ])
-    )
-    assert.deepEqual(
-      rerun.log.filter(args => args[0] === 'publish').map(args => args[1]),
-      [
-        'artifacts/npm/figmavars-hooks-5.0.0.tgz',
-        'artifacts/npm/figmavars-mcp-5.0.0.tgz',
-      ]
-    )
-  } finally {
-    rmSync(harness.root, { recursive: true, force: true })
-  }
+  const source = extractWorkflowJobs(workflow).get('github-release')
+  assert.ok(source)
+  assert.doesNotMatch(
+    source,
+    /id-token:|NPM_TOKEN|NODE_AUTH_TOKEN|npm install|npm publish|environment:\s*npm/
+  )
+  assert.match(source, /node-version: 24\.18\.0/)
+  const releaseStep = extractNamedStep(
+    source,
+    'Create or resume GitHub Release'
+  )
+  assert.match(releaseStep, /node scripts\/github-release\.mjs/)
+  assert.match(releaseStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/)
+  assert.match(source, /docs\/launch\/v5\.0\.0\.md/)
+  assert.match(source, /name: npm-packages-\$\{\{ github\.sha \}\}/)
 })
 
-test('fails closed before publish on ambiguous or invalid registry state', async t => {
-  const cases = [
-    {
-      name: 'non-E404 error',
-      state: {
-        kind: 'error',
-        stderr: 'npm error code E500\nrequest context mentioned E404\n',
-      },
-    },
-    { name: 'malformed JSON', state: { kind: 'raw', output: '{' } },
-    {
-      name: 'integrity mismatch',
-      mutate(metadata) {
-        metadata.dist.integrity = 'sha512-not-the-local-tarball'
-      },
-    },
-    {
-      name: 'missing attestation URL',
-      mutate(metadata) {
-        delete metadata.dist.attestations.url
-      },
-    },
-    {
-      name: 'invalid attestation URL',
-      mutate(metadata) {
-        metadata.dist.attestations.url = 'not-a-valid-url'
-      },
-    },
-    {
-      name: 'wrong attestation origin',
-      mutate(metadata) {
-        metadata.dist.attestations.url =
-          'https://attacker.example/-/npm/v1/attestations/@figmavars%2fcore@5.0.0'
-      },
-    },
-    {
-      name: 'wrong attestation path',
-      mutate(metadata) {
-        metadata.dist.attestations.url =
-          'https://registry.npmjs.org/not-an-attestation/core@5.0.0'
-      },
-    },
-    {
-      name: 'non-default attestation port',
-      mutate(metadata) {
-        metadata.dist.attestations.url =
-          'https://registry.npmjs.org:444/-/npm/v1/attestations/@figmavars%2fcore@5.0.0'
-      },
-    },
-    {
-      name: 'wrong attestation package',
-      mutate(metadata) {
-        metadata.dist.attestations.url =
-          'https://registry.npmjs.org/-/npm/v1/attestations/@figmavars%2fdtcg@5.0.0'
-      },
-    },
-    {
-      name: 'wrong attestation version',
-      mutate(metadata) {
-        metadata.dist.attestations.url =
-          'https://registry.npmjs.org/-/npm/v1/attestations/@figmavars%2fcore@5.0.1'
-      },
-    },
-    {
-      name: 'attestation path suffix',
-      mutate(metadata) {
-        metadata.dist.attestations.url += '/extra'
-      },
-    },
-    {
-      name: 'attestation query',
-      mutate(metadata) {
-        metadata.dist.attestations.url += '?package=@figmavars/core'
-      },
-    },
-    {
-      name: 'attestation fragment',
-      mutate(metadata) {
-        metadata.dist.attestations.url += '#other-version'
-      },
-    },
-    {
-      name: 'wrong provenance predicate',
-      mutate(metadata) {
-        metadata.dist.attestations.provenance.predicateType =
-          'https://example.com/not-slsa'
-      },
-    },
-    {
-      name: 'wrong returned version',
-      mutate(metadata) {
-        metadata.version = '5.0.1'
-      },
-    },
-  ]
-
-  for (const testCase of cases) {
-    await t.test(testCase.name, () => {
-      const harness = createPublishHarness()
-      try {
-        let state = testCase.state
-        if (testCase.mutate) {
-          const metadata = validRegistryMetadata(
-            harness.root,
-            RELEASE_PUBLISH_PACKAGES[0]
-          )
-          testCase.mutate(metadata)
-          state = { kind: 'present', metadata }
-        }
-        const result = harness.run({ '@figmavars/core@5.0.0': state })
-        assert.notEqual(result.status, 0)
-        assert.deepEqual(
-          result.log.filter(args => args[0] === 'view'),
-          [
-            [
-              'view',
-              '@figmavars/core@5.0.0',
-              '--json',
-              `--registry=${NPM_REGISTRY}`,
-            ],
-          ]
-        )
-        assert.deepEqual(
-          result.log.filter(args => args[0] === 'publish'),
-          []
-        )
-      } finally {
-        rmSync(harness.root, { recursive: true, force: true })
-      }
-    })
+test('keeps reviewed v5 release notes project-focused', () => {
+  assert.match(v5ReleaseNotes, /^# FigmaVars 5\.0\.0$/m)
+  for (const phrase of [
+    'DTCG 2025.10',
+    '`figma-vars diff`',
+    '`@figmavars/hooks`',
+    '`@figmavars/mcp`',
+    'Node.js 24',
+  ]) {
+    assert.ok(v5ReleaseNotes.includes(phrase), `release notes need ${phrase}`)
   }
-})
-
-test('fails closed before registry access when temporary files cannot be created', () => {
-  const harness = createPublishHarness()
-  try {
-    const mktempPath = join(harness.binDirectory, 'mktemp')
-    writeFileSync(mktempPath, '#!/bin/sh\nexit 1\n')
-    chmodSync(mktempPath, 0o755)
-    const result = harness.run({
-      '@figmavars/core@5.0.0': { kind: 'missing' },
-    })
-    assert.notEqual(result.status, 0)
-    assert.deepEqual(result.log, [])
-  } finally {
-    rmSync(harness.root, { recursive: true, force: true })
-  }
+  assert.doesNotMatch(
+    v5ReleaseNotes,
+    /NPM_TOKEN|OIDC|GitHub Actions|workflow|provenance|publish job|bootstrap/i
+  )
+  assert.doesNotMatch(v5ReleaseNotes, /—/)
 })
 
 test('links one release runbook from maintainer and launch documentation', () => {
@@ -1813,9 +1437,9 @@ test('freezes the exact local preflight and supported toolchain boundaries', () 
       'pnpm run check:release',
     ].join('\n')
   )
-  assert.match(preflight, /Node >=22\.13\.0/)
+  assert.match(preflight, /Node 24\.18\.0/)
   assert.match(preflight, /pnpm 11\.10\.0/)
-  assert.match(preflight, /Node\s+20\.0\.0[\s\S]*consumer/i)
+  assert.match(preflight, /npm 11\.18\.0[\s\S]*publish/i)
 })
 
 test('documents stable-only semantics and the exact seven-file artifact boundary', () => {
@@ -1888,7 +1512,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   assert.match(
     releaseRunbook,
-    /current\s+workflow does not create a GitHub Release[\s\S]*manual/i
+    /workflow[\s\S]*creates or resumes[\s\S]*GitHub Release/i
   )
   assert.match(external, /may create an unprotected environment record/i)
   assert.match(external, /administrator[\s\S]*before a tag run/i)
@@ -1977,7 +1601,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
   assert.match(recovery, /preserve provenance/i)
   assert.match(
     recovery,
-    /GitHub Release[\s\S]*existing tag[\s\S]*without moving the tag/i
+    /GitHub Release[\s\S]*re-run failed jobs[\s\S]*without moving the tag/i
   )
   assert.match(
     recovery,
