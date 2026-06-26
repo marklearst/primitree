@@ -48,9 +48,12 @@ function section(title: string, lines: string[]): string[] {
   return ['', `### ${title}`, '', ...lines]
 }
 
+function changeCount(count: number, subject: string): string {
+  return `${count} ${subject} change${count === 1 ? '' : 's'}`
+}
+
 /**
- * Render a {@link VariablesDiff} as a Markdown changelog, suitable for PR
- * descriptions, commit messages, and CI summaries.
+ * Render a {@link VariablesDiff} as a Markdown report.
  *
  * @public
  */
@@ -78,10 +81,10 @@ export function formatDiffMarkdown(diff: VariablesDiff): string {
     counts.push(`${v.moved.length} moved`)
   }
   if (v.typeChanged.length) {
-    counts.push(`${v.typeChanged.length} type changes`)
+    counts.push(changeCount(v.typeChanged.length, 'type'))
   }
   if (v.valueChanged.length) {
-    counts.push(`${v.valueChanged.length} value changes`)
+    counts.push(changeCount(v.valueChanged.length, 'value'))
   }
   out.push(
     `Variables: ${counts.length > 0 ? counts.join(', ') : 'no variable changes'}.`

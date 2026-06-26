@@ -106,6 +106,14 @@ describe('emitTailwind', () => {
 describe('emitTypescript', () => {
   const source = emitTypescript(files, resolver)
 
+  it('labels generated values by their default contexts', () => {
+    expect(source).toContain(' * Each modifier axis uses its default context.')
+    expect(source).toContain(
+      '/** CSS variable references keyed by token path. */'
+    )
+    expect(source).not.toContain('every modifier axis')
+  })
+
   it('emits token path union, var accessors, and resolved values', () => {
     expect(source).toContain('| "semantic.color.bg.brand"')
     expect(source).toContain(
@@ -240,6 +248,38 @@ describe('emitTypescript', () => {
 })
 
 describe('buildPipeline', () => {
+  it('uses singular labels in the generated README summary', () => {
+    const collectionId = 'VariableCollectionId:1:100'
+    const variableId = 'VariableID:1:101'
+    const singleVariableFixture = structuredClone(fixture)
+    singleVariableFixture.meta.variableCollections = {
+      [collectionId]: {
+        ...singleVariableFixture.meta.variableCollections[collectionId],
+        variableIds: [variableId],
+      },
+    }
+    singleVariableFixture.meta.variables = {
+      [variableId]: singleVariableFixture.meta.variables[variableId],
+    }
+
+    const readme = buildPipeline(singleVariableFixture).files.find(
+      file => file.path === 'README.md'
+    )?.contents
+
+    expect(readme).toContain('Stats: 1 collection, 1 variable, 2 token files.')
+  })
+
+  it('documents the DTCG version and boolean extension', () => {
+    const readme = buildPipeline(fixture).files.find(
+      file => file.path === 'README.md'
+    )?.contents
+
+    expect(readme).toContain('DTCG 2025.10 plus a documented boolean extension')
+    expect(readme).toContain('## Files')
+    expect(readme).not.toContain("## What's here")
+    expect(readme).not.toMatch(/[—]/)
+  })
+
   it('produces the full file set with summary', () => {
     const result = buildPipeline(fixture, { resolverName: 'Acme' })
     const paths = result.files.map(f => f.path)

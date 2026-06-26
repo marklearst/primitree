@@ -3,14 +3,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createServer, loadTokenSource } from './index'
 
 const HELP = `
-figma-vars-mcp — MCP server for your design tokens
+figma-vars-mcp: serve design tokens over MCP
 
 Usage:
   figma-vars-mcp --tokens <path>
 
-  <path> is either a Figma variables export (variables.json) or the output
-  of 'figma-vars build' (a directory containing tokens/tokens.resolver.json).
-  The FIGMA_VARS_TOKENS environment variable is used when --tokens is omitted.
+  <path> is a Figma variables JSON file, a directory containing
+  tokens.resolver.json and *.tokens.json, or a 'figma-vars build' directory
+  with those files under tokens/.
+  The command reads FIGMA_VARS_TOKENS if you omit --tokens.
 
 Example MCP client config:
   {

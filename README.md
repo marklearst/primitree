@@ -1,74 +1,68 @@
 <div align="center">
 
-# FigmaVars
+# 🌳 FigmaVars
 
-**Drop in your Figma variables. Leave with a production design-token pipeline.**
+Turn a Figma variables export into token files you can commit and review.
 
 [![CI](https://github.com/marklearst/figmavars/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/figmavars/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/%40figmavars%2Fcli?label=%40figmavars%2Fcli)](https://www.npmjs.com/package/@figmavars/cli)
-[![npm](https://img.shields.io/npm/v/%40figmavars%2Fhooks?label=%40figmavars%2Fhooks)](https://www.npmjs.com/package/@figmavars/hooks)
 [![DTCG](https://img.shields.io/badge/DTCG-2025.10-7b8cff)](https://www.designtokens.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
 
----
-
-Figma's Variables REST API is Enterprise-only. Your design tokens shouldn't be.
-
-FigmaVars takes the **variables JSON anyone can export on any Figma plan** (via a plugin like TokensBrücke, a Dev Mode export, or `figma-vars export` on Enterprise) and turns it into everything your codebase actually needs:
-
 ```sh
 npx @figmavars/cli build variables.json
 ```
 
-```
+The command writes a design-token pipeline:
+
+```text
 design-tokens/
 ├── tokens/
-│   ├── primitives.tokens.json        # DTCG 2025.10, one file per collection
+│   ├── primitives.tokens.json
 │   ├── semantic.tokens.json
-│   ├── semantic.dark.tokens.json     # one file per extra Figma mode
-│   └── tokens.resolver.json          # DTCG Resolver: modes -> contexts
+│   ├── semantic.dark.tokens.json
+│   └── tokens.resolver.json
 ├── css/
-│   ├── tokens.css                    # CSS custom properties + [data-*] theme blocks
-│   └── tokens.tailwind.css           # Tailwind CSS v4 @theme mapping
-├── ts/tokens.ts                      # TokenPath union, var() accessors, values
-├── style-dictionary.config.mjs       # prewired transformer (or --terrazzo)
-├── design-tokens.workflow.yml        # GitHub Actions: rebuild on every export
+│   ├── tokens.css
+│   └── tokens.tailwind.css
+├── ts/tokens.ts
+├── style-dictionary.config.mjs
+├── design-tokens.workflow.yml
 └── README.md
 ```
 
-Aliases survive as DTCG `{references}`. Figma modes become standard Resolver contexts (`light`/`dark`, `compact`/`comfortable`). Figma metadata (variable ids, scopes, code syntax) is preserved under `$extensions` — so the pipeline is round-trippable and diffable.
+The token output follows DTCG 2025.10 plus a documented boolean extension.
+Aliases remain token references. Figma modes become Resolver contexts. Figma
+IDs, scopes, and code syntax live under `$extensions['com.figma-vars']`.
 
-## Documentation
+Create `variables.json` with a variables plugin that exports local Figma
+variables. The FigmaVars Export workspace app supports local development.
+Teams with Enterprise access can use `figma-vars export` against the Variables
+REST API.
 
-**[Read the docs](apps/docs)** first. Every command, package, output file, and hook is documented there.
+## Packages
 
-```sh
-pnpm --filter figmavars-docs dev   # site + docs + playground at localhost:3000
-```
+| Package                                  | Purpose                                                                 |
+| ---------------------------------------- | ----------------------------------------------------------------------- |
+| [`@figmavars/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API |
+| [`@figmavars/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript   |
+| [`@figmavars/cli`](packages/cli)         | Build, compare, check, scaffold, and export token projects              |
+| [`@figmavars/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR       |
+| [`@figmavars/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                  |
+| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                        |
 
-## The toolkit
+## Review token changes
 
-| Package                                  | What it does                                                                                                                           |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@figmavars/cli`](packages/cli)         | `build` a pipeline, `diff` two exports semantically, `check` exports and built tokens, `init` a tokens repo, `export` via the REST API |
-| [`@figmavars/dtcg`](packages/dtcg)       | Pure functions: Figma JSON → DTCG 2025.10 + Resolver, CSS/Tailwind/TypeScript emitters, context resolution                             |
-| [`@figmavars/core`](packages/core)       | Normalizer for every variables JSON shape, alias-graph resolution, semantic diffing, typed REST client                                 |
-| [`@figmavars/hooks`](packages/hooks)     | React hooks: consume built tokens on any plan (`useToken`, `useTheme`) or manage variables live via the REST API                       |
-| [`@figmavars/mcp`](packages/mcp)         | MCP server so AI agents can query your tokens: list, get, resolve, search, diff                                                        |
-| [`apps/figma-plugin`](apps/figma-plugin) | Official Figma plugin: export all local variables to `variables.json` on any plan                                                      |
-
-## Review token changes like code
-
-`figma-vars diff` matches variables by their **stable Figma IDs**, so a rename is reported as a rename — not a removal plus an addition that silently breaks consumers:
+`figma-vars diff` matches variables by stable Figma IDs. A renamed variable
+keeps its identity in the report:
 
 ```sh
 figma-vars diff backup/variables.json variables.json --fail-on-breaking
 ```
 
 ```markdown
-Variables: 1 renamed, 1 value changes.
+Variables: 1 renamed, 1 value change.
 **Breaking changes detected.**
 
 ### Renamed variables (breaking)
@@ -80,31 +74,33 @@ Variables: 1 renamed, 1 value changes.
 | `control/height` | Density    | Compact | 32     | 28    |
 ```
 
-Wire it into CI with `--fail-on-breaking` (exit code 2) and every design-token change becomes a reviewable PR event.
+`--fail-on-breaking` exits with code 2 when the report contains removals,
+renames, moves, or type changes.
 
-## React, on any plan
-
-The v5 hooks consume **built artifacts**, not the Enterprise API — no Personal Access Token, no network, SSR-safe:
+## Use built tokens in React
 
 ```tsx
-import { TokensProvider, useToken, useTheme } from '@figmavars/hooks'
+import { TokensProvider, useTheme, useToken } from '@figmavars/hooks'
 
 function Brand() {
-  const brand = useToken('semantic.color.bg.brand') // { value, css, cssVar }
+  const brand = useToken('semantic.color.bg.brand')
   const { setContext } = useTheme()
+
   return (
     <button
       style={{ background: brand.css ?? undefined }}
       onClick={() => setContext('semantic', 'dark')}>
-      Go dark
+      Use dark tokens
     </button>
   )
 }
 ```
 
-The live-API hooks (`useVariables`, mutations, SWR caching) are still here for Enterprise teams — see the [hooks README](packages/hooks/README.md).
+The local-token hooks read built artifacts. They do not need a Figma Personal
+Access Token or a network request. The package also includes live API hooks for
+Enterprise teams.
 
-## Make your tokens AI-legible
+## Connect an MCP client
 
 ```json
 {
@@ -117,23 +113,55 @@ The live-API hooks (`useVariables`, mutations, SWR caching) are still here for E
 }
 ```
 
-Any MCP client (Cursor, Claude Code, ...) can then call `list_collections`, `get_token`, `resolve_context`, `search_tokens`, and `diff_tokens` — so generated code uses your actual tokens instead of hallucinated hex values.
+The server provides `list_collections`, `get_token`, `resolve_context`,
+`search_tokens`, and `diff_tokens`.
 
-## How it compares
+## Documentation
 
-- **TokensBrücke / figma-to-dtcg / figvar2dtcg** convert to DTCG and stop. FigmaVars scaffolds the whole pipeline: transformer config, CSS, Tailwind, types, CI, diffing, runtime hooks, MCP.
-- **Style Dictionary / Terrazzo** expect DTCG input. FigmaVars generates their configs and feeds them — complement, not competition.
-- **Figma's official MCP server** solves design-context-into-the-IDE. FigmaVars owns the repo side: transform, diff, validate, ship — free and local-first.
+Read the documentation at [figmavars.com](https://figmavars.com).
+
+Run the site from the monorepo:
+
+```sh
+pnpm --filter figmavars-docs dev
+```
+
+## Repository layout
+
+```text
+apps/
+├── docs/                 Documentation site and browser playground
+├── figma-plugin/         Figma export plugin
+└── playground/           Standalone browser playground
+packages/
+├── core/                 Shared normalization, diff, API, and types
+├── dtcg/                 Token conversion and emitters
+├── cli/                  Command-line package
+├── hooks/                React package
+├── mcp/                  MCP package
+└── plugin-export/        Private serializer used by the Figma plugin
+docs/                     Release notes, launch drafts, and maintainer docs
+```
+
+## Requirements
+
+- Node.js 24 or newer
+- pnpm 11 or newer for monorepo work
+- React `^19.0.0` and SWR `^2.3.7` for `@figmavars/hooks`
 
 ## Development
 
 ```sh
 pnpm install
-pnpm build        # turbo build across all packages
-pnpm test         # 400+ tests
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm check:release
 ```
 
-Monorepo layout: `packages/{core,dtcg,cli,hooks,mcp}` + `apps/playground`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for repository setup and release checks.
 
 ## License
 

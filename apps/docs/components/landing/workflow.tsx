@@ -6,7 +6,7 @@ const steps = [
   'Export variables.json',
   'figma-vars build',
   'Commit design-tokens/',
-  'Ship CSS or hooks',
+  'Import CSS or hooks',
   'figma-vars diff on the next PR',
 ]
 
@@ -14,7 +14,9 @@ export function WorkflowStrip() {
   return (
     <section className='workflow-section'>
       <div className='workflow-inner'>
-        <h2 className='workflow-heading'>Five steps. No account.</h2>
+        <h2 className='workflow-heading'>
+          From Figma export to reviewed change
+        </h2>
         <ol className='workflow-steps'>
           {steps.map((step, i) => (
             <li
@@ -30,7 +32,7 @@ export function WorkflowStrip() {
         <Link
           href='/docs/getting-started/export-variables'
           className='workflow-link'>
-          How to export from Figma →
+          Export options
         </Link>
       </div>
     </section>
@@ -45,7 +47,7 @@ export function CtaStrip() {
           size='lg'
           className='mx-auto'
         />
-        <p className='cta-copy'>Open source. MIT. Monorepo on GitHub.</p>
+        <p className='cta-copy'>MIT licensed · marklearst/figmavars</p>
         <div className='cta-actions'>
           <Link
             href='/docs'

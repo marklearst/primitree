@@ -11,7 +11,8 @@ import { notFound } from 'next/navigation'
 import { getMDXComponents } from '@/components/mdx'
 import type { Metadata } from 'next'
 import { createRelativeLink } from 'fumadocs-ui/mdx'
-import { gitConfig } from '@/lib/shared'
+import { getDocsGithubUrl } from '@/lib/shared'
+import { createPageMetadata } from '@/lib/discovery'
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params
@@ -22,6 +23,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 
   const MDX = page.data.body
   const markdownUrl = getPageMarkdownUrl(page).url
+  const githubUrl = getDocsGithubUrl(page.path)
 
   return (
     <main className='contents'>
@@ -36,7 +38,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           <MarkdownCopyButton markdownUrl={markdownUrl} />
           <ViewOptionsPopover
             markdownUrl={markdownUrl}
-            githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/apps/docs/content/docs/${page.path}`}
+            {...(githubUrl ? { githubUrl } : {})}
           />
         </div>
         <DocsBody>
@@ -65,11 +67,20 @@ export async function generateMetadata(
     notFound()
   }
 
-  return {
+  const image = getPageImage(page)
+  const description =
+    page.data.description ??
+    `Read the ${page.data.title} documentation for FigmaVars.`
+
+  return createPageMetadata({
     title: page.data.title,
-    description: page.data.description,
-    openGraph: {
-      images: getPageImage(page).url,
+    description,
+    pathname: page.url,
+    image: {
+      url: image.url,
+      alt: `${page.data.title} documentation`,
+      width: 1200,
+      height: 630,
     },
-  }
+  })
 }

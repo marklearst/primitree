@@ -2,7 +2,7 @@
   "name": "figmavars-playground",
   "version": "5.0.0",
   "private": true,
-  "description": "Drop a Figma variables JSON, preview collections and modes, download a complete token pipeline as a zip. Everything runs in your browser.",
+  "description": "Preview a Figma variables export and download the generated token files in your browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -30,7 +30,7 @@ function describeValue(value: DTCGTokenValue | undefined): {
 }
 
 /**
- * List collections (top-level token groups), their token counts, and the
+ * Return top-level token groups, their token counts, and the
  * context axes the resolver declares.
  *
  * @public
@@ -57,7 +57,7 @@ export function listCollections(source: TokenSource): {
 }
 
 /**
- * Get a single token by dot path, optionally under specific contexts.
+ * Return a token by dot path under a context selection.
  *
  * @public
  */
@@ -92,7 +92,7 @@ export function getToken(
 }
 
 /**
- * Resolve every token under a context selection.
+ * Resolve tokens under a context selection.
  *
  * @public
  */
@@ -126,8 +126,7 @@ export function resolveContext(
 }
 
 /**
- * Search tokens by substring across path and description, optionally
- * filtered by `$type`.
+ * Search token paths and descriptions with an optional `$type` filter.
  *
  * @public
  */
@@ -183,7 +182,7 @@ export function searchTokens(
 }
 
 /**
- * Semantic diff between two Figma variables exports, rendered as Markdown.
+ * Compare two Figma variables exports and return a Markdown report.
  *
  * @public
  */

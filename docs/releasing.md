@@ -1,9 +1,9 @@
 # Releasing FigmaVars
 
-This is the source of truth for preparing, publishing, and recovering a
-FigmaVars release. CI produces one checksummed artifact for the five public
-`@figmavars/*` packages. Publish those files without rebuilding or substituting
-a tarball after the release checks pass.
+Use this runbook to prepare, publish, or recover a FigmaVars release. CI
+produces one checksummed artifact for the five public `@figmavars/*` packages.
+Publish those files without rebuilding or substituting a tarball after the
+release checks pass.
 
 ## Local preflight
 
@@ -33,10 +33,11 @@ repository clears npm authentication, OIDC, and provenance environment
 values, uses an empty temporary npm configuration, and calls npm with
 `--dry-run --offline --provenance=false`.
 
-In general, `npm publish --dry-run` does not publish or mutate the registry,
-but a dry-run can read credentials, attempt OIDC discovery, and contact the
-registry unless it is isolated. A dry-run is not proof of npm access or
-provenance. Only the real publish job can establish those external facts.
+`npm publish --dry-run` does not publish or mutate the registry. Without the
+isolation above, it can still read credentials, attempt OIDC discovery, and
+contact the registry. A dry-run is not proof of npm access or provenance.
+Maintainers can establish those facts through the publish job, the sole
+authorized path.
 
 Bind the release attempt to the saved artifact and validate the intended tag:
 
@@ -48,16 +49,17 @@ GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
 
-The schema-aware `verify:release-artifacts` command is portable. macOS ships
-`shasum`; GitHub's Linux jobs use `sha256sum --check SHA256SUMS` instead.
+`verify:release-artifacts` checks the manifest schema on macOS and Linux.
+macOS ships `shasum`; GitHub's Linux jobs use
+`sha256sum --check SHA256SUMS` instead.
 
 ## Stable release semantics
 
-The current workflow supports stable releases only. All public and private
-workspaces must have the same strict `MAJOR.MINOR.PATCH` version, and the only
-accepted release tag is an exact `vMAJOR.MINOR.PATCH` that matches it. The five
-packages publish in dependency order: core, dtcg, cli, hooks, then mcp. Every
-stable publication uses the npm dist-tag `latest`.
+The workflow's sole release mode is stable. The five public packages must share
+the same strict `MAJOR.MINOR.PATCH` version, and the accepted release tag must
+equal `vMAJOR.MINOR.PATCH` using that shared version. The packages publish in
+dependency order: core, dtcg, cli, hooks, then mcp. Every stable publication
+uses the npm dist-tag `latest`.
 
 Prerelease versions are not supported by this path. A future prerelease needs
 a separate design that changes the version and tag validators, artifact
@@ -66,8 +68,8 @@ dist-tag such as `next`.
 
 ## Release artifact boundary
 
-For `VERSION=5.0.0`, one release attempt contains exactly seven regular,
-non-symlink files under `artifacts/npm/`, in this contract:
+For `VERSION=5.0.0`, one release attempt contains these seven regular,
+non-symlink files and no others under `artifacts/npm/`:
 
 1. `figmavars-core-$VERSION.tgz`
 2. `figmavars-dtcg-$VERSION.tgz`
@@ -80,24 +82,25 @@ non-symlink files under `artifacts/npm/`, in this contract:
 `manifest.json` fixes the shared version, package names, filenames, dependency
 order, and digests. The publish boundary gives the manifest a separate
 validation because `SHA256SUMS` covers the five tarballs but not the manifest.
-The required validation set includes the manifest schema, tag/version equality,
-canonical checksum file, and every tarball hash. Publication requires all of
-them to pass.
+The required checks cover the manifest schema, tag/version equality,
+`SHA256SUMS` entries, and every tarball hash. Publication requires all of them
+to pass.
 
 The quality job uploads the directory as `npm-packages-${{ github.sha }}`.
 The packed-consumer, publish, and GitHub Release jobs download that same-run
-artifact. None of those jobs rebuilds or repacks it. Only the publish job
-receives `id-token: write` or access to the optional npm bootstrap token.
-Record the GitHub run ID and commit SHA before artifact retention expires.
+artifact. None of those jobs rebuilds or repacks it. The workflow gives
+`id-token: write` and optional npm bootstrap-token access to the publish job and
+no other job. Record the GitHub run ID and commit SHA before artifact retention
+expires.
 
 ## Version pull requests
 
-`.github/workflows/version-packages.yml` runs only after a push to `main`. It
-uses the repository's `github.token` to open or synchronize one Changesets
-version pull request. The workflow never publishes, receives no npm token, and
-does not request an OIDC identity token. It applies `changeset version`, updates
-the lockfile without lifecycle scripts, and proves the result with a frozen,
-script-free install.
+`.github/workflows/version-packages.yml` runs after a push to `main` and has no
+other trigger. It uses the repository's `github.token` to open or synchronize
+one Changesets version pull request. The workflow never publishes, receives no
+npm token, and does not request an OIDC identity token. It applies
+`changeset version`, updates the lockfile without lifecycle scripts, and proves
+the result with a frozen, script-free install.
 
 The initial 5.0.0 release needs no fabricated version pull request. The five
 public package manifests already carry 5.0.0 and there is no pending changeset.
@@ -125,14 +128,15 @@ maintainer-authored `reopened` event starts CI. Confirm the reopened pull
 request still has the exact head commit produced by the version workflow, then
 approve its workflow run in GitHub Actions. Require the normal `quality` and
 `packed-consumer` checks for that exact head commit to pass before merge. Never
-merge the version pull request based only on the version workflow succeeding
-or on checks from an older head commit.
+merge the version pull request unless the version workflow succeeds and those
+normal checks pass for its exact head commit. Checks from an older head commit
+do not count.
 
 ## External npm and GitHub steps
 
 Local checks never execute the following steps. Keep every item unchecked until
 the maintainer performs it and records the result during the launch session.
-The order is enforced because each phase removes or depends on authority from
+Follow the listed order because each phase removes or depends on authority from
 the previous phase.
 
 ### 1. Branch preflight
@@ -142,7 +146,8 @@ the previous phase.
 Run the complete local preflight, require the version pull request checks when
 one exists, and verify @figmavars ownership, 2FA, and new-package rights. Confirm
 the protected npm and GitHub environments and rulesets are ready. Resolve the
-stale `v4.2.0` tag separately. Confirm immutable releases are enabled.
+stale `v4.2.0` tag as its own task. Confirm that an administrator enabled
+immutable releases.
 
 Run the immutable-releases check with a maintainer credential that has
 repository `Administration` read permission. The job-scoped `GITHUB_TOKEN`
@@ -157,9 +162,9 @@ test "$(
 )" = true
 ```
 
-The repository ruleset must block release tag updates and deletions before the
-tag is pushed. Immutable releases protect the associated tag only after
-publish, so the ruleset covers the draft and asset-upload window.
+Configure the repository ruleset to block release tag updates and deletions
+before you push the tag. GitHub applies immutable-release protection after
+publication, so the ruleset covers the draft and asset-upload window.
 
 ### 2. Merge and bind exact main
 
@@ -180,20 +185,20 @@ test -z "$(git status --short)"
 
 ### 3. Create the bootstrap credential and protected environment
 
-- [ ] Create one one-day granular npm token and store it only in the protected GitHub `npm` environment.
+- [ ] Create a granular npm token that expires after one day and make the protected GitHub `npm` environment its sole storage location.
 
 Create the granular token in the npm website with the minimum publish access
-needed for the five packages and CI 2FA bypass. It exists only for the initial
-token-authenticated publish. Do not paste it into a command, shell variable,
-file, issue, or log.
+needed for the five packages and CI 2FA bypass. Use it for the initial
+token-authenticated publish and for no other purpose. Do not paste it into a
+command, shell variable, file, issue, or log.
 
 Create and protect the GitHub environment `npm` before the tag run, including
 its required reviewer and deployment restrictions. The workflow references
 that environment. GitHub may create an unprotected environment record if it is
 missing. An administrator must configure and verify it before a tag run.
 
-Set the secret through the interactive prompt, then confirm only its name is
-listed:
+Set the secret through the prompt, then confirm the command lists its name once
+without showing a value:
 
 ```bash
 set -euo pipefail
@@ -206,10 +211,17 @@ test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS")
 
 ### 4. Tag, publish, and create the GitHub Release
 
-- [ ] Recreate `v5.0.0` only at the final verified commit, push the single intended tag, and approve publication.
+- [ ] Recreate `v5.0.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
 
 For the initial release, create one annotated stable tag at the recorded
 commit. Never use a blanket tag push.
+
+Update the release copy before creating the tag. In the five package
+changelogs, replace `5.0.0 (Unreleased)` with `5.0.0 (YYYY-MM-DD)`. In
+`docs/launch/v5.0.0.md`, replace the draft status with
+`Status: Released YYYY-MM-DD.` Use the same UTC date in all six files. The
+tag-mode metadata check rejects a missing date, a mismatched date, or any
+remaining `Unreleased` marker.
 
 ```bash
 VERSION=5.0.0
@@ -233,7 +245,7 @@ release notes, asset digests, and final release URL.
 
 Use a browser-authenticated local npm >=11.15 session with package write access.
 The bootstrap granular access token cannot authorize `npm trust`; authenticate
-interactively in the browser instead.
+in the browser instead.
 
 ```bash
 npm --version
@@ -257,7 +269,7 @@ end-to-end trust proof.
 
 ### 6. Delete the GitHub environment secret
 
-- [ ] Delete `NPM_TOKEN` from the protected GitHub environment after all five trust entries are verified.
+- [ ] Delete `NPM_TOKEN` from the protected GitHub environment after you verify all five trust entries.
 
 ```bash
 set -euo pipefail
@@ -297,30 +309,33 @@ Never substitute a token value for the ID.
 
 - [ ] Require 2FA while disallowing token-based publishing on all five packages.
 
-Run the five literal package security commands only after trusted publishing is
-saved, the GitHub secret is deleted, and the bootstrap token is revoked:
+Before this step, you must save trusted publishing, delete the GitHub secret,
+and revoke the bootstrap token. Open each package on npm, go to
+**Settings → Publishing access**, choose
+**Require two-factor authentication and disallow tokens**, and save:
 
-```bash
-npm access set mfa=publish @figmavars/core
-npm access set mfa=publish @figmavars/dtcg
-npm access set mfa=publish @figmavars/cli
-npm access set mfa=publish @figmavars/hooks
-npm access set mfa=publish @figmavars/mcp
-```
+- `@figmavars/core`
+- `@figmavars/dtcg`
+- `@figmavars/cli`
+- `@figmavars/hooks`
+- `@figmavars/mcp`
 
-Token-based publishing is then unavailable; trusted OIDC publishing remains
-available through the exact repository, workflow, and environment relationship.
+The npm CLI does not expose the disallow-tokens setting. After saving all five
+packages, refresh each Publishing access page and confirm
+**Require two-factor authentication and disallow tokens** remains selected.
+Trusted OIDC publishing remains available through the exact repository,
+workflow, and environment relationship.
 
 ### 9. Promote one staged production deployment
 
 - [ ] Prove the docs project boundary, stage a known-good Production fallback, then create, verify, and promote the exact release candidate.
 
 The Vercel project is `figmavars`, with immutable project ID
-`prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd`. Its `rootDirectory` is exactly `apps/docs`,
+`prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd`. Its `rootDirectory` must equal `apps/docs`,
 and `sourceFilesOutsideRootDirectory` is `true` so the docs build can consume
-the workspace packages. `apps/docs/vercel.json` with
-`"github": { "autoAlias": false }` is required before merge. This is a
-repository safety control in addition to the CLI's `--skip-domain` flag.
+the workspace packages. Maintainers must commit `apps/docs/vercel.json` with
+`"github": { "autoAlias": false }` before merge. This is a repository safety
+control in addition to the CLI's `--skip-domain` flag.
 
 Prove those settings before any repo-root upload. Stop if any assertion fails;
 do not use the repo-root deployment recipe without this proof:
@@ -337,9 +352,9 @@ test "$(jq -r '.github.autoAlias' apps/docs/vercel.json)" = false
 test "$(jq '[.protectionBypass // {} | to_entries[] | select(.value.scope == "automation-bypass")] | length' <<<"$PROJECT_JSON")" = 0
 ```
 
-Record the currently assigned production deployment ID and URL for audit only.
-The current production deployment is not a valid docs rollback. Do not use it
-as the fallback:
+Record the assigned production deployment ID and URL as audit evidence. Do not
+use the production deployment in place before launch as a docs rollback or
+fallback:
 
 ```bash
 set -euo pipefail
@@ -471,10 +486,10 @@ verify_public_site() {
 }
 ```
 
-Choose a full, reviewed commit that is known to build the docs and pass these
-routes. Stage that commit as a Production-target deployment with no domain
-assignment. This is the known-good docs fallback; a Preview deployment does
-not qualify. Record the exact fallback deployment ID and URL:
+Choose a full, reviewed commit whose docs build passes these route checks. Stage
+that commit as a Production-target deployment with no domain assignment. This
+is the known-good docs fallback; a Preview deployment does not qualify. Record
+the exact fallback deployment ID and URL:
 
 ```bash
 set -euo pipefail
@@ -509,7 +524,7 @@ upload applies the `apps/docs` root and includes its workspace dependencies.
 The detached worktree ensures uncommitted launch-machine files cannot enter the
 upload. Keep the deployment off production domains, then derive its exact
 deployment ID and URL from the deployment response. Never substitute a branch
-alias, `latest`, or manually copied values. Confirm its target type
+alias, `latest`, or values you copy by hand. Confirm its target type
 `production` before promotion.
 
 ```bash
@@ -552,16 +567,16 @@ fi
 ```
 
 If `figmavars.com` belongs to another project or promotion would reassign the
-domain, stop and resolve ownership explicitly; do not reassign or force the
-domain. The public production alias must resolve to the exact promoted
+domain, stop and establish ownership before continuing; do not reassign or
+force the domain. The public production alias must resolve to the exact promoted
 deployment ID before the public route checks run. After promotion, rerun the
 complete production route and metadata checks shown above. Keep both immutable
-deployment IDs until launch verification is complete. If rollback is needed,
-promote only
-`"$FALLBACK_DEPLOYMENT_ID"` after re-inspecting it and rerunning
+deployment IDs until launch verification is complete. If you need a rollback,
+use `"$FALLBACK_DEPLOYMENT_ID"` as the sole rollback target after re-inspecting
+it and rerunning
 `verify_protected_deployment "$FALLBACK_DEPLOYMENT_URL"`. Revoke the temporary
 automation-bypass secret and remove the disposable link after either the
-candidate or fallback is verified on the public domain.
+candidate or fallback passes verification on the public domain.
 
 ### 10. Verify replacements and migration
 
@@ -580,9 +595,9 @@ curl --fail --silent --show-error https://figmavars.com/docs/hooks/migration >/d
 All five replacement packages, the production documentation site, and the
 migration page must be live and correct before deprecation.
 
-### 11. Deprecate only the legacy 4.0.0 package
+### 11. Deprecate the sole legacy target: 4.0.0
 
-- [ ] Deprecate exactly `@figma-vars/hooks@4.0.0` after the replacements and migration are verified.
+- [ ] After you verify the replacements and migration, deprecate `@figma-vars/hooks@4.0.0` and no other version.
 
 `@figma-vars/hooks@4.0.0` receives no new version. Never target every version
 with a wildcard.
@@ -594,20 +609,21 @@ npm view "@figma-vars/hooks@4.0.0" deprecated --registry=https://registry.npmjs.
 
 ## Partial publication recovery
 
-GitHub **Re-run failed jobs** on the same tag workflow run is the only supported
-selective recovery path. Do not start a new workflow run and do not execute the
-`npm publish` reference commands below locally. The failed job downloads the
-unchanged same-run artifact, validates its seven-file boundary again, and keeps
-the job's OIDC provenance context. Never rebuild or replace those files during
-recovery.
+Use GitHub **Re-run failed jobs** on the same tag workflow run as the sole
+supported selective recovery path. Do not start a new workflow run and do not
+execute the `npm publish` reference commands below from a local machine. The
+failed job downloads the unchanged same-run artifact, validates its seven-file
+boundary again, and keeps the job's OIDC provenance context. Never rebuild or
+replace those files during recovery.
 
 The publish step queries every exact package version before its corresponding
-publish command. It treats only npm `E404` as missing. For an existing version,
+publish command. It treats npm `E404`, and no other response, as missing. For an
+existing version,
 the step computes the local tarball SRI, requires an exact match with
 `dist.integrity`, validates `dist.attestations.url`, and requires the SLSA v1
-provenance predicate. It skips only that verified existing package. Any other
-registry error, malformed metadata, integrity mismatch, or missing provenance
-stops the rerun.
+provenance predicate. It skips that verified existing package and no other
+package. Any other registry error, malformed metadata, integrity mismatch, or
+missing provenance stops the rerun.
 
 These commands show the registry decisions the workflow makes. They are for
 incident auditing, not a local retry:
@@ -624,13 +640,13 @@ npm view "@figmavars/mcp@$VERSION" version --registry=https://registry.npmjs.org
 ```
 
 GitHub's Linux jobs use `sha256sum --check SHA256SUMS` for the checksum step.
-Only npm `E404` means that a package is missing. Any other error, including an
-authentication, permission, rate-limit, DNS, or registry failure, stops
-recovery.
+Treat npm `E404` as a missing package. Any other error, including an
+authentication, permission, rate-limit, DNS, or registry failure, stops recovery.
 
-The workflow conditionally executes these five literal commands in dependency
-order. Maintainers must not execute them locally because local publication
-cannot preserve the workflow's provenance:
+The workflow uses its registry query to decide whether to execute each of these
+five literal commands in dependency order. Maintainers must not execute them
+from a local machine because local publication cannot preserve the workflow's
+provenance:
 
 ```bash
 npm publish "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
@@ -642,8 +658,8 @@ npm publish "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz" --registry=https://regist
 
 ### Wrong dist-tag
 
-Inspect and repair a dist-tag without republishing. This core example applies
-to whichever package is affected:
+Inspect and repair a dist-tag without republishing. Use this core example for
+the package whose dist-tag needs repair:
 
 ```bash
 npm dist-tag ls "@figmavars/core" --registry=https://registry.npmjs.org
@@ -692,26 +708,25 @@ validates the exact manifest schema, filenames, and hashes there. It does not
 authorize local publication. If credentials, the environment, or trusted
 publishing fail, preserve the artifact and checksums, repair the protected
 GitHub configuration, and choose **Re-run failed jobs** on the same run. The
-idempotent publish step retries only missing packages confirmed by npm from
-those same verified bytes.
+idempotent publish step retries packages that npm confirms missing from those
+same verified bytes and no others.
 
 If npm succeeds but the GitHub Release fails, choose **Re-run failed jobs** on
 the same run. The release job resumes the draft from the existing tag and
 saved files without moving the tag. Resume is non-destructive: the helper keeps
-only assets whose name, uploaded state, size, and SHA-256 digest exactly match
-the reviewed files, then uploads only missing assets. It stops on any
-unexpected, mismatched, duplicate, or `starter` asset and never deletes draft
-assets automatically. Inspect and remove a known failed `starter` upload
-manually before rerunning the failed job; do not replace an already verified
-asset.
+assets whose name, uploaded state, size, and SHA-256 digest match the reviewed
+files and no others, then uploads missing assets and no others. It stops on any
+unexpected, mismatched, duplicate, or `starter` asset and does not delete draft
+assets. Inspect and remove a known failed `starter` upload by hand before
+rerunning the failed job; do not replace an already verified asset.
 
 ### Replace a pushed wrong tag
 
 Deleting a tag does not stop its existing workflow run. Identify the exact old
 run ID and confirm its head SHA belongs to the wrong tag before cancellation.
-Cancel only if the old run is still active. Then wait until all jobs are
-terminal and inspect the final job state. If the run is already terminal, skip
-the cancellation command and inspect it directly:
+Use cancellation if the old run is still active. Then wait until all jobs are
+terminal and inspect the final job state. If the run is terminal, skip the
+cancellation command and inspect it:
 
 ```bash
 OLD_RUN_ID=123456789
@@ -721,9 +736,9 @@ gh run watch "$OLD_RUN_ID"
 gh run view "$OLD_RUN_ID" --json status,conclusion,jobs
 ```
 
-Continue only when the output proves the publish job never started. Re-query
-all five versions against the release registry and require all five commands to
-return npm `E404`:
+Before continuing, require the output to prove the publish job never started.
+Re-query all five versions against the release registry and require all five
+commands to return npm `E404`:
 
 ```bash
 VERSION=5.0.0

@@ -2,9 +2,8 @@
  * DTCG 2025.10 document types used by the FigmaVars toolchain.
  *
  * @remarks
- * These types intentionally model the subset of the Design Tokens Community
- * Group format that Figma variables can express, plus the Resolver module
- * used for modes/theming.
+ * These types cover DTCG 2025.10 values that Figma variables can express,
+ * the Resolver module, and the documented FigmaVars boolean extension.
  */
 
 /** DTCG color value (Color Module, 2025.10). @public */
@@ -31,8 +30,8 @@ export interface DTCGDurationValue {
  * Token types emitted from Figma variables.
  *
  * @remarks
- * `boolean` is not part of the DTCG specification; it is a widely used
- * extension type (Figma variables support booleans, DTCG does not yet).
+ * DTCG 2025.10 does not define `boolean`. FigmaVars documents it as an
+ * extension because Figma variables support boolean values.
  *
  * @public
  */
@@ -110,7 +109,7 @@ export interface ResolverDocument {
   resolutionOrder: DTCGRef[]
 }
 
-/** Type guard: does this node look like a token (has `$value`)? @public */
+/** Check whether a node is an object with its own `$value`. @public */
 export function isToken(node: unknown): node is DTCGToken {
   return (
     typeof node === 'object' &&

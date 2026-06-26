@@ -1,47 +1,93 @@
 # @figmavars/dtcg
 
-Convert Figma variables JSON into **DTCG 2025.10 design tokens** with a standards-compliant **Resolver** for modes — as pure functions that run in Node, browsers, and edge runtimes.
+`@figmavars/dtcg` converts Figma variables JSON into DTCG 2025.10 plus a
+documented boolean extension. It creates token documents, a Resolver document,
+CSS custom properties, a Tailwind CSS v4 theme, and TypeScript token accessors.
+
+```sh
+npm install @figmavars/dtcg
+```
+
+## Requirements
+
+- Node.js 24 or newer
+
+The conversion functions perform no file I/O, so browser applications can use
+them in a bundle.
+
+## Convert an export
 
 ```ts
 import { toDTCG } from '@figmavars/dtcg'
 
-const { files, resolver, warnings } = toDTCG(variablesJson)
-// files:    { 'primitives.tokens.json': {...}, 'semantic.dark.tokens.json': {...}, ... }
-// resolver: { version: '2025.10', sets, modifiers, resolutionOrder }
+const { files, resolver, resolverFileName, warnings } = toDTCG(variablesJson)
 ```
 
-## What it does
+`toDTCG` produces:
 
-- **One token file per collection** plus one override file per extra Figma mode, wrapped in a collection group so cross-collection references are unambiguous
-- **Aliases stay references** — `{primitives.color.blue.500}`, never flattened
-- **Type inference** — `COLOR` → color objects (sRGB components + hex), `FLOAT` → `dimension`/`number`/`fontWeight`/`duration` via scope and name heuristics, `STRING` → `string`/`fontFamily`, `BOOLEAN` preserved via extension type
-- **Figma metadata preserved** — variable ids, collection, scopes, code syntax under `$extensions['com.figma-vars']`, enabling ID-based diffing and round-trips
-- **Resolver generation** — every multi-mode collection becomes a modifier axis with its modes as contexts and the default mode as `default`
+- one base token file for each Figma collection
+- one override file for each extra mode in a collection
+- token references for Figma aliases
+- a Resolver modifier for each collection with more than one mode
+- Figma IDs, collection data, scopes, and code syntax under
+  `$extensions['com.figma-vars']`
 
-## Runtime utilities
+DTCG 2025.10 does not define a boolean token type. FigmaVars keeps Figma
+boolean values as `$type: "boolean"` and records the Figma type in the
+extension data.
+
+## Resolve contexts and references
 
 ```ts
 import {
-  applyResolver, // files + resolver + { semantic: 'dark' } -> merged document
-  flattenTokens, // document -> [{ path, token }]
-  resolveTokenValues, // follow {references} to concrete values (throwing)
-  resolveTokenValuesSafe, // same, collecting errors instead
-  listContexts, // resolver -> { semantic: ['light','dark'], ... }
-  listPermutations, // every context combination
+  applyResolver,
+  flattenTokens,
+  listContexts,
+  listPermutations,
+  resolveTokenValues,
+  resolveTokenValuesSafe,
 } from '@figmavars/dtcg'
+
+const dark = applyResolver(files, resolver, { semantic: 'dark' })
+const flat = flattenTokens(dark)
+const values = resolveTokenValues(flat)
 ```
 
-## Pipeline emitters
+`resolveTokenValues` throws on a missing target or reference cycle.
+`resolveTokenValuesSafe` returns resolved values and collected errors.
+
+## Build in-memory pipeline files
 
 ```ts
-import { buildPipeline, emitCss, emitTailwind, emitTypescript } from '@figmavars/dtcg'
+import { buildPipeline } from '@figmavars/dtcg'
 
-const { files } = buildPipeline(variablesJson)
-// [{ path: 'tokens/semantic.tokens.json', contents: '...' }, { path: 'css/tokens.css', ... }, ...]
+const result = buildPipeline(variablesJson)
+
+for (const file of result.files) {
+  console.log(file.path, file.contents)
+}
 ```
 
-`buildPipeline` returns everything as in-memory files — the CLI writes them to disk, the [playground](https://github.com/marklearst/figmavars) zips them in the browser.
+The returned files can include:
 
-Most people should use [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) (`figma-vars build`); reach for this package when embedding the conversion in your own tools.
+- `tokens/*.tokens.json`
+- `tokens/tokens.resolver.json`
+- `css/tokens.css`
+- `css/tokens.tailwind.css`
+- `ts/tokens.ts`
+- a Style Dictionary or Terrazzo configuration
+- a GitHub Actions workflow template
+- a README for the generated token project
+
+The CSS emitter writes default values in `:root`. Extra contexts use a selector
+based on the Resolver axis, such as `[data-semantic='dark']`.
+
+Use [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) when you
+want FigmaVars to write these files to disk.
+
+Read the [FigmaVars documentation](https://figmavars.com) or review the
+[5.0.0 changelog](CHANGELOG.md).
+
+## License
 
 MIT © Mark Learst

@@ -9,21 +9,13 @@ import {
 } from '@figmavars/core'
 
 /**
- * React hook that updates an existing Figma variable by ID using the Figma Variables API.
+ * Update a Figma variable in the provider's file.
  *
  * @remarks
- * The hook returns a `mutate` function to trigger the update with given payload and exposes state flags.
+ * `mutate` accepts a variable ID and {@link UpdateVariablePayload}. It returns
+ * the response or `undefined` after storing a request failure in `error`.
  *
- * ## Return Value
- *
- * The `mutate` function returns `Promise<TData | undefined>`:
- * - On success: Returns the API response data
- * - On error: Returns `undefined` (error stored in `error` state)
- *
- * Use `isSuccess`/`isError` flags or check the return value to handle results.
- *
- * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
- * `data` (API response), and `error` (if failed).
+ * @returns Mutation state and a `mutate` function.
  *
  * @example
  * ```tsx
@@ -35,7 +27,7 @@ import {
  *   const onUpdate = async () => {
  *     const result = await mutate({ variableId: id, payload: { name: 'new-name' } });
  *     if (result) {
- *       console.log('Updated successfully');
+ *       console.log('Updated variable');
  *     }
  *   };
  *

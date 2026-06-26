@@ -1,61 +1,117 @@
 # @figmavars/cli
 
-Turn a Figma variables export into a production design-token pipeline.
+`@figmavars/cli` turns a Figma variables export into files you can keep in a
+repository.
 
 ```sh
 npx @figmavars/cli build variables.json
 ```
 
-Works with the variables JSON from **any Figma plan**: export with a plugin (e.g. TokensBrücke), a Dev Mode workflow, or `figma-vars export` (Enterprise REST API).
+## Requirements
 
-## Commands
+- Node.js 24 or newer
 
-### `figma-vars build <variables.json> [--out <dir>]`
-
-Generates, in one shot:
-
-- **DTCG 2025.10 token files** — one per collection, plus one per extra Figma mode, aliases preserved as `{references}`, Figma metadata under `$extensions['com.figma-vars']`
-- **`tokens.resolver.json`** — DTCG Resolver mapping Figma modes to contexts (light/dark, compact/comfortable, ...)
-- **`css/tokens.css`** — CSS custom properties; default contexts in `:root`, each non-default context as a `[data-<axis>='<context>']` block containing only what changes
-- **`css/tokens.tailwind.css`** — Tailwind CSS v4 `@theme` mapping onto `--color-*`, `--spacing-*`, `--radius-*`, `--font-*`
-- **`ts/tokens.ts`** — `TokenPath` union, `var()` accessors, resolved values
-- **A transformer config** — Style Dictionary by default, `--terrazzo` for Terrazzo, `--no-transformer` to skip
-- **A GitHub Actions workflow** — rebuild the pipeline whenever a new export lands
-
-Flags: `--terrazzo`, `--style-dictionary`, `--no-css`, `--no-tailwind`, `--no-ts`, `--no-github-action`, `--no-readme`, `--name <resolver name>`.
-
-### `figma-vars diff <old.json> <new.json>`
-
-Semantic changelog between two exports. Matching is by **stable Figma IDs**, so renames are renames — not remove+add:
+## `figma-vars build`
 
 ```sh
-figma-vars diff backup/variables.json variables.json
+figma-vars build <variables.json> [--out <dir>]
 ```
 
+The default output directory is `design-tokens`. The command can write:
+
+- DTCG 2025.10 token files plus a documented boolean extension
+- `tokens/tokens.resolver.json`
+- `css/tokens.css`
+- `css/tokens.tailwind.css`
+- `ts/tokens.ts`
+- `style-dictionary.config.mjs` or `terrazzo.config.mjs`
+- `design-tokens.workflow.yml`
+- a README for the token project
+
+Aliases remain token references. CSS defaults live in `:root`. Extra contexts
+use the Resolver axis in selectors such as `[data-semantic='dark']`.
+
+Build options:
+
+- `--out <dir>`
+- `--terrazzo`
+- `--style-dictionary`
+- `--no-transformer`
+- `--no-css`
+- `--no-tailwind`
+- `--no-ts`
+- `--no-github-action`
+- `--no-readme`
+- `--name <name>`
+
+## `figma-vars diff`
+
+```sh
+figma-vars diff <old.json> <new.json>
 ```
-Variables: 1 renamed, 1 value changes.
-**Breaking changes detected.**
 
-### Renamed variables (breaking)
-- `color/bg/brand` -> `color/bg/primary` (Semantic)
+The command matches variables by stable Figma IDs and writes a Markdown report.
+Use `--json` for JSON output, `--out <file>` to write a file, and
+`--fail-on-breaking` to exit with code 2 when the report contains a breaking
+change.
+
+```sh
+figma-vars diff backup/variables.json variables.json --fail-on-breaking
 ```
 
-Flags: `--json`, `--out <file>`, `--fail-on-breaking` (exit code 2 — your CI gate).
+## `figma-vars check`
 
-### `figma-vars check <variables.json | tokens-dir>`
+```sh
+figma-vars check <variables.json | tokens-dir>
+```
 
-Validate an export (shape, alias cycles, dangling targets, per-mode resolvability) or a built tokens directory (every context permutation must merge, every reference must resolve). Exit code 1 on problems.
+For a variables export, the command checks the input shape, alias graph, and
+mode resolution. For a built token directory, it checks each Resolver context
+combination and token reference. Problems produce exit code 1.
 
-### `figma-vars init [dir] [--from variables.json] [--name name] [--force]`
+## `figma-vars init`
 
-Scaffold a complete tokens repo: `variables.json` (sample data unless `--from`), the generated pipeline, `package.json` with `build`/`check`/`diff`/`backup` scripts, and the CI workflow wired at `.github/workflows/`. Init always builds the initial pipeline. `--force` replaces generated files only and preserves unrelated files.
+```sh
+figma-vars init [dir] [--from variables.json] [--name name] [--force]
+```
 
-### `figma-vars export --file-key <key>`
+The command creates a token repository with:
 
-Download variables via the Figma REST API (requires an Enterprise seat and `FIGMA_TOKEN`/`FIGMA_PAT`).
+- `variables.json`, using sample data unless you pass `--from`
+- generated token files and configuration
+- package scripts for build, check, diff, and backup
+- `.github/workflows/design-tokens.yml`
 
-## Part of FigmaVars
+`--force` replaces paths owned by the scaffold and leaves unrelated paths in
+place. The command rejects unsafe path types, including symbolic links in
+scaffold-owned locations.
 
-[`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) (the pure conversion engine) · [`@figmavars/core`](https://www.npmjs.com/package/@figmavars/core) (normalizer, diffing, REST client) · [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) (React) · [`@figmavars/mcp`](https://www.npmjs.com/package/@figmavars/mcp) (AI agents)
+## `figma-vars export`
+
+```sh
+figma-vars export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
+```
+
+The export command calls the Figma Variables REST API. It requires an
+Enterprise seat, `file_variables:read`, and a Personal Access Token in
+`FIGMA_TOKEN` or `FIGMA_PAT`.
+
+You can set `FIGMA_FILE_KEY` in place of `--file-key`. The default output path
+is `figma-variables.json`.
+
+Use the FigmaVars Export plugin when you need a local variables export without
+the REST API.
+
+## Packages
+
+- [`@figmavars/core`](https://www.npmjs.com/package/@figmavars/core) provides normalization, comparison, API functions, and types.
+- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) provides conversion and emitters.
+- [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) provides React hooks.
+- [`@figmavars/mcp`](https://www.npmjs.com/package/@figmavars/mcp) serves token data through MCP.
+
+Read the [FigmaVars documentation](https://figmavars.com) or review the
+[5.0.0 changelog](CHANGELOG.md).
+
+## License
 
 MIT © Mark Learst

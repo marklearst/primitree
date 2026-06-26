@@ -1,23 +1,28 @@
 # Contributing to FigmaVars
 
-Thank you for your interest in contributing! We welcome pull requests, bug reports, and suggestions.
+Open an issue for a bug or proposal. Send a pull request when the change is
+ready for review.
 
 ## Code of Conduct
 
-Please be respectful and inclusive. Harassment, discrimination, or inappropriate language will not be tolerated.
+Treat other contributors with respect. Harassment, discrimination, and abusive
+language are not accepted here.
 
 ## Repository layout
 
 This is a pnpm + Turborepo monorepo:
 
-| Path              | Package                                                                |
-| ----------------- | ---------------------------------------------------------------------- |
-| `packages/core`   | `@figmavars/core` — normalizer, alias resolution, diffing, REST client |
-| `packages/dtcg`   | `@figmavars/dtcg` — Figma JSON → DTCG 2025.10 + Resolver, emitters     |
-| `packages/cli`    | `@figmavars/cli` — `figma-vars build/diff/check/init/export`           |
-| `packages/hooks`  | `@figmavars/hooks` — React hooks (local tokens + live API)             |
-| `packages/mcp`    | `@figmavars/mcp` — MCP server for AI agents                            |
-| `apps/playground` | Client-side playground app                                             |
+| Path                     | Purpose                                                               |
+| ------------------------ | --------------------------------------------------------------------- |
+| `packages/core`          | `@figmavars/core`: REST client, types, normalization, and diffs       |
+| `packages/dtcg`          | `@figmavars/dtcg`: DTCG 2025.10 conversion, Resolver, and emitters    |
+| `packages/cli`           | `@figmavars/cli`: `build`, `diff`, `check`, `init`, and `export`      |
+| `packages/hooks`         | `@figmavars/hooks`: React hooks for token files and the live REST API |
+| `packages/mcp`           | `@figmavars/mcp`: MCP tools for token files                           |
+| `apps/docs`              | Documentation site                                                    |
+| `apps/figma-plugin`      | Figma plugin                                                          |
+| `apps/playground`        | Browser playground                                                    |
+| `packages/plugin-export` | Shared Figma plugin export code                                       |
 
 ## Getting started
 
@@ -27,9 +32,9 @@ the runtime floor enforced by their manifests and release tests.
 
 ```bash
 pnpm install
-pnpm build          # turbo build across all packages (order-aware)
+pnpm build          # build all workspaces in dependency order
 pnpm test           # all test suites
-pnpm lint           # biome format
+pnpm lint           # Biome checks
 ```
 
 Work on a single package:
@@ -41,9 +46,11 @@ pnpm --filter figmavars-playground dev
 
 ## Making changes
 
-- Follow the existing code style (Biome/Prettier are wired into pre-commit).
-- Add or update tests — every package has a `tests/` folder; the dtcg package uses golden files (`UPDATE_GOLDENS=1 pnpm --filter @figmavars/dtcg test` to refresh them intentionally).
-- Update the relevant package README for user-facing changes, and `packages/hooks/CHANGELOG.md` for anything released.
+- Follow the existing code style. Biome and Prettier run in the commit checks.
+- Add or update tests. Each package has a `tests/` folder. To refresh the DTCG
+  golden files, run
+  `UPDATE_GOLDENS=1 pnpm --filter @figmavars/dtcg test` and review the diff.
+- Update the affected package README and CHANGELOG for a public change.
 
 ## Commit and PR guidelines
 
@@ -53,13 +60,14 @@ pnpm --filter figmavars-playground dev
 ## Releasing
 
 Maintainers must follow the [release runbook](docs/releasing.md). It is the
-single source of truth for local preflight, external npm and GitHub steps, and
+required checklist for local checks, npm and GitHub setup, publishing, and
 partial-publication recovery.
 
-## Bug reports & feature requests
+## Bug reports and feature requests
 
-Use GitHub Issues, with as much detail as possible (steps, exports that reproduce it — scrub anything confidential first).
+Use GitHub Issues. Include the steps and a small export that reproduces the
+problem. Remove confidential values first.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you license your work under the MIT License.

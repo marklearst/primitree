@@ -5,11 +5,10 @@ import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile } from '../io'
 
 export const diffHelp = `
-figma-vars diff — semantic changelog between two Figma variables exports
+figma-vars diff: compare two Figma variables exports
 
-Matches by stable Figma IDs, so renames are reported as renames rather than
-remove+add. Breaking changes (removals, renames, moves, type changes) are
-called out explicitly.
+The command matches stable Figma IDs. It reports renames, removals, moves,
+and type changes as breaking changes.
 
 Usage:
   figma-vars diff <old.json> <new.json> [options]
@@ -17,7 +16,7 @@ Usage:
 Options:
   --json                 Output the raw diff as JSON instead of Markdown
   --out <file>           Write output to a file instead of stdout
-  --fail-on-breaking     Exit with code 2 when breaking changes are found
+  --fail-on-breaking     Exit with code 2 after finding breaking changes
 
 Examples:
   figma-vars diff backup/variables.json variables.json

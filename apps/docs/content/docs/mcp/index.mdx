@@ -1,13 +1,13 @@
 ---
 title: MCP
-description: Expose design tokens to Cursor, Claude Code, and other MCP clients.
+description: Serve repository design tokens to an MCP client.
 ---
 
 ```bash
 npm i -D @figmavars/mcp
 ```
 
-The MCP server reads either a raw `variables.json` export or a built `design-tokens/` directory.
+`@figmavars/mcp` requires Node.js 24 or newer. The server reads a supported local variables JSON export or a built `design-tokens/` directory.
 
 ## Client config
 
@@ -30,34 +30,38 @@ Or point at built output:
 }
 ```
 
-Set `FIGMA_VARS_TOKENS` instead of `--tokens` if you prefer env vars.
+Set `FIGMA_VARS_TOKENS` when the client config cannot pass `--tokens`.
 
 ## Tools
 
-| Tool               | Description                         |
-| ------------------ | ----------------------------------- |
-| `list_collections` | All collections with modes          |
-| `get_token`        | Single token by path                |
-| `resolve_context`  | Resolve values under theme contexts |
-| `search_tokens`    | Search by name fragment             |
-| `diff_tokens`      | Compare two token sources           |
+| Tool               | Description                                                                   |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `list_collections` | Return top-level groups, token counts, Resolver contexts, and the source path |
+| `get_token`        | Return one token, resolved value, CSS value, and Figma extension data         |
+| `resolve_context`  | Resolve token values for a context selection                                  |
+| `search_tokens`    | Search token paths and descriptions, with an optional `$type` filter          |
+| `diff_tokens`      | Compare an earlier and later variables JSON file by stable Figma IDs          |
 
-## Why use this
+The `--tokens` option selects the source for `get_token`, `resolve_context`, and `search_tokens`. `diff_tokens` accepts `oldPath` and `newPath`; both paths must point to variables JSON files.
 
-Generated UI code stops inventing random hex values when the agent can query your real palette, spacing scale, and semantic aliases.
+## Example tool inputs
 
-Works locally. No hosted service. Same data as `figma-vars build`.
+```json
+{ "path": "semantic.color.bg.brand", "contexts": { "semantic": "dark" } }
+```
 
-## Run manually
+```json
+{ "oldPath": "./backup/variables.json", "newPath": "./variables.json" }
+```
+
+## Start the server
 
 ```bash
 npx @figmavars/mcp --tokens ./variables.json
 ```
 
-Stdio transport for MCP clients.
+The command connects over stdio and logs its source path to standard error.
 
-## vs Figma's official MCP
+## Figma's MCP server
 
-Figma MCP reads **selected frames** in Dev Mode. FigmaVars MCP reads your **full token repo**.
-
-Export with the [Figma plugin](/docs/figma-plugin), build with the CLI, point MCP at the output. See [Figma MCP vs FigmaVars](/docs/concepts/figma-mcp).
+Figma's remote and desktop MCP servers read live Figma files. FigmaVars MCP reads the JSON or built token files in your repository. See [Figma MCP and FigmaVars](/docs/concepts/figma-mcp).

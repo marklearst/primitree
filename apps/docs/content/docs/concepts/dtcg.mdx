@@ -1,44 +1,64 @@
 ---
 title: DTCG 2025.10
-description: How FigmaVars maps Figma variables to Design Tokens Community Group format.
+description: FigmaVars maps Figma variables to Design Tokens Community Group format.
 ---
 
-FigmaVars emits [DTCG 2025.10](https://www.designtokens.org) documents. That is the stable spec Style Dictionary, Terrazzo, and modern tooling expect.
+FigmaVars emits DTCG 2025.10 plus a documented boolean extension. The output includes token documents and a [DTCG Resolver](https://www.designtokens.org) document for Figma modes.
 
 ## Mapping rules
 
-| Figma              | DTCG                                       |
-| ------------------ | ------------------------------------------ |
-| Collection         | Token file (e.g. `primitives.tokens.json`) |
-| Variable name path | Nested token keys                          |
-| Alias              | `{reference.path}`                         |
-| COLOR              | `$type: color`                             |
-| FLOAT              | `$type: dimension` or inferred type        |
-| STRING             | `$type` inferred from name/value           |
+| Figma data       | Emitted token data                                         |
+| ---------------- | ---------------------------------------------------------- |
+| Collection       | Base file such as `primitives.tokens.json`                 |
+| Non-default mode | Override file such as `semantic.dark.tokens.json`          |
+| Variable name    | Nested token path split on `/`                             |
+| Variable alias   | `{dot.path}` reference                                     |
+| `COLOR`          | `$type: color` with an sRGB value                          |
+| `FLOAT`          | Type inferred from scope, then name; fallback is `number`  |
+| `STRING`         | `$type: fontFamily` for matching scope/name, else `string` |
+| `BOOLEAN`        | `$type: boolean`, the documented FigmaVars extension       |
 
-## Extensions
+## Figma metadata
 
-Figma-specific metadata is preserved under `$extensions`:
+Each emitted token stores source metadata under `$extensions['com.figma-vars']`:
 
-- Variable ID (for diffing)
-- Scopes
-- Code syntax hints
-- Collection ID
+- `variableId`
+- `collectionId` and `collectionName`
+- `scopes` and `codeSyntax` when present
+- `hiddenFromPublishing` when true
+- `resolvedType: 'BOOLEAN'` for the boolean extension
 
-That keeps exports traceable back to Figma and enables ID-based diffs.
+For example:
+
+```json
+{
+  "$type": "boolean",
+  "$value": true,
+  "$extensions": {
+    "com.figma-vars": {
+      "variableId": "VariableID:12:34",
+      "collectionId": "VariableCollectionId:12:1",
+      "collectionName": "Features",
+      "resolvedType": "BOOLEAN"
+    }
+  }
+}
+```
+
+The DTCG 2025.10 type list excludes boolean. Configure strict validators to accept the extension, transform the boolean tokens, or omit them before validation.
 
 ## Multiple modes
 
-A collection's default mode lives in the main file. Additional Figma modes become sibling files:
+The base file contains values from the collection's default mode. Other modes become override files:
 
 ```
 semantic.tokens.json       # Light (default)
 semantic.dark.tokens.json  # Dark mode
 ```
 
-The [Resolver](/docs/concepts/resolver) ties them together at runtime.
+The [Resolver](/docs/concepts/resolver) lists the base set, mode contexts, defaults, and merge order.
 
 ## Further reading
 
 - [Pipeline output](/docs/getting-started/pipeline-output)
-- `@figmavars/dtcg` package on npm for programmatic conversion
+- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) for programmatic conversion

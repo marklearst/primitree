@@ -1,17 +1,14 @@
 import { FigmaApiError } from '../types/figma'
 
 /**
- * Type guard to check if an error is a FigmaApiError instance.
- *
- * @remarks
- * Use this to safely check if an error has HTTP status code information before accessing `statusCode`.
+ * Check whether a value is a {@link FigmaApiError}.
  *
  * @param error - The error to check.
  * @returns `true` if the error is a FigmaApiError, `false` otherwise.
  *
  * @example
  * ```tsx
- * import { isFigmaApiError } from '@figmavars/hooks';
+ * import { isFigmaApiError } from '@figmavars/core';
  *
  * try {
  *   await mutate(payload);
@@ -33,17 +30,14 @@ export function isFigmaApiError(error: unknown): error is FigmaApiError {
 }
 
 /**
- * Extracts the HTTP status code from an error, if available.
- *
- * @remarks
- * Returns the status code from FigmaApiError, or `null` if the error doesn't have status information.
+ * Return the HTTP status from a {@link FigmaApiError}.
  *
  * @param error - The error to extract status code from.
  * @returns The HTTP status code, or `null` if not available.
  *
  * @example
  * ```tsx
- * import { getErrorStatus } from '@figmavars/hooks';
+ * import { getErrorStatus } from '@figmavars/core';
  *
  * const status = getErrorStatus(error);
  * if (status === 401) {
@@ -61,10 +55,7 @@ export function getErrorStatus(error: unknown): number | null {
 }
 
 /**
- * Extracts a human-readable error message from an error.
- *
- * @remarks
- * Returns the error message, falling back to a default message if the error doesn't have one.
+ * Return an error message or the supplied fallback.
  *
  * @param error - The error to extract message from.
  * @param defaultMessage - Optional default message if error has no message. Defaults to "An error occurred".
@@ -72,7 +63,7 @@ export function getErrorStatus(error: unknown): number | null {
  *
  * @example
  * ```tsx
- * import { getErrorMessage } from '@figmavars/hooks';
+ * import { getErrorMessage } from '@figmavars/core';
  *
  * const message = getErrorMessage(error);
  * toast.error(message);
@@ -94,10 +85,7 @@ export function getErrorMessage(
 }
 
 /**
- * Checks if an error represents a specific HTTP status code.
- *
- * @remarks
- * Convenience function to check if an error has a specific status code.
+ * Check whether an error has an HTTP status code.
  *
  * @param error - The error to check.
  * @param statusCode - The HTTP status code to check for.
@@ -105,7 +93,7 @@ export function getErrorMessage(
  *
  * @example
  * ```tsx
- * import { hasErrorStatus } from '@figmavars/hooks';
+ * import { hasErrorStatus } from '@figmavars/core';
  *
  * if (hasErrorStatus(error, 401)) {
  *   // Handle unauthorized
@@ -119,17 +107,14 @@ export function hasErrorStatus(error: unknown, statusCode: number): boolean {
 }
 
 /**
- * Checks if an error represents a rate limit (429) response.
- *
- * @remarks
- * Convenience function to check if an error is a rate limit error.
+ * Check whether an error is a Figma HTTP 429 response.
  *
  * @param error - The error to check.
  * @returns `true` if the error is a rate limit error (429), `false` otherwise.
  *
  * @example
  * ```tsx
- * import { isRateLimited } from '@figmavars/hooks';
+ * import { isRateLimited } from '@figmavars/core';
  *
  * if (isRateLimited(error)) {
  *   // Handle rate limit, maybe retry after delay
@@ -143,18 +128,14 @@ export function isRateLimited(error: unknown): boolean {
 }
 
 /**
- * Gets the retry-after value in seconds from a rate limit error.
- *
- * @remarks
- * Returns the number of seconds to wait before retrying, as specified in the Retry-After header.
- * Returns `null` if the error is not a rate limit error or if no retry-after value is available.
+ * Return the `Retry-After` value from a Figma HTTP 429 error.
  *
  * @param error - The error to extract retry-after from.
  * @returns The number of seconds to wait, or `null` if not available.
  *
  * @example
  * ```tsx
- * import { getRetryAfter } from '@figmavars/hooks';
+ * import { getRetryAfter } from '@figmavars/core';
  *
  * const retryAfter = getRetryAfter(error);
  * if (retryAfter !== null) {

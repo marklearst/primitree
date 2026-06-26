@@ -50,6 +50,25 @@ describe('built package entrypoints', () => {
     expect(result.stderr).toBe('')
   })
 
+  it('prints factual executable help', () => {
+    const result = spawnSync(process.execPath, [cliEntry, '--help'], {
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toContain(
+      'figma-vars-mcp: serve design tokens over MCP'
+    )
+    expect(result.stdout).toMatch(
+      /a directory containing\s+tokens\.resolver\.json and \*\.tokens\.json/u
+    )
+    expect(result.stdout).toMatch(
+      /a 'figma-vars build' directory\s+with those files under tokens\//u
+    )
+    expect(result.stdout).not.toMatch(/[—]/)
+  })
+
   it(
     'initializes the built executable and lists its tools over stdio',
     { timeout: 10_000 },
@@ -79,6 +98,46 @@ describe('built package entrypoints', () => {
           'resolve_context',
           'search_tokens',
         ])
+        expect(
+          Object.fromEntries(
+            tools.tools.map(tool => [tool.name, tool.description])
+          )
+        ).toEqual({
+          diff_tokens:
+            'Compare two Figma variables JSON files by stable IDs and return a Markdown report of collection, mode, variable, type, value, and description changes.',
+          get_token:
+            'Return the DTCG token at a dot path, its resolved value, CSS value, CSS variable reference, and Figma extension data when present.',
+          list_collections:
+            'Return top-level token group names, token counts, resolver contexts, and the source path.',
+          resolve_context:
+            'Resolve token values for the selected contexts. Returns up to the requested limit with CSS values, plus the total count and truncation state.',
+          search_tokens:
+            'Find a substring in token paths and descriptions. An optional DTCG $type filter narrows the results.',
+        })
+        expect(
+          Object.fromEntries(tools.tools.map(tool => [tool.name, tool.title]))
+        ).toEqual({
+          diff_tokens: 'Diff two variables exports',
+          get_token: 'Get one design token',
+          list_collections: 'List token collections',
+          resolve_context: 'Resolve tokens for a context',
+          search_tokens: 'Search design tokens',
+        })
+
+        const byName = Object.fromEntries(
+          tools.tools.map(tool => [tool.name, tool])
+        )
+        const resolveLimit = byName.resolve_context?.inputSchema.properties
+          ?.limit as { description?: string } | undefined
+        const searchLimit = byName.search_tokens?.inputSchema.properties
+          ?.limit as { description?: string } | undefined
+
+        expect(resolveLimit?.description).toBe(
+          'Maximum number of tokens to return. Defaults to 500.'
+        )
+        expect(searchLimit?.description).toBe(
+          'Maximum number of matches to return. Defaults to 50.'
+        )
       } finally {
         await client.close()
       }

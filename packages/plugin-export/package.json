@@ -2,7 +2,7 @@
   "name": "@figmavars/plugin-export",
   "version": "5.0.0",
   "private": true,
-  "description": "Serialize Figma local variables into the REST export shape used by @figmavars/cli",
+  "description": "Serialize local Figma variables into the REST export shape used by @figmavars/cli.",
   "type": "module",
   "license": "MIT",
   "author": "Mark Learst",

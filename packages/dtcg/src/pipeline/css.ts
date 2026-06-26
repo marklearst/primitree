@@ -91,18 +91,16 @@ function tokensEqual(
 /** Options for {@link emitCss}. @public */
 export interface EmitCssOptions {
   /**
-   * Attribute used for context blocks. `data-theme` produces
-   * `[data-theme='dark'] { ... }`. The modifier axis name is used when a
-   * resolver has multiple modifiers. Default: `data-<axis>`.
+   * Header comment for the generated stylesheet.
    */
   banner?: string
 }
 
 /**
- * Emit a standalone CSS custom properties file from DTCG files + resolver:
- * `:root` holds the default resolution; each non-default context becomes a
- * `[data-<axis>='<context>']` block containing only the properties that
- * change under that context.
+ * Emit CSS custom properties from token files and a Resolver.
+ *
+ * `:root` contains the default values. A `[data-<axis>='<context>']` block
+ * contains values that change for a non-default context.
  *
  * @public
  */

@@ -3,15 +3,10 @@ import { useVariables } from './useVariables'
 import type { FigmaCollection } from '../types'
 
 /**
- * React hook that extracts and memoizes all variable collections from loaded Figma variables data.
+ * Read local variable collections as an array and an ID-keyed map.
  *
  * @remarks
- * Returns an object with:
- * - `collections`: an array of all variable collections
- * - `collectionsById`: a lookup table mapping collection IDs to FigmaCollection objects
- * Useful for building UI pickers, mapping, and variable management tools.
- *
- * Call this hook anywhere you need fast, up-to-date access to collections for the current file context.
+ * The hook derives both values from {@link useVariables}.
  *
  * @example
  * ```tsx

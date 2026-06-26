@@ -6,15 +6,15 @@ import {
   type ResolverDocument,
 } from '@figmavars/dtcg'
 
-/** An in-memory token source the MCP tools operate on. @public */
+/** Token files, Resolver, and origin used by the MCP tools. @public */
 export interface TokenSource {
   /** DTCG token documents keyed by file name. */
   files: Record<string, DTCGDocument>
   /** The resolver describing contexts. */
   resolver: ResolverDocument
-  /** Where the source was loaded from. */
+  /** File or directory used to load the source. */
   origin: string
-  /** Raw variables JSON when the source was a Figma export (enables diffing). */
+  /** Source variables JSON, present when loaded from an export. */
   variablesJson?: unknown
 }
 
@@ -24,9 +24,9 @@ async function readJson(filePath: string): Promise<unknown> {
 }
 
 /**
- * Load a token source from disk. Accepts either:
+ * Load a token source from a Figma variables file or built token directory.
  *
- * - a Figma variables export (`variables.json`), converted in-memory, or
+ * - A Figma variables export (`variables.json`), converted in memory.
  * - a directory containing `tokens.resolver.json` + `*.tokens.json`
  *   (the `tokens/` output of `figma-vars build`), or a directory whose
  *   `tokens/` subdirectory contains them.

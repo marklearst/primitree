@@ -1,7 +1,7 @@
 {
   "name": "@figmavars/dtcg",
   "version": "5.0.0",
-  "description": "Convert Figma variables JSON into DTCG 2025.10 design tokens with a standards-compliant Resolver for modes, plus token flattening and context resolution utilities.",
+  "description": "Convert Figma variables JSON to DTCG 2025.10 plus a documented boolean extension, Resolver contexts, CSS, Tailwind, and TypeScript.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

@@ -5,24 +5,11 @@ import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getPublishedVariablesKey } from '../utils/swrKeys'
 
 /**
- * Hook to fetch published Figma Variables from a file.
+ * Read published Figma variables for the provider's file.
  *
  * @remarks
- * This hook fetches variables that have been published to a library in Figma.
- * Published variables are shared across files and represent the "source of truth"
- * for design tokens in a design system. Use this hook when you need to access
- * variables that are consumed from a library, rather than local file variables.
- *
- * **When to use:**
- * - Fetching design tokens from a published library
- * - Building design system dashboards that track published tokens
- * - Monitoring changes to shared variables across a design system
- * - Validating consistency between published and local variables
- *
- * **Rate Limiting:**
- * The Figma API has rate limits. Published variables are typically more stable
- * than local variables, so they can be cached longer. SWR handles caching and
- * revalidation automatically, but be mindful of frequent refetches in production.
+ * A validated published fallback skips the request. Otherwise SWR fetches the
+ * published variables endpoint with the provider's file key and token.
  *
  * @returns SWR response object with `data`, `error`, `isLoading`, and `isValidating`.
  *

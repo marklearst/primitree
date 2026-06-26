@@ -8,7 +8,7 @@ import {
 import { getStringFlag, type ParsedArgs } from '../args'
 
 export const exportHelp = `
-figma-vars export — download Figma variables as JSON
+figma-vars export: download local Figma variables as JSON
 
 Usage:
   figma-vars export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
@@ -22,9 +22,9 @@ Environment:
   FIGMA_FILE_KEY             Figma file key (alternative to --file-key)
 
 Notes:
-  Live variable export requires a Figma Enterprise seat with the
-  file_variables:read scope. On other plans, export your variables JSON
-  with a plugin (e.g. TokensBrücke) and feed it to 'figma-vars build'.
+  Figma requires an Enterprise seat and the file_variables:read scope for
+  this endpoint. You can also create variables JSON with a supported variables
+  plugin, then pass the file to 'figma-vars build'.
 `
 
 export async function runExport(args: ParsedArgs): Promise<void> {
@@ -35,10 +35,10 @@ export async function runExport(args: ParsedArgs): Promise<void> {
   const out = getStringFlag(args.flags, 'out') || 'figma-variables.json'
 
   if (!token) {
-    throw new Error('FIGMA_TOKEN (or FIGMA_PAT) is required')
+    throw new Error('Set FIGMA_TOKEN or FIGMA_PAT')
   }
   if (!fileKey) {
-    throw new Error('--file-key or FIGMA_FILE_KEY is required')
+    throw new Error('Pass --file-key or set FIGMA_FILE_KEY')
   }
 
   const data = await fetcher<LocalVariablesResponse>(

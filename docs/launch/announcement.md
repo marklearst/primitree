@@ -1,120 +1,118 @@
-# Launch kit — FigmaVars v5
+# FigmaVars 5 launch copy
 
-Draft copy for the v5 launch. Adjust voice as needed; every claim below is
-implemented and tested in the repo.
+Draft copy for the 5.0.0 release.
 
----
+## Show HN
 
-## Show HN post
+### Title options
 
-**Title options (pick one, max ~80 chars):**
+1. `Show HN: Commit design tokens from a Figma variables export`
+2. `Show HN: FigmaVars, from variables.json to DTCG, CSS, and types`
 
-1. `Show HN: Turn a Figma variables export into a full design-token pipeline`
-2. `Show HN: FigmaVars – Figma variables to DTCG tokens, CSS, Tailwind, and CI`
-3. `Show HN: Design tokens from Figma without the Enterprise API`
+### Post
 
-**Body:**
+Hi HN. I built FigmaVars to turn an exported `variables.json` file into token
+files that live in a repository.
 
-Hi HN — I maintain a small React hooks library for Figma Variables. It had a
-structural problem: Figma's Variables REST API is Enterprise-only, so most
-people could never use it. Instead of polishing a library nobody could adopt,
-I rebuilt it around the one thing everyone has: the variables JSON you can
-export from any Figma plan (plugins like TokensBrücke, Dev Mode, or the REST
-API if you have it).
+```sh
+npx @figmavars/cli build variables.json
+git add design-tokens
+```
 
-`npx @figmavars/cli build variables.json` gives you:
+The command writes DTCG 2025.10 tokens plus a documented boolean extension, a
+Resolver document for Figma modes, CSS custom properties, a Tailwind CSS v4
+theme, TypeScript accessors, and a Style Dictionary or Terrazzo configuration.
+It can also write a GitHub Actions workflow for later exports.
 
-- DTCG 2025.10 token files (one per collection, aliases preserved as
-  references) plus a Resolver document that maps Figma modes to standard
-  contexts (light/dark, density, brand)
-- CSS custom properties with `[data-theme]` blocks, a Tailwind v4 `@theme`
-  file, TypeScript types, and a prewired Style Dictionary or Terrazzo config
-- a GitHub Action that rebuilds everything when a new export lands
+The comparison command uses stable Figma IDs:
 
-The part I'm most excited about is `figma-vars diff`: it matches variables by
-their stable Figma IDs, so a rename shows up as a rename instead of a
-remove+add. With `--fail-on-breaking` you can gate CI on design-token changes
-the way you gate on API changes.
+```sh
+figma-vars diff backup/variables.json variables.json --fail-on-breaking
+```
 
-There's also an MCP server (`@figmavars/mcp`) so coding agents can query
-your actual tokens (get/search/resolve/diff) instead of hallucinating hex
-values, React hooks that consume the built artifacts with runtime theme
-switching (no Figma token needed), and a playground that runs entirely
-client-side — drop a JSON, preview every mode, download the pipeline as a
-zip. Nothing is uploaded anywhere.
+Because the IDs survive a name change, the report records a rename under the
+same variable. It also reports removals, moves, type changes, and per-mode value
+changes. `--fail-on-breaking` gives CI an exit code for the breaking cases.
 
-Everything is MIT. I'd love feedback on the DTCG mapping decisions
-(especially FLOAT type inference and how modes become resolver modifiers).
+You can get the source JSON from a variables plugin that exports local Figma
+variables. The repository includes FigmaVars Export as a development build.
+Teams with Enterprise access can use the REST API through `figma-vars export`.
 
-**Link:** https://github.com/marklearst/figmavars
+The repository also contains React hooks for the built artifacts, an MCP server
+for token queries, and a browser playground. The playground builds the same
+files and downloads them as a zip.
 
----
+I would value review of the FLOAT type mapping and the way Figma modes map to
+Resolver modifiers.
 
-## X / Bluesky thread
+Project: https://github.com/marklearst/figmavars
 
-**1/**
-Figma's Variables API is Enterprise-only. Your design tokens shouldn't be.
+Docs: https://figmavars.com
 
-FigmaVars v5: drop in the variables JSON anyone can export, get a production
-token pipeline — DTCG 2025.10, CSS, Tailwind v4, TypeScript, CI. In one
-command.
+## X and Bluesky thread
 
-**2/**
-`npx @figmavars/cli build variables.json`
+### Post 1
 
-→ tokens split by collection, aliases kept as references
-→ a DTCG Resolver mapping your Figma modes to light/dark contexts
-→ tokens.css with [data-theme] blocks
-→ @theme for Tailwind v4
-→ typed TokenPath union
+Export `variables.json` from Figma. Run one command. Commit the token files.
 
-**3/**
-The sleeper feature: `figma-vars diff` matches by stable Figma IDs.
+```sh
+npx @figmavars/cli build variables.json
+```
 
-Renames are renames. Not remove+add.
+FigmaVars 5 writes DTCG 2025.10 tokens plus a documented boolean extension,
+Resolver contexts, CSS, a Tailwind CSS v4 theme, TypeScript accessors, and
+transformer configuration.
 
-`--fail-on-breaking` turns design-token changes into CI events your team
-reviews like code.
+https://figmavars.com
 
-**4/**
-AI angle: `@figmavars/mcp` serves your tokens to Cursor/Claude Code.
+### Post 2
 
-get_token, search_tokens, resolve_context ("what does dark mode look
-like?"), diff_tokens.
+`figma-vars diff` matches variables by stable Figma IDs.
 
-Your agent stops inventing hex values. Local-first, nothing uploaded.
+A renamed variable keeps its identity in the report. The command also shows
+per-mode value changes and marks removals, renames, moves, and type changes as
+breaking.
 
-**5/**
-React hooks now work on every Figma plan — they consume built artifacts, not
-the Enterprise API:
+Use `--fail-on-breaking` in CI.
 
-useToken('semantic.color.bg.brand') → value, css, var()
-useTheme() → setContext('semantic', 'dark')
+### Post 3
 
-SSR-safe. No PAT in the browser. MIT.
+`@figmavars/hooks` reads the generated token files in React:
 
-github.com/marklearst/figmavars
+```tsx
+useToken('semantic.color.bg.brand')
+useTheme().setContext('semantic', 'dark')
+```
 
----
+The local-token hooks need no Figma token or network request.
 
-## Newsletter blurb (design systems newsletters)
+### Post 4
 
-**FigmaVars v5 — from variables export to token pipeline in one command.**
-FigmaVars converts any Figma variables JSON (no Enterprise plan required)
-into DTCG 2025.10 token files with a standards-compliant Resolver for modes,
-plus generated CSS custom properties, a Tailwind v4 theme, TypeScript types,
-and a prewired Style Dictionary/Terrazzo config. A semantic `diff` command
-matches variables by stable Figma IDs to catch breaking token changes in CI,
-React hooks consume the built artifacts with runtime theme switching, and an
-MCP server exposes the whole token graph to AI coding agents. A fully
-client-side playground lets you try it without installing anything. MIT.
+`@figmavars/mcp` gives MCP clients five token tools:
 
----
+`list_collections`, `get_token`, `resolve_context`, `search_tokens`, and
+`diff_tokens`.
 
-## 60-second demo recording script
+The server reads a variables export or a built token directory from disk.
 
-Record with [vhs](https://github.com/charmbracelet/vhs) or asciinema; target
-~60s total. Suggested `demo.tape`:
+https://github.com/marklearst/figmavars
+
+## Newsletter blurb
+
+**FigmaVars 5 turns a Figma variables export into committed token files.**
+The CLI writes DTCG 2025.10 tokens plus a documented boolean extension, a
+Resolver document for modes, CSS custom properties, a Tailwind CSS v4 theme,
+TypeScript accessors, and transformer configuration. Its diff command matches
+variables by stable Figma IDs, so renamed variables keep their identity in
+review. The release also includes React hooks for built artifacts, an MCP
+server, and a browser playground. FigmaVars uses the MIT license.
+
+https://figmavars.com
+
+## Demo outline
+
+Start with a Figma file that has at least two collections and one collection
+with two modes. Export it to `variables.json` before recording.
 
 ```tape
 Output demo.gif
@@ -123,36 +121,28 @@ Set Width 1200
 Set Height 640
 Set Theme "Catppuccin Mocha"
 
-Type "npx @figmavars/cli init my-tokens" Enter
-Sleep 3s
-Type "cd my-tokens && ls" Enter
-Sleep 2s
-Type "cat tokens/tokens.resolver.json | head -20" Enter
-Sleep 3s
-Type "head -18 css/tokens.css" Enter
-Sleep 3s
-# edit variables.json (rename a variable) beforehand in a second take
+Type "npx @figmavars/cli build variables.json" Enter
+Sleep 4s
+Type "find design-tokens -maxdepth 2 -type f | sort" Enter
+Sleep 4s
+Type "git add design-tokens && git status --short" Enter
+Sleep 4s
 Type "npx @figmavars/cli diff backup/variables.json variables.json" Enter
 Sleep 5s
 ```
 
-Frame 1 alt: drag `variables.json` into the playground, click a mode chip,
-hit "Download pipeline (.zip)" — screen-record for the README hero GIF.
-
----
+Record a second clip in the browser playground: select `variables.json`,
+switch one Resolver context, and download the zip.
 
 ## Launch checklist
 
-- [ ] Complete the [release runbook](../releasing.md); release procedure and
-      recovery steps live there exclusively.
-- [ ] Deploy `apps/playground/dist` (GitHub Pages / Netlify / Vercel — it's
-      static; `pnpm --filter figmavars-playground build`)
-- [ ] Record the 60s GIF and embed at the top of the root README
-- [x] Rename the GitHub repo `figma-vars-hooks` → `figmavars` (redirects
-      are automatic; badges and links updated)
-- [ ] Post Show HN (Tue–Thu, 8–10am ET tends to do best)
-- [ ] Thread on X/Bluesky; cross-post to r/DesignSystems, r/FigmaDesign
-- [ ] Submit to newsletters: Design Systems Weekly, UI Dev Newsletter,
-      Figmalion, News.design
-- [ ] Open a "Show and tell" in the Style Dictionary and Terrazzo discussion
-      boards (the generated configs feed their tools — friendly ecosystem play)
+- [ ] Finish the [release runbook](../releasing.md).
+- [ ] Publish the five `@figmavars` packages in dependency order.
+- [ ] Verify the documentation site at https://figmavars.com.
+- [ ] Verify the migration guide at
+      https://figmavars.com/docs/hooks/migration.
+- [ ] Record the demo with the release tarballs installed.
+- [ ] Check each command and link in the launch copy.
+- [ ] Publish the Show HN post.
+- [ ] Publish the X and Bluesky thread.
+- [ ] Send the newsletter blurb.

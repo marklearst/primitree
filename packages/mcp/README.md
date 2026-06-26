@@ -1,10 +1,13 @@
 # @figmavars/mcp
 
-Requires Node.js 20 or newer and is published as an ESM package.
+`@figmavars/mcp` serves FigmaVars token data through the Model Context
+Protocol.
 
-An MCP server that makes your design tokens **AI-legible**. Point it at a Figma variables export (or a `figma-vars build` output) and any MCP client — Cursor, Claude Code, Windsurf — can query your real tokens instead of hallucinating hex values.
+## Requirements
 
-## Setup
+- Node.js 24 or newer
+
+## Configure an MCP client
 
 ```json
 {
@@ -17,22 +20,46 @@ An MCP server that makes your design tokens **AI-legible**. Point it at a Figma 
 }
 ```
 
-`--tokens` accepts either a raw `variables.json` (converted in-memory) or a directory containing `tokens/tokens.resolver.json` (the output of `figma-vars build`). `FIGMA_VARS_TOKENS` works as an env-var alternative.
+`--tokens` accepts:
+
+- a Figma variables JSON file
+- a directory containing `tokens.resolver.json` and `*.tokens.json`
+- a `figma-vars build` output directory with those files under `tokens/`
+
+Set `FIGMA_VARS_TOKENS` when you prefer an environment variable over the
+`--tokens` flag.
 
 ## Tools
 
-| Tool               | What the agent gets                                                                           |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| `list_collections` | Collections, token counts, and every theme axis/context                                       |
-| `get_token`        | One token by path: raw DTCG token, resolved value, CSS form, `var()` accessor, Figma metadata |
-| `resolve_context`  | Every token value under a context selection (e.g. `{"semantic":"dark"}`)                      |
-| `search_tokens`    | Substring search across paths and descriptions, filterable by `$type`                         |
-| `diff_tokens`      | Markdown changelog between two exports (renames by stable ID, breaking-change callouts)       |
+| Tool               | Input and result                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| `list_collections` | Returns top-level token groups, token counts, Resolver contexts, and the loaded path                 |
+| `get_token`        | Accepts a dot path and optional contexts; returns the token, resolved value, CSS, and Figma metadata |
+| `resolve_context`  | Accepts contexts and an optional limit; returns CSS values for the selected token set                |
+| `search_tokens`    | Searches token paths and descriptions, with optional `$type`, context, and limit filters             |
+| `diff_tokens`      | Accepts paths to two Figma variables JSON files and returns a Markdown comparison                    |
 
-## Why
+`diff_tokens` reads the two paths supplied to the tool. It does not compare two
+built token directories.
 
-Agents generating UI code guess at colors and spacing unless the design system is in their context. This server turns your token source of truth into five cheap, structured calls — local-first, no Figma API access, no Enterprise plan, nothing uploaded.
+The server reads files on the machine that runs it and returns results over
+stdio. Your MCP client controls where those results go.
 
-Part of [FigmaVars](https://github.com/marklearst/figmavars): [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) builds the pipeline, this package serves it to agents.
+## Use the package API
+
+```ts
+import { createServer, loadTokenSource } from '@figmavars/mcp'
+
+const source = await loadTokenSource('./design-tokens')
+const server = await createServer(source)
+```
+
+The package also exports the five tool functions for applications that want to
+call them without starting an MCP transport.
+
+Read the [FigmaVars documentation](https://figmavars.com) or review the
+[5.0.0 changelog](CHANGELOG.md).
+
+## License
 
 MIT © Mark Learst

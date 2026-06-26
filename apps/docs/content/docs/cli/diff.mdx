@@ -7,11 +7,11 @@ description: Semantic diff between two Figma variables exports with stable ID ma
 figma-vars diff <before.json> <after.json> [options]
 ```
 
-## Why ID-based diffing
+## ID-based comparison
 
-String diffs treat a rename as delete + add. That hides breaking changes from reviewers.
+String diffs show a rename as a removal and an addition.
 
-FigmaVars matches variables by **stable Figma IDs**, so renames show up as renames and value changes are grouped per collection and mode.
+FigmaVars matches variables by stable Figma IDs. The report separates renames, moves, type changes, per-mode values, and description changes.
 
 ## Usage
 
@@ -22,20 +22,20 @@ figma-vars diff old.json new.json --json --out diff.json
 figma-vars diff old.json new.json --fail-on-breaking
 ```
 
-Markdown is the default output format. Use `--json` when another tool needs the raw diff object.
+Markdown is the default output format. Use `--json` to write the `VariablesDiff` object.
 
 ## Options
 
-| Option               | Description                                         |
-| -------------------- | --------------------------------------------------- |
-| `--json`             | Output the raw diff as JSON instead of Markdown     |
-| `--out <file>`       | Write output to a file instead of standard output   |
-| `--fail-on-breaking` | Exit with code 2 when breaking changes are detected |
+| Option               | Description                                       |
+| -------------------- | ------------------------------------------------- |
+| `--json`             | Output the raw diff as JSON instead of Markdown   |
+| `--out <file>`       | Write output to a file instead of standard output |
+| `--fail-on-breaking` | Exit with code 2 after a breaking change          |
 
 ## Example output
 
 ```markdown
-Variables: 1 renamed, 1 value changes.
+Variables: 1 renamed, 1 value change.
 **Breaking changes detected.**
 
 ### Renamed variables (breaking)

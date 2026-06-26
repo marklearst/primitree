@@ -3,11 +3,10 @@ import { useVariables } from './useVariables'
 import type { FigmaVariable } from '../types'
 
 /**
- * React hook that selects a single variable by ID from loaded Figma variables data.
+ * Select a Figma variable by ID.
  *
  * @remarks
- * Returns the variable with the specified ID, or `undefined` if not found.
- * Useful for accessing a specific variable without manually mapping through all variables.
+ * The hook reads local data from {@link useVariables}.
  *
  * @param variableId - The ID of the variable to retrieve.
  * @returns The variable object, or `undefined` if not found.

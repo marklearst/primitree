@@ -38,10 +38,10 @@ function tailwindName(path: string, namespace: string): string {
  * generated `tokens.css` so mode switching keeps working.
  *
  * @remarks
- * Mapping: `color` → `--color-*`; `dimension` → `--radius-*` when the path
- * mentions radius, otherwise `--spacing-*`; `fontFamily` → `--font-*`;
- * `fontWeight` → `--font-weight-*`. Other types have no Tailwind namespace
- * and are skipped.
+ * Mapping: `color` → `--color-*`; `dimension` → `--radius-*` for paths that
+ * mention radius and `--spacing-*` for other paths; `fontFamily` →
+ * `--font-*`; `fontWeight` → `--font-weight-*`. The emitter skips types
+ * without a Tailwind namespace.
  *
  * @public
  */

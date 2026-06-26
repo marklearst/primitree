@@ -1,22 +1,18 @@
 /**
- * @packageDocumentation
- *
- * Core (non-React) exports for @figmavars/hooks.
+ * Non-React compatibility entry point for `@figmavars/hooks`.
  *
  * @remarks
- * This entrypoint intentionally avoids importing React or SWR.
- * It is suitable for integrations built with TanStack Query, Axios, server-side scripts,
- * or any custom data-fetching layer.
- *
- * As of v5 this entrypoint re-exports the standalone `@figmavars/core` package.
- * New code should depend on `@figmavars/core` directly; this subpath remains for
- * backwards compatibility.
+ * This entry point re-exports `@figmavars/core` without importing React or
+ * SWR. New code can depend on `@figmavars/core`; this path supports existing
+ * `@figmavars/hooks/core` imports.
  *
  * @example
  * ```ts
- * import { fetcher, FIGMA_FILE_VARIABLES_PATH } from '@figmavars/hooks/core'
+ * import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT } from '@figmavars/hooks/core'
  *
- * const data = await fetcher(FIGMA_FILE_VARIABLES_PATH(fileKey) + '/local', token)
+ * const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
  * ```
+ *
+ * @module hooks-core
  */
 export * from '@figmavars/core'

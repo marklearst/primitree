@@ -17,7 +17,7 @@ export interface FlatToken {
 
 /**
  * Deep-merge DTCG documents; later documents override earlier ones at the
- * token level (a token in a later document fully replaces the same path).
+ * token level (a token in a later document replaces the same path).
  *
  * @public
  */
@@ -82,7 +82,7 @@ export function flattenTokens(document: DTCGDocument): FlatToken[] {
 }
 
 /**
- * Error thrown when a DTCG reference cannot be resolved.
+ * Resolver functions throw this error when a DTCG reference does not resolve.
  *
  * @public
  */
@@ -291,10 +291,9 @@ function validateModifier(value: unknown, name: string): ValidatedModifier {
 }
 
 /**
- * Resolve `{dot.path}` references in a flattened token map to concrete
- * values. Cycle-safe.
+ * Resolve `{dot.path}` references in a flattened token map.
  *
- * @returns Map of token path to fully resolved value.
+ * @returns Map of token path to resolved value.
  *
  * @public
  */
@@ -341,8 +340,7 @@ export function resolveTokenValues(
 }
 
 /**
- * Tolerant variant of {@link resolveTokenValues}: unresolvable references are
- * collected as errors instead of aborting the whole resolution.
+ * Resolve references while collecting failures in an `errors` array.
  *
  * @public
  */
@@ -434,8 +432,7 @@ function refToFileName(ref: string): string {
 }
 
 /**
- * Apply a DTCG resolver to a set of in-memory token files, producing the
- * merged document for a given context selection.
+ * Apply a DTCG Resolver to token files for a context selection.
  *
  * @param files - Token documents keyed by file name (as produced by `toDTCG`).
  * @param resolver - The resolver document.
@@ -553,7 +550,7 @@ export function applyResolver(
 }
 
 /**
- * Enumerate every context permutation a resolver can produce.
+ * List the context permutations declared by a Resolver.
  *
  * @returns Array of context selections (e.g. `[{ semantic: 'light', density: 'compact' }, ...]`).
  *

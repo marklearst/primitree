@@ -57,8 +57,7 @@ export interface NormalizedVariable {
  * The normalized model produced by {@link normalizeVariables}.
  *
  * @remarks
- * Collections and variables are stored both as ordered arrays (stable,
- * deterministic output) and as id-keyed lookup maps.
+ * Ordered arrays preserve source order. ID-keyed maps support direct lookup.
  *
  * @public
  */
@@ -84,7 +83,7 @@ export type ConcreteValue = string | number | boolean | Color
 export interface ResolvedValue {
   /** The concrete value after following any alias chain. */
   value: ConcreteValue
-  /** The resolved type of the variable that finally supplied the value. */
+  /** The resolved type from the variable that supplied the concrete value. */
   resolvedType: ResolvedType
   /**
    * IDs of the variables traversed to reach the concrete value, starting with

@@ -1,584 +1,301 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
+npm records 24 published versions of the legacy `@figma-vars/hooks` package.
+Each published section below uses its UTC timestamp from the public registry.
+Published entries appear in reverse registry order.
 
 ## 5.0.0 (Unreleased)
 
-The repositioning release: FigmaVars is now a token pipeline platform, not just a hooks library. `@figmavars/hooks` ships alongside the new packages from the same monorepo:
-
-- **`@figmavars/core`** — framework-agnostic Figma Variables client, normalizer for any variables JSON shape, alias-graph resolution, and semantic diffing.
-- **`@figmavars/dtcg`** — Figma variables JSON to DTCG 2025.10 token files + Resolver document, plus CSS/Tailwind v4/TypeScript emitters.
-- **`@figmavars/cli`** — `figma-vars build | diff | check | init | export`. Drop in a variables JSON, get a production token pipeline.
-- **`@figmavars/mcp`** — MCP server exposing your tokens to AI agents (`list_collections`, `get_token`, `resolve_context`, `search_tokens`, `diff_tokens`).
-
-There is also a fully client-side playground app (`apps/playground`): drop a variables JSON, preview collections/modes, download the pipeline as a zip.
-
-### ✨ Added — Local-token hooks (work on every Figma plan)
-
-New hooks that consume built token artifacts instead of the Enterprise-gated REST API. No Personal Access Token, no network, SSR-safe:
-
-```tsx
-import { TokensProvider, useToken, useTheme } from '@figmavars/hooks'
-
-;<TokensProvider
-  tokens={files}
-  resolver={resolver}>
-  <App />
-</TokensProvider>
-
-const brand = useToken('semantic.color.bg.brand') // { value, css, cssVar }
-const { setContext } = useTheme() // setContext('semantic', 'dark')
-```
-
-- `TokensProvider` — accepts DTCG documents (single, array, or the file map produced by `figma-vars build`) plus an optional DTCG Resolver.
-- `useToken(path)` — one token: raw token, reference-resolved value, CSS-formatted value, and `var()` accessor.
-- `useTokens()` — every token, flattened, with resolved values.
-- `useTheme()` — read/switch resolver contexts (Figma modes) at runtime.
-
-### 🔄 Changed
-
-- Internals now live in `@figmavars/core` and are re-exported. The `@figmavars/hooks/core` subpath re-exports `@figmavars/core`; new code should depend on that package directly.
-- Type declarations are bundled (single `index.d.ts`/`index.d.cts`); deep `dist/*` paths (never public API) no longer exist.
-- Toolchain: Vite 8, Vitest 4, TypeScript 6, Biome 2. CI runs on Node 22.
-
-### 📦 Migration from `@figma-vars/hooks` 4.x
-
-The package moved to the `@figmavars` namespace. Documented APIs are otherwise unchanged:
-
-- Change hook/provider/utility imports from `@figma-vars/hooks` to `@figmavars/hooks`.
-- Change `@figma-vars/hooks/core` imports to `@figmavars/hooks/core` or depend on `@figmavars/core` directly.
-- Peer dependencies are unchanged (`react ^19.2.3`, `swr ^2.3.7`).
-- The `figma-vars-export` bin still ships with this package; prefer the new `figma-vars export` from `@figmavars/cli`.
-
-If you imported from undocumented deep paths (e.g. `@figma-vars/hooks/dist/...`), switch to `@figmavars/hooks` or `@figmavars/core`.
-
-## 4.2.0 (2026-07-06)
-
-### ✨ Added
-
-- **Export parity for documented hooks**: `useVariableById`, `useCollectionById`, `useModesByCollection`, and `useFigmaToken` are now exported from the package root, matching the README. Previously they existed in source but were missing from the main entry point.
-- **`useFigmaTokenContext` export**: Advanced consumers can now access the full provider context (token, file key, fallback data) from the package root.
-
-### 🧹 Chore
-
-- Removed stale `tsconfig.json` path aliases (`mutations/*`, `experimental/*`) that pointed at non-existent directories.
-- Removed the unused `directories.doc` field from `package.json`.
-
-## 4.1.1 (2026-02-17)
-
-### 🐛 Fixed
-
-- **Root export parity**: Re-exported `withRetry`, `redactToken`, rate-limit helpers, and runtime validation guards from the package root so documented imports from `@figma-vars/hooks` work as expected.
-- **Fallback key edge case**: Updated variables hooks and invalidation logic to only treat fallback mode as active when `parsedFallbackFile` is valid, preventing invalid fallback strings from forcing fallback SWR keys.
-- **Test coverage**: Added regression coverage for invalid fallback + live credentials and expanded index export checks for newly documented utilities.
-
-## 4.0.0 (2025-12-29)
-
-### ⚠️ BREAKING CHANGES
-
-#### **`useFigmaToken` Export Changed**
-
-`useFigmaToken` is now a **named export** instead of a default export for consistency with the rest of the library:
-
-```tsx
-// Before (3.x) - NO LONGER WORKS
-import useFigmaToken from '@figma-vars/hooks'
-
-// After (4.0) - USE THIS
-import { useFigmaToken } from '@figma-vars/hooks'
-```
-
-**Why?** Named exports enable better tree-shaking, align with other hooks in the library, and support future package splitting.
-
-### ✨ Added - New Utilities
-
-#### **`withRetry()` - Automatic Retry with Exponential Backoff**
-
-New utility for wrapping async operations with automatic retry logic, especially useful for rate-limited API calls:
-
-```ts
-import { withRetry } from '@figma-vars/hooks'
-
-const fetchWithRetry = withRetry(() => fetcher('/api/endpoint', token), {
-  maxRetries: 3,
-  initialDelayMs: 1000,
-  backoffMultiplier: 2,
-  maxDelayMs: 30000,
-  retryOnlyRateLimits: true, // Only retry 429 errors
-  onRetry: (attempt, delayMs, error) => {
-    console.log(`Retry ${attempt} after ${delayMs}ms`)
-  },
-})
-
-const data = await fetchWithRetry()
-```
-
-**Features:**
-
-- Respects `Retry-After` header from Figma API
-- Configurable exponential backoff
-- Optional callback for retry notifications
-- Can retry all errors or only rate limits (429)
-
-#### **`redactToken()` - Safe Token Logging**
-
-New utility to safely redact Figma tokens for logging or display:
-
-```ts
-import { redactToken } from '@figma-vars/hooks'
-
-redactToken('figd_abc123xyz789secret')
-// Returns: 'figd_***...***cret'
-
-redactToken('short', { prefixLength: 2, suffixLength: 2 })
-// Returns: '***...***' (too short, fully redacted)
-
-redactToken(null) // Returns: ''
-```
-
-**Options:**
-
-- `prefixLength` - Characters to show at start (default: 5)
-- `suffixLength` - Characters to show at end (default: 5)
-- `redactionString` - Replacement string (default: `'***...***'`)
-
-#### **`baseUrl` Option for API Utilities**
-
-Both `fetcher` and `mutator` now accept a `baseUrl` option to override the default Figma API endpoint:
-
-```ts
-import { fetcher, mutator } from '@figma-vars/hooks/core'
-
-// Use a mock server for testing
-const data = await fetcher('/v1/files/KEY/variables/local', token, {
-  baseUrl: 'http://localhost:3000',
-})
-
-// Or use Figma Enterprise endpoint
-await mutator('/v1/files/KEY/variables', token, 'UPDATE', payload, {
-  baseUrl: 'https://enterprise.figma.com',
-})
-```
-
-#### **`caseInsensitive` Option for `filterVariables()`**
-
-Added case-insensitive name matching to the `filterVariables` utility:
-
-```ts
-import { filterVariables } from '@figma-vars/hooks'
-
-// Case-sensitive (default)
-filterVariables(variables, { name: 'Primary' })
-// Matches: "Primary Color", not "primary color"
-
-// Case-insensitive
-filterVariables(variables, { name: 'primary', caseInsensitive: true })
-// Matches: "Primary Color", "primary color", "PRIMARY"
-```
-
-### 🐛 Fixed - Critical Bug Fixes
-
-#### **SWR Key Caching Issue**
-
-Fixed a critical bug where fallback data could be cached under live API keys when both credentials and fallback were provided. Now:
-
-- If `fallbackFile` is provided, data is always cached under fallback-specific keys
-- Prevents stale fallback data from blocking actual API calls
-- Ensures cache consistency when switching between fallback and live modes
-
-#### **Improved Error Parsing for Non-JSON Responses**
-
-Fixed error handling when Figma API returns HTML or plain text errors (e.g., 502 Bad Gateway):
-
-```ts
-// Before: Generic "An API error occurred" message
-// After: Actual response body (truncated to 200 chars for HTML)
-```
-
-The `fetcher` and `mutator` now check `Content-Type` headers and parse errors appropriately.
-
-### 📚 Documentation
-
-#### **Mutation Return Type Semantics**
-
-Added comprehensive JSDoc documentation explaining mutation hook return values:
-
-- `mutate()` returns `Promise<TData | undefined>`
-- On success: returns `TData`
-- On error with `throwOnError: false` (default): returns `undefined`, error available in state
-- On error with `throwOnError: true`: throws the error
-
-All mutation hooks (`useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`) now have detailed examples showing all three usage patterns.
-
-### 🔧 Changed
-
-- **Named Exports**: `useFigmaToken` changed from default to named export (see Breaking Changes)
-- **Coverage Comments**: Changed `/* istanbul ignore next */` to `/* c8 ignore next */` for proper Vitest V8 coverage exclusion
-
-### 🎯 Migration Guide (3.x → 4.0)
-
-**1. Update `useFigmaToken` import (required if used):**
-
-```tsx
-// Find this in your code:
-import useFigmaToken from '@figma-vars/hooks'
-
-// Replace with:
-import { useFigmaToken } from '@figma-vars/hooks'
-```
-
-**2. New utilities are opt-in:**
-
-- Use `withRetry()` to add automatic retry logic to API calls
-- Use `redactToken()` before logging tokens
-- Use `baseUrl` option when testing with mock servers
-- Use `caseInsensitive: true` for flexible variable filtering
-
-**3. Automatic improvements (no action needed):**
-
-- SWR caching now works correctly with fallback + live credentials
-- Better error messages for non-JSON API responses
-- Improved documentation for mutation return types
-
-### Release verification
-
-All 25 audit items were validated and resolved where applicable.
-
-## 3.1.1 (2025-12-28)
-
-### 📚 Documentation
-
-- Minor documentation file updates
-
-## 3.1.0 (2025-12-27)
-
-### 🐛 Fixed - Critical TypeScript & Runtime Issues
-
-#### **Phase 1: TypeScript Compilation Errors (11 errors fixed)**
-
-- **AbortSignal Type Safety**: Fixed `exactOptionalPropertyTypes` violations in `fetcher.ts` and `mutator.ts` by using conditional spread `...(signal !== undefined && { signal })` instead of passing `signal` directly
-- **Type Exports**: Fixed missing type exports for `LocalVariablesResponse` and `PublishedVariablesResponse` - changed imports from `types/contexts` to `types/figma` in `FigmaVarsProvider.tsx`
-- **Optional Property Types**: Fixed `providerId` type violations in `swrKeys.ts` and hooks - changed from `providerId?: string` to `providerId: string | undefined` for strict mode compliance
-- **FigmaApiError Type**: Fixed `retryAfter` property type - changed from `retryAfter?: number` to `retryAfter: number | undefined` with explicit `?? undefined` assignment
-
-#### **Phase 2: High Priority Runtime Bugs**
-
-- **Race Condition in Mutations**: Fixed critical race condition in `useMutation.ts` when mutations are called concurrently - added `mutationIdRef` counter to ensure only the latest mutation updates state
-- **Timeout Cleanup**: Added immediate timeout cleanup after response and in catch blocks in `fetcher.ts` and `mutator.ts` to prevent spurious abort signals
-- **Fallback Parsing**: Removed duplicate `JSON.parse()` calls in `useVariables.ts` and `usePublishedVariables.ts` - now uses pre-parsed `parsedFallbackFile` from provider
-
-#### **Phase 3: Test Suite Fixes (8 tests fixed)**
-
-- **SWR Key Format**: Standardized on absolute URLs for consistency - updated `usePublishedVariables.test.tsx` and `useInvalidateVariables.test.tsx` expectations
-- **React useId Pattern**: Fixed regex in `useVariables.test.tsx` to match React 19's `:r1:` format instead of numeric-only pattern
-- **Mock Context**: Added missing `token` and `fallbackFile` properties to mock context in invalidation tests
-
-### ✨ Added - Runtime Validation & Developer Experience
-
-#### **Phase 4: Runtime Type Guards**
-
-- **Type Guard Utilities**: Added `src/utils/typeGuards.ts` with comprehensive runtime validation functions:
-  - `isLocalVariablesResponse()` - validates local variables structure
-  - `isPublishedVariablesResponse()` - validates published variables structure
-  - `validateFallbackData()` - unified validation with proper typing
-- **Development Warnings**: Added `console.warn()` in development mode when fallback validation fails (production-safe)
-- **Type Safety**: All type guards include proper TypeScript type predicates for type narrowing
-
-#### **Phase 4: Centralized SWR Key Construction**
-
-- **SWR Key Helpers**: Added `src/utils/swrKeys.ts` with centralized key construction logic:
-  - `getVariablesKey()` - constructs local variables SWR cache key
-  - `getPublishedVariablesKey()` - constructs published variables SWR cache key
-  - `getInvalidationKeys()` - returns all keys for cache invalidation
-  - Prevents key mismatches between fetch hooks and invalidation utilities
-  - All keys use absolute URLs for consistency and explicitness
-
-#### **Phase 4: New Granular Selector Hooks**
-
-- **useCollectionById**: Get a specific variable collection by ID
-- **useModesByCollection**: Get all modes for a specific collection
-- **useVariableById**: Get a specific variable by ID
-- **Benefits**: Better performance for components that only need specific entities, avoid unnecessary re-renders
-
-### 📚 Documentation
-
-- **Error Boundaries**: Added comprehensive error boundary pattern documentation with `react-error-boundary` example in README
-- **Runtime Validation**: Documented type guard usage and fallback file validation in README
-- **API Cheat Sheet**: Updated with new type guards, SWR key helpers, and granular selector hooks
-- **Testing Coverage**: Added `tests/utils/typeGuards.test.ts` with 14 comprehensive tests covering all edge cases
-
-### 🔧 Changed
-
-- **SWR Cache Keys**: Migrated from relative URLs (`/v1/files/...`) to absolute URLs (`https://api.figma.com/v1/files/...`) for consistency and explicitness
-- **Fallback Handling**: Centralized fallback parsing in `FigmaVarsProvider` - all hooks now use pre-parsed data
-- **Context Types**: Added explicit `undefined` to `parsedFallbackFile` type in `FigmaTokenContextType`
-
-### 🎯 Migration Guide
-
-**No breaking changes!** All fixes are internal improvements and bug fixes.
-
-**New features are opt-in:**
-
-- Use new granular selector hooks (`useCollectionById`, etc.) for performance optimization
-- Use type guards (`validateFallbackData`) when working with custom fallback files
-- Import SWR key helpers from `@figma-vars/hooks/utils` if building custom hooks
-
-**What changed automatically:**
-
-- SWR cache keys now use absolute URLs (transparent change, no action needed)
-- Better error messages for invalid fallback files (development-only warnings)
-- Mutations no longer have race condition issues (automatic fix)
-
-### 🙏 Acknowledgments
-
-This release addresses critical issues identified through community feedback. Special thanks to users who reported issues on X and LinkedIn - your feedback helps make the library more robust.
-
-## 3.0.0 (2025-12-15)
-
-### ✨ Added
-
-- **SWR Configuration Support**: Added `swrConfig` prop to `FigmaVarsProvider` for global SWR customization (revalidation, deduplication, error retry, etc.)
-- **Error Handling Utilities**: New type-safe error helpers (`isFigmaApiError`, `getErrorStatus`, `getErrorMessage`, `hasErrorStatus`) for better error differentiation
-- **Cache Invalidation Helper**: New `useInvalidateVariables` hook for easy cache management after mutations (`invalidate` and `revalidate` functions)
-- **FigmaApiError Class**: Custom error class extending `Error` with HTTP `statusCode` property for better error handling
-- **Export CLI Tool**: Added `figma-vars-export` CLI command for automatically exporting variables to JSON via REST API. Available after installing the package (`figma-vars-export`) or via `npx` (`npx figma-vars-export`). Includes `--help` flag, supports `--file-key` and `--out` options, and accepts `FIGMA_TOKEN`/`FIGMA_PAT` and `FIGMA_FILE_KEY` environment variables. Perfect for CI/CD pipelines and build scripts. **Note:** Requires Figma Enterprise account for REST API access. See README CLI Export Tool section for usage examples and alternative export methods.
-
-### 🔧 Changed
-
-- **React 19.2 Compatibility**: Optimized `useMutation` hook to use `useRef` for stable function references, preventing unnecessary re-renders
-- **Memory Leak Prevention**: Added cleanup handling in `useMutation` to prevent state updates after component unmount
-- **Type Safety**: Removed all unsafe `as unknown as` type assertions throughout the codebase
-- **Mutator Function**: Improved `mutator` function signature with proper types (`BulkUpdatePayload` and compatible objects)
-- **Error Handling**: Enhanced `fetcher` and `mutator` to throw `FigmaApiError` with HTTP status codes instead of generic `Error`
-- **Error Response Parsing**: Added Content-Type header checking before attempting JSON parsing in error responses
-- **SWR Cache Keys**: Fixed potential cache collision risks by generating unique provider IDs per `FigmaVarsProvider` instance
-
-### 🐛 Fixed
-
-- **SWR Key Stability**: Fixed fallback cache keys to include unique provider IDs, preventing collisions when multiple providers exist
-- **Error Status Codes**: Errors now preserve HTTP status codes, enabling proper handling of 401, 403, 404, 429, etc.
-- **Type Assertions**: Removed unsafe type casts in mutation hooks (`useCreateVariable`, `useUpdateVariable`, `useDeleteVariable`, `useBulkUpdateVariables`)
-- **Unused Constants**: Removed unused endpoint constants (`FIGMA_POST_VARIABLES_ENDPOINT`, `FIGMA_VARIABLE_BY_ID_ENDPOINT`, `FIGMA_VARIABLES_ENDPOINT`)
-
-### 📚 Documentation
-
-- Added comprehensive error handling guide with status code examples
-- Added cache management section with `useInvalidateVariables` examples
-- Added SWR configuration guide with common options and use cases
-- Updated API cheat sheet with new hooks and utilities
-- Enhanced Quick Start example with `swrConfig` usage
-- Documented export options (Dev Mode JSON, REST script, MCP snapshots)
-- Clarified Figma Enterprise requirements and fallback expectations
-
-### 🔄 Migration Guide
-
-**No breaking changes!** All changes are backward compatible. Existing code continues to work without modification.
-
-**New features are opt-in:**
-
-- Add `swrConfig` prop to `FigmaVarsProvider` to customize SWR behavior
-- Use error utilities (`isFigmaApiError`, etc.) for better error handling
-- Use `useInvalidateVariables` hook for cache management after mutations
-
-### 🎯 Why 3.0.0?
-
-This major release focuses on **developer experience improvements**:
-
-- Better error handling with type-safe utilities and status codes
-- Flexible SWR configuration for optimizing API usage
-- Easy cache management after mutations
-- React 19.2 compatibility and performance optimizations
-- Improved type safety throughout the codebase
-
-All improvements are additive and maintain full backward compatibility.
-
-## 2.0.0-beta.2 (2025-01-XX)
-
-### ✨ Added
-
-- **fallbackFile**: Added support for local JSON files exported from Figma Dev Mode plugins, enabling users without Figma Enterprise accounts to use the library
-- **offline support**: Implemented fallback mechanism in `useVariables` hook to use local JSON data instead of API requests
-- **docs**: Added comprehensive documentation for the new fallbackFile feature including setup instructions and usage examples
-- **enterprise bypass**: Users can now work with Figma variables without requiring Enterprise account access
-
-### 🔧 Changed
-
-- **useVariables**: Enhanced to support fallbackFile prop from FigmaVarsProvider context
-- **FigmaVarsProvider**: Added fallbackFile prop documentation and type definitions
-- **README**: Added new "Local JSON Support" feature highlight and detailed setup guide
-
-### 📋 Planned
-
-- **Style Dictionary Integration**: Future beta releases will include seamless integration with Amazon's Style Dictionary for multi-platform design token distribution
-
-## 1.5.1 (2025-07-16)
-
-### Fixed
-
-- **docs**: Improved README formatting for Architecture Highlights section
-
-## 1.5.0 (2025-07-16)
-
-### Fixed
-
-- **build**: Fixed critical package build and module resolution issues that prevented package installation and imports
-- **build**: Configured Vite to generate correct output files (`index.js`, `index.mjs`, `index.d.ts`) matching package.json exports
-- **build**: Fixed vite-plugin-dts configuration to properly output TypeScript declarations to dist/ directory
-- **build**: Added dual package support for both ES modules and CommonJS with correct file naming
-- **build**: Added prepublishOnly script to ensure package is always built before publishing
-
-### Changed
-
-- **build**: Updated Vite fileName configuration to use dynamic format-based naming
-- **build**: Improved TypeScript declaration generation with proper include/exclude patterns
-
-**Breaking Change**: None - this is a critical bug fix that makes the package functional without changing the API
-
-## 1.4.5 (2024-12-19)
+Version 5 moves the React package to `@figmavars/hooks` and releases it with
+the other FigmaVars packages.
 
 ### Added
 
-- **docs**: Added comprehensive Architecture Highlights section to README showcasing 100% test coverage and development practices
-- **docs**: Added 100% test coverage badge to README for improved project credibility
-- **testing**: Added final test coverage for `src/api/index.ts` barrel file exports
+- `TokensProvider` for DTCG documents and Resolver output from `figma-vars build`.
+- `useToken` for one token, its resolved value, CSS value, and `var()` accessor.
+- `useTokens` for flattened tokens under active contexts.
+- `useTheme` for reading and changing Resolver contexts.
 
 ### Changed
 
-- **docs**: Updated Architecture Highlights to use accurate descriptions (changed "Framework Agnostic" to "React Ecosystem" and "Zero Runtime Dependencies" to "Minimal Dependencies")
-- **docs**: Refined error handling description from "Robust Error Handling" to "Consistent Error Handling" for accuracy
+- Shared non-React code moved to `@figmavars/core`.
+- `@figmavars/hooks/core` now re-exports `@figmavars/core` for compatibility.
+- Package declarations now ship as bundled root and `core` entry files.
+- The package now requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
+- The toolchain now uses Vite 8, Vitest 4, TypeScript 6, and Biome 2.
 
-### Chores
+### Unpublished work after 4.0.0
 
-- **ci**: Achieved complete 100% test coverage across all 78 tests for optimal Codecov reporting
+Older changelog drafts labeled work as 4.1.1 and 4.2.0. Those versions did not
+reach npm. Version 5.0.0 includes that work:
 
-## 1.4.4 (2024-12-19)
+- Root exports for `withRetry`, `redactToken`, rate-limit helpers, runtime guards, selector hooks, `useFigmaToken`, and `useFigmaTokenContext`.
+- Fallback cache keys now activate after fallback data passes validation.
+- Invalid fallback data no longer prevents live requests when credentials exist.
+- Version 5 removes stale TypeScript path aliases and the unused package documentation directory field.
 
-### Bug Fixes
+### Migration from `@figma-vars/hooks` 4.0.0
 
-- **testing**: Added comprehensive test coverage for all barrel files and utility functions to achieve 100% code coverage on Codecov
-- **testing**: Fixed uncaught error handling in `useFigmaToken` test by implementing proper console error suppression
-- **testing**: Added tests for `useFigmaToken`, `filterVariables`, and all barrel export files (`src/hooks/index.ts`, `src/utils/index.ts`, `src/contexts/index.ts`, `src/index.ts`)
-- **testing**: Added test coverage for `wallaby.js` configuration file
+1. Replace `@figma-vars/hooks` with `@figmavars/hooks` in dependencies and imports.
+2. Replace `@figma-vars/hooks/core` with `@figmavars/hooks/core` or `@figmavars/core`.
+3. Replace undocumented `dist` imports with a public package entry.
+4. Move to Node.js 24, React `^19.0.0`, and SWR `^2.3.7`.
 
-### Chores
+The `figma-vars-export` command remains in this package. New token projects can
+use `figma-vars export` from `@figmavars/cli`.
 
-- **ci**: Improved test coverage reporting to ensure all export statements and utility functions are properly covered for continuous integration
+Read the [migration guide](https://figmavars.com/docs/hooks/migration).
 
-## 1.4.1 (2024-07-26)
+The legacy `@figma-vars/hooks` npm history ends at version 4.0.0.
 
-### Bug Fixes
+## 4.0.0
 
-- **build**: Resolved a critical build failure by disabling `rollupTypes` in the d.ts plugin configuration, ensuring stable declaration file generation. (`fa941b1`)
-- **hooks**: Corrected the return type of `useVariables` to prevent build errors and ensure type consistency. (`c47afa1`)
-- **hooks**: Aligned all API-calling hooks (`useCreateVariable`, `useBulkUpdateVariables`, etc.) to use the new, robust `mutator` function signature. (`598db4c`)
-- **testing**: Resolved all outstanding test failures and achieved 100% test coverage for all mutation hooks and utilities. (`8bd21ea`)
+_npm registry timestamp: `2025-12-30T01:31:20.546Z`._
 
-### Chores
+### Changed
 
-- **docs**: Removed outdated `docs` and `docs-site` directories to clean up the repository. (`c47afa1`)
+- `useFigmaToken` changed from a default export to a named export.
+- Vitest coverage comments replaced Istanbul coverage comments.
 
-## 1.4.0 (2024-07-26)
+```tsx
+import { useFigmaToken } from '@figma-vars/hooks'
+```
 
-### Features
+### Added
 
-- Added barrel file for easy hook imports (`cb00ed8`)
+- `withRetry` with retry limits, backoff settings, rate-limit filtering, and an `onRetry` callback.
+- `redactToken` for shortening token values before display.
+- A `baseUrl` option for `fetcher` and `mutator`.
+- A `caseInsensitive` option for `filterVariables`.
+- Mutation return-value documentation for `throwOnError`.
 
-### Bug Fixes
+### Fixed
 
-- **mutations**: Corrected mutation logic and resolved all test failures to ensure API calls are robust and fully tested. (`8bbf4c5`)
-- **testing**: Achieved 100% test coverage for the API mutator, ensuring all edge cases are handled. (`8bd21ea`)
-- **tooling**: Resolved critical build and test environment issues, enabling a stable development and CI workflow. (`8cbddbb`)
-- **useMutation**: Corrected types and migrated hook to TSDoc for improved type safety and documentation. (`f19fc33`)
+- Fallback data now uses fallback-specific SWR keys when credentials are also present.
+- API error parsing now handles JSON, text, and HTML responses.
 
-### Documentation
+## 3.1.1
 
-- Migrated all hooks and types from JSDoc to TSDoc for better developer experience and type clarity.
-- Simplified public API exports for cleaner package entry. (`c42c2a4`)
+_npm registry timestamp: `2025-12-28T05:51:35.893Z`._
 
-## 1.3.0 (2024-07-22)
+- Updated documentation files.
 
-### Features
+## 3.1.0
 
-- **API**: Added low-level `mutator` utility for authenticated Figma API calls.
+_npm registry timestamp: `2025-12-28T05:43:54.622Z`._
 
-## [Unreleased]
+### Added
 
-## [1.3.3] - 2025-06-22
+- Runtime guards for local and published variables responses.
+- Shared SWR key builders for variable queries and invalidation.
+- `useVariableById`, `useCollectionById`, and `useModesByCollection`.
+- Tests for the runtime guards and selector hooks.
 
-### ✨ Added
+### Fixed
 
-- **branding**: Added new logo assets (`assets/figma-vars-tagline-light.png`) and updated README to feature the new branding at the top of the page
-- **docs**: Improved visual identity and documentation clarity with prominent project logo
+- Fetch and mutation code now handles optional abort signals under `exactOptionalPropertyTypes`.
+- Type exports now use the Figma type module.
+- Mutation state now ignores results from older overlapping requests.
+- Fetch and mutation timeouts clear after a response or error.
+- Fallback JSON parsing now runs in the provider.
+- Query and invalidation tests now use the same absolute API URLs.
 
-## [1.3.2] - 2025-06-22
+## 3.0.0
 
-### 🔧 Fixed
+_npm registry timestamp: `2025-12-15T19:43:48.064Z`._
 
-- **build**: Implement proper path alias resolution using `vite-tsconfig-paths` plugin
-- **refactor**: Revert all internal imports from relative paths (`./`) to clean bare imports (`contexts/`, `hooks/`, etc.)
-- **ci**: Ensure consistent build behavior across local and CI environments
-- **docs**: Clean up code formatting and documentation examples throughout codebase
+### Added
 
-### 🧹 Housekeeping
+- An `swrConfig` prop on `FigmaVarsProvider`.
+- `FigmaApiError` and helpers for error status and messages.
+- `useInvalidateVariables` for query cache refresh.
+- The `figma-vars-export` command.
 
-- **config**: Replace manual alias configuration with `vite-tsconfig-paths` plugin in `vite.config.ts`
-- **imports**: Update all 15+ files to use path aliases consistently with `tsconfig.json` configuration
-- **maintenance**: Achieve zero relative imports in `src` directory for cleaner, more maintainable code
+### Changed
 
-## [1.3.1] - 2025-06-22
+- `useMutation` now keeps its function reference in a ref.
+- Fetch and mutation errors now retain HTTP status codes.
+- Each provider now receives an ID for SWR fallback keys.
 
-### 🔧 Fixed
+### Fixed
 
-- **build**: Resolve Vite/Rollup path alias resolution errors causing CI build failures
-- **ci**: Fix GitHub Actions build issues with import resolution in Linux environment
-- **imports**: Convert problematic bare imports to relative imports as temporary workaround
-- **test**: Configure Vitest setup with proper `@testing-library/jest-dom` integration
+- Mutation state no longer updates after component unmount.
+- Fallback cache keys no longer collide across provider instances.
+- API error parsing now checks the response content type.
 
-### 🧹 Housekeeping
+## 2.0.0-beta.3
 
-- **ci**: Add debug steps to GitHub Actions workflow for better troubleshooting
-- **config**: Consolidate test configuration in `vite.config.ts` and remove separate `vitest.config.ts`
-- **deps**: Ensure proper Vitest and testing library dependency alignment
+_npm registry timestamp: `2025-08-27T17:54:54.590Z`._
 
-## [1.2.0] - 2024-08-02
+The repository has no version-specific notes for this release.
 
-### 🧹 Housekeeping
+## 2.0.0-beta.2
 
-- **docs**: Add comprehensive JSDoc comments to all public APIs, including hooks, mutations, and types.
-- **docs**: Update `CHANGELOG.md` to include detailed notes for the v1.1.0 release.
-- **refactor**: Rename `fetchHelpers.ts` to `fetcher.ts` for clarity and consistency.
-- **fix**: Resolve multiple TypeScript errors related to incorrect exports and unused imports.
+_npm registry timestamp: `2025-08-27T17:08:56.297Z`._
 
-## [1.1.1] - 2024-08-01
+### Added
 
-- _This version was primarily a documentation and maintenance release. All changes from this version have been consolidated into the changelog for `v1.1.0` and the current `[Unreleased]` section._
+- `fallbackFile` support in `FigmaVarsProvider` and `useVariables`.
+- Documentation for reading a local Figma variables export without the REST API.
 
-## [1.1.0] - 2024-08-01
+## 2.0.0-beta.1
 
-This release marks a major architectural overhaul, significantly improving the library's flexibility, performance, and developer experience.
+_npm registry timestamp: `2025-08-27T16:53:00.598Z`._
 
-### ✨ Features & Enhancements
+The repository has no version-specific notes for this release.
 
-- **Token-Agnostic Authentication**: Implemented a new provider-based system (`FigmaVarsProvider`) that decouples the library from any specific token management strategy.
-- **Automated Release Process**: Added a `postversion` script to automatically push new tags and commits, streamlining the npm publish workflow.
-- **Modernized Data Fetching**: Replaced manual `fetch` calls with `swr` for efficient, cached data fetching in all core hooks.
-- **Bulk Update Variables**: Added a `useBulkUpdateVariables` hook for performing atomic updates on multiple variables at once.
-- **TypeScript Path Aliases**: Configured and applied non-relative path aliases for cleaner, more maintainable imports.
+## 3.0.0-beta.1
 
-### 🐛 Bug Fixes
+_npm registry timestamp: `2025-08-27T16:50:32.767Z`._
 
-- **CI Publishing**: Resolved an `ERR_PNPM_GIT_UNCLEAN` error by adding the `--no-git-checks` flag to the publish command.
-- **Build Failures**: Fixed JSX-related build errors by adding the `jsx` flag to `tsconfig.json`.
+The repository has no version-specific notes for this release.
 
-### 🧹 Housekeeping
+## 1.5.1
 
-- **Removed Dead Code**: Deleted several unused experimental hooks, mutation utilities, and the old manual cache implementation.
+_npm registry timestamp: `2025-07-17T00:30:58.175Z`._
 
-## [1.0.10] - 2024-07-31
+- Updated the README architecture section.
 
-- fix(ci): add --no-git-checks flag to publish command to resolve git unclean error
-- feat(release): add postversion script to automate git push and tag
+## 1.5.0
+
+_npm registry timestamp: `2025-07-17T00:22:18.534Z`._
+
+### Fixed
+
+- Package builds now produce the module files named in `package.json`.
+- Type declaration output now uses the package `dist` directory.
+- Package publication now runs a build first.
+
+### Changed
+
+- Vite now selects output names by module format.
+
+## 1.4.5
+
+_npm registry timestamp: `2025-06-23T02:34:09.452Z`._
+
+- Added a README architecture section and coverage badge.
+- Added tests for the `src/api` entry file.
+
+## 1.4.4
+
+_npm registry timestamp: `2025-06-23T02:24:36.588Z`._
+
+- Added tests for entry files, `useFigmaToken`, and `filterVariables`.
+- Suppressed the expected console error in the `useFigmaToken` test.
+- Added the Wallaby configuration to coverage.
+
+## 1.4.3
+
+_npm registry timestamp: `2025-06-23T01:34:51.415Z`._
+
+The repository has no version-specific notes for this release.
+
+## 1.3.3
+
+_npm registry timestamp: `2025-06-22T08:04:34.546Z`._
+
+- Added the `assets/figma-vars-tagline-light.png` brand image to the README.
+
+## 1.3.2
+
+_npm registry timestamp: `2025-06-22T06:57:08.037Z`._
+
+- Added `vite-tsconfig-paths` for source path aliases.
+- Restored source imports that use the configured aliases.
+
+## 1.3.1
+
+_npm registry timestamp: `2025-06-22T06:40:12.835Z`._
+
+- Changed source imports while resolving Vite and Rollup alias failures.
+- Added Testing Library setup to the Vite test configuration.
+
+## 1.2.0
+
+_npm registry timestamp: `2025-06-20T16:32:57.206Z`._
+
+- Added TSDoc comments to public APIs.
+- Renamed `fetchHelpers.ts` to `fetcher.ts`.
+- Updated public exports and fixed TypeScript errors.
+
+## 1.1.1
+
+_npm registry timestamp: `2025-06-20T00:40:24.431Z`._
+
+- Consolidated this release's documentation and maintenance notes into 1.1.0.
+
+## 1.1.0
+
+_npm registry timestamp: `2025-06-20T00:38:26.908Z`._
+
+### Added
+
+- Provider-based token and file-key context.
+- SWR data fetching for query hooks.
+- `useBulkUpdateVariables`.
+- TypeScript path aliases.
+
+### Changed
+
+- Removed unused experimental hooks, mutation functions, and the prior cache.
+- Added `--no-git-checks` to the npm publish command used at the time.
+
+## 1.0.10
+
+_npm registry timestamp: `2025-06-19T22:59:12.843Z`._
+
+- Added `--no-git-checks` to the npm publish command used at the time.
+- Added a post-version script for tag and commit pushes.
+
+## 1.0.9
+
+_npm registry timestamp: `2025-06-19T22:56:58.868Z`._
+
+The repository has no version-specific notes for this release.
+
+## 1.0.8
+
+_npm registry timestamp: `2025-06-19T22:24:48.948Z`._
+
+The repository has no version-specific notes for this release.
+
+## 1.0.5
+
+_npm registry timestamp: `2025-06-19T22:14:26.440Z`._
+
+The repository has no version-specific notes for this release.
+
+## 1.0.3
+
+_npm registry timestamp: `2025-06-19T22:10:25.811Z`._
+
+The repository has no version-specific notes for this release.
+
+## Historical unpublished drafts
+
+npm has no releases for 1.3.0, 1.4.0, or 1.4.1. The notes below came from the
+repository's earlier changelog.
+
+### Draft 1.4.1 (unpublished)
+
+- Disabled declaration rollup to fix package builds.
+- Corrected the `useVariables` return type.
+- Updated mutation hooks to use the `mutator` signature.
+- Removed old documentation directories.
+
+### Draft 1.4.0 (unpublished)
+
+#### Added
+
+- A hook entry file.
+
+#### Fixed
+
+- Mutation behavior and tests.
+- Build and test import resolution.
+- `useMutation` types and TSDoc.
+
+### Draft 1.3.0 (unpublished)
+
+- Added the low-level `mutator` function for authenticated Figma API calls.

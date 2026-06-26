@@ -1,25 +1,25 @@
 ---
 title: Playground
-description: Preview and download a token pipeline in your browser, on the same site as the docs.
+description: Preview a variables export and download the generated files.
 ---
 
-The playground lives at [/playground](/playground). Same header, same domain, same packages as the CLI.
+Open the playground at [/playground](/playground).
 
-## What it does
+## Playground steps
 
 1. Drop a `variables.json` file
 2. Preview collections, modes, and resolved colors
-3. Download the full pipeline as a zip
+3. Download the generated files as a zip
 
-Everything runs client-side. Your file never uploads.
+The page parses and builds the file in the current browser tab. It does not send the file to the FigmaVars server.
 
-## When to use the CLI instead
+## CLI tasks
 
 - CI and repeatable builds
-- Custom output flags (`--terrazzo`, `--no-tailwind`, etc.)
-- Committing artifacts directly into your repo
+- Output flags such as `--terrazzo` and `--no-tailwind`
+- Writing generated files into a repository
 - `diff` and `check` in PR workflows
 
-The playground uses the same `@figmavars/core` and `@figmavars/dtcg` packages as [`figma-vars build`](/docs/cli/build). Output should match for the same input.
+The playground and [`figma-vars build`](/docs/cli/build) call `buildPipeline` from `@figmavars/dtcg` with the default options.
 
-[Open the playground →](/playground)
+[Open the playground](/playground)

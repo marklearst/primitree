@@ -1,31 +1,34 @@
 ---
 title: Export Variables
-description: Every way to get a variables.json file from Figma, on any plan.
+description: Create a variables.json file for the FigmaVars build.
 ---
 
-FigmaVars accepts the same JSON shapes that Figma plugins and the REST API produce. You do not need Enterprise to build a pipeline.
+FigmaVars accepts a Variables REST API response, a bare `meta` object, or a plugin export with `variables` and `collections`.
 
-## FigmaVars Export plugin (recommended, any plan)
+## FigmaVars Export plugin
 
-Use the official [FigmaVars Export](/docs/figma-plugin) plugin:
+During local development, load the [FigmaVars Export](/docs/figma-plugin) plugin from this repository:
 
-1. Plugins → Development → Import `apps/figma-plugin/dist/manifest.json` (or install from Community when published)
-2. Run **FigmaVars Export** on your file
-3. Download `variables.json`
+1. Build the plugin with `pnpm --filter figmavars-plugin build`
+2. In Figma, choose Plugins → Development → Import plugin from manifest
+3. Select `apps/figma-plugin/dist/manifest.json`
+4. Run **FigmaVars Export** and download `variables.json`
 
-Output matches the REST local variables shape. No third-party exporter required.
+The plugin calls `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()` in the open file. Its output uses the REST local variables response shape expected by the CLI.
 
-## Other plugin exports (any plan)
+## Other plugin exports
 
-TokensBrücke, Variables Exporter for Dev Mode, and similar plugins also work. Save JSON as `variables.json` if the file contains `meta.variableCollections` and `meta.variables`.
+FigmaVars accepts these layouts:
 
-## Dev Mode / manual backup
+- `{ meta: { variables, variableCollections } }`
+- `{ variables, variableCollections }`
+- `{ variables: [...], collections: [...] }`
 
-Some teams export through Dev Mode tooling or copy JSON from internal scripts. If the file contains `meta.variableCollections` and `meta.variables`, FigmaVars can normalize it.
+The normalizer accepts record maps or arrays for variables and collections. Published variables responses do not contain mode values and cannot feed the build.
 
-## Enterprise REST API
+## Variables REST API
 
-If you have Enterprise and a token with `file_variables:read`:
+Figma limits the Variables REST API to Enterprise organizations. A local variables request needs `file_variables:read` and access to the file.
 
 ```bash
 export FIGMA_TOKEN=figd_...
@@ -34,28 +37,20 @@ export FIGMA_FILE_KEY=AbCdEf...
 figma-vars export --out variables.json
 ```
 
-Or use the legacy bin shipped with hooks:
+The hooks package also includes the `figma-vars-export` compatibility bin:
 
 ```bash
 npx --package @figmavars/hooks figma-vars-export --file-key "$FIGMA_FILE_KEY"
 ```
 
-## What the file should look like
+Run a check before building:
 
-FigmaVars normalizes several shapes:
-
-- REST API `GET /v1/files/:key/variables/local`
-- Plugin export with nested `meta`
-- Flat `variableCollections` + `variables` maps
-
-If `figma-vars check variables.json` passes, you are good to build.
+```bash
+figma-vars check variables.json
+```
 
 ## Keep exports in version control
 
-Treat `variables.json` like any other source file:
-
-- Designers export after token changes
-- CI runs `figma-vars diff` against the previous export
-- Reviewers see renames and per-mode value changes, not noisy string diffs
+Commit `variables.json` when the repository needs to compare stable Figma IDs, names, types, and per-mode values across changes.
 
 See [Semantic diffing](/docs/concepts/diffing) for how matching works.

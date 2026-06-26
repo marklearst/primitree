@@ -1,7 +1,7 @@
 {
   "name": "@figmavars/core",
   "version": "5.0.0",
-  "description": "Framework-agnostic core for Figma Variables: typed REST client, Figma domain types, error helpers, and utilities.",
+  "description": "Types and functions for normalizing, resolving, comparing, and updating Figma Variables.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

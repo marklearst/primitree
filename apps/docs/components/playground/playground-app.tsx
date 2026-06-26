@@ -16,6 +16,32 @@ const tabs = ['tokens', 'files'] as const
 
 type Tab = (typeof tabs)[number]
 
+function formatCount(
+  count: number,
+  singular: string,
+  plural = `${singular}s`
+): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function formatPlaygroundStats(counts: {
+  collections: number
+  variables: number
+  contexts: number
+  files: number
+}): string {
+  return [
+    formatCount(counts.collections, 'collection'),
+    formatCount(counts.variables, 'token'),
+    formatCount(counts.contexts, 'context axis', 'context axes'),
+    formatCount(counts.files, 'file generated', 'files generated'),
+  ].join(' · ')
+}
+
+function formatWarningCount(count: number): string {
+  return formatCount(count, 'warning')
+}
+
 export function PlaygroundApp() {
   const [hydrated, setHydrated] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -126,20 +152,20 @@ export function PlaygroundApp() {
       data-hydrated={hydrated}>
       {!preview ? <p className='pg-kicker'>Playground</p> : null}
       <h1 className={`pg-title${preview ? ' pg-visually-hidden' : ''}`}>
-        Drop your variables.
-        <br /> <em>Preview the pipeline.</em>
+        Preview a variables export
+        <br /> <em>before you install the CLI.</em>
       </h1>
 
       {!preview && (
         <section className='pg-landing'>
           <p className='pg-lede'>
-            Same engine as{' '}
+            This page calls the same build function as{' '}
             <Link
               href='/docs/cli/build'
               className='pg-link'>
               figma-vars build
             </Link>
-            , running in your browser. Nothing uploads. Read the{' '}
+            . It processes the file in this browser tab. Read the{' '}
             <Link
               href='/docs/getting-started'
               className='pg-link'>
@@ -164,8 +190,7 @@ export function PlaygroundApp() {
               Drag variables.json here
             </p>
             <p className='pg-dz-sub'>
-              from <code>figma-vars export</code>, TokensBrücke, or any
-              variables plugin
+              from <code>figma-vars export</code> or another supported exporter
             </p>
             <div className='pg-dz-actions'>
               <button
@@ -208,10 +233,12 @@ export function PlaygroundApp() {
             <div>
               <h2>{preview.fileName}</h2>
               <p className='pg-stats'>
-                {preview.pipeline.summary.collections} collections ·{' '}
-                {preview.pipeline.summary.variables} tokens ·{' '}
-                {Object.keys(preview.contexts).length} theme axes ·{' '}
-                {preview.pipeline.files.length} files generated
+                {formatPlaygroundStats({
+                  collections: preview.pipeline.summary.collections,
+                  variables: preview.pipeline.summary.variables,
+                  contexts: Object.keys(preview.contexts).length,
+                  files: preview.pipeline.files.length,
+                })}
               </p>
             </div>
             <div className='pg-report-actions'>
@@ -237,7 +264,9 @@ export function PlaygroundApp() {
 
           {preview.dtcg.warnings.length > 0 ? (
             <details className='pg-warnings'>
-              <summary>{preview.dtcg.warnings.length} warning(s)</summary>
+              <summary>
+                {formatWarningCount(preview.dtcg.warnings.length)}
+              </summary>
               <ul>
                 {preview.dtcg.warnings.map(warning => (
                   <li key={warning}>{warning}</li>
@@ -339,7 +368,7 @@ export function PlaygroundApp() {
             ) : null}
             {otherTokens.length > 0 ? (
               <section>
-                <h3>Everything else</h3>
+                <h3>Other token types</h3>
                 <section
                   className='pg-table-region'
                   aria-label='Generated tokens'
@@ -409,7 +438,7 @@ export function PlaygroundApp() {
       ) : null}
 
       <p className='pg-footnote'>
-        Runs client-side in this tab. Same packages as the CLI.{' '}
+        The playground runs in this browser tab with the CLI build packages.{' '}
         <Link href='/docs/cli/build'>See build docs</Link>.
       </p>
     </div>

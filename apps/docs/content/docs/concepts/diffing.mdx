@@ -1,17 +1,17 @@
 ---
 title: Semantic Diffing
-description: How figma-vars diff matches variables and detects breaking changes.
+description: figma-vars diff matches variables and reports breaking changes.
 ---
 
-Token changes should be reviewable like code changes. FigmaVars diff uses **stable Figma variable IDs**, not string paths alone.
+`figma-vars diff` matches collections, modes, and variables by their Figma IDs. A string diff cannot distinguish a rename from a removal followed by an addition.
 
-## What counts as a rename
+## Rename detection
 
-Same ID, different name → reported as rename (breaking for consumers using old path strings).
+The same ID with a different name produces a rename. FigmaVars marks it as breaking because consumers may use the old path.
 
-## What counts as a value change
+## Value changes
 
-Same ID, different resolved value in a specific mode → value change table entry.
+The same variable ID with a different raw `valuesByMode` entry produces a value change. The report labels the row with the current collection and mode name.
 
 ## Breaking vs non-breaking
 
@@ -24,16 +24,16 @@ Same ID, different resolved value in a specific mode → value change table entr
 - Removed or renamed collections
 - Removed or renamed modes
 
-**Non-breaking:**
+**Reported without a breaking flag:**
 
 - New variables
 - New collections or modes
-- Value tweaks you accept intentionally
+- Per-mode value changes
 - Description changes
 
 ## Markdown output
 
-Markdown is the default. Write it directly to a file for a PR description:
+Markdown is the default. Write it to a file for a pull request description:
 
 ```bash
 figma-vars diff main/variables.json pr/variables.json --out PR_BODY.md
@@ -49,8 +49,8 @@ figma-vars diff main/variables.json pr/variables.json --json --out diff.json
 
 ## MCP
 
-The `diff_tokens` MCP tool uses the same engine for agent-assisted reviews.
+The `diff_tokens` MCP tool accepts paths to an earlier and a later variables JSON file. It returns the same Markdown report.
 
-## Under the hood
+## Library API
 
-Implemented in `@figmavars/core` (`diffVariables`, `formatDiffMarkdown`). The normalizer ensures both exports use the same internal shape before comparison.
+`diffVariables` and `formatDiffMarkdown` live in `@figmavars/core`. The normalizer converts supported input shapes before the comparison.

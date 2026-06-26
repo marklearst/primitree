@@ -27,7 +27,8 @@ export interface RetryOptions {
    */
   maxDelayMs?: number
   /**
-   * Only retry on rate limit errors (429). When false, retries on any error.
+   * Set to `true` to retry rate limit errors (429) and reject other errors.
+   * Set to `false` to retry any error.
    * @defaultValue true
    */
   retryOnlyRateLimits?: boolean
@@ -39,12 +40,11 @@ export interface RetryOptions {
 }
 
 /**
- * Wraps an async function with automatic retry logic and exponential backoff.
+ * Wrap an async function with retry and exponential backoff.
  *
  * @remarks
- * By default, only retries on rate limit errors (HTTP 429) from the Figma API.
- * Respects the Retry-After header when present. Uses exponential backoff
- * with configurable initial delay and multiplier.
+ * The default retries Figma HTTP 429 errors. `Retry-After` overrides the
+ * backoff delay when the response supplies it.
  *
  * @param fn - The async function to wrap with retry logic
  * @param options - Configuration for retry behavior
@@ -52,7 +52,7 @@ export interface RetryOptions {
  *
  * @example
  * ```ts
- * import { withRetry, fetcher } from '@figmavars/hooks';
+ * import { withRetry, fetcher } from '@figmavars/core';
  *
  * const fetchWithRetry = withRetry(
  *   () => fetcher(url, token),

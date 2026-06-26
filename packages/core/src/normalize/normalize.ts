@@ -7,8 +7,8 @@ import type {
 } from './types'
 
 /**
- * Error thrown when an input document cannot be recognized as any supported
- * Figma variables shape.
+ * {@link normalizeVariables} throws this error when an input document does
+ * not match a supported Figma variables shape.
  *
  * @public
  */
@@ -210,18 +210,17 @@ function normalizeVariable(
 }
 
 /**
- * Normalize any supported Figma variables JSON shape into a single
- * predictable model.
+ * Normalize a supported Figma variables JSON shape.
  *
  * @remarks
  * Accepts the REST local variables response (the output of
- * `figma-vars export` and most Dev Mode plugin exports), bare `meta`
- * objects, and plugin-style `{ variables, collections }` documents —
+ * `figma-vars export` and Dev Mode plugin exports), bare `meta`
+ * objects, and plugin-style `{ variables, collections }` documents,
  * as parsed objects or raw JSON strings.
  *
- * Variables that reference a missing collection are dropped with a warning.
- * Collections' `variableIds` are recomputed from the surviving variables so
- * the result is always internally consistent.
+ * The function drops variables that reference a missing collection and adds
+ * a warning. It rebuilds each collection's `variableIds` from the variables
+ * that pass validation.
  *
  * @param input - A Figma variables document (object or JSON string).
  * @returns The normalized collections and variables, plus any warnings.

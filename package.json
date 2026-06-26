@@ -1,7 +1,7 @@
 {
   "name": "figmavars",
   "private": true,
-  "description": "FigmaVars — turn a Figma variables export into a production design token pipeline. Monorepo for @figmavars/* packages.",
+  "description": "Monorepo for the @figmavars packages and documentation.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

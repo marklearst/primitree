@@ -28,14 +28,14 @@ export function PipelinePreview() {
       <div className='pipeline-inner'>
         <div className='pipeline-copy'>
           <h2 className='pipeline-heading'>
-            Converters stop at JSON.
+            Review the files
             <br />
-            You need the repo.
+            before you commit them.
           </h2>
           <p className='pipeline-lede'>
-            Resolver contexts for Figma modes. Theme selectors in CSS. Tailwind{' '}
-            <code>@theme</code>. Typed paths. A GitHub Action you can actually
-            commit.
+            Figma modes become Resolver contexts and CSS data selectors. The
+            build also writes Tailwind <code>@theme</code> mappings, typed
+            paths, and a GitHub Actions template.
           </p>
         </div>
 

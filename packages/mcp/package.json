@@ -1,7 +1,7 @@
 {
   "name": "@figmavars/mcp",
   "version": "5.0.0",
-  "description": "MCP server that makes your design tokens AI-legible: list, get, resolve, search, and diff Figma variables / DTCG tokens from any MCP client.",
+  "description": "MCP server for listing, resolving, searching, and comparing FigmaVars design tokens.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

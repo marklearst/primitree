@@ -3,11 +3,10 @@ import { useVariableModes } from './useVariableModes'
 import type { VariableMode } from '../types'
 
 /**
- * React hook that selects modes for a specific variable collection.
+ * Select modes for a Figma variable collection.
  *
  * @remarks
- * Returns an array of modes belonging to the specified collection, or an empty array if not found.
- * Useful for filtering modes by collection without manually accessing modesByCollectionId.
+ * The hook returns an empty array when the collection has no loaded modes.
  *
  * @param collectionId - The ID of the collection to get modes for.
  * @returns An array of VariableMode objects for the collection, or an empty array if not found.

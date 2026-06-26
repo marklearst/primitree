@@ -7,10 +7,10 @@ description: Validate a Figma variables export or a built design-tokens director
 figma-vars check <variables.json | tokens-dir>
 ```
 
-`<path>` is either:
+`<path>` can point to:
 
-- a `variables.json` export (validates structure and referential integrity)
-- a built `design-tokens/` directory (validates DTCG files and resolver)
+- a `variables.json` export
+- a built `design-tokens/` directory
 
 ## Usage
 
@@ -20,9 +20,9 @@ figma-vars check design-tokens
 figma-vars check . # initialized repository root
 ```
 
-Use before opening a PR or in CI after `figma-vars build`.
+Run the check before opening a pull request or after `figma-vars build` in CI.
 
-## What it validates
+## Checks
 
 **Variables export**
 
@@ -33,7 +33,7 @@ Use before opening a PR or in CI after `figma-vars build`.
 **Built directory**
 
 - DTCG Resolver version
-- Every context permutation merges successfully
-- Every token reference resolves
+- Each declared context permutation merges
+- Token references resolve
 
-Exit code non-zero on failure.
+The command exits with code `0` after a valid check and code `1` when it finds an error.

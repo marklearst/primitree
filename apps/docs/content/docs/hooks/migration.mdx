@@ -1,9 +1,9 @@
 ---
 title: Migration from @figma-vars/hooks
-description: Move from @figma-vars/hooks 4.x to @figmavars/hooks v5 and adopt local token hooks.
+description: Replace @figma-vars/hooks with @figmavars/hooks v5.
 ---
 
-FigmaVars v5 moves the package to the `@figmavars` namespace and adds local-token hooks while keeping documented live-API APIs stable.
+FigmaVars v5 moves the hooks package from `@figma-vars/hooks` to `@figmavars/hooks`. The package requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
 
 ## Update the package
 
@@ -12,19 +12,19 @@ npm uninstall @figma-vars/hooks
 npm install @figmavars/hooks
 ```
 
-Change imports from `@figma-vars/hooks` to `@figmavars/hooks`. The exported hook, provider, utility, and type names are unchanged.
+Change imports from `@figma-vars/hooks` to `@figmavars/hooks`. Documented hook, provider, utility, and type names keep their v4 names.
 
 ## New in v5
 
 - `TokensProvider`, `useToken`, `useTokens`, `useTheme` for built DTCG artifacts
-- Monorepo split: `@figmavars/core`, `@figmavars/dtcg`, `@figmavars/cli`, `@figmavars/mcp`
-- CLI `build`, `diff`, `check`, `init` beyond export-only workflows
+- Packages for core utilities, DTCG output, the CLI, and MCP now use the `@figmavars` namespace
+- The CLI includes `build`, `diff`, `check`, `init`, and `export`
 
-## If you only used live API hooks
+## Live API hooks
 
-Only the package import path changes for documented APIs. Update the dependency and imports, then run tests.
+Update the dependency and imports, confirm the Node and React requirements, then run the application's tests.
 
-## If you want local tokens
+## Adopt local tokens
 
 1. Run `figma-vars build variables.json`
 2. Import JSON + resolver in `TokensProvider`
@@ -32,6 +32,6 @@ Only the package import path changes for documented APIs. Update the dependency 
 
 ## CLI bin
 
-`figma-vars-export` still ships from hooks for backwards compatibility. New projects should use `@figmavars/cli` for the full command set.
+`figma-vars-export` remains in the hooks package as a compatibility bin. Use `@figmavars/cli` for `build`, `diff`, `check`, `init`, and `export`.
 
-See the package CHANGELOG on GitHub for the full v5 release notes.
+Read the [`@figmavars/hooks` changelog](https://github.com/marklearst/figmavars/blob/main/packages/hooks/CHANGELOG.md) for the release history.

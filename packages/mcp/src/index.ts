@@ -1,3 +1,9 @@
+/**
+ * Model Context Protocol tools for reading built design tokens and comparing
+ * Figma variables exports.
+ *
+ * @module mcp
+ */
 import fs from 'node:fs/promises'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
@@ -19,7 +25,7 @@ const contextsSchema = z
   .record(z.string(), z.string())
   .optional()
   .describe(
-    'Context per modifier axis, e.g. {"semantic":"dark"}. Omitted axes use their defaults.'
+    'Resolver context keyed by modifier axis, for example {"semantic":"dark"}. Omitted axes use their defaults.'
   )
 
 function jsonContent(value: unknown) {
@@ -28,6 +34,13 @@ function jsonContent(value: unknown) {
   }
 }
 
+/**
+ * Create an MCP server bound to a token source.
+ *
+ * The caller connects the returned server to an MCP transport.
+ *
+ * @public
+ */
 export async function createServer(source: TokenSource): Promise<McpServer> {
   const server = new McpServer({
     name: 'figma-vars',
@@ -39,7 +52,7 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
     {
       title: 'List token collections',
       description:
-        'List the design token collections (top-level groups), token counts, and available theme contexts (Figma modes).',
+        'Return top-level token group names, token counts, resolver contexts, and the source path.',
       inputSchema: {},
     },
     async () => jsonContent(listCollections(source))
@@ -50,11 +63,13 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
     {
       title: 'Get one design token',
       description:
-        'Get a design token by dot path (e.g. "semantic.color.bg.brand"): its raw DTCG token, resolved value, CSS form, var() accessor, and Figma metadata.',
+        'Return the DTCG token at a dot path, its resolved value, CSS value, CSS variable reference, and Figma extension data when present.',
       inputSchema: {
         path: z
           .string()
-          .describe('Dot-joined token path, e.g. "semantic.color.bg.brand"'),
+          .describe(
+            'Dot-separated token path, for example "semantic.color.bg.brand".'
+          ),
         contexts: contextsSchema,
       },
     },
@@ -64,14 +79,22 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
   server.registerTool(
     'resolve_context',
     {
-      title: 'Resolve all tokens for a context',
+      title: 'Resolve tokens for a context',
       description:
-        'Resolve every token value under a context selection (e.g. dark mode). Returns CSS-formatted values.',
+        'Resolve token values for the selected contexts. Returns up to the requested limit with CSS values, plus the total count and truncation state.',
       inputSchema: {
         contexts: z
           .record(z.string(), z.string())
-          .describe('Context per axis, e.g. {"semantic":"dark"}'),
-        limit: z.number().int().positive().max(2000).optional(),
+          .describe(
+            'Resolver context keyed by modifier axis, for example {"semantic":"dark"}.'
+          ),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(2000)
+          .optional()
+          .describe('Maximum number of tokens to return. Defaults to 500.'),
       },
     },
     async ({ contexts, limit }) =>
@@ -83,15 +106,23 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
     {
       title: 'Search design tokens',
       description:
-        'Search tokens by substring across paths and descriptions, optionally filtered by $type (color, dimension, fontFamily, ...).',
+        'Find a substring in token paths and descriptions. An optional DTCG $type filter narrows the results.',
       inputSchema: {
-        query: z.string().describe('Substring to search for'),
+        query: z
+          .string()
+          .describe('Substring matched against paths and descriptions.'),
         type: z
           .string()
           .optional()
-          .describe('Filter by DTCG $type, e.g. "color"'),
+          .describe('DTCG $type filter, for example "color".'),
         contexts: contextsSchema,
-        limit: z.number().int().positive().max(500).optional(),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(500)
+          .optional()
+          .describe('Maximum number of matches to return. Defaults to 50.'),
       },
     },
     async ({ query, type, contexts, limit }) =>
@@ -103,10 +134,12 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
     {
       title: 'Diff two variables exports',
       description:
-        'Semantic Markdown changelog between two Figma variables exports (renames detected by stable ID, per-mode value changes, breaking-change callouts).',
+        'Compare two Figma variables JSON files by stable IDs and return a Markdown report of collection, mode, variable, type, value, and description changes.',
       inputSchema: {
-        oldPath: z.string().describe('Path to the older variables.json'),
-        newPath: z.string().describe('Path to the newer variables.json'),
+        oldPath: z
+          .string()
+          .describe('Path to the earlier variables JSON file.'),
+        newPath: z.string().describe('Path to the later variables JSON file.'),
       },
     },
     async ({ oldPath, newPath }) => {

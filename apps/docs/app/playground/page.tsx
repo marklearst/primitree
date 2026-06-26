@@ -1,11 +1,11 @@
-import type { Metadata } from 'next'
 import { PlaygroundApp } from '@/components/playground/playground-app'
+import { createPageMetadata } from '@/lib/discovery'
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: 'Playground',
-  description:
-    'Preview and download a Figma variables token pipeline in your browser.',
-}
+  description: 'Preview a variables export and download the generated files.',
+  pathname: '/playground',
+})
 
 export default function PlaygroundPage() {
   return <PlaygroundApp />

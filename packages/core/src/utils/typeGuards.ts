@@ -3,8 +3,10 @@ import type {
   PublishedVariablesResponse,
 } from '../types/figma'
 
+/** Figma Variables response kind used by fallback data. @public */
 export type FallbackDataKind = 'local' | 'published'
 
+/** Fallback data paired with its Variables API response kind. @public */
 export type ClassifiedFallbackData =
   | { kind: 'local'; data: LocalVariablesResponse }
   | { kind: 'published'; data: PublishedVariablesResponse }
@@ -36,21 +38,21 @@ const everyEntryMatches = (
 ): boolean => Object.values(record).every(predicate)
 
 /**
- * Runtime type guard to check if data matches LocalVariablesResponse structure.
+ * Check the fields that distinguish a local variables response.
  *
  * @remarks
- * Use this to validate fallback files or API responses at runtime before casting.
- * Validates the essential structure: meta object with variableCollections and variables.
+ * The guard checks `meta.variableCollections`, `meta.variables`, collection
+ * modes, and variable values.
  *
  * @param data - The data to validate
  * @returns `true` if data matches LocalVariablesResponse structure
  *
  * @example
  * ```ts
- * import { isLocalVariablesResponse } from '@figmavars/hooks';
+ * import { isLocalVariablesResponse } from '@figmavars/core';
  *
  * if (isLocalVariablesResponse(fallbackData)) {
- *   // Safe to use as LocalVariablesResponse
+ *   console.log(fallbackData.meta.variables)
  * } else {
  *   console.error('Invalid fallback file structure');
  * }
@@ -77,21 +79,20 @@ export function isLocalVariablesResponse(
 }
 
 /**
- * Runtime type guard to check if data matches PublishedVariablesResponse structure.
+ * Check the fields that distinguish a published variables response.
  *
  * @remarks
- * Use this to validate fallback files or API responses at runtime before casting.
- * Validates the essential structure: meta object with variableCollections and variables.
+ * The guard checks the published entry keys that the local response omits.
  *
  * @param data - The data to validate
  * @returns `true` if data matches PublishedVariablesResponse structure
  *
  * @example
  * ```ts
- * import { isPublishedVariablesResponse } from '@figmavars/hooks';
+ * import { isPublishedVariablesResponse } from '@figmavars/core';
  *
  * if (isPublishedVariablesResponse(fallbackData)) {
- *   // Safe to use as PublishedVariablesResponse
+ *   console.log(fallbackData.meta.variables)
  * } else {
  *   console.error('Invalid fallback file structure');
  * }
@@ -118,15 +119,15 @@ export function isPublishedVariablesResponse(
 }
 
 /**
- * Classifies structurally valid fallback data as local or published.
+ * Classify fallback data as a local or published response.
  *
  * @remarks
- * Empty response maps are valid for both response shapes and therefore require
- * an explicit kind. Invalid runtime discriminator values are rejected.
+ * Empty response maps match both response shapes, so callers must provide a
+ * kind. The classifier rejects invalid runtime discriminator values.
  *
  * @param data - The data to validate and classify
- * @param explicitKind - Optional kind for otherwise ambiguous response data
- * @returns The classified data, or undefined when invalid or ambiguous
+ * @param explicitKind - Kind used to resolve an empty response.
+ * @returns Classified data, or `undefined` for invalid or ambiguous data.
  *
  * @public
  */
@@ -163,11 +164,11 @@ export function classifyFallbackData(
 }
 
 /**
- * Validates and returns typed fallback data, or undefined if invalid.
+ * Return local or published fallback data after a structural check.
  *
  * @remarks
- * Attempts to validate data as either LocalVariablesResponse or PublishedVariablesResponse.
- * Returns the typed data if valid, undefined otherwise.
+ * Empty response maps match both shapes, so this function returns `undefined`
+ * for an empty response without an explicit kind.
  *
  * @param data - The data to validate
  * @returns The validated data or undefined

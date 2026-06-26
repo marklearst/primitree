@@ -9,20 +9,21 @@ export function Hero() {
         <div className='hero-copy'>
           <p className='hero-eyebrow'>
             <span className='hero-eyebrow-dot' />
-            v5 · works on every Figma plan
+            v5 · local export and build
           </p>
 
           <h1 className='hero-title'>
-            Your export
+            Turn variables.json
             <br />
-            is not a pipeline.
+            into code
             <br />
-            <span className='hero-title-accent'>Fix that.</span>
+            <span className='hero-title-accent'>your app can use.</span>
           </h1>
 
           <p className='hero-lede'>
-            Drop <code>variables.json</code> in. Get DTCG, CSS, Tailwind v4,
-            TypeScript, CI, diffs, hooks, MCP. One command. Nothing uploads.
+            Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a
+            Resolver. Use semantic diffs in pull requests. React hooks and MCP
+            tools read the same token files.
           </p>
 
           <div className='hero-actions'>
