@@ -12,7 +12,7 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "turbo run build",
-    "test": "node --test scripts/check-release.test.mjs && pnpm run test:release-artifacts && pnpm run test:release-workflow && turbo run test",
+    "test": "node --test scripts/check-release.test.mjs scripts/check-prose.test.mjs scripts/prose/rules.test.mjs && pnpm run check:prose && pnpm run test:release-artifacts && pnpm run test:release-workflow && turbo run test",
     "test:release-artifacts": "node --test scripts/release-artifacts.test.mjs",
     "test:release-workflow": "node --test scripts/release-publish.test.mjs scripts/github-release.test.mjs",
     "test:e2e": "playwright test",
@@ -23,11 +23,14 @@
     "lint": "biome lint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check:prose": "pnpm --filter figmavars-docs run generate:api && pnpm run check:prose:scan",
+    "check:prose:scan": "node scripts/check-prose.mjs",
+    "check:prose:built": "pnpm --filter figmavars-docs run generate:api && node scripts/check-prose.mjs --built",
     "check:release-metadata": "node scripts/check-release.mjs",
     "pack:release": "node scripts/release-artifacts.mjs pack",
     "verify:release-artifacts": "node scripts/release-artifacts.mjs verify",
     "check:release-artifacts": "node scripts/release-artifacts.mjs check",
-    "check:release:built": "pnpm run check:release-metadata && pnpm run pack:release && pnpm run check:release-artifacts && pnpm --filter @figmavars/hooks run check:size",
+    "check:release:built": "pnpm run check:release-metadata && pnpm run check:prose:built && pnpm run pack:release && pnpm run check:release-artifacts && pnpm --filter @figmavars/hooks run check:size",
     "check:release": "pnpm run build && pnpm run check:release:built",
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts && pnpm install --frozen-lockfile --ignore-scripts",
@@ -47,7 +50,10 @@
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
     "publint": "^0.3.21",
+    "remark": "15.0.1",
+    "remark-mdx": "3.1.1",
     "turbo": "^2.10.3",
+    "typescript": "6.0.3",
     "yaml": "2.9.0"
   }
 }

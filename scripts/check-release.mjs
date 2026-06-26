@@ -572,6 +572,83 @@ function rootPathFrom(root) {
   return root instanceof URL ? fileURLToPath(root) : resolve(root)
 }
 
+function isCalendarDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    return false
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return (
+    !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
+  )
+}
+
+export function validateReleaseCopy({
+  version,
+  tag,
+  releaseNotes,
+  changelogs,
+}) {
+  if (tag === undefined) {
+    return
+  }
+
+  const errors = []
+  const status =
+    typeof releaseNotes === 'string'
+      ? releaseNotes.match(/^Status: Released (\d{4}-\d{2}-\d{2})\.$/mu)
+      : null
+  const releaseDate = status?.[1]
+
+  if (!releaseDate || !isCalendarDate(releaseDate)) {
+    errors.push(
+      'release notes must contain `Status: Released YYYY-MM-DD.` with a valid UTC date'
+    )
+  }
+  if (
+    typeof releaseNotes === 'string' &&
+    /\bUnreleased\b/iu.test(releaseNotes)
+  ) {
+    errors.push('release notes must not contain Unreleased for a tag')
+  }
+
+  if (!Array.isArray(changelogs)) {
+    errors.push('changelogs must be an array')
+  } else {
+    const byPath = new Map(
+      changelogs
+        .filter(
+          changelog =>
+            isPlainObject(changelog) &&
+            typeof changelog.path === 'string' &&
+            typeof changelog.content === 'string'
+        )
+        .map(changelog => [changelog.path, changelog.content])
+    )
+
+    for (const config of PUBLIC_RELEASE_PACKAGES) {
+      const changelogPath = `${config.path}/CHANGELOG.md`
+      const content = byPath.get(changelogPath)
+      if (content === undefined) {
+        errors.push(`${changelogPath} is required`)
+        continue
+      }
+      if (/\bUnreleased\b/iu.test(content)) {
+        errors.push(`${changelogPath} must not contain Unreleased for a tag`)
+      }
+      if (releaseDate && !content.includes(`## ${version} (${releaseDate})`)) {
+        errors.push(
+          `${changelogPath} ${version} heading must use release date ${releaseDate}`
+        )
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Release copy check failed:\n- ${errors.join('\n- ')}`)
+  }
+}
+
 export function discoverWorkspaceManifestPaths(root) {
   const rootPath = rootPathFrom(root)
   const paths = []
@@ -654,6 +731,24 @@ export function checkRepository() {
     privatePackages,
     tag,
   })
+  if (tag !== undefined) {
+    const rootPath = rootPathFrom(rootUrl)
+    validateReleaseCopy({
+      version: result.version,
+      tag,
+      releaseNotes: readFileSync(
+        join(rootPath, 'docs', 'launch', `v${result.version}.md`),
+        'utf8'
+      ),
+      changelogs: PUBLIC_RELEASE_PACKAGES.map(config => {
+        const changelogPath = `${config.path}/CHANGELOG.md`
+        return {
+          path: changelogPath,
+          content: readFileSync(join(rootPath, changelogPath), 'utf8'),
+        }
+      }),
+    })
+  }
   console.log(
     `Release metadata valid for ${result.publicNames.length} public packages at ${result.version}`
   )

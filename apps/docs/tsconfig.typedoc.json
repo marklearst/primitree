@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "paths": {
+      "@figmavars/core": ["../../packages/core/src/index.ts"],
+      "@figmavars/core/types": ["../../packages/core/src/types/index.ts"],
+      "@figmavars/dtcg": ["../../packages/dtcg/src/index.ts"]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node", "react"]
+  },
+  "include": [
+    "../../packages/core/src",
+    "../../packages/dtcg/src",
+    "../../packages/hooks/src",
+    "../../packages/mcp/src"
+  ]
+}

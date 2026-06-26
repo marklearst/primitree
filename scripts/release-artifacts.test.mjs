@@ -560,6 +560,9 @@ test('real offline packing isolates every pnpm subprocess from hostile npm state
   assert.equal(calls.length, EXPECTED_NAMES.length)
   assert.ok(calls.every(call => call.command === 'pnpm'))
   assert.ok(calls.every(call => call.args.includes('--ignore-workspace')))
+  assert.ok(
+    calls.every(call => call.args.includes('--config.ignore-scripts=true'))
+  )
   assert.ok(calls.every(call => call.args.includes('--config.offline=true')))
   assert.ok(
     calls.every(call =>

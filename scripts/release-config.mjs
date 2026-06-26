@@ -41,6 +41,9 @@ function freezePackage(config) {
   return Object.freeze({
     ...config,
     requiredFiles: Object.freeze([...config.requiredFiles]),
+    requiredDeclarationFiles: Object.freeze([
+      ...config.requiredDeclarationFiles,
+    ]),
     expectedExports,
     requiredExports,
     exportTargets,
@@ -66,6 +69,12 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@figmavars/core',
     attwProfile: 'node16',
     requiredFiles: ['dist'],
+    requiredDeclarationFiles: [
+      'dist/index.d.ts',
+      'dist/index.d.cts',
+      'dist/types.d.ts',
+      'dist/types.d.cts',
+    ],
     expectedExports: {
       '.': {
         import: {
@@ -100,6 +109,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@figmavars/dtcg',
     attwProfile: 'strict',
     requiredFiles: ['dist'],
+    requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
     expectedExports: {
       '.': {
         import: {
@@ -123,6 +133,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@figmavars/cli',
     attwProfile: null,
     requiredFiles: ['dist'],
+    requiredDeclarationFiles: ['dist/index.d.ts'],
     expectedExports: undefined,
     requiredBin: 'figma-vars',
     requiredBinTarget: './dist/index.js',
@@ -134,6 +145,12 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@figmavars/hooks',
     attwProfile: 'strict',
     requiredFiles: ['dist', 'scripts/export-variables.mjs'],
+    requiredDeclarationFiles: [
+      'dist/index.d.ts',
+      'dist/index.d.cts',
+      'dist/core.d.ts',
+      'dist/core.d.cts',
+    ],
     expectedExports: {
       '.': {
         import: {
@@ -168,6 +185,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@figmavars/mcp',
     attwProfile: 'esm-only',
     requiredFiles: ['dist'],
+    requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
     expectedExports: {
       '.': {
         import: {
