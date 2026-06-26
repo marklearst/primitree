@@ -81,6 +81,10 @@ const mcpTsupConfig = readFileSync(
   new URL('../packages/mcp/tsup.config.ts', import.meta.url),
   'utf8'
 )
+const cliTsupConfig = readFileSync(
+  new URL('../packages/cli/tsup.config.ts', import.meta.url),
+  'utf8'
+)
 const publicManifests = PUBLIC_RELEASE_PACKAGES.map(config =>
   JSON.parse(
     readFileSync(new URL(`../${config.manifestPath}`, import.meta.url), 'utf8')
@@ -1056,7 +1060,7 @@ test('a tag ref without a tag name fails closed', () => {
   assert.match(result.stderr, /release tag .* must use vMAJOR\.MINOR\.PATCH/)
 })
 
-test('requires Node 24 for the source workspace, public packages, and MCP build', () => {
+test('requires Node 24 for the source workspace, public packages, and Node builds', () => {
   assert.equal(rootManifest.engines.node, '>=24.0.0')
   assert.equal(rootManifest.engines.pnpm, '>=11.0.0')
   assert.equal(rootManifest.packageManager, 'pnpm@11.10.0')
@@ -1064,6 +1068,7 @@ test('requires Node 24 for the source workspace, public packages, and MCP build'
     publicManifests.map(manifest => manifest.engines?.node),
     Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=24.0.0')
   )
+  assert.match(cliTsupConfig, /target: 'node24'/)
   assert.match(mcpTsupConfig, /target: 'node24'/)
 })
 
