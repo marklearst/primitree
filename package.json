@@ -30,7 +30,7 @@
     "check:release:built": "pnpm run check:release-metadata && pnpm run pack:release && pnpm run check:release-artifacts && pnpm --filter @figmavars/hooks run check:size",
     "check:release": "pnpm run build && pnpm run check:release:built",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "changeset version && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts && pnpm install --frozen-lockfile --ignore-scripts",
     "prepare": "husky"
   },
   "lint-staged": {

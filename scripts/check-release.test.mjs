@@ -36,10 +36,18 @@ const workflow = readFileSync(
   new URL('../.github/workflows/ci.yml', import.meta.url),
   'utf8'
 )
+const versionWorkflowUrl = new URL(
+  '../.github/workflows/version-packages.yml',
+  import.meta.url
+)
+const versionWorkflow = existsSync(versionWorkflowUrl)
+  ? readFileSync(versionWorkflowUrl, 'utf8')
+  : ''
 const githubReleaseScript = readFileSync(
   new URL('./github-release.mjs', import.meta.url),
   'utf8'
 )
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootManifest = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8')
 )
@@ -120,6 +128,15 @@ const EXPECTED_ACTION_REFS = [
 
 const CODECOV_SECRET_REFERENCE = '${{ secrets.CODECOV_TOKEN }}'
 const NPM_SECRET_REFERENCE = '${{ secrets.NPM_TOKEN }}'
+const VERSION_WORKFLOW_TOKEN_REFERENCE = '${{ github.token }}'
+const CHANGESETS_ACTION =
+  'changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d'
+const VERSION_WORKFLOW_ACTIONS = [
+  'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+  'pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271',
+  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  CHANGESETS_ACTION,
+]
 const RELEASE_PUBLISH_PACKAGES = [
   { name: '@figmavars/core', stem: 'core' },
   { name: '@figmavars/dtcg', stem: 'dtcg' },
@@ -127,6 +144,24 @@ const RELEASE_PUBLISH_PACKAGES = [
   { name: '@figmavars/hooks', stem: 'hooks' },
   { name: '@figmavars/mcp', stem: 'mcp' },
 ]
+const TRUST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
+  ({ name }) =>
+    `npm trust github '${name}' --repository marklearst/figmavars --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/`
+)
+const TRUST_LIST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
+  ({ name }) =>
+    `npm trust list '${name}' --registry=https://registry.npmjs.org/`
+)
+const PACKAGE_MFA_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
+  ({ name }) => `npm access set mfa=publish ${name}`
+)
+const GITHUB_REPOSITORY = 'marklearst/figmavars'
+const GITHUB_SECRET_SET_COMMAND = `gh secret set NPM_TOKEN --env npm --repo ${GITHUB_REPOSITORY}`
+const GITHUB_SECRET_DELETE_COMMAND = `gh secret delete NPM_TOKEN --env npm --repo ${GITHUB_REPOSITORY}`
+const GITHUB_SECRET_LIST_COMMAND = `gh secret list --env npm --repo ${GITHUB_REPOSITORY}`
+const VERCEL_PROJECT_ID = 'prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd'
+const LEGACY_DEPRECATION_COMMAND =
+  'npm deprecate "@figma-vars/hooks@4.0.0" "Moved to @figmavars/hooks. See https://figmavars.com/docs/hooks/migration" --registry=https://registry.npmjs.org/'
 
 function isPlainRecord(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -239,6 +274,107 @@ function assertWorkflowTrustPolicy(source) {
   return document
 }
 
+function assertVersionWorkflowPolicy(source) {
+  const document = parseYaml(source)
+  assert.ok(isPlainRecord(document), 'version workflow must be a YAML mapping')
+  assert.deepEqual(Object.keys(document), [
+    'name',
+    'on',
+    'permissions',
+    'concurrency',
+    'jobs',
+  ])
+  assert.equal(document.name, 'Version Packages')
+  assert.deepEqual(document.on, { push: { branches: ['main'] } })
+  assert.deepEqual(document.permissions, {})
+  assert.deepEqual(document.concurrency, {
+    group: 'version-packages-${{ github.ref }}',
+    'cancel-in-progress': true,
+  })
+  assert.ok(isPlainRecord(document.jobs), 'version jobs must be a mapping')
+  assert.deepEqual(Object.keys(document.jobs), ['version-packages'])
+
+  const job = document.jobs['version-packages']
+  assert.deepEqual(Object.keys(job), [
+    'runs-on',
+    'timeout-minutes',
+    'permissions',
+    'steps',
+  ])
+  assert.equal(job['runs-on'], 'ubuntu-latest')
+  assert.equal(job['timeout-minutes'], 15)
+  assert.deepEqual(job.permissions, {
+    contents: 'write',
+    'pull-requests': 'write',
+  })
+  assert.ok(Array.isArray(job.steps))
+  assert.deepEqual(
+    job.steps.map(step => step.name),
+    [
+      'Checkout repository',
+      'Install pnpm',
+      'Setup Node',
+      'Install dependencies',
+      'Create or update version pull request',
+    ]
+  )
+
+  assert.deepEqual(
+    collectPropertyValues(document, 'uses'),
+    VERSION_WORKFLOW_ACTIONS
+  )
+  for (const action of VERSION_WORKFLOW_ACTIONS) {
+    assert.match(action, /@[a-f0-9]{40}$/)
+  }
+  assert.deepEqual(job.steps[0], {
+    name: 'Checkout repository',
+    uses: VERSION_WORKFLOW_ACTIONS[0],
+    with: {
+      'fetch-depth': 0,
+      'persist-credentials': false,
+    },
+  })
+  assert.deepEqual(job.steps[1], {
+    name: 'Install pnpm',
+    uses: VERSION_WORKFLOW_ACTIONS[1],
+    with: {
+      version: '11.10.0',
+      run_install: false,
+    },
+  })
+  assert.deepEqual(job.steps[2], {
+    name: 'Setup Node',
+    uses: VERSION_WORKFLOW_ACTIONS[2],
+    with: {
+      'node-version': '24.18.0',
+      cache: 'pnpm',
+      'cache-dependency-path': 'pnpm-lock.yaml',
+    },
+  })
+  assert.deepEqual(job.steps[3], {
+    name: 'Install dependencies',
+    run: 'pnpm install --frozen-lockfile --ignore-scripts',
+  })
+  assert.deepEqual(job.steps[4], {
+    name: 'Create or update version pull request',
+    uses: CHANGESETS_ACTION,
+    with: {
+      version: 'pnpm run version-packages',
+      createGithubReleases: false,
+    },
+    env: {
+      GITHUB_TOKEN: VERSION_WORKFLOW_TOKEN_REFERENCE,
+    },
+  })
+
+  assert.deepEqual(collectSecretOccurrences(document), [])
+  assert.doesNotMatch(
+    source,
+    /\bsecrets\b|id-token|NPM_TOKEN|NODE_AUTH_TOKEN|NPM_CONFIG_|provenance|registry-url|environment:|createGithubReleases:\s*true|\b(?:npm|pnpm|changeset)\s+publish\b|^\s+publish:/im
+  )
+  return document
+}
+
 function extractWorkflowJobs(source) {
   const jobsHeader = /^jobs:\s*$/m.exec(source)
   assert.ok(jobsHeader, 'workflow must contain a top-level jobs mapping')
@@ -299,6 +435,31 @@ function extractFirstBashBlock(section, label) {
   const match = /```bash\n([\s\S]*?)\n```/.exec(section)
   assert.ok(match, `${label} must contain a bash command block`)
   return match[1]
+}
+
+function extractBashBlockContaining(section, marker, label) {
+  for (const match of section.matchAll(/```bash\n([\s\S]*?)\n```/g)) {
+    if (match[1].includes(marker)) return match[1]
+  }
+  assert.fail(`${label} must contain a bash block with ${marker}`)
+}
+
+function extractMarkdownSubsection(source, heading) {
+  const marker = `${heading}\n`
+  const start = source.indexOf(marker)
+  assert.notEqual(start, -1, `missing documentation subsection ${heading}`)
+  const bodyStart = start + marker.length
+  const remaining = source.slice(bodyStart)
+  const nextHeading = remaining.search(/^### /m)
+  return nextHeading === -1 ? remaining : remaining.slice(0, nextHeading)
+}
+
+function runBash(script, options = {}) {
+  return spawnSync('bash', ['-c', script], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    ...options,
+  })
 }
 
 function extractOrderedCodeList(section) {
@@ -1113,6 +1274,204 @@ test('runs the focused release workflow helpers in the root test command', () =>
   assert.match(rootManifest.scripts.test, /pnpm run test:release-workflow/)
 })
 
+test('versions packages and proves the synchronized lockfile without lifecycle scripts', () => {
+  assert.equal(
+    rootManifest.scripts['version-packages'],
+    'changeset version && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts && pnpm install --frozen-lockfile --ignore-scripts'
+  )
+})
+
+test('creates version pull requests through one pinned least-privilege workflow', () => {
+  assertVersionWorkflowPolicy(versionWorkflow)
+})
+
+test('rejects version workflow trust-boundary drift', () => {
+  assert.doesNotThrow(() => assertVersionWorkflowPolicy(versionWorkflow))
+
+  const mutations = [
+    versionWorkflow.replace(
+      '  version-packages:\n',
+      [
+        '  rogue:',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - uses: owner/unreviewed-action@v1',
+        '  version-packages:',
+        '',
+      ].join('\n')
+    ),
+    versionWorkflow.replace(CHANGESETS_ACTION, 'changesets/action@v1'),
+    versionWorkflow.replace(
+      'permissions: {}',
+      'permissions:\n  contents: write'
+    ),
+    versionWorkflow.replace(
+      '      pull-requests: write',
+      '      pull-requests: write\n      id-token: write'
+    ),
+    versionWorkflow.replace(
+      '    runs-on: ubuntu-latest',
+      '    runs-on: ubuntu-latest\n    environment: npm'
+    ),
+    versionWorkflow.replace(
+      '    runs-on: ubuntu-latest',
+      [
+        '    runs-on: ubuntu-latest',
+        '    env:',
+        `      EXFILTRATE: "\${{ secrets['UNREVIEWED_TOKEN'] }}"`,
+      ].join('\n')
+    ),
+    versionWorkflow.replace(
+      '          node-version: 24.18.0',
+      [
+        '          node-version: 24.18.0',
+        '          registry-url: https://registry.npmjs.org/',
+      ].join('\n')
+    ),
+    versionWorkflow.replace(
+      '          createGithubReleases: false',
+      [
+        '          createGithubReleases: false',
+        '          publish: pnpm run publish',
+      ].join('\n')
+    ),
+    versionWorkflow.replace(
+      '        run: pnpm install --frozen-lockfile --ignore-scripts',
+      [
+        '        run: pnpm install --frozen-lockfile --ignore-scripts',
+        '      - name: Publish packages',
+        '        run: pnpm publish',
+      ].join('\n')
+    ),
+    versionWorkflow.replace('    branches: [main]', '    tags: ["v*"]'),
+  ]
+
+  for (const mutation of mutations) {
+    assert.throws(() => assertVersionWorkflowPolicy(mutation))
+  }
+})
+
+test('exercises the version command in a temporary fixed release group', t => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'figmavars-version-packages-'))
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }))
+
+  mkdirSync(join(fixtureRoot, '.changeset'), { recursive: true })
+  mkdirSync(join(fixtureRoot, 'packages', 'core'), { recursive: true })
+  mkdirSync(join(fixtureRoot, 'packages', 'dtcg'), { recursive: true })
+  const writeJson = (file, value) =>
+    writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`)
+  writeJson(join(fixtureRoot, 'package.json'), {
+    name: 'figmavars-version-fixture',
+    private: true,
+    packageManager: 'pnpm@11.10.0',
+    scripts: {
+      preinstall:
+        "node -e \"require('node:fs').writeFileSync('lifecycle-sentinel', process.env.npm_lifecycle_event ?? 'unknown')\"",
+      'version-packages': rootManifest.scripts['version-packages'],
+    },
+  })
+  writeFileSync(
+    join(fixtureRoot, 'pnpm-workspace.yaml'),
+    "packages:\n  - 'packages/*'\n"
+  )
+  writeJson(join(fixtureRoot, '.changeset', 'config.json'), {
+    changelog: ['@changesets/cli/changelog', null],
+    commit: false,
+    fixed: [['@figmavars/core', '@figmavars/dtcg']],
+    linked: [],
+    access: 'public',
+    baseBranch: 'main',
+    updateInternalDependencies: 'patch',
+    ignore: [],
+    privatePackages: {
+      version: false,
+      tag: false,
+    },
+  })
+  writeFileSync(
+    join(fixtureRoot, '.changeset', 'fixed-group.md'),
+    [
+      '---',
+      '"@figmavars/core": minor',
+      '---',
+      '',
+      'Exercise the fixed release group.',
+      '',
+    ].join('\n')
+  )
+  writeJson(join(fixtureRoot, 'packages', 'core', 'package.json'), {
+    name: '@figmavars/core',
+    version: '1.0.0',
+  })
+  writeJson(join(fixtureRoot, 'packages', 'dtcg', 'package.json'), {
+    name: '@figmavars/dtcg',
+    version: '1.0.0',
+    dependencies: {
+      '@figmavars/core': 'workspace:*',
+    },
+  })
+
+  const environment = {
+    ...process.env,
+    CI: '1',
+    PATH: `${join(repositoryRoot, 'node_modules', '.bin')}:${process.env.PATH}`,
+  }
+  const seed = spawnSync(
+    'pnpm',
+    ['install', '--no-frozen-lockfile', '--ignore-scripts'],
+    {
+      cwd: fixtureRoot,
+      encoding: 'utf8',
+      env: environment,
+    }
+  )
+  assert.equal(seed.status, 0, seed.stderr)
+  const sentinelPath = join(fixtureRoot, 'lifecycle-sentinel')
+  assert.equal(existsSync(sentinelPath), false)
+  const lockfilePath = join(fixtureRoot, 'pnpm-lock.yaml')
+  const originalLockfile = readFileSync(lockfilePath, 'utf8')
+
+  const result = spawnSync('pnpm', ['run', 'version-packages'], {
+    cwd: fixtureRoot,
+    encoding: 'utf8',
+    env: environment,
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(
+    ['core', 'dtcg'].map(
+      packageName =>
+        JSON.parse(
+          readFileSync(
+            join(fixtureRoot, 'packages', packageName, 'package.json'),
+            'utf8'
+          )
+        ).version
+    ),
+    ['1.1.0', '1.1.0']
+  )
+  assert.equal(
+    existsSync(join(fixtureRoot, '.changeset', 'fixed-group.md')),
+    false
+  )
+  for (const packageName of ['core', 'dtcg']) {
+    assert.match(
+      readFileSync(
+        join(fixtureRoot, 'packages', packageName, 'CHANGELOG.md'),
+        'utf8'
+      ),
+      /## 1\.1\.0/
+    )
+  }
+  assert.equal(readFileSync(lockfilePath, 'utf8'), originalLockfile)
+  assert.equal(
+    existsSync(sentinelPath),
+    false,
+    existsSync(sentinelPath)
+      ? `${readFileSync(sentinelPath, 'utf8')}\n${result.stdout}\n${result.stderr}`
+      : undefined
+  )
+})
+
 test('pins repository actions and exposes only the four reviewed jobs', () => {
   const document = assertWorkflowTrustPolicy(workflow)
   const jobs = extractWorkflowJobs(workflow)
@@ -1440,6 +1799,813 @@ test('links one release runbook from maintainer and launch documentation', () =>
   assertNoBlanketTagPush(announcement)
 })
 
+test('documents exact contributor and version pull request boundaries', () => {
+  assert.match(contributing, /Node 24\.18\.0/)
+  assert.match(contributing, /pnpm 11\.10\.0/)
+  assert.match(contributing, /public packages[\s\S]*Node >=24\.0\.0/i)
+  assert.doesNotMatch(contributing, /Node >=22\.13\.0|Node 20\.0\.0/)
+
+  const versionPullRequests = extractMarkdownSection(
+    releaseRunbook,
+    '## Version pull requests'
+  )
+  assert.match(
+    versionPullRequests,
+    /initial 5\.0\.0[\s\S]*already carry 5\.0\.0[\s\S]*no pending changeset/i
+  )
+  assert.match(
+    versionPullRequests,
+    /do not fabricate[\s\S]*version pull request/i
+  )
+  assert.match(versionPullRequests, /later releases/i)
+  assert.match(
+    versionPullRequests,
+    /GitHub\s+Actions[\s\S]*create and approve pull requests/i
+  )
+  assert.match(versionPullRequests, /can_approve_pull_request_reviews == true/)
+  assert.match(
+    versionPullRequests,
+    /`github\.token`[\s\S]*does not trigger[\s\S]*`pull_request` workflow/i
+  )
+  assert.match(
+    versionPullRequests,
+    /close and reopen[\s\S]*maintainer[\s\S]*exact head commit/i
+  )
+  assert.match(versionPullRequests, /quality[\s\S]*packed-consumer/i)
+  assert.match(versionPullRequests, /`github\.token`/)
+  assert.match(versionPullRequests, /never publishes/i)
+  assert.match(versionPullRequests, /no npm token[\s\S]*OIDC identity token/i)
+})
+
+test('freezes the launch administration order and credential boundaries', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
+  assert.equal(checklist.length, 11)
+  assert.ok(checklist.every(item => item[1] === ' '))
+  assertInOrder(
+    external,
+    [
+      '### 1. Branch preflight',
+      '### 2. Merge and bind exact main',
+      '### 3. Create the bootstrap credential and protected environment',
+      '### 4. Tag, publish, and create the GitHub Release',
+      '### 5. Configure all five trusted publishers',
+      '### 6. Delete the GitHub environment secret',
+      '### 7. Revoke the exact bootstrap token',
+      '### 8. Require package MFA and disallow token publishing',
+      '### 9. Promote one staged production deployment',
+      '### 10. Verify replacements and migration',
+      '### 11. Deprecate only the legacy 4.0.0 package',
+    ],
+    'launch administration phases'
+  )
+
+  assert.match(external, /one-day granular npm token/i)
+  assert.match(external, /protected GitHub `npm` environment/)
+  assert.equal(occurrences(external, GITHUB_SECRET_SET_COMMAND), 1)
+  assert.equal(occurrences(external, GITHUB_SECRET_DELETE_COMMAND), 1)
+  assert.equal(occurrences(external, GITHUB_SECRET_LIST_COMMAND), 2)
+  assert.doesNotMatch(
+    external,
+    /^gh secret (?:set|delete|list)[^\n]*--env npm(?![^\n]*--repo marklearst\/figmavars)[^\n]*$/gm
+  )
+  assert.doesNotMatch(
+    external,
+    /gh secret set NPM_TOKEN[^\n]*(?:--body|-b\b)|(?:echo|printf)[^\n]*NPM_TOKEN|NPM_TOKEN=['"][^'"]+/
+  )
+  assertInOrder(
+    external,
+    [
+      GITHUB_SECRET_SET_COMMAND,
+      'git push origin "refs/tags/v$VERSION"',
+      ...TRUST_COMMANDS,
+      GITHUB_SECRET_DELETE_COMMAND,
+      'npm token list --json',
+      'npm token revoke "$BOOTSTRAP_TOKEN_ID"',
+      ...PACKAGE_MFA_COMMANDS,
+    ],
+    'credential retirement'
+  )
+  assert.match(external, /BOOTSTRAP_TOKEN_ID/)
+  assert.match(external, /exact token ID/i)
+  assert.match(
+    external,
+    /bootstrap granular access token[\s\S]*cannot authorize `npm trust`/i
+  )
+  assert.match(external, /browser-authenticated[\s\S]*npm >=11\.15/i)
+  for (const command of [...TRUST_COMMANDS, ...TRUST_LIST_COMMANDS]) {
+    assert.equal(occurrences(external, command), 1, `runbook needs ${command}`)
+  }
+  for (const command of PACKAGE_MFA_COMMANDS) {
+    assert.equal(occurrences(external, command), 1, `runbook needs ${command}`)
+  }
+  assert.match(
+    external,
+    /`npm trust list`[\s\S]*saved configuration[\s\S]*cannot prove GitHub OIDC/i
+  )
+  assert.match(
+    external,
+    /next token-free release[\s\S]*end-to-end trust proof/i
+  )
+  assert.match(external, /trusted OIDC[\s\S]*remains\s+available/i)
+})
+
+test('release route verifiers fail closed on every fetch and content assertion', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const verifierBlock = extractBashBlockContaining(
+    external,
+    'protected_get()',
+    'Vercel route verifiers'
+  )
+  const definitions = verifierBlock.slice(
+    verifierBlock.indexOf('protected_get()')
+  )
+  const mocks = String.raw`
+route_body() {
+  case "$1" in
+    /)
+      [[ "$OMIT_MARKER" == "Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a" ]] ||
+        printf '%s\n' 'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a'
+      [[ "$OMIT_MARKER" == "<title>FigmaVars" ]] || printf '%s\n' '<title>FigmaVars'
+      [[ "$OMIT_MARKER" == 'name="description"' ]] || printf '%s\n' 'name="description"'
+      [[ "$OMIT_MARKER" == 'property="og:title"' ]] || printf '%s\n' 'property="og:title"'
+      ;;
+    /docs)
+      [[ "$OMIT_MARKER" == "FigmaVars converts a Figma variables export into DTCG token files" ]] ||
+        printf '%s\n' 'FigmaVars converts a Figma variables export into DTCG token files'
+      ;;
+    /playground)
+      [[ "$OMIT_MARKER" == "This page calls the same build function as" ]] ||
+        printf '%s\n' 'This page calls the same build function as'
+      ;;
+    /docs/hooks/migration)
+      [[ "$OMIT_MARKER" == "FigmaVars v5 moves the hooks package from" ]] ||
+        printf '%s\n' 'FigmaVars v5 moves the hooks package from'
+      ;;
+    '/api/search?query=figma')
+      [[ "$OMIT_MARKER" == '"url":"/docs/concepts/figma-mcp"' ]] ||
+        printf '%s\n' '"url":"/docs/concepts/figma-mcp"'
+      ;;
+    *)
+      return 64
+      ;;
+  esac
+}
+
+protected_get() {
+  [[ "$2" == "$FAIL_PATH" ]] && return 65
+  route_body "$2"
+}
+
+curl() {
+  local url=''
+  local path=''
+  for url in "$@"; do :; done
+  path="${'$'}{url#https://figmavars.com}"
+  [[ -n "$path" ]] || path=/
+  [[ "$path" == "$FAIL_PATH" ]] && return 66
+  route_body "$path"
+}
+`
+  const markers = [
+    'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
+    '<title>FigmaVars',
+    'name="description"',
+    'property="og:title"',
+    'FigmaVars converts a Figma variables export into DTCG token files',
+    'This page calls the same build function as',
+    'FigmaVars v5 moves the hooks package from',
+    '"url":"/docs/concepts/figma-mcp"',
+  ]
+  const paths = [
+    '/',
+    '/docs',
+    '/playground',
+    '/docs/hooks/migration',
+    '/api/search?query=figma',
+  ]
+
+  for (const verifier of [
+    ['verify_protected_deployment', 'https://candidate.vercel.app'],
+    ['verify_public_site', 'https://figmavars.com'],
+  ]) {
+    const [name, target] = verifier
+    const baseline = runBash(
+      `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=''\n${name} ${target}`
+    )
+    assert.equal(baseline.status, 0, baseline.stderr)
+
+    for (const marker of markers) {
+      const result = runBash(
+        `${definitions}\n${mocks}\nOMIT_MARKER=${JSON.stringify(marker)}\nFAIL_PATH=''\n${name} ${target}`
+      )
+      assert.notEqual(
+        result.status,
+        0,
+        `${name} must reject missing marker ${marker}`
+      )
+    }
+    for (const path of paths) {
+      const result = runBash(
+        `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=${JSON.stringify(path)}\n${name} ${target}`
+      )
+      assert.notEqual(
+        result.status,
+        0,
+        `${name} must reject a failed fetch for ${path}`
+      )
+    }
+  }
+})
+
+test('Vercel promotion phase stops on failed identity and route gates', t => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const vercelPhase = extractMarkdownSubsection(
+    external,
+    '### 9. Promote one staged production deployment'
+  )
+  const candidateBlock = extractBashBlockContaining(
+    vercelPhase,
+    'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
+    'candidate deployment'
+  )
+  const temp = mkdtempSync(join(tmpdir(), 'figmavars-vercel-gates-'))
+  const callLog = join(temp, 'calls.log')
+  t.after(() => rmSync(temp, { recursive: true, force: true }))
+
+  const mocks = String.raw`
+FINAL_COMMIT=0123456789abcdef0123456789abcdef01234567
+PROJECT_ID=prj_test
+
+mktemp() {
+  printf '%s\n' /tmp/figmavars-vercel-gate
+}
+
+git() {
+  if [[ "$1" == "rev-parse" ]]; then
+    [[ "$FAIL_STAGE" == "head_identity" ]] &&
+      printf '%s\n' 1111111111111111111111111111111111111111 ||
+      printf '%s\n' "$FINAL_COMMIT"
+    return 0
+  fi
+  if [[ "$1" == "-C" && "$3" == "rev-parse" ]]; then
+    [[ "$FAIL_STAGE" == "worktree_identity" ]] &&
+      printf '%s\n' 2222222222222222222222222222222222222222 ||
+      printf '%s\n' "$FINAL_COMMIT"
+    return 0
+  fi
+  return 0
+}
+
+vercel() {
+  case "$1" in
+    deploy)
+      printf '%s\n' '{"kind":"deploy"}'
+      ;;
+    inspect)
+      if [[ "$2" == "figmavars.com" ]]; then
+        printf '%s\n' '{"kind":"production"}'
+      else
+        printf '%s\n' '{"kind":"candidate"}'
+      fi
+      ;;
+    promote)
+      printf '%s\n' promote >>"$CALL_LOG"
+      ;;
+    domains)
+      return 0
+      ;;
+  esac
+}
+
+jq() {
+  local filter="${'$'}{2:-}"
+  local input
+  input=$(cat)
+  case "$filter" in
+    '.id |'*)
+      printf '%s\n' dpl_candidate
+      ;;
+    '.url |'*)
+      printf '%s\n' https://candidate.vercel.app
+      ;;
+    '.id')
+      if [[ "$input" == *'"kind":"production"'* ]]; then
+        [[ "$FAIL_STAGE" == "production_identity" ]] &&
+          printf '%s\n' dpl_other ||
+          printf '%s\n' dpl_candidate
+      else
+        [[ "$FAIL_STAGE" == "inspect_identity" ]] &&
+          printf '%s\n' dpl_other ||
+          printf '%s\n' dpl_candidate
+      fi
+      ;;
+    '.name')
+      printf '%s\n' figmavars
+      ;;
+    '.url')
+      printf '%s\n' candidate.vercel.app
+      ;;
+    '.readyState')
+      printf '%s\n' READY
+      ;;
+    '.target')
+      [[ "$FAIL_STAGE" == "target_identity" ]] &&
+        printf '%s\n' preview ||
+        printf '%s\n' production
+      ;;
+    '.meta.gitCommitSha')
+      printf '%s\n' "$FINAL_COMMIT"
+      ;;
+  esac
+}
+
+verify_protected_deployment() {
+  [[ "$FAIL_STAGE" != "candidate_routes" ]]
+}
+
+verify_public_site() {
+  [[ "$FAIL_STAGE" != "public_routes" ]]
+}
+
+cleanup_vercel_probe() {
+  return 0
+}
+`
+
+  for (const failure of [
+    'head_identity',
+    'worktree_identity',
+    'inspect_identity',
+    'target_identity',
+    'candidate_routes',
+  ]) {
+    writeFileSync(callLog, '')
+    const result = runBash(
+      `${mocks}\nFAIL_STAGE=${failure}\nCALL_LOG=${JSON.stringify(callLog)}\n${candidateBlock}`
+    )
+    assert.notEqual(result.status, 0, `${failure} must stop the phase`)
+    assert.equal(
+      readFileSync(callLog, 'utf8'),
+      '',
+      `${failure} must stop before promotion`
+    )
+  }
+
+  for (const failure of ['production_identity', 'public_routes']) {
+    writeFileSync(callLog, '')
+    const result = runBash(
+      `${mocks}\nFAIL_STAGE=${failure}\nCALL_LOG=${JSON.stringify(callLog)}\n${candidateBlock}`
+    )
+    assert.notEqual(
+      result.status,
+      0,
+      `${failure} must not be masked by cleanup`
+    )
+    assert.equal(readFileSync(callLog, 'utf8'), 'promote\n')
+  }
+
+  const bashBlocks = [...vercelPhase.matchAll(/```bash\n([\s\S]*?)\n```/g)].map(
+    match => match[1]
+  )
+  assert.equal(bashBlocks.length, 5)
+  for (const block of bashBlocks) {
+    assert.match(block, /^set -euo pipefail\n/)
+  }
+})
+
+test('Vercel probe cleanup retains retry state until revoke readback is zero', t => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const probeBlock = extractBashBlockContaining(
+    external,
+    'cleanup_vercel_probe()',
+    'Vercel probe cleanup'
+  )
+  const functionStart = probeBlock.indexOf('cleanup_vercel_probe()')
+  const functionEnd =
+    probeBlock.indexOf('\n}\ncleanup_vercel_probe_on_exit()', functionStart) + 3
+  assert.ok(functionEnd > functionStart, 'cleanup function must be extractable')
+  const cleanupFunction = probeBlock.slice(functionStart, functionEnd)
+  const exitHandlerStart = probeBlock.indexOf('cleanup_vercel_probe_on_exit()')
+  assert.notEqual(
+    exitHandlerStart,
+    -1,
+    'EXIT trap must retry cleanup before the shell loses the bypass secret'
+  )
+  const exitHandlerEnd =
+    probeBlock.indexOf(
+      '\n}\ntrap cleanup_vercel_probe_on_exit EXIT',
+      exitHandlerStart
+    ) + 3
+  assert.ok(
+    exitHandlerEnd > exitHandlerStart,
+    'EXIT handler must be extractable'
+  )
+  const exitHandler = probeBlock.slice(exitHandlerStart, exitHandlerEnd)
+  assertInOrder(
+    probeBlock,
+    [
+      'VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)',
+      'VERCEL_BYPASS_ACTIVE=true',
+      'vercel project protection enable "$PROJECT_ID" --protection-bypass',
+    ],
+    'conservative bypass cleanup arming'
+  )
+  const common = String.raw`
+VERCEL_PROBE_ROOT=/tmp/disposable-vercel-probe
+VERCEL_BYPASS_SECRET=test-bypass-secret
+VERCEL_BYPASS_ACTIVE=true
+RM_CALLED=0
+rm() {
+  RM_CALLED=1
+  return 0
+}
+`
+
+  const revokeFailure = runBash(String.raw`${cleanupFunction}
+${common}
+vercel() {
+  return 71
+}
+if cleanup_vercel_probe; then
+  exit 72
+fi
+[[ "$VERCEL_BYPASS_ACTIVE" == true ]] || exit 73
+[[ "$RM_CALLED" == 0 ]] || exit 74
+`)
+  assert.equal(revokeFailure.status, 0, revokeFailure.stderr)
+
+  const readbackFailure = runBash(String.raw`${cleanupFunction}
+${common}
+vercel() {
+  if [[ "$1" == project ]]; then
+    return 0
+  fi
+  if [[ "$1" == api ]]; then
+    printf '%s\n' '{"protectionBypass":{"still-active":{"scope":"automation-bypass"}}}'
+    return 0
+  fi
+  return 75
+}
+if cleanup_vercel_probe; then
+  exit 76
+fi
+[[ "$VERCEL_BYPASS_ACTIVE" == true ]] || exit 77
+[[ "$RM_CALLED" == 0 ]] || exit 78
+`)
+  assert.equal(readbackFailure.status, 0, readbackFailure.stderr)
+  assert.match(
+    external,
+    /if cleanup_vercel_probe; then\s+trap - EXIT\s+else[\s\S]*bypass[\s\S]*(?:return|exit) 1/
+  )
+
+  const retryRoot = mkdtempSync(join(tmpdir(), 'figmavars-exit-cleanup-'))
+  const retryLog = join(retryRoot, 'cleanup.log')
+  t.after(() => rmSync(retryRoot, { recursive: true, force: true }))
+  const earlyAbort = runBash(String.raw`
+${exitHandler}
+cleanup_vercel_probe() {
+  printf '%s\n' cleanup >>"$RETRY_LOG"
+  [[ "$(wc -l <"$RETRY_LOG")" -ge 2 ]]
+}
+sleep() {
+  return 0
+}
+RETRY_LOG=${JSON.stringify(retryLog)}
+trap cleanup_vercel_probe_on_exit EXIT
+set -e
+false
+`)
+  assert.notEqual(earlyAbort.status, 0, 'early gate failure must stay failed')
+  assert.equal(
+    readFileSync(retryLog, 'utf8'),
+    'cleanup\ncleanup\n',
+    'EXIT handler must retry a transient first cleanup failure'
+  )
+})
+
+test('credential retirement blocks on retained GitHub secrets and npm tokens', t => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const secretBlock = extractFirstBashBlock(
+    extractMarkdownSubsection(
+      external,
+      '### 6. Delete the GitHub environment secret'
+    ),
+    'GitHub secret deletion'
+  )
+  const secretMock = String.raw`
+gh() {
+  if [[ "$1 $2" == "secret delete" ]]; then
+    return 0
+  fi
+  if [[ "$1 $2" == "secret list" ]]; then
+    printf '%s\n' "$GH_SECRET_LIST_JSON"
+    return "${'$'}{GH_SECRET_LIST_STATUS:-0}"
+  fi
+  return 81
+}
+`
+  const retainedSecret = runBash(
+    `${secretMock}\nGH_SECRET_LIST_JSON='[{"name":"NPM_TOKEN"}]'\n${secretBlock}`
+  )
+  assert.notEqual(
+    retainedSecret.status,
+    0,
+    'secret phase must stop when NPM_TOKEN remains listed'
+  )
+  const removedSecret = runBash(
+    `${secretMock}\nGH_SECRET_LIST_JSON='[]'\nGH_SECRET_LIST_STATUS=0\n${secretBlock}`
+  )
+  assert.equal(removedSecret.status, 0, removedSecret.stderr)
+  const failedSecretReadback = runBash(
+    `${secretMock}\nGH_SECRET_LIST_JSON='[]'\nGH_SECRET_LIST_STATUS=83\n${secretBlock}`
+  )
+  assert.notEqual(
+    failedSecretReadback.status,
+    0,
+    'secret phase must reject absence-looking output from a failed list command'
+  )
+
+  const tokenBlock = extractFirstBashBlock(
+    extractMarkdownSubsection(
+      external,
+      '### 7. Revoke the exact bootstrap token'
+    ),
+    'npm token revocation'
+  ).replace(
+    "BOOTSTRAP_TOKEN_ID='<exact token ID from npm token list --json>'",
+    "BOOTSTRAP_TOKEN_ID='token-id-123'"
+  )
+  const tokenState = join(
+    mkdtempSync(join(tmpdir(), 'figmavars-token-retirement-')),
+    'revoked'
+  )
+  t.after(() =>
+    rmSync(tokenState.slice(0, tokenState.lastIndexOf('/')), {
+      recursive: true,
+      force: true,
+    })
+  )
+  const tokenMock = String.raw`
+npm() {
+  if [[ "$1 $2" == "token list" ]]; then
+    if [[ -e "$TOKEN_STATE" && "$KEEP_REVOKED_TOKEN" != true ]]; then
+      printf '%s\n' '[]'
+    else
+      printf '%s\n' '[{"key":"token-id-123","token":"npm_example"}]'
+    fi
+    if [[ ! -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == before ]] ||
+      [[ -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == after ]]; then
+      return 84
+    fi
+    return 0
+  fi
+  if [[ "$1 $2" == "token revoke" ]]; then
+    : >"$TOKEN_STATE"
+    return 0
+  fi
+  return 82
+}
+`
+  const retainedToken = runBash(
+    `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nKEEP_REVOKED_TOKEN=true\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
+  )
+  assert.notEqual(
+    retainedToken.status,
+    0,
+    'token phase must stop when the exact token ID remains listed'
+  )
+  rmSync(tokenState, { force: true })
+  const removedToken = runBash(
+    `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
+  )
+  assert.equal(removedToken.status, 0, removedToken.stderr)
+  for (const failure of ['before', 'after']) {
+    rmSync(tokenState, { force: true })
+    const failedReadback = runBash(
+      `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=${failure}\n${tokenBlock}`
+    )
+    assert.notEqual(
+      failedReadback.status,
+      0,
+      `token phase must reject a failed ${failure}-revoke list command`
+    )
+  }
+  const absentIdAndFailedRevoke = runBash(String.raw`
+npm() {
+  if [[ "$1 $2" == "token list" ]]; then
+    printf '%s\n' '[]'
+    return 0
+  fi
+  if [[ "$1 $2" == "token revoke" ]]; then
+    return 85
+  fi
+  return 86
+}
+${tokenBlock}
+`)
+  assert.notEqual(
+    absentIdAndFailedRevoke.status,
+    0,
+    'token phase must stop when the chosen ID is absent and revocation fails'
+  )
+})
+
+test('requires immutable staged production promotion before legacy deprecation', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const normalizedExternal = external.replace(/\s+/g, ' ')
+
+  for (const phrase of [
+    VERCEL_PROJECT_ID,
+    '`rootDirectory` is exactly `apps/docs`',
+    '`sourceFilesOutsideRootDirectory` is `true`',
+    '`apps/docs/vercel.json`',
+    '`"github": { "autoAlias": false }`',
+    'required before merge',
+    'current production deployment is not a valid docs rollback',
+    'known-good docs fallback',
+    'fallback deployment ID and URL',
+    'exact deployment ID and URL',
+    'exact commit',
+    'target type `production`',
+    '--meta gitCommitSha="$FALLBACK_COMMIT"',
+    '--meta gitCommitSha="$FINAL_COMMIT"',
+    'vercel promote "$DEPLOYMENT_ID"',
+    'vercel domains inspect figmavars.com',
+  ]) {
+    assert.ok(
+      normalizedExternal.includes(phrase),
+      `Vercel phase needs ${phrase}`
+    )
+  }
+  assertInOrder(
+    external,
+    [
+      `PROJECT_ID=${VERCEL_PROJECT_ID}`,
+      'vercel api "/v9/projects/$PROJECT_ID"',
+      "jq -r '.github.autoAlias' apps/docs/vercel.json",
+      'vercel list figmavars --environment production',
+      'VERCEL_PROBE_DIR=',
+      'vercel link --cwd "$VERCEL_PROBE_DIR"',
+      'VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)',
+      'vercel project protection enable "$PROJECT_ID" --protection-bypass',
+      'FALLBACK_COMMIT=',
+      'vercel deploy "$FALLBACK_WORKTREE"',
+      '--meta gitCommitSha="$FALLBACK_COMMIT"',
+      'vercel inspect "$FALLBACK_DEPLOYMENT_ID"',
+      'verify_protected_deployment "$FALLBACK_DEPLOYMENT_URL"',
+      'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
+      '--prod --skip-domain',
+      '--meta gitCommitSha="$FINAL_COMMIT"',
+      'vercel inspect "$DEPLOYMENT_ID"',
+      'verify_protected_deployment "$DEPLOYMENT_URL"',
+      'vercel promote "$DEPLOYMENT_ID"',
+      'vercel domains inspect figmavars.com',
+      'verify_public_site https://figmavars.com',
+      'if cleanup_vercel_probe; then',
+      'npm view "@figmavars/core@5.0.0"',
+      LEGACY_DEPRECATION_COMMAND,
+    ],
+    'staged production and deprecation'
+  )
+  assert.equal(occurrences(external, '--prod --skip-domain'), 2)
+  assert.equal(
+    occurrences(
+      external,
+      'vercel project protection enable "$PROJECT_ID" --protection-bypass'
+    ),
+    1
+  )
+  assert.equal(
+    occurrences(
+      external,
+      'vercel project protection disable "$PROJECT_ID" --protection-bypass'
+    ),
+    1
+  )
+  assert.match(
+    external,
+    /\(cd "\$VERCEL_PROBE_DIR" &&\s+vercel curl "\$path" --deployment "\$deployment"/
+  )
+  const protectedVerifier = external.slice(
+    external.indexOf('protected_get()'),
+    external.indexOf('verify_public_site()')
+  )
+  const publicVerifier = external.slice(
+    external.indexOf('verify_public_site()'),
+    external.indexOf('Choose a full, reviewed commit')
+  )
+  assert.match(protectedVerifier, /vercel curl/)
+  assert.doesNotMatch(protectedVerifier, /^\s*curl\b/m)
+  assert.match(publicVerifier, /^\s*body=\$\(curl\b/m)
+  assert.doesNotMatch(publicVerifier, /vercel curl/)
+  for (const meaningfulContent of [
+    'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
+    'FigmaVars converts a Figma variables export into DTCG token files',
+    'This page calls the same build function as',
+    'FigmaVars v5 moves the hooks package from',
+    '"url":"/docs/concepts/figma-mcp"',
+  ]) {
+    assert.ok(
+      external.includes(meaningfulContent),
+      `deployment verification needs ${meaningfulContent}`
+    )
+  }
+  assert.doesNotMatch(external, /jq -r '\.autoAlias' apps\/docs\/vercel\.json/)
+  assert.doesNotMatch(
+    external,
+    /vercel promote (?:latest|main|quality\/)|vercel alias set|--force/
+  )
+  assert.match(external, /do not[\s\S]*reassign[\s\S]*domain/i)
+  assert.match(
+    external,
+    /rerun[\s\S]*complete[\s\S]*route and metadata checks/i
+  )
+  assert.equal(occurrences(external, LEGACY_DEPRECATION_COMMAND), 1)
+  assert.match(
+    external,
+    /`@figma-vars\/hooks@4\.0\.0` receives no new version/i
+  )
+  assert.match(
+    external,
+    /five replacement packages[\s\S]*production documentation site[\s\S]*migration page[\s\S]*before deprecation/i
+  )
+  assert.doesNotMatch(external, /npm deprecate[^\n]*@(?:\*|[^"\s]+@\*)/)
+})
+
+test('binds staged deployments and the production alias to immutable identities', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  assert.doesNotMatch(external, /vercel deploy "\$REPO_ROOT"/)
+  assertInOrder(
+    external,
+    [
+      'FALLBACK_DEPLOY_JSON=$(vercel deploy "$FALLBACK_WORKTREE"',
+      "FALLBACK_DEPLOYMENT_ID=$(jq -er '.id |",
+      "FALLBACK_DEPLOYMENT_URL=$(jq -er '.url |",
+      'FALLBACK_DEPLOYMENT_HOST="${FALLBACK_DEPLOYMENT_URL#https://}"',
+      'FALLBACK_JSON=$(vercel inspect "$FALLBACK_DEPLOYMENT_ID"',
+      `test "$(jq -r '.url' <<<"$FALLBACK_JSON")" = "$FALLBACK_DEPLOYMENT_HOST"`,
+      'CANDIDATE_WORKTREE=',
+      'git worktree add --detach "$CANDIDATE_WORKTREE" "$FINAL_COMMIT"',
+      `test "$(git -C "$CANDIDATE_WORKTREE" rev-parse 'HEAD^{commit}')" = "$FINAL_COMMIT"`,
+      'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
+      "DEPLOYMENT_ID=$(jq -er '.id |",
+      "DEPLOYMENT_URL=$(jq -er '.url |",
+      'DEPLOYMENT_HOST="${DEPLOYMENT_URL#https://}"',
+      'CANDIDATE_JSON=$(vercel inspect "$DEPLOYMENT_ID"',
+      `test "$(jq -r '.url' <<<"$CANDIDATE_JSON")" = "$DEPLOYMENT_HOST"`,
+      'vercel promote "$DEPLOYMENT_ID"',
+      'PRODUCTION_JSON=$(vercel inspect figmavars.com',
+      `test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$DEPLOYMENT_ID"`,
+    ],
+    'deployment identity'
+  )
+  assert.equal(
+    occurrences(external, 'DEPLOYMENT_ID=$(jq -er'),
+    2,
+    'fallback and candidate IDs must both derive from deploy JSON'
+  )
+  assert.equal(
+    occurrences(external, 'DEPLOYMENT_URL=$(jq -er'),
+    2,
+    'fallback and candidate URLs must both derive from deploy JSON'
+  )
+  assert.equal(
+    occurrences(external, 'select(test("^https://'),
+    2,
+    'deploy JSON URLs must be validated as absolute HTTPS Vercel URLs'
+  )
+  assert.doesNotMatch(
+    external,
+    /\.url \| strings \| select\(endswith\("\.vercel\.app"\)\)/
+  )
+  assert.match(
+    external,
+    /public production alias[\s\S]*exact promoted\s+deployment ID/i
+  )
+})
+
 test('freezes the exact local preflight and supported toolchain boundaries', () => {
   const preflight = extractMarkdownSection(releaseRunbook, '## Local preflight')
   assert.equal(
@@ -1502,7 +2668,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     '## External npm and GitHub steps'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
-  assert.equal(checklist.length, 10)
+  assert.equal(checklist.length, 11)
   assert.ok(checklist.every(item => item[1] === ' '))
   for (const phrase of [
     '@figmavars ownership, 2FA, and new-package rights',
