@@ -109,7 +109,7 @@ describe('emitTypescript', () => {
   it('labels generated values by their default contexts', () => {
     expect(source).toContain(' * Each modifier axis uses its default context.')
     expect(source).toContain(
-      '/** CSS variable references keyed by token path. */'
+      '/** CSS variable references for each token path. */'
     )
     expect(source).not.toContain('every modifier axis')
   })
@@ -182,7 +182,7 @@ describe('emitTypescript', () => {
         resolutionOrder: [],
       }
     )
-    const directory = mkdtempSync(join(tmpdir(), 'figmavars-empty-types-'))
+    const directory = mkdtempSync(join(tmpdir(), 'primitree-empty-types-'))
     const file = join(directory, 'tokens.ts')
 
     try {
@@ -423,9 +423,12 @@ describe('buildPipeline', () => {
       )?.contents
 
       expect(workflow).toBeDefined()
-      expect(workflow).toContain(`@figmavars/cli@${cliPackageManifest.version}`)
+      expect(workflow).toContain(`@primitree/cli@${cliPackageManifest.version}`)
       expect(pipelineSource).toContain('cliPackageManifest.version')
-      expect(pipelineSource).not.toContain("'@figmavars/cli@5.0.0'")
+      expect(pipelineSource).not.toContain("'@primitree/cli@1.0.0'")
+      expect(workflow).toContain('./node_modules/.bin/primitree build')
+      expect(workflow).toContain('path: .primitree-generated')
+      expect(workflow).toContain('primitree-artifact-root.json')
       expect(workflow).toContain('node-version: 24.18.0')
       expect(workflow).not.toMatch(/\bnpx\b/)
       expect(workflow).not.toContain('git add -A')
@@ -515,10 +518,10 @@ describe('buildPipeline', () => {
       '--no-css --no-tailwind --no-ts --no-transformer'
     )
     expect(seal?.run).toContain(
-      `printf '%s\\n' '{"schema":1}' > figmavars-artifact-root.json`
+      `printf '%s\\n' '{"schema":1}' > primitree-artifact-root.json`
     )
     expect(upload?.with).toMatchObject({
-      path: 'figmavars-artifact-root.json\ntokens/\n',
+      path: 'primitree-artifact-root.json\ntokens/\n',
     })
     expect(install?.run).toContain(
       "readFileSync(artifactRootPath, 'utf8') !== artifactRootContents"

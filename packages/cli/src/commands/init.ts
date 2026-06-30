@@ -1,18 +1,18 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { buildPipeline } from '@figmavars/dtcg'
+import { buildPipeline } from '@primitree/dtcg'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile, writePipelineFiles } from '../io'
 import { sampleVariables } from '../sample'
 
 export const initHelp = `
-figma-vars init: create a design tokens repository
+primitree init: create a design tokens repository
 
 Creates variables.json, generated token files, package scripts, and a
 GitHub Actions workflow. Pass --from to use an existing variables export.
 
 Usage:
-  figma-vars init [dir] [options]
+  primitree init [dir] [options]
 
 Options:
   --from <variables.json>   Seed from a real Figma variables export
@@ -20,8 +20,8 @@ Options:
   --force                   Replace scaffold-owned files; preserve unrelated files
 
 Examples:
-  figma-vars init my-tokens
-  figma-vars init my-tokens --from ./variables.json
+  primitree init my-tokens
+  primitree init my-tokens --from ./variables.json
 `
 
 function tokensPackageJson(name: string): string {
@@ -32,13 +32,13 @@ function tokensPackageJson(name: string): string {
       private: true,
       type: 'module',
       scripts: {
-        build: 'figma-vars build variables.json --out . --no-github-action',
-        check: 'figma-vars check variables.json && figma-vars check tokens',
-        diff: 'figma-vars diff backup/variables.json variables.json',
+        build: 'primitree build variables.json --out . --no-github-action',
+        check: 'primitree check variables.json && primitree check tokens',
+        diff: 'primitree diff backup/variables.json variables.json',
         backup: 'mkdir -p backup && cp variables.json backup/variables.json',
       },
       devDependencies: {
-        '@figmavars/cli': 'latest',
+        '@primitree/cli': 'latest',
       },
     },
     null,
@@ -148,14 +148,14 @@ function scaffoldError(findings: ScaffoldFinding[], canForce: boolean): Error {
 function repoReadme(name: string): string {
   return `# ${name}
 
-Built with [\`@figmavars/cli\`](https://github.com/marklearst/figmavars).
+This repository uses [\`@primitree/cli\`](https://github.com/marklearst/primitree).
 
 The generated token files use DTCG 2025.10 plus a documented boolean extension.
 
 ## Workflow
 
 1. Export variables from Figma into \`variables.json\`
-   with \`figma-vars export\` or a supported variables plugin.
+   with \`primitree export\` or a supported variables plugin.
 2. Run \`npm run diff\` to compare it with \`backup/variables.json\`.
 3. Run \`npm run build\` to rebuild the token files.
 4. Run \`npm run backup\` after you ship the change.
@@ -348,7 +348,7 @@ export async function runInit(args: ParsedArgs): Promise<void> {
   await fs.writeFile(
     path.join(workflowDir, 'design-tokens.yml'),
     workflow.contents.replace(
-      '# If this file is not at the repository root, move it to .github/workflows/.\n',
+      '# Store this file at .github/workflows/design-tokens.yml.\n',
       ''
     ),
     'utf8'
@@ -359,11 +359,11 @@ export async function runInit(args: ParsedArgs): Promise<void> {
   await fs.mkdir(backupDir, { recursive: true })
   await fs.copyFile(variablesPath, path.join(backupDir, 'variables.json'))
 
-  console.log(`Scaffolded tokens repo in ${dir}`)
+  console.log(`Created a token repository in ${dir}`)
   console.log(
     from
-      ? `Seeded from ${from}`
-      : 'Seeded with sample variables. Replace variables.json with your export.'
+      ? `Copied variables from ${from}`
+      : 'Created variables.json from sample data. Replace it with your export.'
   )
   console.log('Next steps:')
   console.log(`  cd ${path.relative(process.cwd(), dir) || '.'}`)

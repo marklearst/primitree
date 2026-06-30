@@ -1,7 +1,7 @@
 {
-  "name": "@figmavars/hooks",
-  "version": "5.0.0",
-  "description": "React 19 hooks for built FigmaVars tokens and the Figma Variables REST API.",
+  "name": "@primitree/hooks",
+  "version": "1.0.0",
+  "description": "React 19 hooks for built Primitree tokens and the Figma Variables REST API.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
@@ -16,12 +16,8 @@
     }
   },
   "files": [
-    "dist",
-    "scripts/export-variables.mjs"
+    "dist"
   ],
-  "bin": {
-    "figma-vars-export": "./scripts/export-variables.mjs"
-  },
   "keywords": [
     "figma",
     "figma variables",
@@ -37,13 +33,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figmavars.git",
+    "url": "git+https://github.com/marklearst/primitree.git",
     "directory": "packages/hooks"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figmavars/issues"
+    "url": "https://github.com/marklearst/primitree/issues"
   },
-  "homepage": "https://github.com/marklearst/figmavars#readme",
+  "homepage": "https://github.com/marklearst/primitree#readme",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -101,8 +97,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*",
-    "@figmavars/dtcg": "workspace:*"
+    "@primitree/core": "workspace:*",
+    "@primitree/dtcg": "workspace:*"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.4",
