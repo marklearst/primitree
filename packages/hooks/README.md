@@ -189,9 +189,8 @@ FigmaVars code.
 
 ## CLI export
 
-The package includes the `figma-vars-export` command for existing users.
-[`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) provides the
-current `figma-vars export` command with the rest of the token workflow.
+Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) and its
+`primitree export` command for token exports.
 
 ## Migrating from 4.x
 

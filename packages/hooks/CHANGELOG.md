@@ -41,8 +41,7 @@ reach npm. Version 1.0.0 includes that work:
 3. Replace undocumented `dist` imports with a public package entry.
 4. Move to Node.js 24, React `^19.0.0`, and SWR `^2.3.7`.
 
-The `figma-vars-export` command remains in this package. New token projects can
-use `figma-vars export` from `@primitree/cli`.
+Use `primitree export` from `@primitree/cli` for token exports.
 
 Read the [migration guide](https://primitree.com/docs/hooks/migration).
 
@@ -109,7 +108,7 @@ _npm registry timestamp: `2025-12-15T19:43:48.064Z`._
 - An `swrConfig` prop on `FigmaVariablesProvider`.
 - `FigmaApiError` and helpers for error status and messages.
 - `useInvalidateVariables` for query cache refresh.
-- The `figma-vars-export` command.
+- Package-level token export support.
 
 ### Changed
 
