@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import manifest from '../manifest.json'
 
 const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
   navigator,
@@ -117,7 +118,7 @@ beforeEach(async () => {
   postMessage = vi.fn()
   vi.spyOn(window.parent, 'postMessage').mockImplementation(postMessage)
 
-  createObjectUrl = vi.fn().mockReturnValue('blob:figmavars-test')
+  createObjectUrl = vi.fn().mockReturnValue('blob:primitree-test')
   revokeObjectUrl = vi.fn()
   Object.defineProperty(URL, 'createObjectURL', {
     configurable: true,
@@ -155,6 +156,13 @@ afterEach(() => {
 })
 
 describe('Figma plugin UI export state', () => {
+  it('registers the Primitree Export plugin identity', () => {
+    expect(manifest).toMatchObject({
+      name: 'Primitree Export',
+      id: 'primitree-export',
+    })
+  })
+
   it('invalidates a previous result through retry and error', () => {
     const {
       excludeHidden,
@@ -169,7 +177,7 @@ describe('Figma plugin UI export state', () => {
 
     dispatchExported()
     expect(actions.classList.contains('hidden')).toBe(false)
-    expect(stats.textContent).toBe('1 collections · 1 variables · 1 modes')
+    expect(stats.textContent).toBe('1 collection · 1 variable · 1 mode')
 
     exportButton.click()
 
@@ -379,10 +387,10 @@ describe('Figma plugin UI export state', () => {
     expect(blob.size).toBe(new Blob(['{"meta":{"format":"dtcg"}}']).size)
     expect(anchorClick).toHaveBeenCalledOnce()
     const anchor = anchorClick.mock.contexts[0] as HTMLAnchorElement
-    expect(anchor.href).toBe('blob:figmavars-test')
+    expect(anchor.href).toBe('blob:primitree-test')
     expect(anchor.download).toBe('tokens.json')
     expect(revokeObjectUrl).toHaveBeenCalledOnce()
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:figmavars-test')
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:primitree-test')
   })
 
   it('reports successful copy feedback and resets it after 1200ms', async () => {
@@ -411,7 +419,9 @@ describe('Figma plugin UI export state', () => {
     await flushPromises()
 
     expect(copyButton.textContent).toBe('Copy')
-    expect(error.textContent).toBe('Clipboard blocked. Use Download instead.')
+    expect(error.textContent).toBe(
+      'Clipboard access is unavailable. Use Download instead.'
+    )
   })
 
   it('restores every control after a successful export', () => {
@@ -437,7 +447,7 @@ describe('Figma plugin UI export state', () => {
     expect(copyButton.disabled).toBe(false)
     expect(exportButton.textContent).toBe('Export JSON')
     expect(actions.classList.contains('hidden')).toBe(false)
-    expect(stats.textContent).toBe('1 collections · 3 variables · 1 modes')
+    expect(stats.textContent).toBe('1 collection · 3 variables · 1 mode')
     expect(error.textContent).toBe('')
   })
 })

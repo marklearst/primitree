@@ -33,14 +33,15 @@ export function PipelinePreview() {
             before you commit them.
           </h2>
           <p className='pipeline-lede'>
-            Figma modes become Resolver contexts and CSS data selectors. The
-            build also writes Tailwind <code>@theme</code> mappings, typed
-            paths, and a GitHub Actions template.
+            <code>primitree build</code> maps Figma modes to Resolver contexts
+            and CSS data selectors. It writes Tailwind <code>@theme</code>{' '}
+            mappings and typed paths. The output includes a GitHub Actions
+            template.
           </p>
         </div>
 
         <div className='pipeline-tree-wrap'>
-          <p className='pipeline-tree-label'>figma-vars build variables.json</p>
+          <p className='pipeline-tree-label'>primitree build variables.json</p>
           <pre className='pipeline-tree'>
             <code>
               {lines.map((line, i) => (
@@ -48,7 +49,7 @@ export function PipelinePreview() {
                   key={line.text}
                   className='pipeline-line'
                   style={{ '--i': i } as React.CSSProperties}>
-                  <span className='text-fv-dim'>
+                  <span className='text-primitree-dim'>
                     {prefix(line.indent, i === lines.length - 1)}
                   </span>
                   <span className={`syntax-${line.kind}`}>{line.text}</span>

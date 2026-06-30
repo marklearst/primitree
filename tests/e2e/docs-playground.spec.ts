@@ -62,7 +62,7 @@ async function expectVisibleOutline(locator: Locator) {
   const outline = await locator.evaluate(element => {
     const style = getComputedStyle(element)
     const accentProbe = document.createElement('span')
-    accentProbe.style.color = 'var(--color-fv-accent)'
+    accentProbe.style.color = 'var(--color-primitree-accent)'
     document.body.append(accentProbe)
     const accentColor = getComputedStyle(accentProbe).color
     accentProbe.remove()

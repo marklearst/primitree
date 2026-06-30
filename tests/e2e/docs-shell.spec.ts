@@ -62,7 +62,7 @@ async function expectAccentFocusOutline(locator: Locator) {
   const outline = await locator.evaluate(element => {
     const style = getComputedStyle(element)
     const accentProbe = document.createElement('span')
-    accentProbe.style.color = 'var(--color-fv-accent)'
+    accentProbe.style.color = 'var(--color-primitree-accent)'
     document.body.append(accentProbe)
     const accentColor = getComputedStyle(accentProbe).color
     accentProbe.remove()
@@ -87,7 +87,7 @@ for (const width of widths) {
     await page.setViewportSize({ width, height: 812 })
     await page.goto('/')
     await expect(page.getByRole('main')).toHaveCount(1)
-    await expect(page.getByRole('link', { name: 'FigmaVars' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Primitree' })).toBeVisible()
     const menu = page.locator('details[aria-label="Navigation"]')
     const summary = menu.locator('summary')
     await summary.click()
@@ -126,7 +126,7 @@ test('mobile shell exposes the accent focus treatment', async ({ page }) => {
   await page.goto('/')
 
   await page.keyboard.press('Tab')
-  await expectAccentFocusOutline(page.getByRole('link', { name: 'FigmaVars' }))
+  await expectAccentFocusOutline(page.getByRole('link', { name: 'Primitree' }))
 
   await page.keyboard.press('Tab')
   await expectAccentFocusOutline(
