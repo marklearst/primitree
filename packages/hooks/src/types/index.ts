@@ -1,10 +1,10 @@
 /**
  * @packageDocumentation
  *
- * Public types exported by `@figmavars/hooks`.
+ * Public `@primitree/hooks` types.
  *
  * @remarks
- * The package root re-exports Figma data types from `@figmavars/core` with
+ * The package root re-exports Figma data types from `@primitree/core` with
  * hook and provider types.
  *
  * @example
@@ -14,15 +14,15 @@
  *   FigmaCollection,
  *   VariableMode,
  *   UpdateVariableArgs,
- *   FigmaVarsProviderProps,
+ *   FigmaVariablesProviderProps,
  *   MutationResult,
- * } from '@figmavars/hooks';
+ * } from '@primitree/hooks';
  *
  * function MyFeature(props: { variable: FigmaVariable; onUpdate: (args: UpdateVariableArgs) => void }) {
  *   // ...
  * }
  * ```
  */
-export * from '@figmavars/core/types'
+export * from '@primitree/core/types'
 export * from './hooks'
 export * from './contexts'

@@ -3,9 +3,9 @@ import { FigmaTokenContext } from './FigmaTokenContext'
 import type { FigmaTokenContextType } from '../types/contexts'
 
 /**
- * Read the value from the nearest {@link FigmaVarsProvider}.
+ * Read the value from the nearest {@link FigmaVariablesProvider}.
  *
- * @throws Error when no provider wraps the component.
+ * @throws Error outside a FigmaVariablesProvider.
  *
  * @public
  */
@@ -13,7 +13,7 @@ export const useFigmaTokenContext = (): FigmaTokenContextType => {
   const context = useContext(FigmaTokenContext)
   if (context === undefined) {
     throw new Error(
-      'useFigmaTokenContext must be used within a FigmaVarsProvider'
+      '[primitree] Call useFigmaTokenContext inside a FigmaVariablesProvider.'
     )
   }
   return context

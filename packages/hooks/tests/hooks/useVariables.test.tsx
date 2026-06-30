@@ -2,9 +2,9 @@ import { renderHook, waitFor } from '@testing-library/react'
 import useSWR from 'swr'
 import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { fetcher as apiFetcher } from '@figmavars/core'
+import { fetcher as apiFetcher } from '@primitree/core'
 
-import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
+import { FigmaVariablesProvider } from '../../src/contexts/FigmaVariablesProvider'
 import { useVariables } from '../../src/hooks/useVariables'
 import * as useFigmaTokenContextModule from '../../src/contexts/useFigmaTokenContext'
 import {
@@ -16,8 +16,8 @@ import type { ReactNode } from 'react'
 // Mock the useSWR hook
 vi.mock('swr')
 
-vi.mock('@figmavars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figmavars/core')>()),
+vi.mock('@primitree/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@primitree/core')>()),
   fetcher: vi.fn(),
 }))
 
@@ -25,36 +25,36 @@ const mockedUseSWR = useSWR as Mock
 const mockedApiFetcher = apiFetcher as Mock
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token='test-token'
     fileKey='test-key'>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 const wrapperNoToken = ({ children }: { children: ReactNode }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token={null}
     fileKey='test-key'>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 const wrapperNoFileKey = ({ children }: { children: ReactNode }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token='test-token'
     fileKey={null}>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 const wrapperWithFallbackFile = ({ children }: { children: ReactNode }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token='test-token'
     fileKey='test-key'
     fallbackFile={mockLocalVariablesResponse}>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 const wrapperWithFallbackFileString = ({
@@ -62,12 +62,12 @@ const wrapperWithFallbackFileString = ({
 }: {
   children: ReactNode
 }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token='test-token'
     fileKey='test-key'
     fallbackFile={JSON.stringify(mockLocalVariablesResponse)}>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 const wrapperWithFallbackFileNoCredentials = ({
@@ -75,12 +75,12 @@ const wrapperWithFallbackFileNoCredentials = ({
 }: {
   children: ReactNode
 }) => (
-  <FigmaVarsProvider
+  <FigmaVariablesProvider
     token={null}
     fileKey={null}
     fallbackFile={mockLocalVariablesResponse}>
     {children}
-  </FigmaVarsProvider>
+  </FigmaVariablesProvider>
 )
 
 describe('useVariables', () => {
@@ -399,7 +399,7 @@ describe('useVariables', () => {
     // This prevents fallback data from being cached under live API keys
     expect(Array.isArray(key)).toBe(true)
     const keyArray = key as [string, string]
-    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-/)
+    expect(keyArray[0]).toMatch(/^fallback-primitree-provider-/)
     expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 
@@ -431,7 +431,7 @@ describe('useVariables', () => {
     // React's useId() returns format like :r1:, :r2:, etc.
     expect(Array.isArray(key)).toBe(true)
     const keyArray = key as [string, string]
-    expect(keyArray[0]).toMatch(/^fallback-figma-vars-provider-/)
+    expect(keyArray[0]).toMatch(/^fallback-primitree-provider-/)
     expect(keyArray[1]).toBe('fallback')
     expect(typeof fetcher).toBe('function')
 

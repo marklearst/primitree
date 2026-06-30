@@ -1,50 +1,50 @@
 # Changelog
 
 npm records 24 published versions of the legacy `@figma-vars/hooks` package.
-Each published section below uses its UTC timestamp from the public registry.
+Each published section uses its UTC timestamp from the public registry.
 Published entries appear in reverse registry order.
 
-## 5.0.0 (Unreleased)
+## 1.0.0 (Unreleased)
 
-Version 5 moves the React package to `@figmavars/hooks` and releases it with
-the other FigmaVars packages.
+Version 1 moves the React package to `@primitree/hooks` and releases it with
+the other Primitree packages.
 
 ### Added
 
-- `TokensProvider` for DTCG documents and Resolver output from `figma-vars build`.
+- `TokensProvider` for DTCG documents and Resolver output from `primitree build`.
 - `useToken` for one token, its resolved value, CSS value, and `var()` accessor.
 - `useTokens` for flattened tokens under active contexts.
 - `useTheme` for reading and changing Resolver contexts.
 
 ### Changed
 
-- Shared non-React code moved to `@figmavars/core`.
-- `@figmavars/hooks/core` now re-exports `@figmavars/core` for compatibility.
-- Package declarations now ship as bundled root and `core` entry files.
-- The package now requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
-- The toolchain now uses Vite 8, Vitest 4, TypeScript 6, and Biome 2.
+- Shared non-React code moved to `@primitree/core`.
+- `@primitree/hooks/core` re-exports `@primitree/core` for compatibility.
+- Package declarations ship as bundled root and `core` entry files.
+- The package requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
+- The toolchain uses Vite 8, Vitest 4, TypeScript 6, and Biome 2.
 
 ### Unpublished work after 4.0.0
 
 Older changelog drafts labeled work as 4.1.1 and 4.2.0. Those versions did not
-reach npm. Version 5.0.0 includes that work:
+reach npm. Version 1.0.0 includes that work:
 
 - Root exports for `withRetry`, `redactToken`, rate-limit helpers, runtime guards, selector hooks, `useFigmaToken`, and `useFigmaTokenContext`.
-- Fallback cache keys now activate after fallback data passes validation.
-- Invalid fallback data no longer prevents live requests when credentials exist.
-- Version 5 removes stale TypeScript path aliases and the unused package documentation directory field.
+- Fallback cache keys activate after the provider validates fallback data.
+- Live requests continue when credentials exist and fallback validation fails.
+- Version 1 removes stale TypeScript path aliases and the unused package documentation directory field.
 
 ### Migration from `@figma-vars/hooks` 4.0.0
 
-1. Replace `@figma-vars/hooks` with `@figmavars/hooks` in dependencies and imports.
-2. Replace `@figma-vars/hooks/core` with `@figmavars/hooks/core` or `@figmavars/core`.
+1. Replace `@figma-vars/hooks` with `@primitree/hooks` in dependencies and imports.
+2. Replace `@figma-vars/hooks/core` with `@primitree/hooks/core` or `@primitree/core`.
 3. Replace undocumented `dist` imports with a public package entry.
 4. Move to Node.js 24, React `^19.0.0`, and SWR `^2.3.7`.
 
 The `figma-vars-export` command remains in this package. New token projects can
-use `figma-vars export` from `@figmavars/cli`.
+use `figma-vars export` from `@primitree/cli`.
 
-Read the [migration guide](https://figmavars.com/docs/hooks/migration).
+Read the [migration guide](https://primitree.com/docs/hooks/migration).
 
 The legacy `@figma-vars/hooks` npm history ends at version 4.0.0.
 
@@ -71,8 +71,8 @@ import { useFigmaToken } from '@figma-vars/hooks'
 
 ### Fixed
 
-- Fallback data now uses fallback-specific SWR keys when credentials are also present.
-- API error parsing now handles JSON, text, and HTML responses.
+- Fallback data uses fallback-specific SWR keys when credentials are present.
+- API error parsing handles JSON, text, and HTML responses.
 
 ## 3.1.1
 
@@ -93,12 +93,12 @@ _npm registry timestamp: `2025-12-28T05:43:54.622Z`._
 
 ### Fixed
 
-- Fetch and mutation code now handles optional abort signals under `exactOptionalPropertyTypes`.
-- Type exports now use the Figma type module.
-- Mutation state now ignores results from older overlapping requests.
+- Fetch and mutation code handles optional abort signals under `exactOptionalPropertyTypes`.
+- Type exports use the Figma type module.
+- Mutation state ignores results from older overlapping requests.
 - Fetch and mutation timeouts clear after a response or error.
-- Fallback JSON parsing now runs in the provider.
-- Query and invalidation tests now use the same absolute API URLs.
+- Fallback JSON parsing runs in the provider.
+- Query and invalidation tests use the same absolute API URLs.
 
 ## 3.0.0
 
@@ -106,22 +106,22 @@ _npm registry timestamp: `2025-12-15T19:43:48.064Z`._
 
 ### Added
 
-- An `swrConfig` prop on `FigmaVarsProvider`.
+- An `swrConfig` prop on `FigmaVariablesProvider`.
 - `FigmaApiError` and helpers for error status and messages.
 - `useInvalidateVariables` for query cache refresh.
 - The `figma-vars-export` command.
 
 ### Changed
 
-- `useMutation` now keeps its function reference in a ref.
-- Fetch and mutation errors now retain HTTP status codes.
-- Each provider now receives an ID for SWR fallback keys.
+- `useMutation` keeps its function reference in a ref.
+- Fetch and mutation errors retain HTTP status codes.
+- Each provider receives an ID for SWR fallback keys.
 
 ### Fixed
 
-- Mutation state no longer updates after component unmount.
-- Fallback cache keys no longer collide across provider instances.
-- API error parsing now checks the response content type.
+- Mutation state ignores updates after component unmount.
+- Provider instances use separate fallback cache keys.
+- API error parsing checks the response content type.
 
 ## 2.0.0-beta.3
 
@@ -135,7 +135,7 @@ _npm registry timestamp: `2025-08-27T17:08:56.297Z`._
 
 ### Added
 
-- `fallbackFile` support in `FigmaVarsProvider` and `useVariables`.
+- `fallbackFile` support in `FigmaVariablesProvider` and `useVariables`.
 - Documentation for reading a local Figma variables export without the REST API.
 
 ## 2.0.0-beta.1
@@ -162,13 +162,13 @@ _npm registry timestamp: `2025-07-17T00:22:18.534Z`._
 
 ### Fixed
 
-- Package builds now produce the module files named in `package.json`.
-- Type declaration output now uses the package `dist` directory.
-- Package publication now runs a build first.
+- Package builds write the module files named in `package.json`.
+- Type declaration output uses the package `dist` directory.
+- Package publication runs a build first.
 
 ### Changed
 
-- Vite now selects output names by module format.
+- Vite selects output names by module format.
 
 ## 1.4.5
 
@@ -274,8 +274,8 @@ The repository has no version-specific notes for this release.
 
 ## Historical unpublished drafts
 
-npm has no releases for 1.3.0, 1.4.0, or 1.4.1. The notes below came from the
-repository's earlier changelog.
+npm has no releases for 1.3.0, 1.4.0, or 1.4.1. The repository's earlier
+changelog contains these notes.
 
 ### Draft 1.4.1 (unpublished)
 
