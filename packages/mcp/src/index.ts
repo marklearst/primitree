@@ -25,7 +25,7 @@ const contextsSchema = z
   .record(z.string(), z.string())
   .optional()
   .describe(
-    'Resolver context keyed by modifier axis, for example {"semantic":"dark"}. Omitted axes use their defaults.'
+    'Object whose keys are Resolver modifier axes, for example {"semantic":"dark"}. The resolver uses defaults for axes absent from the input.'
   )
 
 function jsonContent(value: unknown) {
@@ -43,7 +43,7 @@ function jsonContent(value: unknown) {
  */
 export async function createServer(source: TokenSource): Promise<McpServer> {
   const server = new McpServer({
-    name: 'figma-vars',
+    name: 'primitree',
     version: packageManifest.version,
   })
 
@@ -63,7 +63,7 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
     {
       title: 'Get one design token',
       description:
-        'Return the DTCG token at a dot path, its resolved value, CSS value, CSS variable reference, and Figma extension data when present.',
+        'Return the DTCG token at a dot path with its resolved value, CSS value, and CSS variable reference. Include Figma extension data for tokens that define it.',
       inputSchema: {
         path: z
           .string()
@@ -86,7 +86,7 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
         contexts: z
           .record(z.string(), z.string())
           .describe(
-            'Resolver context keyed by modifier axis, for example {"semantic":"dark"}.'
+            'Object whose keys are Resolver modifier axes, for example {"semantic":"dark"}.'
           ),
         limit: z
           .number()
@@ -110,7 +110,9 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
       inputSchema: {
         query: z
           .string()
-          .describe('Substring matched against paths and descriptions.'),
+          .describe(
+            'The tool matches this substring against paths and descriptions.'
+          ),
         type: z
           .string()
           .optional()

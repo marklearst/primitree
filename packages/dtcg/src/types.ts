@@ -1,9 +1,9 @@
 /**
- * DTCG 2025.10 document types used by the FigmaVars toolchain.
+ * DTCG 2025.10 types for Primitree.
  *
  * @remarks
  * These types cover DTCG 2025.10 values that Figma variables can express,
- * the Resolver module, and the documented FigmaVars boolean extension.
+ * the Resolver module, and the documented Primitree boolean extension.
  */
 
 /** DTCG color value (Color Module, 2025.10). @public */
@@ -30,7 +30,7 @@ export interface DTCGDurationValue {
  * Token types emitted from Figma variables.
  *
  * @remarks
- * DTCG 2025.10 does not define `boolean`. FigmaVars documents it as an
+ * DTCG 2025.10 does not define `boolean`. Primitree documents it as an
  * extension because Figma variables support boolean values.
  *
  * @public
@@ -54,8 +54,8 @@ export type DTCGTokenValue =
   | number
   | boolean
 
-/** Figma metadata preserved under `$extensions['com.figma-vars']`. @public */
-export interface FigmaVarsExtension {
+/** Figma metadata preserved under `$extensions['com.primitree']`. @public */
+export interface FigmaMetadataExtension {
   variableId: string
   collectionId: string
   collectionName: string

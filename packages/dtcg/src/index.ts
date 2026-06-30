@@ -8,7 +8,7 @@
  *
  * @module dtcg
  */
-export { toDTCG, FIGMA_EXTENSION_KEY, RESOLVER_SCHEMA_URL } from './emit'
+export { toDTCG, PRIMITREE_EXTENSION_KEY, RESOLVER_SCHEMA_URL } from './emit'
 export type { ToDTCGOptions, ToDTCGResult } from './emit'
 
 export {
@@ -59,5 +59,5 @@ export type {
   ResolverSet,
   ResolverModifier,
   ResolverDocument,
-  FigmaVarsExtension,
+  FigmaMetadataExtension,
 } from './types'
