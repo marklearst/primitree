@@ -26,6 +26,7 @@
     "check:prose": "pnpm --filter figmavars-docs run generate:api && pnpm run check:prose:scan",
     "check:prose:scan": "node scripts/check-prose.mjs",
     "check:prose:built": "pnpm --filter figmavars-docs run generate:api && node scripts/check-prose.mjs --built",
+    "check:brand": "node scripts/check-brand.mjs",
     "check:release-metadata": "node scripts/check-release.mjs",
     "pack:release": "node scripts/release-artifacts.mjs pack",
     "verify:release-artifacts": "node scripts/release-artifacts.mjs verify",
