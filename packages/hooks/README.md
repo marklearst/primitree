@@ -184,9 +184,6 @@ API.
 Use [`@primitree/core`](https://www.npmjs.com/package/@primitree/core) for
 normalization, comparison, REST calls, and shared types outside React.
 
-`@primitree/hooks/core` re-exports that package for compatibility with earlier
-Primitree code.
-
 ## CLI export
 
 Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) and its

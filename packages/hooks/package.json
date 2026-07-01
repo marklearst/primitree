@@ -8,13 +8,6 @@
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "core": [
-        "dist/core.d.ts"
-      ]
-    }
-  },
   "files": [
     "dist"
   ],
@@ -75,17 +68,6 @@
         "default": "./dist/index.cjs"
       },
       "default": "./dist/index.mjs"
-    },
-    "./core": {
-      "import": {
-        "types": "./dist/core.d.ts",
-        "default": "./dist/core.mjs"
-      },
-      "require": {
-        "types": "./dist/core.d.cts",
-        "default": "./dist/core.cjs"
-      },
-      "default": "./dist/core.mjs"
     }
   },
   "publishConfig": {

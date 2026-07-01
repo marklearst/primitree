@@ -31,12 +31,6 @@ const MODULES = [
     description: '@primitree/hooks React providers and hooks.',
   },
   {
-    slug: 'hooks-core',
-    entryPoint: 'packages/hooks/src/core/index.ts',
-    title: 'Hooks compatibility API',
-    description: '@primitree/hooks/core compatibility exports.',
-  },
-  {
     slug: 'mcp',
     entryPoint: 'packages/mcp/src/index.ts',
     title: 'MCP API',
@@ -69,7 +63,6 @@ function indexPage() {
 - [Core API](./core): Figma Variables types, REST helpers, normalization, alias resolution, and diffs.
 - [DTCG API](./dtcg): DTCG conversion, Resolver handling, and output emitters.
 - [React hooks API](./hooks): React 19 providers and hooks.
-- [Hooks compatibility API](./hooks-core): the non-React compatibility path.
 - [MCP API](./mcp): MCP server and token-source functions.
 `
 }
@@ -158,7 +151,6 @@ async function addPageMetadata(outputDirectory) {
   const expectedFiles = [
     'core.mdx',
     'dtcg.mdx',
-    'hooks-core.mdx',
     'hooks.mdx',
     'index.mdx',
     'mcp.mdx',

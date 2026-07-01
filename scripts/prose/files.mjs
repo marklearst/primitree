@@ -236,7 +236,6 @@ export async function collectDeclarationFiles(root) {
 const EXPECTED_API_FILES = [
   'core.mdx',
   'dtcg.mdx',
-  'hooks-core.mdx',
   'hooks.mdx',
   'index.mdx',
   'mcp.mdx',
@@ -270,11 +269,16 @@ export function validateBuiltProseFiles(
   const receivedDeclarations = new Set(
     declarationFiles.map(file => portableRelative(root, file))
   )
-  const missingDeclarations = PUBLIC_RELEASE_PACKAGES.flatMap(config =>
-    config.requiredDeclarationFiles
+  const missingDeclarations = PUBLIC_RELEASE_PACKAGES.flatMap(config => {
+    const requiredDeclarationFiles =
+      config.name === '@primitree/hooks'
+        ? ['dist/index.d.ts', 'dist/index.d.cts']
+        : config.requiredDeclarationFiles
+
+    return requiredDeclarationFiles
       .map(file => path.posix.join(config.path, file))
       .filter(file => !receivedDeclarations.has(file))
-  )
+  })
 
   if (missingDeclarations.length > 0) {
     throw new Error(

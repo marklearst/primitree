@@ -60,7 +60,7 @@ test('docs and release scripts run the prose checks at the right build boundary'
   assert.ok(turbo.tasks.build.outputs.includes('content/docs/api/**'))
 })
 
-test('API reference generation writes the five public modules and an index', async () => {
+test('API reference generation writes the four public modules and an index', async () => {
   const outputDirectory = await mkdtemp(
     path.join(tmpdir(), 'primitree-api-reference-')
   )
@@ -72,7 +72,6 @@ test('API reference generation writes the five public modules and an index', asy
     assert.deepEqual((await readdir(outputDirectory)).sort(), [
       'core.mdx',
       'dtcg.mdx',
-      'hooks-core.mdx',
       'hooks.mdx',
       'index.mdx',
       'mcp.mdx',
@@ -91,7 +90,6 @@ test('API reference generation writes the five public modules and an index', asy
       'core.mdx': 'normalizeVariables',
       'dtcg.mdx': 'toDTCG',
       'hooks.mdx': 'TokensProvider',
-      'hooks-core.mdx': 'fetcher',
       'mcp.mdx': 'createServer',
     }
 

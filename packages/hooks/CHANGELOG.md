@@ -19,8 +19,7 @@ the other Primitree packages.
 ### Changed
 
 - Shared non-React code moved to `@primitree/core`.
-- `@primitree/hooks/core` re-exports `@primitree/core` for compatibility.
-- Package declarations ship as bundled root and `core` entry files.
+- Package declarations ship from the root entry.
 - The package requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
 - The toolchain uses Vite 8, Vitest 4, TypeScript 6, and Biome 2.
 
@@ -37,7 +36,7 @@ reach npm. Version 1.0.0 includes that work:
 ### Migration from `@figma-vars/hooks` 4.0.0
 
 1. Replace `@figma-vars/hooks` with `@primitree/hooks` in dependencies and imports.
-2. Replace `@figma-vars/hooks/core` with `@primitree/hooks/core` or `@primitree/core`.
+2. Replace `@figma-vars/hooks/core` with `@primitree/core`.
 3. Replace undocumented `dist` imports with a public package entry.
 4. Move to Node.js 24, React `^19.0.0`, and SWR `^2.3.7`.
 

@@ -782,7 +782,6 @@ test('built prose validation requires every API page and exact public declaratio
     'core.mdx',
     'dtcg.mdx',
     'hooks.mdx',
-    'hooks-core.mdx',
     'mcp.mdx',
     'meta.json',
   ].map(file => path.join(root, 'apps/docs/content/docs/api', file))
@@ -800,12 +799,7 @@ test('built prose validation requires every API page and exact public declaratio
     ['@primitree/cli', ['dist/index.d.ts']],
     [
       '@primitree/hooks',
-      [
-        'dist/index.d.ts',
-        'dist/index.d.cts',
-        'dist/core.d.ts',
-        'dist/core.d.cts',
-      ],
+      ['dist/index.d.ts', 'dist/index.d.cts'],
     ],
     ['@primitree/mcp', ['dist/index.d.ts', 'dist/cli.d.ts']],
   ])
@@ -822,10 +816,10 @@ test('built prose validation requires every API page and exact public declaratio
     () =>
       validateBuiltProseFiles(
         root,
-        markdownFiles.filter(file => !file.endsWith('hooks-core.mdx')),
+        markdownFiles.filter(file => !file.endsWith('hooks.mdx')),
         declarationFiles
       ),
-    /hooks-core\.mdx/u
+    /hooks\.mdx/u
   )
   assert.throws(
     () =>
@@ -833,10 +827,10 @@ test('built prose validation requires every API page and exact public declaratio
         root,
         markdownFiles,
         declarationFiles.filter(
-          file => file !== path.join(root, 'packages/hooks/dist/core.d.cts')
+          file => file !== path.join(root, 'packages/hooks/dist/index.d.cts')
         )
       ),
-    /packages\/hooks\/dist\/core\.d\.cts/u
+    /packages\/hooks\/dist\/index\.d\.cts/u
   )
 })
 

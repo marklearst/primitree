@@ -5,14 +5,22 @@ description: Replace @figma-vars/hooks with @primitree/hooks 1.0.
 
 Primitree 1.0 moves the hooks package from `@figma-vars/hooks` to `@primitree/hooks`. The package requires Node.js 24 or newer, React `^19.0.0`, and SWR `^2.3.7`.
 
-## Update the package
+## Replace packages and imports
 
 ```bash
 npm uninstall @figma-vars/hooks
 npm install @primitree/hooks
 ```
 
-Change imports from `@figma-vars/hooks` to `@primitree/hooks`. Documented hook, provider, utility, and type names keep their v4 names.
+| Before | Primitree 1.0 |
+| --- | --- |
+| `@figma-vars/hooks` | `@primitree/hooks` |
+| `@figma-vars/hooks/core` | `@primitree/core` |
+| Hooks export executable | `primitree export` from `@primitree/cli` |
+
+The live provider adds `Variables` to its name. Import `FigmaVariablesProvider`
+from `@primitree/hooks` and update the opening and closing JSX tags. Primitree
+exports no alias for the former name.
 
 ## New in 1.0
 
@@ -30,8 +38,9 @@ Update the dependency and imports. Confirm the Node and React requirements and r
 2. Import JSON + resolver in `TokensProvider`
 3. Replace hard-coded colors with `useToken('path.to.token')`
 
-## CLI bin
+## Export through the CLI
 
-Use `@primitree/cli` for `build`, `diff`, `check`, `init`, and `export`.
+Install `@primitree/cli` and run `primitree export` for token exports. The
+hooks package no longer ships an export executable.
 
 Read the [`@primitree/hooks` changelog](https://github.com/marklearst/primitree/blob/main/packages/hooks/CHANGELOG.md) for the release history.
