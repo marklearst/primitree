@@ -190,19 +190,28 @@ Later text containing ${formerHooksPackage} must still be scanned.
   })
 
   it('maps the hooks package, provider, and export command', () => {
-    expect(hooksMigration).toContain(
+    const migration = hooksMigration.replace(/\s+/gu, ' ')
+
+    expect(migration).toContain(
       `| \`${formerHooksPackage}\` | \`@primitree/hooks\` |`
     )
-    expect(hooksMigration).toContain(
+    expect(migration).toContain(
       `| \`${formerHooksCore}\` | \`@primitree/core\` |`
     )
-    expect(hooksMigration).toContain(
-      '| Hooks export executable | `primitree export` from `@primitree/cli` |'
+    expect(migration).toContain(
+      '| Hooks variables exporter | `primitree export` from `@primitree/cli` |'
     )
-    expect(hooksMigration).toContain(
-      'The live provider adds `Variables` to its name. Import `FigmaVariablesProvider`'
+    expect(migration).toContain(
+      'run `primitree export` to download local Figma variables JSON.'
     )
-    expect(hooksMigration).not.toContain(formerProvider)
+    expect(migration).toContain(
+      'Pass that JSON to `primitree build` to create token output.'
+    )
+    expect(migration).toContain(
+      'Import `FigmaVariablesProvider` from `@primitree/hooks` and update both JSX tags.'
+    )
+    expect(migration).not.toContain('adds `Variables`')
+    expect(migration).not.toContain(formerProvider)
   })
 })
 
