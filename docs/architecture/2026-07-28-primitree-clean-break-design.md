@@ -108,8 +108,8 @@ pages will use Primitree.
 Writers will use “Figma variables” for input from Figma and “design tokens” for
 the DTCG output. Product copy will avoid treating those terms as synonyms.
 
-The migration page will name `@figma-vars/hooks@4.0.0` and its former import
-paths so a user can replace them. The release runbook will retain the exact
+The migration page will name the former hooks package at version 4.0.0 and its
+former import paths so a user can replace them. The release runbook will retain the exact
 deprecation command and former-scope checks. No other public page needs the old
 product name.
 

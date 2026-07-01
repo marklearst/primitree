@@ -23,10 +23,15 @@ const PUBLIC_COPY_DIRECTORIES = [
   'apps/docs/app',
   'apps/docs/components',
   'apps/docs/lib',
+  'apps/figma-plugin/src',
+  'apps/playground/src',
   'packages/cli/src',
+  'packages/core/src',
   'packages/dtcg/src',
   'packages/hooks/scripts',
+  'packages/hooks/src',
   'packages/mcp/src',
+  'packages/plugin-export/src',
 ]
 
 async function walk(root, predicate, { skip = SKIP_DIRECTORIES } = {}) {
@@ -173,6 +178,13 @@ export async function collectDocsNavigationFiles(root) {
   return files.sort()
 }
 
+export async function collectFigmaPluginManifestFiles(root) {
+  return walk(
+    path.join(root, 'apps/figma-plugin'),
+    file => path.basename(file) === 'manifest.json'
+  )
+}
+
 export async function collectSourceFiles(root, directories) {
   const files = []
 
@@ -189,6 +201,20 @@ export async function collectSourceFiles(root, directories) {
 
 export async function collectPublicCopyFiles(root) {
   return collectSourceFiles(root, PUBLIC_COPY_DIRECTORIES)
+}
+
+export async function collectPublicHtmlFiles(root) {
+  const files = []
+
+  for (const directory of ['apps/figma-plugin/src', 'apps/playground']) {
+    files.push(
+      ...(await walk(path.join(root, directory), file =>
+        file.endsWith('.html')
+      ))
+    )
+  }
+
+  return [...new Set(files)].sort()
 }
 
 export async function collectDeclarationFiles(root) {

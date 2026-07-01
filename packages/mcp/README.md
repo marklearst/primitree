@@ -1,6 +1,6 @@
-# @figmavars/mcp
+# @primitree/mcp
 
-`@figmavars/mcp` serves FigmaVars token data through the Model Context
+`@primitree/mcp` serves Primitree token data through the Model Context
 Protocol.
 
 ## Requirements
@@ -14,7 +14,7 @@ Protocol.
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
     }
   }
 }
@@ -24,9 +24,9 @@ Protocol.
 
 - a Figma variables JSON file
 - a directory containing `tokens.resolver.json` and `*.tokens.json`
-- a `figma-vars build` output directory with those files under `tokens/`
+- a `primitree build` output directory with those files under `tokens/`
 
-Set `FIGMA_VARS_TOKENS` when you prefer an environment variable over the
+Set `PRIMITREE_TOKENS` when you prefer an environment variable over the
 `--tokens` flag.
 
 ## Tools
@@ -48,17 +48,17 @@ stdio. Your MCP client controls where those results go.
 ## Use the package API
 
 ```ts
-import { createServer, loadTokenSource } from '@figmavars/mcp'
+import { createServer, loadTokenSource } from '@primitree/mcp'
 
 const source = await loadTokenSource('./design-tokens')
 const server = await createServer(source)
 ```
 
-The package also exports the five tool functions for applications that want to
-call them without starting an MCP transport.
+Applications can import the five tool functions without starting an MCP
+transport.
 
-Read the [FigmaVars documentation](https://figmavars.com) or review the
-[5.0.0 changelog](CHANGELOG.md).
+Read the [Primitree documentation](https://primitree.com) or review the
+[1.0.0 changelog](CHANGELOG.md).
 
 ## License
 

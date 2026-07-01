@@ -1,17 +1,17 @@
 ---
 title: Semantic Diffing
-description: figma-vars diff matches variables and reports breaking changes.
+description: primitree diff matches variables and reports breaking changes.
 ---
 
-`figma-vars diff` matches collections, modes, and variables by their Figma IDs. A string diff cannot distinguish a rename from a removal followed by an addition.
+`primitree diff` matches collections, modes, and variables by their Figma IDs. A string diff cannot distinguish a rename from a removal plus an addition.
 
 ## Rename detection
 
-The same ID with a different name produces a rename. FigmaVars marks it as breaking because consumers may use the old path.
+The report identifies a rename when the same ID has a different name. It marks the change as breaking because consumers may use the old path.
 
 ## Value changes
 
-The same variable ID with a different raw `valuesByMode` entry produces a value change. The report labels the row with the current collection and mode name.
+The report identifies a value change when the same variable ID has a different raw `valuesByMode` entry. It labels the row with the current collection and mode name.
 
 ## Breaking vs non-breaking
 
@@ -36,7 +36,7 @@ The same variable ID with a different raw `valuesByMode` entry produces a value 
 Markdown is the default. Write it to a file for a pull request description:
 
 ```bash
-figma-vars diff main/variables.json pr/variables.json --out PR_BODY.md
+primitree diff main/variables.json pr/variables.json --out PR_BODY.md
 ```
 
 `--out <file>` writes the selected format to a file instead of standard output.
@@ -44,7 +44,7 @@ figma-vars diff main/variables.json pr/variables.json --out PR_BODY.md
 Use `--json` for machine-readable output:
 
 ```bash
-figma-vars diff main/variables.json pr/variables.json --json --out diff.json
+primitree diff main/variables.json pr/variables.json --json --out diff.json
 ```
 
 ## MCP
@@ -53,4 +53,4 @@ The `diff_tokens` MCP tool accepts paths to an earlier and a later variables JSO
 
 ## Library API
 
-`diffVariables` and `formatDiffMarkdown` live in `@figmavars/core`. The normalizer converts supported input shapes before the comparison.
+`diffVariables` and `formatDiffMarkdown` live in `@primitree/core`. The normalizer converts supported input shapes before the comparison.

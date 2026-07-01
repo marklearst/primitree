@@ -16,32 +16,31 @@ const MODULES = [
     slug: 'core',
     entryPoint: 'packages/core/src/index.ts',
     title: 'Core API',
-    description: 'Functions and types exported by @figmavars/core.',
+    description: '@primitree/core functions and types.',
   },
   {
     slug: 'dtcg',
     entryPoint: 'packages/dtcg/src/index.ts',
     title: 'DTCG API',
-    description: 'Functions and types exported by @figmavars/dtcg.',
+    description: '@primitree/dtcg functions and types.',
   },
   {
     slug: 'hooks',
     entryPoint: 'packages/hooks/src/index.ts',
     title: 'React hooks API',
-    description: 'React providers and hooks exported by @figmavars/hooks.',
+    description: '@primitree/hooks React providers and hooks.',
   },
   {
     slug: 'hooks-core',
     entryPoint: 'packages/hooks/src/core/index.ts',
     title: 'Hooks compatibility API',
-    description:
-      'The compatibility exports available from @figmavars/hooks/core.',
+    description: '@primitree/hooks/core compatibility exports.',
   },
   {
     slug: 'mcp',
     entryPoint: 'packages/mcp/src/index.ts',
     title: 'MCP API',
-    description: 'Server and token-source exports from @figmavars/mcp.',
+    description: 'Server and token-source exports from @primitree/mcp.',
   },
 ]
 
@@ -54,8 +53,8 @@ const GENERATED_MDX_LINK = /\]\((?:\.\/)?([a-z0-9-]+)\.mdx(?=(?:#[^)]+)?\))/gu
 
 function frontmatter({ title, description }) {
   return `---
-title: ${title}
-description: ${description}
+title: ${JSON.stringify(title)}
+description: ${JSON.stringify(description)}
 ---
 
 `
@@ -64,7 +63,7 @@ description: ${description}
 function indexPage() {
   return `${frontmatter({
     title: 'API reference',
-    description: 'Functions and types exported by the FigmaVars packages.',
+    description: 'Functions and types from the Primitree packages.',
   })}Choose a package entry point:
 
 - [Core API](./core): Figma Variables types, REST helpers, normalization, alias resolution, and diffs.
@@ -89,7 +88,7 @@ function rewriteGeneratedLinks(source) {
 
 function typeDocOptions(outputDirectory) {
   return {
-    name: 'FigmaVars API',
+    name: 'Primitree API',
     entryPoints: MODULES.map(module =>
       path.join(repositoryRoot, module.entryPoint)
     ),
@@ -125,10 +124,10 @@ function typeDocOptions(outputDirectory) {
       unusedMergeModuleWith: true,
     },
     packagesRequiringDocumentation: [
-      '@figmavars/core',
-      '@figmavars/dtcg',
-      '@figmavars/hooks',
-      '@figmavars/mcp',
+      '@primitree/core',
+      '@primitree/dtcg',
+      '@primitree/hooks',
+      '@primitree/mcp',
     ],
     requiredToBeDocumented: [
       'Module',

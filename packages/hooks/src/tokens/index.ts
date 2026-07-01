@@ -1,7 +1,7 @@
 /**
  * @module tokens
- * Hooks for DTCG files built by `figma-vars build`. These hooks do not call
- * the Figma API or require a Personal Access Token.
+ * Hooks for DTCG files from `primitree build`. These hooks do not call the
+ * Figma API or require a Personal Access Token.
  *
  * @public
  */

@@ -1,8 +1,8 @@
 # Changelog
 
-## 5.0.0 (Unreleased)
+## 1.0.0 (Unreleased)
 
-Initial release of `@figmavars/core`.
+Initial release of `@primitree/core`.
 
 ### Added
 
@@ -11,7 +11,7 @@ Initial release of `@figmavars/core`.
 - Alias resolution with cycle and missing-target errors.
 - ID-based comparison for collections, variables, modes, and values.
 - Runtime guards, filtering, retry, and token display helpers.
-- ESM and CommonJS entry points, plus the `@figmavars/core/types` subpath.
+- ESM and CommonJS entry points, plus the `@primitree/core/types` subpath.
 
 ### Requirements
 

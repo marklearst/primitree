@@ -66,16 +66,16 @@ function assertPlainPublicText(value: string) {
 test('site metadata uses the public host and complete social cards', async () => {
   const { siteMetadata, siteUrl } = await loadDiscovery()
 
-  assert.equal(siteUrl, 'https://figmavars.com')
+  assert.equal(siteUrl, 'https://primitree.com')
   assert.equal(siteMetadata.metadataBase?.toString(), `${siteUrl}/`)
   assert.deepEqual(siteMetadata.title, {
-    default: 'FigmaVars',
-    template: '%s · FigmaVars',
+    default: 'Primitree',
+    template: '%s · Primitree',
   })
   assert.equal(siteMetadata.alternates?.canonical, siteUrl)
   assert.equal(siteMetadata.openGraph?.url, siteUrl)
   assert.equal(siteMetadata.openGraph?.type, 'website')
-  assert.equal(siteMetadata.openGraph?.siteName, 'FigmaVars')
+  assert.equal(siteMetadata.openGraph?.siteName, 'Primitree')
   assert.equal(siteMetadata.twitter?.card, 'summary_large_image')
   assert.deepEqual(siteMetadata.openGraph?.images, siteMetadata.twitter?.images)
 

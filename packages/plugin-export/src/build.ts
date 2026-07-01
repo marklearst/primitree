@@ -87,7 +87,7 @@ function cloneVariableOverrides(
 
 /**
  * Build a REST-shaped local variables document from plain collection/variable
- * records. Safe to call from Figma plugin sandboxes and unit tests.
+ * records. It reads plain records and does not access the Figma global.
  */
 export function buildLocalVariablesExport(
   collections: ExportCollection[],

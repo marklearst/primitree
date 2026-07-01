@@ -1,25 +1,25 @@
 ---
-title: figma-vars diff
+title: primitree diff
 description: Semantic diff between two Figma variables exports with stable ID matching.
 ---
 
 ```bash
-figma-vars diff <before.json> <after.json> [options]
+primitree diff <before.json> <after.json> [options]
 ```
 
 ## ID-based comparison
 
 String diffs show a rename as a removal and an addition.
 
-FigmaVars matches variables by stable Figma IDs. The report separates renames, moves, type changes, per-mode values, and description changes.
+The diff matches variables by stable Figma IDs. The report separates renames, moves, type changes, per-mode values, and description changes.
 
 ## Usage
 
 ```bash
-figma-vars diff backup/variables.json variables.json
-figma-vars diff old.json new.json --out CHANGELOG.md
-figma-vars diff old.json new.json --json --out diff.json
-figma-vars diff old.json new.json --fail-on-breaking
+primitree diff backup/variables.json variables.json
+primitree diff old.json new.json --out CHANGELOG.md
+primitree diff old.json new.json --json --out diff.json
+primitree diff old.json new.json --fail-on-breaking
 ```
 
 Markdown is the default output format. Use `--json` to write the `VariablesDiff` object.
@@ -36,7 +36,7 @@ Markdown is the default output format. Use `--json` to write the `VariablesDiff`
 
 ```markdown
 Variables: 1 renamed, 1 value change.
-**Breaking changes detected.**
+**The diff contains breaking changes.**
 
 ### Renamed variables (breaking)
 
@@ -50,7 +50,7 @@ Variables: 1 renamed, 1 value change.
 ## CI integration
 
 ```yaml
-- run: figma-vars diff backup/variables.json variables.json --fail-on-breaking
+- run: primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
 See [Semantic diffing](/docs/concepts/diffing) for the matching rules.

@@ -3,22 +3,22 @@ import type {
   MutationState,
   MutationResult,
   MutationOptions,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
 /**
- * Internal reducer to manage async mutation state for all mutation hooks.
+ * Reduce async mutation state for mutation hooks.
  *
  * @remarks
- * Handles mutation status transitions (`loading`, `success`, `error`) and enforces consistent error/data handling across the library.
- * Used by {@link useMutation} and not intended for direct use in external code.
+ * Handles `loading`, `success`, and `error` transitions.
+ * {@link useMutation} calls this reducer.
  *
- * @typeParam TData - The type of data returned by the mutation.
+ * @typeParam TData - Mutation result data.
  *
  * @example
  * ```ts
- * import { mutationReducer } from '@figmavars/hooks';
+ * import { mutationReducer } from '@primitree/hooks';
  * const [state, dispatch] = useReducer(mutationReducer, initialState);
  * // Internal pattern for mutation state management
  * ```
@@ -42,26 +42,22 @@ export function mutationReducer<TData>(
 }
 
 /**
- * Internal React hook for async mutation state, status flags, and mutation trigger.
+ * Track async mutation state and expose a mutation trigger.
  *
  * @remarks
- * Returns a mutation object with status, error, and result data. Preferred pattern: use higher-level hooks (e.g., `useCreateVariable`, `useUpdateVariable`) rather than using this directly in production code.
- * The provided `mutationFn` must be an async function that performs the actual mutation (API call, etc). See example for pattern.
+ * Returns status, error, result data, and `mutate`.
+ * The hook stores the current callback in a ref.
+ * The latest request updates state; earlier requests leave state unchanged.
  *
- * Uses `useRef` to store the latest `mutationFn` to avoid recreating `mutate` on every render, following React 19.2 best practices.
- *
- * Race Condition Handling: When multiple mutations are triggered, only the most recent mutation's
- * result will update the state. Earlier mutations that complete later are ignored to prevent stale data.
- *
- * @typeParam TData - Type returned by the mutation.
- * @typeParam TPayload - Payload accepted by the mutation function.
- * @param mutationFn - Async function performing the mutation logic.
- * @param options - Optional configuration for mutation behavior.
- * @returns Mutation state, status flags, and a `mutate(payload)` trigger function.
+ * @typeParam TData - Mutation result data.
+ * @typeParam TPayload - Payload passed to the mutation function.
+ * @param mutationFn - Async function that performs the mutation.
+ * @param options - Mutation configuration.
+ * @returns State, status flags, and a `mutate(payload)` function.
  *
  * @example
  * ```ts
- * import { useMutation } from '@figmavars/hooks';
+ * import { useMutation } from '@primitree/hooks';
  *
  * // Example: use for custom async logic
  * const { mutate, isLoading, isSuccess, error } = useMutation(async (payload: MyPayload) => {

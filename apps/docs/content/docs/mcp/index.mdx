@@ -4,10 +4,10 @@ description: Serve repository design tokens to an MCP client.
 ---
 
 ```bash
-npm i -D @figmavars/mcp
+npm i -D @primitree/mcp
 ```
 
-`@figmavars/mcp` requires Node.js 24 or newer. The server reads a supported local variables JSON export or a built `design-tokens/` directory.
+`@primitree/mcp` requires Node.js 24 or newer. The server reads any variables JSON shape listed in [Export variables](/docs/getting-started/export-variables), or a built `design-tokens/` directory.
 
 ## Client config
 
@@ -16,7 +16,7 @@ npm i -D @figmavars/mcp
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
     }
   }
 }
@@ -26,11 +26,11 @@ Or point at built output:
 
 ```json
 {
-  "args": ["-y", "@figmavars/mcp", "--tokens", "./design-tokens"]
+  "args": ["-y", "@primitree/mcp", "--tokens", "./design-tokens"]
 }
 ```
 
-Set `FIGMA_VARS_TOKENS` when the client config cannot pass `--tokens`.
+Set `PRIMITREE_TOKENS` when the client config cannot pass `--tokens`.
 
 ## Tools
 
@@ -57,11 +57,11 @@ The `--tokens` option selects the source for `get_token`, `resolve_context`, and
 ## Start the server
 
 ```bash
-npx @figmavars/mcp --tokens ./variables.json
+npx @primitree/mcp --tokens ./variables.json
 ```
 
 The command connects over stdio and logs its source path to standard error.
 
 ## Figma's MCP server
 
-Figma's remote and desktop MCP servers read live Figma files. FigmaVars MCP reads the JSON or built token files in your repository. See [Figma MCP and FigmaVars](/docs/concepts/figma-mcp).
+Figma's remote and desktop MCP servers read live Figma files. Primitree MCP reads the JSON or built token files in your repository. See [Figma MCP and Primitree](/docs/concepts/figma-mcp).

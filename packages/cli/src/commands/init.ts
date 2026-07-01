@@ -365,7 +365,7 @@ export async function runInit(args: ParsedArgs): Promise<void> {
       ? `Copied variables from ${from}`
       : 'Created variables.json from sample data. Replace it with your export.'
   )
-  console.log('Next steps:')
+  console.log('Install dependencies and build the token files:')
   console.log(`  cd ${path.relative(process.cwd(), dir) || '.'}`)
   console.log('  npm install')
   console.log('  npm run build')

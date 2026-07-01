@@ -194,7 +194,7 @@ The repository has no version-specific notes for this release.
 
 _npm registry timestamp: `2025-06-22T08:04:34.546Z`._
 
-- Added the `assets/figma-vars-tagline-light.png` brand image to the README.
+- Added the former-brand tagline image to the README.
 
 ## 1.3.2
 

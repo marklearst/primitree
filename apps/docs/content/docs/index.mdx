@@ -1,26 +1,26 @@
 ---
-title: Introduction
-description: Convert a Figma variables export into token files and code with FigmaVars.
+title: Build token files
+description: Convert a Figma variables export into token files and code with Primitree.
 ---
 
-FigmaVars converts a Figma variables export into DTCG token files, CSS, Tailwind v4, TypeScript, and a Resolver for modes. The monorepo also contains semantic diff tools, React hooks, and an MCP server.
+Primitree converts a Figma variables export into DTCG token files, CSS, Tailwind v4, TypeScript, and a Resolver for modes. The monorepo contains semantic diff tools, React hooks, and an MCP server.
 
 ## Figma API access
 
-Figma limits its Variables REST API to Enterprise organizations. The FigmaVars Export plugin reads local variables from the open file through the Plugin API, so the build can start from a checked-in JSON file without calling that REST endpoint.
+Figma limits its Variables REST API to Enterprise organizations. The Primitree export plugin reads local variables from the open file through the Plugin API. Build from the checked-in JSON without calling that REST endpoint.
 
 The CLI turns that JSON into files a codebase can import and review.
 
 ## Requirements
 
 - Node.js 24 or newer
-- pnpm 11 or newer when working in the FigmaVars monorepo
-- React `^19.0.0` for `@figmavars/hooks`
+- pnpm 11 or newer when working in the Primitree monorepo
+- React `^19.0.0` for `@primitree/hooks`
 
 ## Quick start
 
 ```bash
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
 The command writes a `design-tokens/` directory. See [Getting started](/docs/getting-started) for the export and build steps.
@@ -29,11 +29,11 @@ The command writes a `design-tokens/` directory. See [Getting started](/docs/get
 
 | Package            | Purpose                                          |
 | ------------------ | ------------------------------------------------ |
-| `@figmavars/core`  | Normalize exports, resolve aliases, compare data |
-| `@figmavars/dtcg`  | Emit DTCG, Resolver, CSS, Tailwind, and TS files |
-| `@figmavars/cli`   | Build, diff, check, initialize, and export       |
-| `@figmavars/hooks` | Read built tokens or use the Variables REST API  |
-| `@figmavars/mcp`   | Serve repo token data to MCP clients             |
+| `@primitree/core`  | Normalize exports, resolve aliases, compare data |
+| `@primitree/dtcg`  | Emit DTCG, Resolver, CSS, Tailwind, and TS files |
+| `@primitree/cli`   | Build, diff, check, initialize, and export       |
+| `@primitree/hooks` | Read built tokens or use the Variables REST API  |
+| `@primitree/mcp`   | Serve repo token data to MCP clients             |
 
 ## Guides
 
