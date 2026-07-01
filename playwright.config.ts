@@ -48,13 +48,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `pnpm --filter figmavars-docs exec next dev --webpack --hostname 127.0.0.1 --port ${docsPort}`,
+      command: `pnpm --filter primitree-docs exec next dev --webpack --hostname 127.0.0.1 --port ${docsPort}`,
       url: docsBaseUrl,
       reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: `pnpm --filter figmavars-playground dev --host 127.0.0.1 --port ${playgroundPort} --strictPort`,
+      command: `pnpm --filter primitree-playground dev --host 127.0.0.1 --port ${playgroundPort} --strictPort`,
       url: playgroundBaseUrl,
       reuseExistingServer: false,
       timeout: 120_000,

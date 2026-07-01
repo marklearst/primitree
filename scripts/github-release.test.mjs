@@ -8,17 +8,17 @@ import test from 'node:test'
 import { createOrResumeGithubRelease } from './github-release.mjs'
 import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
 
-const VERSION = '5.0.0'
+const VERSION = '1.0.0'
 const TAG = `v${VERSION}`
 const SHA = '0123456789abcdef0123456789abcdef01234567'
-const NOTES = '# FigmaVars 5.0.0\n\nRelease notes.\n'
-const REPOSITORY_PATH = '/repos/marklearst/figmavars'
+const NOTES = '# Primitree 1.0.0\n\nRelease notes.\n'
+const REPOSITORY_PATH = '/repos/marklearst/primitree'
 
 function fixtureAssets() {
-  const directory = mkdtempSync(path.join(tmpdir(), 'figmavars-release-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'primitree-release-'))
   const artifacts = PUBLIC_RELEASE_PACKAGES.map(config => {
-    const stem = config.name.slice('@figmavars/'.length)
-    const file = `figmavars-${stem}-${VERSION}.tgz`
+    const stem = config.name.slice('@primitree/'.length)
+    const file = `primitree-${stem}-${VERSION}.tgz`
     const bytes = Buffer.from(`${config.name}\n`)
     writeFileSync(path.join(directory, file), bytes)
     return {
@@ -41,8 +41,8 @@ function fixtureAssets() {
 function localAssets(directory) {
   return [
     ...PUBLIC_RELEASE_PACKAGES.map(config => {
-      const stem = config.name.slice('@figmavars/'.length)
-      return `figmavars-${stem}-${VERSION}.tgz`
+      const stem = config.name.slice('@primitree/'.length)
+      return `primitree-${stem}-${VERSION}.tgz`
     }),
     'manifest.json',
     'SHA256SUMS',
@@ -75,7 +75,7 @@ function draftRelease(fixture, overrides = {}) {
 
 function publishedRelease(fixture, overrides = {}) {
   return draftRelease(fixture, {
-    name: 'FigmaVars v5.0.0',
+    name: 'Primitree v1.0.0',
     body: NOTES,
     draft: false,
     immutable: true,
@@ -335,11 +335,11 @@ function releaseInput(fixture, api) {
   return {
     apiBaseUrl: api.baseUrl,
     artifactDirectory: fixture.directory,
-    githubRepository: 'marklearst/figmavars',
+    githubRepository: 'marklearst/primitree',
     githubSha: SHA,
     notes: NOTES,
     tag: TAG,
-    title: 'FigmaVars v5.0.0',
+    title: 'Primitree v1.0.0',
     token: 'local-test-token',
   }
 }
@@ -621,7 +621,7 @@ test('rejects duplicate exact-tag releases across pages without mutation', async
     async ({ api, fixture }) => {
       await assert.rejects(
         () => createOrResumeGithubRelease(releaseInput(fixture, api)),
-        /more than one release.*v5\.0\.0/
+        /more than one release.*v1\.0\.0/
       )
       assert.equal(api.mutationCount(), 0)
     }
@@ -1094,11 +1094,11 @@ test('reports a timed-out GitHub request without retrying forever', async () => 
             requests += 1
             throw new DOMException('request timed out', 'TimeoutError')
           },
-          githubRepository: 'marklearst/figmavars',
+          githubRepository: 'marklearst/primitree',
           githubSha: SHA,
           notes: NOTES,
           tag: TAG,
-          title: 'FigmaVars v5.0.0',
+          title: 'Primitree v1.0.0',
           token: 'local-test-token',
         }),
       /GitHub request timed out/

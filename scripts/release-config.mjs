@@ -55,9 +55,9 @@ function freezePackage(config) {
 
 export const RELEASE_REPOSITORY_TYPE = 'git'
 export const RELEASE_REPOSITORY =
-  'git+https://github.com/marklearst/figmavars.git'
-export const RELEASE_HOMEPAGE = 'https://github.com/marklearst/figmavars#readme'
-export const RELEASE_BUGS = 'https://github.com/marklearst/figmavars/issues'
+  'git+https://github.com/marklearst/primitree.git'
+export const RELEASE_HOMEPAGE = 'https://github.com/marklearst/primitree#readme'
+export const RELEASE_BUGS = 'https://github.com/marklearst/primitree/issues'
 export const RELEASE_FUNDING_TYPE = 'github'
 export const RELEASE_FUNDING = 'https://github.com/sponsors/marklearst'
 export const RELEASE_NODE_ENGINE = '>=24.0.0'
@@ -66,7 +66,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
   freezePackage({
     path: 'packages/core',
     manifestPath: 'packages/core/package.json',
-    name: '@figmavars/core',
+    name: '@primitree/core',
     attwProfile: 'node16',
     requiredFiles: ['dist'],
     requiredDeclarationFiles: [
@@ -106,7 +106,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
   freezePackage({
     path: 'packages/dtcg',
     manifestPath: 'packages/dtcg/package.json',
-    name: '@figmavars/dtcg',
+    name: '@primitree/dtcg',
     attwProfile: 'strict',
     requiredFiles: ['dist'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
@@ -125,32 +125,27 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     },
     requiredBin: undefined,
     requiredBinTarget: undefined,
-    requiredInternalRuntimeDependencies: ['@figmavars/core'],
+    requiredInternalRuntimeDependencies: ['@primitree/core'],
   }),
   freezePackage({
     path: 'packages/cli',
     manifestPath: 'packages/cli/package.json',
-    name: '@figmavars/cli',
+    name: '@primitree/cli',
     attwProfile: null,
     requiredFiles: ['dist'],
     requiredDeclarationFiles: ['dist/index.d.ts'],
     expectedExports: undefined,
-    requiredBin: 'figma-vars',
+    requiredBin: 'primitree',
     requiredBinTarget: './dist/index.js',
-    requiredInternalRuntimeDependencies: ['@figmavars/core', '@figmavars/dtcg'],
+    requiredInternalRuntimeDependencies: ['@primitree/core', '@primitree/dtcg'],
   }),
   freezePackage({
     path: 'packages/hooks',
     manifestPath: 'packages/hooks/package.json',
-    name: '@figmavars/hooks',
+    name: '@primitree/hooks',
     attwProfile: 'strict',
-    requiredFiles: ['dist', 'scripts/export-variables.mjs'],
-    requiredDeclarationFiles: [
-      'dist/index.d.ts',
-      'dist/index.d.cts',
-      'dist/core.d.ts',
-      'dist/core.d.cts',
-    ],
+    requiredFiles: ['dist'],
+    requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
     expectedExports: {
       '.': {
         import: {
@@ -163,26 +158,15 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
         },
         default: './dist/index.mjs',
       },
-      './core': {
-        import: {
-          types: './dist/core.d.ts',
-          default: './dist/core.mjs',
-        },
-        require: {
-          types: './dist/core.d.cts',
-          default: './dist/core.cjs',
-        },
-        default: './dist/core.mjs',
-      },
     },
-    requiredBin: 'figma-vars-export',
-    requiredBinTarget: './scripts/export-variables.mjs',
-    requiredInternalRuntimeDependencies: ['@figmavars/core', '@figmavars/dtcg'],
+    requiredBin: undefined,
+    requiredBinTarget: undefined,
+    requiredInternalRuntimeDependencies: ['@primitree/core', '@primitree/dtcg'],
   }),
   freezePackage({
     path: 'packages/mcp',
     manifestPath: 'packages/mcp/package.json',
-    name: '@figmavars/mcp',
+    name: '@primitree/mcp',
     attwProfile: 'esm-only',
     requiredFiles: ['dist'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
@@ -194,8 +178,8 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
         },
       },
     },
-    requiredBin: 'figma-vars-mcp',
+    requiredBin: 'primitree-mcp',
     requiredBinTarget: './dist/cli.js',
-    requiredInternalRuntimeDependencies: ['@figmavars/core', '@figmavars/dtcg'],
+    requiredInternalRuntimeDependencies: ['@primitree/core', '@primitree/dtcg'],
   }),
 ])

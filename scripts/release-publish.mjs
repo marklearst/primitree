@@ -27,7 +27,7 @@ const DEFAULT_POLL_ATTEMPTS = 10
 const DEFAULT_POLL_DELAY_MS = 3_000
 const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1'
 const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1'
-const REPOSITORY = 'https://github.com/marklearst/figmavars'
+const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
 
 function isPlainObject(value) {
@@ -373,7 +373,7 @@ function controlledRegistryConfig(registry) {
   if (registry !== PUBLIC_NPM_REGISTRY) {
     throw new Error('release commands require the public npm registry')
   }
-  return `registry=${registry}\n@figmavars:registry=${registry}\n`
+  return `registry=${registry}\n@primitree:registry=${registry}\n`
 }
 
 function createNpmExecutionContext({
@@ -428,7 +428,7 @@ function commandOptions(context, timeoutMs = SHORT_COMMAND_TIMEOUT_MS) {
 }
 
 function assertEffectiveRegistry(context, registry, runCommand) {
-  for (const key of ['registry', '@figmavars:registry']) {
+  for (const key of ['registry', '@primitree:registry']) {
     const actual = commandOutput(
       'npm',
       ['config', 'get', key],
@@ -614,7 +614,7 @@ export async function runReleasePublish({
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: true,
-    prefix: 'figmavars-publish-',
+    prefix: 'primitree-publish-',
     registry,
     token,
   })
@@ -732,19 +732,17 @@ function runInstalledPackageSmokeChecks({
   runCommand,
 }) {
   const esmSpecifiers = [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
-    '@figmavars/mcp',
+    '@primitree/core',
+    '@primitree/core/types',
+    '@primitree/dtcg',
+    '@primitree/hooks',
+    '@primitree/mcp',
   ]
   const cjsSpecifiers = [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
+    '@primitree/core',
+    '@primitree/core/types',
+    '@primitree/dtcg',
+    '@primitree/hooks',
   ]
   smokeCommand(
     runCommand,
@@ -766,7 +764,7 @@ function runInstalledPackageSmokeChecks({
     ],
     options
   )
-  for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
+  for (const bin of ['primitree', 'primitree-mcp']) {
     smokeCommand(
       runCommand,
       path.join(consumerDirectory, 'node_modules', '.bin', bin),
@@ -786,7 +784,7 @@ export function runPackedTarballConsumer({
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,
-    prefix: 'figmavars-packed-consumer-',
+    prefix: 'primitree-packed-consumer-',
     registry,
   })
   const consumerDirectory = commandContext.workingDirectory
@@ -794,7 +792,7 @@ export function runPackedTarballConsumer({
     path.join(consumerDirectory, 'package.json'),
     `${JSON.stringify(
       {
-        name: 'figmavars-packed-release-consumer',
+        name: 'primitree-packed-release-consumer',
         version: '0.0.0',
         private: true,
         type: 'module',
@@ -852,7 +850,7 @@ export async function runPublicRegistryConsumer({
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,
-    prefix: 'figmavars-public-consumer-',
+    prefix: 'primitree-public-consumer-',
     registry,
   })
   const consumerDirectory = commandContext.workingDirectory
@@ -860,7 +858,7 @@ export async function runPublicRegistryConsumer({
     path.join(consumerDirectory, 'package.json'),
     `${JSON.stringify(
       {
-        name: 'figmavars-public-release-consumer',
+        name: 'primitree-public-release-consumer',
         version: '0.0.0',
         private: true,
         type: 'module',

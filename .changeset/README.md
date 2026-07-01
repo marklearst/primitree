@@ -1,6 +1,6 @@
 # Changesets
 
-Create a release note with `pnpm changeset`. The five public `@figmavars/*`
+Create a release note with `pnpm changeset`. The five public `@primitree/*`
 packages use a fixed version group, so an approved changeset updates all five
 to the same version. Apply pending release notes with
 `pnpm version-packages`.

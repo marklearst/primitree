@@ -18,3 +18,16 @@ test('Git previews do not claim the production alias', async () => {
     },
   })
 })
+
+test('the source contract names the docs workspace and public site', async () => {
+  const manifest = JSON.parse(
+    await readFile(join(docsRoot, 'package.json'), 'utf8')
+  )
+  const discovery = await readFile(
+    join(docsRoot, 'lib', 'discovery.ts'),
+    'utf8'
+  )
+
+  assert.equal(manifest.name, 'primitree-docs')
+  assert.match(discovery, /https:\/\/primitree\.com/)
+})

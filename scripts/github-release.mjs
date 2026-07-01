@@ -823,7 +823,7 @@ async function runCli() {
     githubSha: process.env.GITHUB_SHA,
     notes,
     tag: process.env.GITHUB_REF_NAME,
-    title: `FigmaVars v${verified.version}`,
+    title: `Primitree v${verified.version}`,
     token: process.env.GITHUB_TOKEN,
   })
   console.log(`GitHub Release ${result.status}`)

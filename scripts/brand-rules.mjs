@@ -14,6 +14,7 @@ const APPROVED_REFERENCE_PATHS = new Set([
 ])
 const EXCLUDED_DIRECTORIES = new Set([
   '.git',
+  '.superpowers',
   '.next',
   '.turbo',
   'artifacts',
