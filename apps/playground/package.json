@@ -1,6 +1,5 @@
 {
-  "name": "figmavars-playground",
-  "version": "5.0.0",
+  "name": "primitree-playground",
   "private": true,
   "description": "Preview a Figma variables export and download the generated token files in your browser.",
   "type": "module",
@@ -12,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*",
-    "@figmavars/dtcg": "workspace:*",
+    "@primitree/core": "workspace:*",
+    "@primitree/dtcg": "workspace:*",
     "fflate": "^0.8.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

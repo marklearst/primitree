@@ -21,7 +21,7 @@ import type {
  *
  * @example
  * ```ts
- * import type { CreateVariablePayload } from '@figmavars/core';
+ * import type { CreateVariablePayload } from '@primitree/core';
  *
  * const newVariable: CreateVariablePayload = {
  *   name: 'Primary Color',
@@ -60,7 +60,7 @@ export interface CreateVariablePayload {
  *
  * @example
  * ```ts
- * import type { UpdateVariablePayload } from '@figmavars/core';
+ * import type { UpdateVariablePayload } from '@primitree/core';
  *
  * const updatePayload: UpdateVariablePayload = {
  *   name: 'Updated Color Name',
@@ -79,7 +79,7 @@ export interface UpdateVariablePayload {
 }
 
 /**
- * Action accepted by a Figma Variables mutation.
+ * Figma Variables mutation action.
  *
  * @remarks
  * Bulk payload entries use this discriminator.
@@ -111,7 +111,7 @@ type ExtendedCollectionCreate = {
  *
  * @example
  * ```ts
- * import type { VariableCollectionChange } from '@figmavars/core';
+ * import type { VariableCollectionChange } from '@primitree/core';
  *
  * const change: VariableCollectionChange = {
  *   action: 'CREATE',
@@ -144,7 +144,7 @@ export type VariableCollectionChange =
  *
  * @example
  * ```ts
- * import type { VariableModeChange } from '@figmavars/core';
+ * import type { VariableModeChange } from '@primitree/core';
  *
  * const modeChange: VariableModeChange = {
  *   action: 'CREATE',
@@ -186,7 +186,7 @@ type VariableMutableFields = {
  *
  * @example
  * ```ts
- * import type { VariableChange } from '@figmavars/core';
+ * import type { VariableChange } from '@primitree/core';
  *
  * const varChange: VariableChange = {
  *   action: 'DELETE',
@@ -211,7 +211,7 @@ export type VariableChange =
   | (ChangeId & { action: 'DELETE' })
 
 /**
- * Value accepted when assigning a Figma variable in a mutation request.
+ * Value for a Figma variable assignment in a mutation request.
  *
  * @remarks
  * Figma accepts `null` to remove an extended-mode override. Its `modeId` may
@@ -226,9 +226,9 @@ export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
  * Value assignment for one variable and mode.
  *
  * @remarks
- * A `null` value requires `modeId` to identify an extended-mode override. The
- * field also accepts a mapped inherited-mode temporary ID. Figma rejects
- * root-mode `null` assignments upstream.
+ * A `null` value requires `modeId` to identify an extended-mode override.
+ * `modeId` accepts an extended-mode ID or a mapped inherited-mode temporary
+ * ID. Figma rejects root-mode `null` assignments upstream.
  *
  * @property variableId - ID of the Figma variable that receives the value.
  * @property modeId - The mode ID (e.g., 'MODE:dark') this value applies to.
@@ -236,7 +236,7 @@ export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
  *
  * @example
  * ```ts
- * import type { VariableModeValue } from '@figmavars/core';
+ * import type { VariableModeValue } from '@primitree/core';
  *
  * const modeValue: VariableModeValue = {
  *   variableId: 'VariableID:123:456',
@@ -266,7 +266,7 @@ export interface VariableModeValue {
  *
  * @example
  * ```ts
- * import type { BulkUpdatePayload } from '@figmavars/core';
+ * import type { BulkUpdatePayload } from '@primitree/core';
  *
  * const payload: BulkUpdatePayload = {
  *   variableCollections: [{ action: 'UPDATE', id: 'VariableCollectionId:123', name: 'New Name' }],
@@ -291,14 +291,14 @@ export interface BulkUpdatePayload {
  * @remarks
  * `meta.tempIdToRealId` maps client IDs to the IDs Figma created.
  *
- * @property error - Boolean indicating if an error occurred.
+ * @property error - True for an error response.
  * @property status - HTTP status code from the API response.
  * @property message - Optional human-readable error or status message.
  * @property meta - Optional metadata including temporary-to-real ID mapping.
  *
  * @example
  * ```ts
- * import type { BulkUpdateResponse } from '@figmavars/core';
+ * import type { BulkUpdateResponse } from '@primitree/core';
  *
  * function handleResponse(response: BulkUpdateResponse) {
  *   if (response.error) {
@@ -321,12 +321,12 @@ export interface BulkUpdateResponse {
 }
 
 /**
- * State tracked by a mutation hook.
+ * Mutation hook state.
  *
  * @remarks
  * The status, data, and error fields describe the latest mutation.
  *
- * @typeParam TData - The type of data returned by the mutation.
+ * @typeParam TData - Mutation result type.
  *
  * @public
  */
@@ -401,8 +401,8 @@ export interface MutationOptions {
  * }
  * ```
  *
- * @typeParam TData - The type of data returned by the mutation.
- * @typeParam TPayload - The payload type accepted by the mutation trigger.
+ * @typeParam TData - Mutation result type.
+ * @typeParam TPayload - Mutation payload type.
  *
  * @public
  */
@@ -416,9 +416,9 @@ export interface MutationResult<TData, TPayload> {
   mutate: (payload: TPayload) => Promise<TData | undefined>
   /** Current mutation status: 'idle' | 'loading' | 'success' | 'error' */
   status: 'idle' | 'loading' | 'success' | 'error'
-  /** The result data from a successful mutation, or `null` if not yet successful. */
+  /** Latest successful mutation result. Null before a successful mutation. */
   data: TData | null
-  /** The error from a failed mutation, or `null` if no error. */
+  /** Latest mutation error. Null before a failure. */
   error: Error | null
   /** `true` while the mutation is in progress. */
   isLoading: boolean

@@ -9,11 +9,11 @@ import type { FigmaVariable } from '../types'
  * The hook reads local data from {@link useVariables}.
  *
  * @param variableId - The ID of the variable to retrieve.
- * @returns The variable object, or `undefined` if not found.
+ * @returns The variable, or `undefined` for an unknown ID.
  *
  * @example
  * ```tsx
- * import { useVariableById } from '@figmavars/hooks';
+ * import { useVariableById } from '@primitree/hooks';
  *
  * function VariableDetails({ variableId }: { variableId: string }) {
  *   const variable = useVariableById(variableId);

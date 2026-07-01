@@ -8,7 +8,7 @@ import {
 } from '../src/naming'
 import { colorToHex, figmaColorToDTCG } from '../src/color'
 import { inferTokenType } from '../src/inferType'
-import type { NormalizedVariable } from '@figmavars/core'
+import type { NormalizedVariable } from '@primitree/core'
 
 describe('slugify', () => {
   it('kebab-cases arbitrary names', () => {

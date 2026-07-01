@@ -1,8 +1,7 @@
 {
-  "name": "@figmavars/plugin-export",
-  "version": "5.0.0",
+  "name": "@primitree/plugin-export",
   "private": true,
-  "description": "Serialize local Figma variables into the REST export shape used by @figmavars/cli.",
+  "description": "Serialize local Figma variables into the REST export shape for @primitree/cli.",
   "type": "module",
   "license": "MIT",
   "author": "Mark Learst",
@@ -24,7 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@figmavars/core": "workspace:*",
+    "@primitree/core": "workspace:*",
     "@types/node": "^24.13.3",
     "tsup": "^8.5.0",
     "typescript": "~6.0.3",

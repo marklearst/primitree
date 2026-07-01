@@ -9,11 +9,11 @@ import type { FigmaCollection } from '../types'
  * The hook reads collection data from {@link useVariableCollections}.
  *
  * @param collectionId - The ID of the collection to retrieve.
- * @returns The collection object, or `undefined` if not found.
+ * @returns The collection, or `undefined` for an unknown ID.
  *
  * @example
  * ```tsx
- * import { useCollectionById } from '@figmavars/hooks';
+ * import { useCollectionById } from '@primitree/hooks';
  *
  * function CollectionDetails({ collectionId }: { collectionId: string }) {
  *   const collection = useCollectionById(collectionId);

@@ -6,14 +6,15 @@ import type { VariableMode } from '../types'
  * Select modes for a Figma variable collection.
  *
  * @remarks
- * The hook returns an empty array when the collection has no loaded modes.
+ * The hook returns an empty array for an unknown collection or one without
+ * loaded modes.
  *
  * @param collectionId - The ID of the collection to get modes for.
- * @returns An array of VariableMode objects for the collection, or an empty array if not found.
+ * @returns The collection modes, or an empty array for an unknown collection.
  *
  * @example
  * ```tsx
- * import { useModesByCollection } from '@figmavars/hooks';
+ * import { useModesByCollection } from '@primitree/hooks';
  *
  * function CollectionModes({ collectionId }: { collectionId: string }) {
  *   const modes = useModesByCollection(collectionId);

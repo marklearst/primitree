@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { UpdateVariablePayload } from '@figmavars/core'
+import type { UpdateVariablePayload } from '@primitree/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 /**
  * Update a Figma variable in the provider's file.
@@ -19,7 +19,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useUpdateVariable } from '@figmavars/hooks';
+ * import { useUpdateVariable } from '@primitree/hooks';
  *
  * function UpdateVariableButton({ id }: { id: string }) {
  *   const { mutate, isLoading, isError, error } = useUpdateVariable();

@@ -1,6 +1,6 @@
 import useSWR from 'swr'
-import { fetcher } from '@figmavars/core'
-import type { LocalVariablesResponse } from '@figmavars/core'
+import { fetcher } from '@primitree/core'
+import type { LocalVariablesResponse } from '@primitree/core'
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getVariablesKey } from '../utils/swrKeys'
 
@@ -8,8 +8,9 @@ import { getVariablesKey } from '../utils/swrKeys'
  * Read local Figma variables for the provider's file.
  *
  * @remarks
- * A validated local fallback skips the request. Otherwise SWR fetches the
- * local variables endpoint with the provider's file key and token.
+ * The hook reads validated local fallback data without a request. Without that
+ * fallback, SWR fetches the local variables endpoint when the provider has a
+ * file key and token.
  *
  * @returns SWR response object with `data`, `error`, `isLoading`, and `isValidating`.
  *

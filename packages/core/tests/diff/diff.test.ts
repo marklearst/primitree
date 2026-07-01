@@ -13,7 +13,7 @@ describe('diffVariables', () => {
     const diff = diffVariables(fixture, structuredClone(fixture))
     expect(diff.hasChanges).toBe(false)
     expect(diff.breaking).toBe(false)
-    expect(formatDiffMarkdown(diff)).toContain('No changes detected')
+    expect(formatDiffMarkdown(diff)).toContain('The exports match.')
   })
 
   it('detects renames by stable id instead of remove+add', () => {
@@ -165,7 +165,7 @@ describe('formatDiffMarkdown', () => {
     }
     const markdown = formatDiffMarkdown(diffVariables(fixture, next))
 
-    expect(markdown).toContain('**Breaking changes detected.**')
+    expect(markdown).toContain('**The diff contains breaking changes.**')
     expect(markdown).toContain('### Renamed variables (breaking)')
     expect(markdown).toContain('`color/bg/brand` -> `color/bg/primary`')
     expect(markdown).toContain(

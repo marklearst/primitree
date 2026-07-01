@@ -4,11 +4,11 @@ import { FigmaApiError } from '../types/figma'
  * Check whether a value is a {@link FigmaApiError}.
  *
  * @param error - The error to check.
- * @returns `true` if the error is a FigmaApiError, `false` otherwise.
+ * @returns `true` for FigmaApiError values; `false` for other values.
  *
  * @example
  * ```tsx
- * import { isFigmaApiError } from '@figmavars/core';
+ * import { isFigmaApiError } from '@primitree/core';
  *
  * try {
  *   await mutate(payload);
@@ -33,11 +33,11 @@ export function isFigmaApiError(error: unknown): error is FigmaApiError {
  * Return the HTTP status from a {@link FigmaApiError}.
  *
  * @param error - The error to extract status code from.
- * @returns The HTTP status code, or `null` if not available.
+ * @returns The HTTP status code. `getErrorStatus` returns `null` for other values.
  *
  * @example
  * ```tsx
- * import { getErrorStatus } from '@figmavars/core';
+ * import { getErrorStatus } from '@primitree/core';
  *
  * const status = getErrorStatus(error);
  * if (status === 401) {
@@ -58,12 +58,12 @@ export function getErrorStatus(error: unknown): number | null {
  * Return an error message or the supplied fallback.
  *
  * @param error - The error to extract message from.
- * @param defaultMessage - Optional default message if error has no message. Defaults to "An error occurred".
+ * @param defaultMessage - Fallback for values without an error message. Default: "No error message available".
  * @returns The error message string.
  *
  * @example
  * ```tsx
- * import { getErrorMessage } from '@figmavars/core';
+ * import { getErrorMessage } from '@primitree/core';
  *
  * const message = getErrorMessage(error);
  * toast.error(message);
@@ -73,7 +73,7 @@ export function getErrorStatus(error: unknown): number | null {
  */
 export function getErrorMessage(
   error: unknown,
-  defaultMessage = 'An error occurred'
+  defaultMessage = 'No error message available'
 ): string {
   if (error instanceof Error) {
     return error.message || defaultMessage
@@ -89,11 +89,11 @@ export function getErrorMessage(
  *
  * @param error - The error to check.
  * @param statusCode - The HTTP status code to check for.
- * @returns `true` if the error has the specified status code, `false` otherwise.
+ * @returns `true` for the specified status code; `false` for other values.
  *
  * @example
  * ```tsx
- * import { hasErrorStatus } from '@figmavars/core';
+ * import { hasErrorStatus } from '@primitree/core';
  *
  * if (hasErrorStatus(error, 401)) {
  *   // Handle unauthorized
@@ -110,14 +110,14 @@ export function hasErrorStatus(error: unknown, statusCode: number): boolean {
  * Check whether an error is a Figma HTTP 429 response.
  *
  * @param error - The error to check.
- * @returns `true` if the error is a rate limit error (429), `false` otherwise.
+ * @returns `true` for HTTP 429 errors; `false` for other values.
  *
  * @example
  * ```tsx
- * import { isRateLimited } from '@figmavars/core';
+ * import { isRateLimited } from '@primitree/core';
  *
  * if (isRateLimited(error)) {
- *   // Handle rate limit, maybe retry after delay
+ *   // Retry after the rate-limit delay
  * }
  * ```
  *
@@ -131,11 +131,11 @@ export function isRateLimited(error: unknown): boolean {
  * Return the `Retry-After` value from a Figma HTTP 429 error.
  *
  * @param error - The error to extract retry-after from.
- * @returns The number of seconds to wait, or `null` if not available.
+ * @returns The retry delay in seconds. `getRetryAfter` returns `null` for other errors.
  *
  * @example
  * ```tsx
- * import { getRetryAfter } from '@figmavars/core';
+ * import { getRetryAfter } from '@primitree/core';
  *
  * const retryAfter = getRetryAfter(error);
  * if (retryAfter !== null) {

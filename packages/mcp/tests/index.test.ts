@@ -4,7 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import {
+  getDefaultEnvironment,
+  StdioClientTransport,
+} from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
@@ -139,6 +142,45 @@ describe('built package entrypoints', () => {
         expect(searchLimit?.description).toBe(
           'Maximum number of matches to return. Defaults to 50.'
         )
+      } finally {
+        await client.close()
+      }
+    }
+  )
+
+  it(
+    'starts the built executable from PRIMITREE_TOKENS',
+    { timeout: 10_000 },
+    async () => {
+      const transport = new StdioClientTransport({
+        command: process.execPath,
+        args: [cliEntry],
+        env: {
+          ...getDefaultEnvironment(),
+          PRIMITREE_TOKENS: fixturePath,
+        },
+        stderr: 'pipe',
+      })
+      const client = new Client({
+        name: 'primitree-mcp-environment-test',
+        version: '1.0.0',
+      })
+
+      try {
+        await client.connect(transport)
+        expect(client.getServerVersion()).toEqual({
+          name: 'primitree',
+          version: packageManifest.version,
+        })
+
+        const tools = await client.listTools()
+        expect(tools.tools.map(tool => tool.name).sort()).toEqual([
+          'diff_tokens',
+          'get_token',
+          'list_collections',
+          'resolve_context',
+          'search_tokens',
+        ])
       } finally {
         await client.close()
       }

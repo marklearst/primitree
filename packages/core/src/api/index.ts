@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Barrel file for API utilities and mutators in @figmavars/core.
+ * Barrel file for API utilities and mutators in @primitree/core.
  *
  * @summary
  * Central entry point for all API-related utilities used to interact with the Figma Variables REST API.
@@ -11,7 +11,7 @@
  *
  * @example
  * ```ts
- * import { fetcher, mutator } from '@figmavars/core';
+ * import { fetcher, mutator } from '@primitree/core';
  *
  * async function loadVariables() {
  *   const variables = await fetcher('/variables', 'YOUR_FIGMA_TOKEN');

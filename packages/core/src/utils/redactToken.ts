@@ -26,8 +26,8 @@ export interface RedactTokenOptions {
  * Mask the middle of a Figma token for display.
  *
  * @remarks
- * The result still contains token characters. Do not treat it as safe for
- * logs, analytics, error reports, or other data sinks.
+ * Masked output contains visible token characters. Keep it out of logs,
+ * analytics, and error reports.
  *
  * @param token - Token to mask.
  * @param options - Visible character counts and empty placeholder.
@@ -35,7 +35,7 @@ export interface RedactTokenOptions {
  *
  * @example
  * ```ts
- * import { redactToken } from '@figmavars/core'
+ * import { redactToken } from '@primitree/core'
  *
  * redactToken('figd_abc123xyz789def456')
  * // 'figd_***...***456'

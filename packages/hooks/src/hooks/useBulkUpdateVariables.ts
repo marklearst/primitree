@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { BulkUpdatePayload } from '@figmavars/core'
+import type { BulkUpdatePayload } from '@primitree/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 /**
  * Create, update, or delete Figma collections, modes, and variables in one request.
@@ -19,7 +19,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useBulkUpdateVariables } from '@figmavars/hooks';
+ * import { useBulkUpdateVariables } from '@primitree/hooks';
  *
  * function BulkUpdateButton() {
  *   const { mutate, isLoading, isError, error } = useBulkUpdateVariables();

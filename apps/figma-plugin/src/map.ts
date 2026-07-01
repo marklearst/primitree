@@ -3,7 +3,7 @@ import type {
   ExportExtendedCollection,
   ExportVariable,
   ResolvedType,
-} from '@figmavars/plugin-export'
+} from '@primitree/plugin-export'
 
 function serializeValue(value: VariableValue): unknown {
   if (

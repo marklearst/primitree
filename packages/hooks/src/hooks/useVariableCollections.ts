@@ -10,7 +10,7 @@ import type { FigmaCollection } from '../types'
  *
  * @example
  * ```tsx
- * import { useVariableCollections } from '@figmavars/hooks';
+ * import { useVariableCollections } from '@primitree/hooks';
  *
  * function CollectionList() {
  *   const { collections } = useVariableCollections();

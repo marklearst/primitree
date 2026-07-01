@@ -6,9 +6,9 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "paths": {
-      "@figmavars/core": ["../../packages/core/src/index.ts"],
-      "@figmavars/core/types": ["../../packages/core/src/types/index.ts"],
-      "@figmavars/dtcg": ["../../packages/dtcg/src/index.ts"]
+      "@primitree/core": ["../../packages/core/src/index.ts"],
+      "@primitree/core/types": ["../../packages/core/src/types/index.ts"],
+      "@primitree/dtcg": ["../../packages/dtcg/src/index.ts"]
     },
     "strict": true,
     "skipLibCheck": true,

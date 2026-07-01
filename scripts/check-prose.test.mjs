@@ -380,6 +380,41 @@ test('HTML composes inline prose, scans visible attributes, and preserves positi
   )
 })
 
+test('HTML skips script comparisons without losing later body copy', () => {
+  const source = `<!doctype html>
+<html>
+  <body>
+    <script>const smaller = left < right</script>
+    <p>A robust token export.</p>
+  </body>
+</html>
+`
+
+  const violations = scanHtml('index.html', source)
+  assert.deepEqual(ruleIds(violations), ['robust'])
+  assert.deepEqual(
+    violations.map(violation => [violation.line, violation.column]),
+    [[5, 10]]
+  )
+})
+
+test('HTML keeps scanning after malformed numeric entities', () => {
+  const source = `<!doctype html>
+<html>
+  <body>
+    <p>&#1114112; &#xZZ; A robust token export.</p>
+  </body>
+</html>
+`
+
+  const violations = scanHtml('index.html', source)
+  assert.deepEqual(ruleIds(violations), ['robust'])
+  assert.deepEqual(
+    violations.map(violation => [violation.line, violation.column]),
+    [[4, 28]]
+  )
+})
+
 test('TypeScript checks public doc comments, prose strings, and JSX text', () => {
   const source = `/**
  * A deterministic token resolver.
@@ -797,10 +832,7 @@ test('built prose validation requires every API page and exact public declaratio
     ],
     ['@primitree/dtcg', ['dist/index.d.ts', 'dist/index.d.cts']],
     ['@primitree/cli', ['dist/index.d.ts']],
-    [
-      '@primitree/hooks',
-      ['dist/index.d.ts', 'dist/index.d.cts'],
-    ],
+    ['@primitree/hooks', ['dist/index.d.ts', 'dist/index.d.cts']],
     ['@primitree/mcp', ['dist/index.d.ts', 'dist/cli.d.ts']],
   ])
   const declarationFiles = PUBLIC_RELEASE_PACKAGES.flatMap(config =>

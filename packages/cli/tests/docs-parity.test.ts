@@ -76,10 +76,15 @@ const hooksMigration = readFileSync(
   resolve(docsRoot, 'hooks/migration.mdx'),
   'utf8'
 )
-const currentHooksChangelog = readFileSync(
+const hooksChangelog = readFileSync(
   resolve(root, 'packages/hooks/CHANGELOG.md'),
   'utf8'
-).split('\n## 4.0.0')[0]
+)
+const legacyChangelogIndex = hooksChangelog.indexOf('\n## 4.0.0')
+const currentHooksChangelog =
+  legacyChangelogIndex === -1
+    ? hooksChangelog
+    : hooksChangelog.slice(0, legacyChangelogIndex)
 const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
   readmeFiles(resolve(root, directory)).map(file =>
     relative(root, file).split(sep).join('/')

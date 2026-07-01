@@ -13,12 +13,12 @@ import {
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   FIGMA_FILE_VARIABLES_PATH,
-} from '@figmavars/core'
-import type { UpdateVariablePayload } from '@figmavars/core'
+} from '@primitree/core'
+import type { UpdateVariablePayload } from '@primitree/core'
 
 // Mock the mutator to avoid actual API calls
-vi.mock('@figmavars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figmavars/core')>()),
+vi.mock('@primitree/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@primitree/core')>()),
   mutator: vi.fn(),
 }))
 
