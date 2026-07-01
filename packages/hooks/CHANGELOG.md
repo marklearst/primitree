@@ -40,7 +40,8 @@ reach npm. Version 1.0.0 includes that work:
 3. Replace undocumented `dist` imports with a public package entry.
 4. Move to Node.js 24, React `^19.0.0`, and SWR `^2.3.7`.
 
-Use `primitree export` from `@primitree/cli` for token exports.
+Use `primitree export` from `@primitree/cli` to download local Figma variables
+JSON. Pass that JSON to `primitree build` to create token output.
 
 Read the [migration guide](https://primitree.com/docs/hooks/migration).
 

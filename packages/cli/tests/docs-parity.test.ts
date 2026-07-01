@@ -76,6 +76,10 @@ const hooksMigration = readFileSync(
   resolve(docsRoot, 'hooks/migration.mdx'),
   'utf8'
 )
+const currentHooksChangelog = readFileSync(
+  resolve(root, 'packages/hooks/CHANGELOG.md'),
+  'utf8'
+).split('\n## 4.0.0')[0]
 const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
   readmeFiles(resolve(root, directory)).map(file =>
     relative(root, file).split(sep).join('/')
@@ -230,10 +234,34 @@ describe('maintained examples', () => {
     path,
     text: readFileSync(resolve(root, path), 'utf8'),
   }))
+  const currentPublicMarkdown = [
+    ...publicMarkdown,
+    {
+      path: 'packages/hooks/CHANGELOG.md (1.0.0)',
+      text: currentHooksChangelog,
+    },
+  ]
   const maintained = publicMarkdown.map(document => document.text).join('\n')
 
   it('contains no obsolete CLI switches', () => {
     expect(obsoleteCliOptions(maintained)).toEqual([])
+  })
+
+  it('keeps variables download separate from token-project commands', () => {
+    const tokenExportClaim =
+      /\bprimitree export\b[\s\S]{0,120}\btoken exports?\b/iu
+    const tokenProjectExport =
+      /\b(?:export|exports|exported|exporting) token projects?\b/iu
+
+    expect(
+      currentPublicMarkdown
+        .filter(
+          document =>
+            tokenExportClaim.test(document.text) ||
+            tokenProjectExport.test(document.text)
+        )
+        .map(document => document.path)
+    ).toEqual([])
   })
 
   it('uses old then new order for semantic diffs', () => {
