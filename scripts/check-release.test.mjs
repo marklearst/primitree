@@ -1732,6 +1732,16 @@ test('freezes workflow triggers permissions concurrency and secret boundaries', 
   )
 })
 
+test('disables dependency lifecycle scripts in the OIDC-enabled quality job', () => {
+  const quality = parseYaml(workflow).jobs.quality
+
+  assert.equal(quality.permissions['id-token'], 'write')
+  assert.equal(
+    findWorkflowStep(quality, 'Install dependencies').run,
+    'pnpm install --frozen-lockfile --ignore-scripts'
+  )
+})
+
 test('builds and uploads one exact release artifact in quality', () => {
   const quality = extractWorkflowJobs(workflow).get('quality')
   assert.ok(quality)
