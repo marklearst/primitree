@@ -9,6 +9,8 @@ type ElementNode = {
     children?: unknown
     src?: string
     alt?: string
+    className?: string
+    href?: string
   }
 }
 
@@ -25,7 +27,19 @@ function textContent(value: unknown): string {
   return ''
 }
 
-test('linked BrandLogo exposes one Primitree name with the compact tree mark', async () => {
+function elementNodes(value: unknown): ElementNode[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(elementNodes)
+  }
+  if (typeof value !== 'object' || value === null || !('props' in value)) {
+    return []
+  }
+
+  const node = value as ElementNode
+  return [node, ...elementNodes(node.props.children)]
+}
+
+async function loadBrandLogo() {
   const source = await readFile(
     new URL('../components/brand-logo.tsx', import.meta.url),
     'utf8'
@@ -69,12 +83,41 @@ test('linked BrandLogo exposes one Primitree name with the compact tree mark', a
     module.exports
   )
 
-  assert.equal(typeof module.exports.BrandLogo, 'function')
-  const logo = module.exports.BrandLogo?.({ linked: true })
+  const BrandLogo = module.exports.BrandLogo
+  if (typeof BrandLogo !== 'function') {
+    throw new TypeError('BrandLogo must be a function')
+  }
+  return BrandLogo
+}
+
+test('linked BrandLogo exposes one Primitree name with the compact tree mark', async () => {
+  const BrandLogo = await loadBrandLogo()
+  const logo = BrandLogo({ linked: true })
   const inner = logo?.props.children as ElementNode
   const mark = (inner.props.children as ElementNode[])[0]
 
   assert.equal(textContent(logo), 'Primitree')
+  assert.equal(logo.props.href, '/')
   assert.equal(mark.props.src, '/primitree-icon.svg')
   assert.equal(mark.props.alt, '')
+})
+
+test('unlinked BrandLogo keeps the mark and wordmark in one caller-styled layout wrapper', async () => {
+  const BrandLogo = await loadBrandLogo()
+  const logo = BrandLogo({ className: 'mx-auto' })
+  const nodes = elementNodes(logo)
+  const layoutNodes = nodes.filter(node =>
+    node.props.className?.split(/\s+/u).includes('inline-flex')
+  )
+  const wordmark = nodes.find(
+    node =>
+      node !== logo && node.type === 'span' && textContent(node) === 'Primitree'
+  )
+
+  assert.equal(logo.type, 'span')
+  assert.equal(layoutNodes.length, 1)
+  assert.equal(layoutNodes[0], logo)
+  assert.match(logo.props.className ?? '', /\bmx-auto\b/u)
+  assert.ok(wordmark)
+  assert.doesNotMatch(wordmark.props.className ?? '', /\bmx-auto\b/u)
 })
