@@ -1,6 +1,6 @@
 # Local caches and review state
 .turbo/
-.superpowers/
+.review-state/
 .playwright-cli/
 logs/
 *.log

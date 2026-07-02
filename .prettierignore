@@ -13,7 +13,7 @@ apps/docs/content/docs/api/
 # Generated files
 *.d.ts
 *.d.ts.map
-.superpowers/sdd/
+.review-state/sdd/
 
 # Golden test files must stay byte-exact as emitted
 **/tests/goldens/
