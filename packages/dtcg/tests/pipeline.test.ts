@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
@@ -182,25 +181,16 @@ describe('emitTypescript', () => {
         resolutionOrder: [],
       }
     )
-    const directory = mkdtempSync(join(tmpdir(), 'primitree-empty-types-'))
-    const file = join(directory, 'tokens.ts')
-
-    try {
-      writeFileSync(file, emptySource)
-      const program = ts.createProgram([file], {
+    const compiled = ts.transpileModule(emptySource, {
+      compilerOptions: {
         module: ts.ModuleKind.ESNext,
-        noEmit: true,
-        skipLibCheck: true,
         target: ts.ScriptTarget.ES2022,
-      })
-      const sourceFile = program.getSourceFile(file)
+      },
+      reportDiagnostics: true,
+    })
 
-      expect(sourceFile).toBeDefined()
-      expect(program.getSyntacticDiagnostics(sourceFile)).toEqual([])
-      expect(emptySource).toContain('export type TokenPath = never')
-    } finally {
-      rmSync(directory, { recursive: true, force: true })
-    }
+    expect(compiled.diagnostics ?? []).toEqual([])
+    expect(emptySource).toContain('export type TokenPath = never')
   })
 
   it('preserves an own __proto__ token in both generated maps at runtime', () => {
