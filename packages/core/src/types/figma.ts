@@ -14,7 +14,7 @@
 export type ResolvedType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'COLOR'
 
 /**
- * Scope accepted by the Figma Variables API.
+ * Figma Variables API scope.
  *
  * @remarks
  * A scope controls where Figma offers a variable in the editor.
@@ -96,14 +96,14 @@ export interface VariableAlias {
 }
 
 /**
- * Value accepted by Figma variable payloads and responses.
+ * Value for Figma variable payloads and responses.
  *
  * @public
  */
 export type VariableValue = string | boolean | number | Color | VariableAlias
 
 /**
- * Figma local variable returned by the Variables REST API.
+ * Figma local variable from the Variables REST API.
  *
  * @remarks
  * `valuesByMode` maps each mode ID to its value. `variableCollectionId`
@@ -152,7 +152,7 @@ export interface FigmaVariable {
 }
 
 /**
- * Mode declared by a Figma variable collection.
+ * Mode in a Figma variable collection.
  *
  * @remarks
  * A collection maps variable values to its mode IDs.
@@ -222,7 +222,7 @@ export interface FigmaCollection {
  *
  * @example
  * ```ts
- * import type { LocalVariablesResponse } from '@figmavars/core';
+ * import type { LocalVariablesResponse } from '@primitree/core';
  *
  * function handleResponse(response: LocalVariablesResponse) {
  *   const collections = Object.values(response.meta.variableCollections);
@@ -242,7 +242,7 @@ export interface LocalVariablesResponse {
 }
 
 /**
- * Published Figma variable returned by the Variables REST API.
+ * Published Figma variable from the Variables REST API.
  *
  * @public
  */
@@ -257,7 +257,7 @@ export interface PublishedVariable {
 }
 
 /**
- * Published Figma variable collection returned by the Variables REST API.
+ * Published Figma variable collection from the Variables REST API.
  *
  * @public
  */
@@ -282,17 +282,17 @@ export interface PublishedVariablesResponse {
 }
 
 /**
- * Error data returned by the Figma REST API.
+ * Figma REST API error data.
  *
  * @remarks
  * The response contains an HTTP status code and message.
  *
- * @property statusCode - HTTP status code returned by the Figma API.
+ * @property statusCode - HTTP status code from the Figma API.
  * @property message - Human-readable error message describing the failure.
  *
  * @example
  * ```ts
- * import type { FigmaError } from '@figmavars/core';
+ * import type { FigmaError } from '@primitree/core';
  *
  * function handleError(error: FigmaError) {
  *   console.error(error.statusCode, error.message);
@@ -302,7 +302,7 @@ export interface PublishedVariablesResponse {
  * @public
  */
 export interface FigmaError {
-  /** HTTP status code returned by the Figma API. */
+  /** HTTP status code from the Figma API. */
   statusCode: number
   /** Human-readable error message describing the failure. */
   message: string
@@ -317,7 +317,7 @@ export interface FigmaError {
  *
  * @example
  * ```ts
- * import { FigmaApiError } from '@figmavars/core';
+ * import { FigmaApiError } from '@primitree/core';
  *
  * try {
  *   await fetcher(url, token);
@@ -339,8 +339,8 @@ export class FigmaApiError extends Error {
   /** HTTP status code from the API response. */
   public readonly statusCode: number
   /**
-   * Retry-After header value in seconds (for 429 rate limit errors).
-   * Undefined if not a rate limit error or header not present.
+   * Retry-After header value in seconds for HTTP 429 responses.
+   * Undefined for responses without a Retry-After header.
    */
   public readonly retryAfter: number | undefined
 

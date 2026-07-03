@@ -21,7 +21,7 @@ export function SiteHeader({
   active?: 'home' | 'docs' | 'playground'
 }) {
   return (
-    <header className='sticky top-0 z-50 border-b border-fv-border/80 bg-fv-bg/70 backdrop-blur-2xl backdrop-saturate-150'>
+    <header className='sticky top-0 z-50 border-b border-primitree-border/80 bg-primitree-bg/70 backdrop-blur-2xl backdrop-saturate-150'>
       <div className='mx-auto flex h-[72px] max-w-[1200px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8'>
         <BrandLogo
           size='md'
@@ -40,8 +40,8 @@ export function SiteHeader({
               className={cn(
                 'site-nav-link rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors',
                 active === item.key
-                  ? 'bg-white/8 text-fv-text'
-                  : 'text-fv-muted'
+                  ? 'bg-white/8 text-primitree-text'
+                  : 'text-primitree-muted'
               )}>
               {item.label}
             </Link>
@@ -77,11 +77,11 @@ export function SiteHeader({
 
 export function SiteFooter() {
   return (
-    <footer className='border-t border-fv-border'>
+    <footer className='border-t border-primitree-border'>
       <div className='mx-auto flex max-w-[1200px] flex-col gap-8 px-6 py-14 lg:px-8'>
         <div className='flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between'>
           <BrandLogo size='sm' />
-          <div className='flex flex-wrap gap-x-6 gap-y-2 text-sm text-fv-muted'>
+          <div className='flex flex-wrap gap-x-6 gap-y-2 text-sm text-primitree-muted'>
             <Link
               href='/docs'
               className='site-footer-link transition-colors'>
@@ -106,7 +106,7 @@ export function SiteFooter() {
             </Link>
           </div>
         </div>
-        <p className='text-sm text-fv-dim'>MIT · Mark Learst</p>
+        <p className='text-sm text-primitree-dim'>MIT · Mark Learst</p>
       </div>
     </footer>
   )

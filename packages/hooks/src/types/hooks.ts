@@ -1,4 +1,4 @@
-import type { VariableMode, UpdateVariablePayload } from '@figmavars/core'
+import type { VariableMode, UpdateVariablePayload } from '@primitree/core'
 
 /**
  * Arguments passed to `useUpdateVariable().mutate`.
@@ -11,7 +11,7 @@ import type { VariableMode, UpdateVariablePayload } from '@figmavars/core'
  *
  * @example
  * ```ts
- * import type { UpdateVariableArgs } from '@figmavars/hooks';
+ * import type { UpdateVariableArgs } from '@primitree/hooks';
  *
  * const args: UpdateVariableArgs = {
  *   variableId: 'VariableID:123:456',
@@ -41,7 +41,7 @@ export interface UpdateVariableArgs {
  *
  * @example
  * ```ts
- * import { useVariableModes } from '@figmavars/hooks';
+ * import { useVariableModes } from '@primitree/hooks';
  *
  * function ThemeSwitcher() {
  *   const { modes, modesById } = useVariableModes();

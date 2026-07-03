@@ -15,8 +15,8 @@ export type AliasResolutionErrorCode =
   'CYCLE' | 'MISSING_TARGET' | 'MISSING_VALUE'
 
 /**
- * Alias resolution functions throw this error when a variable's alias chain
- * does not reach a concrete value.
+ * Alias resolution functions throw this error for an alias chain without a
+ * concrete value.
  *
  * @public
  */
@@ -90,12 +90,13 @@ function pickModeValue(
  * @remarks
  * Mode selection mirrors Figma's behavior for static resolution:
  *
- * - The resolver uses the requested `modeId` when the variable defines a
- *   value for it. Otherwise, it uses the collection's default mode.
+ * - The resolver uses the requested `modeId` for a matching variable value.
+ *   For a requested mode with no value, the resolver selects the collection's
+ *   default mode.
  * - For aliases in another collection, the resolver checks the requested
  *   `modeId` in that collection. Mode IDs are unique per collection, so this
- *   check matches within the same collection. The target collection's
- *   default mode applies when the check finds no match.
+ *   check matches within the same collection. For a target collection without
+ *   that mode ID, the resolver selects the target collection's default mode.
  *
  * Cycles and dangling alias targets throw {@link AliasResolutionError}.
  *

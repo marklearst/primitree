@@ -6,13 +6,13 @@ description: Use built DTCG artifacts in React without the Figma API.
 Build the token files:
 
 ```bash
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
 ## Setup
 
 ```tsx
-import { TokensProvider, useToken, useTokens, useTheme } from '@figmavars/hooks'
+import { TokensProvider, useToken, useTokens, useTheme } from '@primitree/hooks'
 import primitives from './design-tokens/tokens/primitives.tokens.json'
 import semantic from './design-tokens/tokens/semantic.tokens.json'
 import semanticDark from './design-tokens/tokens/semantic.dark.tokens.json'

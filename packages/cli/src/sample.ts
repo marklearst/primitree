@@ -1,6 +1,6 @@
 /**
- * A small but realistic Figma variables export used by `figma-vars init` so
- * a scaffolded repo works before the first real export lands.
+ * `primitree init` uses this sample Figma variables export. A new scaffold
+ * works before the first project export.
  */
 export const sampleVariables = {
   status: 200,

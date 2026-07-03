@@ -1,11 +1,11 @@
-# @figmavars/dtcg
+# @primitree/dtcg
 
-`@figmavars/dtcg` converts Figma variables JSON into DTCG 2025.10 plus a
+`@primitree/dtcg` converts Figma variables JSON into DTCG 2025.10 plus a
 documented boolean extension. It creates token documents, a Resolver document,
 CSS custom properties, a Tailwind CSS v4 theme, and TypeScript token accessors.
 
 ```sh
-npm install @figmavars/dtcg
+npm install @primitree/dtcg
 ```
 
 ## Requirements
@@ -18,21 +18,21 @@ them in a bundle.
 ## Convert an export
 
 ```ts
-import { toDTCG } from '@figmavars/dtcg'
+import { toDTCG } from '@primitree/dtcg'
 
 const { files, resolver, resolverFileName, warnings } = toDTCG(variablesJson)
 ```
 
-`toDTCG` produces:
+Call `toDTCG` to create:
 
 - one base token file for each Figma collection
 - one override file for each extra mode in a collection
 - token references for Figma aliases
 - a Resolver modifier for each collection with more than one mode
 - Figma IDs, collection data, scopes, and code syntax under
-  `$extensions['com.figma-vars']`
+  `$extensions['com.primitree']`
 
-DTCG 2025.10 does not define a boolean token type. FigmaVars keeps Figma
+DTCG 2025.10 does not define a boolean token type. Primitree keeps Figma
 boolean values as `$type: "boolean"` and records the Figma type in the
 extension data.
 
@@ -46,7 +46,7 @@ import {
   listPermutations,
   resolveTokenValues,
   resolveTokenValuesSafe,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 
 const dark = applyResolver(files, resolver, { semantic: 'dark' })
 const flat = flattenTokens(dark)
@@ -59,7 +59,7 @@ const values = resolveTokenValues(flat)
 ## Build in-memory pipeline files
 
 ```ts
-import { buildPipeline } from '@figmavars/dtcg'
+import { buildPipeline } from '@primitree/dtcg'
 
 const result = buildPipeline(variablesJson)
 
@@ -68,7 +68,7 @@ for (const file of result.files) {
 }
 ```
 
-The returned files can include:
+`buildPipeline` can return:
 
 - `tokens/*.tokens.json`
 - `tokens/tokens.resolver.json`
@@ -82,11 +82,11 @@ The returned files can include:
 The CSS emitter writes default values in `:root`. Extra contexts use a selector
 based on the Resolver axis, such as `[data-semantic='dark']`.
 
-Use [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) when you
-want FigmaVars to write these files to disk.
+Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) when you
+want Primitree to write these files to disk.
 
-Read the [FigmaVars documentation](https://figmavars.com) or review the
-[5.0.0 changelog](CHANGELOG.md).
+Read the [Primitree documentation](https://primitree.com) or review the
+[1.0.0 changelog](CHANGELOG.md).
 
 ## License
 

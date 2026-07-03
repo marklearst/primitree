@@ -2,7 +2,7 @@
  * React 19 hooks for built design tokens and the Figma Variables REST API.
  *
  * @remarks
- * `TokensProvider` reads DTCG token data. `FigmaVarsProvider` supplies a file
+ * `TokensProvider` reads DTCG token data. `FigmaVariablesProvider` supplies a file
  * key and Personal Access Token to the live REST API hooks.
  *
  * @module hooks
@@ -18,18 +18,18 @@
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figmavars/hooks';
+ * import { FigmaVariablesProvider } from '@primitree/hooks';
  *
  * function App({ token }: { token: string }) {
  *   return (
- *     <FigmaVarsProvider token={token} fileKey="your-file-key">
+ *     <FigmaVariablesProvider token={token} fileKey="your-file-key">
  *       <YourComponent />
- *     </FigmaVarsProvider>
+ *     </FigmaVariablesProvider>
  *   );
  * }
  * ```
  */
-export { FigmaVarsProvider } from './contexts'
+export { FigmaVariablesProvider } from './contexts'
 
 /**
  * Hooks for reading and changing Figma variables through the REST API.
@@ -42,7 +42,7 @@ export { FigmaVarsProvider } from './contexts'
  *
  * @example
  * ```tsx
- * import { useVariables, useCreateVariable } from '@figmavars/hooks';
+ * import { useVariables, useCreateVariable } from '@primitree/hooks';
  *
  * function Example() {
  *   const { data, isLoading } = useVariables();
@@ -68,7 +68,7 @@ export {
 } from './hooks'
 
 /**
- * Hooks for design-token files built by `figma-vars build`.
+ * Hooks for design-token files from `primitree build`.
  *
  * @remarks
  * These hooks consume DTCG token files and a Resolver without calling the
@@ -76,7 +76,7 @@ export {
  *
  * @example
  * ```tsx
- * import { TokensProvider, useToken, useTheme } from '@figmavars/hooks';
+ * import { TokensProvider, useToken, useTheme } from '@primitree/hooks';
  *
  * function Brand() {
  *   const brand = useToken('semantic.color.bg.brand');
@@ -108,7 +108,7 @@ export type {
  *
  * @example
  * ```tsx
- * import { useFigmaTokenContext } from '@figmavars/hooks';
+ * import { useFigmaTokenContext } from '@primitree/hooks';
  * const { token, fileKey } = useFigmaTokenContext();
  * ```
  */
@@ -118,11 +118,11 @@ export { useFigmaTokenContext } from './contexts'
  * Figma Variables filters, error helpers, guards, redaction, and retry.
  *
  * @remarks
- * These functions come from `@figmavars/core`.
+ * These functions come from `@primitree/core`.
  *
  * @example
  * ```ts
- * import { filterVariables, isFigmaApiError, getErrorStatus } from '@figmavars/hooks';
+ * import { filterVariables, isFigmaApiError, getErrorStatus } from '@primitree/hooks';
  * const filtered = filterVariables(variables, { resolvedType: 'COLOR' });
  *
  * // Error handling
@@ -152,7 +152,7 @@ export {
  * @remarks
  * @example
  * ```ts
- * import type { FigmaVariable, CreateVariablePayload } from '@figmavars/hooks';
+ * import type { FigmaVariable, CreateVariablePayload } from '@primitree/hooks';
  * ```
  */
 export * from './types'

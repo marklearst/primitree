@@ -1,22 +1,22 @@
-# FigmaVars Export
+# Primitree Export
 
-FigmaVars Export is the Figma plugin in the
-[FigmaVars repository](https://github.com/marklearst/figmavars). It reads local
-variable collections and variables from the open file, then downloads a
-`variables.json` file for `figma-vars build`.
+Primitree Export is the Figma plugin in the
+[Primitree repository](https://github.com/marklearst/primitree). It reads local
+variable collections and variables from the open file and downloads a
+`variables.json` file for `primitree build`.
 
-The plugin works on any Figma plan and does not call the Enterprise Variables
-REST API. Its manifest allows no network domains.
+The plugin uses Figma's local Plugin API and does not call the Enterprise
+Variables REST API. Its manifest declares no allowed network domains.
 
-This repository setup covers local development. The release checklist below
-covers Figma Community submission.
+The repository covers local development. Use the Figma Community release
+checklist for submission.
 
 ## Build
 
 ```sh
 pnpm install
-pnpm --filter figmavars-plugin build
-pnpm --filter figmavars-plugin dev
+pnpm --filter primitree-plugin build
+pnpm --filter primitree-plugin dev
 ```
 
 The `dev` command watches the plugin files.
@@ -26,7 +26,7 @@ The `dev` command watches the plugin files.
 1. Open the Figma desktop app.
 2. Choose Plugins > Development > Import plugin from manifest.
 3. Select `apps/figma-plugin/dist/manifest.json`.
-4. Run FigmaVars Export in a file that contains local variables.
+4. Run Primitree Export in a file that contains local variables.
 
 The build command writes the plugin files under `apps/figma-plugin/dist`.
 
@@ -46,17 +46,17 @@ The build command writes the plugin files under `apps/figma-plugin/dist`.
 Build the token files from the downloaded export:
 
 ```sh
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
 ## Shared serializer
 
-The private `@figmavars/plugin-export` workspace package maps plugin data to
+The private `@primitree/plugin-export` workspace package maps plugin data to
 the REST-shaped export. Its tests cover serialization outside the Figma
 sandbox.
 
 ## Prepare a Figma Community release
 
-Replace the development plugin ID in `manifest.json` with the ID assigned by
-Figma. Add the required icon assets under `apps/figma-plugin` before
+Replace the development plugin ID in `manifest.json` with the Figma Community
+plugin ID. Add the required icon assets under `apps/figma-plugin` before
 submission.

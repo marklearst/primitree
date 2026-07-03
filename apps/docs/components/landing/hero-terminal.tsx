@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 
 const LINES = [
-  { kind: 'cmd' as const, text: 'npx @figmavars/cli build variables.json' },
-  { kind: 'ok' as const, text: 'Built tokens into design-tokens/' },
+  { kind: 'cmd' as const, text: 'npx @primitree/cli build variables.json' },
+  { kind: 'ok' as const, text: 'Wrote tokens to design-tokens/' },
   { kind: 'out' as const, text: 'tokens/ · css/ · ts/' },
   { kind: 'out' as const, text: 'Resolver · Tailwind v4 · workflow' },
 ]
@@ -50,7 +50,7 @@ export function HeroTerminal() {
           <span className='size-2.5 rounded-full bg-[#febc2e]' />
           <span className='size-2.5 rounded-full bg-[#28c840]' />
         </div>
-        <span className='font-mono text-[11px] text-fv-dim'>
+        <span className='font-mono text-[11px] text-primitree-dim'>
           ~/design-system
         </span>
       </div>
@@ -67,19 +67,19 @@ export function HeroTerminal() {
               className='hero-terminal-line'>
               {line.kind === 'cmd' ? (
                 <>
-                  <span className='text-fv-dim'>$ </span>
-                  <span className='text-fv-text'>{text}</span>
+                  <span className='text-primitree-dim'>$ </span>
+                  <span className='text-primitree-text'>{text}</span>
                   {i === visible && chars < line.text.length ? (
                     <span className='term-cursor' />
                   ) : null}
                 </>
               ) : null}
               {line.kind === 'ok' ? (
-                <span className='text-fv-good'>✓ {text}</span>
+                <span className='text-primitree-good'>✓ {text}</span>
               ) : null}
               {line.kind === 'out' ? (
-                <span className='text-fv-muted'>
-                  <span className='text-fv-dim'>→ </span>
+                <span className='text-primitree-muted'>
+                  <span className='text-primitree-dim'>→ </span>
                   {text}
                 </span>
               ) : null}

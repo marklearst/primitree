@@ -1,8 +1,13 @@
 import { afterEach, describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { toDTCG, FIGMA_EXTENSION_KEY } from '../src/emit'
-import { isToken, type DTCGGroup, type DTCGToken } from '../src/types'
+import { PRIMITREE_EXTENSION_KEY, toDTCG } from '../src/index'
+import {
+  isToken,
+  type DTCGGroup,
+  type DTCGToken,
+  type FigmaMetadataExtension,
+} from '../src/index'
 import {
   applyResolver,
   flattenTokens,
@@ -226,10 +231,9 @@ describe('toDTCG', () => {
     const rounded = tokenAt(primitives, 'primitives.feature.rounded')
     expect(rounded.$type).toBe('boolean')
     expect(rounded.$value).toBe(true)
-    const ext = rounded.$extensions?.[FIGMA_EXTENSION_KEY] as Record<
-      string,
-      unknown
-    >
+    const ext = rounded.$extensions?.[
+      PRIMITREE_EXTENSION_KEY
+    ] as FigmaMetadataExtension
     expect(ext.resolvedType).toBe('BOOLEAN')
     expect(ext.hiddenFromPublishing).toBe(true)
   })
@@ -257,13 +261,18 @@ describe('toDTCG', () => {
     expect((semanticGroup as DTCGGroup).space).toBeUndefined()
   })
 
-  it('records Figma metadata under $extensions', () => {
+  it('records Figma metadata under the Primitree extension key', () => {
     const semantic = result.files['semantic.tokens.json'] as DTCGGroup
     const brand = tokenAt(semantic, 'semantic.color.bg.brand')
-    const ext = brand.$extensions?.[FIGMA_EXTENSION_KEY] as Record<
-      string,
-      unknown
-    >
+    const ext = brand.$extensions?.[
+      PRIMITREE_EXTENSION_KEY
+    ] as FigmaMetadataExtension
+    expect(brand.$extensions).toMatchObject({
+      'com.primitree': { variableId: 'VariableID:2:201' },
+    })
+    expect(Object.keys(brand.$extensions ?? {})).toEqual([
+      PRIMITREE_EXTENSION_KEY,
+    ])
     expect(ext.variableId).toBe('VariableID:2:201')
     expect(ext.collectionName).toBe('Semantic')
     expect(ext.scopes).toEqual(['FRAME_FILL', 'SHAPE_FILL'])
@@ -361,7 +370,7 @@ describe('toDTCG', () => {
   it.each([
     ['shorter token first', ['short', 'long'] as Array<'short' | 'long'>],
     ['longer token first', ['long', 'short'] as Array<'short' | 'long'>],
-  ])('canonicalizes a strict-prefix token to $root with %s', (_, order) => {
+  ])('moves a strict-prefix token to $root with %s', (_, order) => {
     const output = toDTCG(rootCollisionFixture(order), {
       includeFigmaExtensions: false,
     })
@@ -385,7 +394,7 @@ describe('toDTCG', () => {
       hex: '#0000ff',
     })
     expect(output.warnings).toEqual([
-      'Token path "primitives.color.blue" is also a group; moved the token to "$root"',
+      'Token path "primitives.color.blue" is a group. Primitree moved the token to "$root".',
     ])
   })
 

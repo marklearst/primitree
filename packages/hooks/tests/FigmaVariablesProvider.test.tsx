@@ -1,12 +1,15 @@
 import { render, screen, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { FigmaVarsProvider } from '../src/contexts/FigmaVarsProvider'
+import {
+  FigmaVariablesProvider,
+  type FigmaVariablesProviderProps,
+} from '../src'
 import { useFigmaTokenContext } from '../src/contexts/useFigmaTokenContext'
 import {
   mockLocalVariablesResponse,
   mockPublishedVariablesResponse,
 } from './mocks/variables'
-import type { FallbackDataKind } from '@figmavars/core'
+import type { FallbackDataKind } from '@primitree/core'
 
 const TestComponent = () => {
   const { token, fileKey } = useFigmaTokenContext()
@@ -30,7 +33,7 @@ const FallbackTestComponent = () => {
   )
 }
 
-describe('FigmaVarsProvider', () => {
+describe('FigmaVariablesProvider', () => {
   const originalEnv = process.env.NODE_ENV
 
   beforeEach(() => {
@@ -46,14 +49,13 @@ describe('FigmaVarsProvider', () => {
   it('provides token and fileKey to children', () => {
     const testToken = 'test-token'
     const testFileKey = 'test-file-key'
+    const providerProps: FigmaVariablesProviderProps = {
+      token: testToken,
+      fileKey: testFileKey,
+      children: <TestComponent />,
+    }
 
-    render(
-      <FigmaVarsProvider
-        token={testToken}
-        fileKey={testFileKey}>
-        <TestComponent />
-      </FigmaVarsProvider>
-    )
+    render(<FigmaVariablesProvider {...providerProps} />)
 
     expect(screen.getByText(`Token: ${testToken}`)).toBeInTheDocument()
     expect(screen.getByText(`File Key: ${testFileKey}`)).toBeInTheDocument()
@@ -61,11 +63,11 @@ describe('FigmaVarsProvider', () => {
 
   it('shows "no" when fallbackFile is undefined', () => {
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: no')).toBeInTheDocument()
@@ -79,7 +81,7 @@ describe('FigmaVarsProvider', () => {
     const renderWithoutProvider = () => render(<TestComponent />)
 
     expect(renderWithoutProvider).toThrow(
-      'useFigmaTokenContext must be used within a FigmaVarsProvider'
+      '[primitree] Call useFigmaTokenContext inside a FigmaVariablesProvider.'
     )
   })
 
@@ -100,12 +102,12 @@ describe('FigmaVarsProvider', () => {
     }
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token={testToken}
         fileKey={testFileKey}
         swrConfig={swrConfig}>
         <SwrConfigTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('SWR Config: present')).toBeInTheDocument()
@@ -127,11 +129,11 @@ describe('FigmaVarsProvider', () => {
     }
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token={testToken}
         fileKey={testFileKey}>
         <SwrConfigTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has SWR Config: no')).toBeInTheDocument()
@@ -141,12 +143,12 @@ describe('FigmaVarsProvider', () => {
     const fallbackJson = JSON.stringify(mockLocalVariablesResponse)
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={fallbackJson}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
@@ -155,12 +157,12 @@ describe('FigmaVarsProvider', () => {
 
   it('provides parsedFallbackFile when fallbackFile is an object', () => {
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={mockLocalVariablesResponse}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
@@ -176,13 +178,13 @@ describe('FigmaVarsProvider', () => {
     }
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={emptyFallback}
         fallbackKind='local'>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
@@ -202,12 +204,12 @@ describe('FigmaVarsProvider', () => {
     }
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={emptyFallback}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Parsed Fallback: no')).toBeInTheDocument()
@@ -215,7 +217,7 @@ describe('FigmaVarsProvider', () => {
       screen.getByText('Validated Fallback Kind: none')
     ).toBeInTheDocument()
     expect(console.warn).toHaveBeenCalledWith(
-      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+      '[primitree] fallbackFile does not match local or published Figma Variables API response data. Set fallbackKind for an empty response.'
     )
   })
 
@@ -235,13 +237,13 @@ describe('FigmaVarsProvider', () => {
     } as unknown as typeof mockLocalVariablesResponse
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={localFallback}
         fallbackKind={'unexpected' as FallbackDataKind}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Parsed Fallback: no')).toBeInTheDocument()
@@ -249,7 +251,7 @@ describe('FigmaVarsProvider', () => {
       screen.getByText('Validated Fallback Kind: none')
     ).toBeInTheDocument()
     expect(console.warn).toHaveBeenCalledWith(
-      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+      '[primitree] fallbackFile does not match local or published Figma Variables API response data. Set fallbackKind for an empty response.'
     )
     expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
       fallbackContents
@@ -260,12 +262,12 @@ describe('FigmaVarsProvider', () => {
     const invalidJson = '{ invalid json }'
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidJson}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
@@ -280,16 +282,16 @@ describe('FigmaVarsProvider', () => {
     } as unknown as typeof mockLocalVariablesResponse
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidStructure}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(console.warn).toHaveBeenCalledWith(
-      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+      '[primitree] fallbackFile does not match local or published Figma Variables API response data. Set fallbackKind for an empty response.'
     )
   })
 
@@ -298,16 +300,16 @@ describe('FigmaVarsProvider', () => {
     const invalidJson = JSON.stringify({ not: 'valid structure' })
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidJson}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(console.warn).toHaveBeenCalledWith(
-      '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+      '[primitree] fallbackFile does not match local or published Figma Variables API response data. Set fallbackKind for an empty response.'
     )
   })
 
@@ -317,16 +319,16 @@ describe('FigmaVarsProvider', () => {
     const invalidJson = `{ "secret": "${sourceContents}" `
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidJson}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(console.error).toHaveBeenCalledWith(
-      '[figmavars] Failed to parse fallbackFile JSON.'
+      '[primitree] Failed to parse fallbackFile JSON.'
     )
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(
       sourceContents
@@ -341,16 +343,16 @@ describe('FigmaVarsProvider', () => {
     })
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile='{"valid": "json"}'>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(console.error).toHaveBeenCalledWith(
-      '[figmavars] Failed to parse fallbackFile JSON.'
+      '[primitree] Failed to parse fallbackFile JSON.'
     )
 
     // Restore original
@@ -363,12 +365,12 @@ describe('FigmaVarsProvider', () => {
     } as unknown as typeof mockLocalVariablesResponse
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidStructure}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()
@@ -377,12 +379,12 @@ describe('FigmaVarsProvider', () => {
 
   it('validates and accepts LocalVariablesResponse structure', () => {
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={mockLocalVariablesResponse}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Parsed Fallback: yes')).toBeInTheDocument()
@@ -390,12 +392,12 @@ describe('FigmaVarsProvider', () => {
 
   it('validates and accepts PublishedVariablesResponse structure', () => {
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={mockPublishedVariablesResponse}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Parsed Fallback: yes')).toBeInTheDocument()
@@ -408,22 +410,22 @@ describe('FigmaVarsProvider', () => {
     }
 
     const { rerender } = render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'>
         <ProviderIdTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     const firstId = screen.getByText(/Provider ID:/).textContent
 
     act(() => {
       rerender(
-        <FigmaVarsProvider
+        <FigmaVariablesProvider
           token='test-token'
           fileKey='test-file-key'>
           <ProviderIdTestComponent />
-        </FigmaVarsProvider>
+        </FigmaVariablesProvider>
       )
     })
 
@@ -439,12 +441,12 @@ describe('FigmaVarsProvider', () => {
     } as unknown as typeof mockLocalVariablesResponse
 
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={invalidStructure}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(console.warn).not.toHaveBeenCalled()
@@ -453,12 +455,12 @@ describe('FigmaVarsProvider', () => {
   it('handles non-string, non-object fallbackFile gracefully', () => {
     // Test the fallback case when fallbackFile is neither string nor object
     render(
-      <FigmaVarsProvider
+      <FigmaVariablesProvider
         token='test-token'
         fileKey='test-file-key'
         fallbackFile={123 as unknown as typeof mockLocalVariablesResponse}>
         <FallbackTestComponent />
-      </FigmaVarsProvider>
+      </FigmaVariablesProvider>
     )
 
     expect(screen.getByText('Has Fallback: yes')).toBeInTheDocument()

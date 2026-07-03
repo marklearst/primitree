@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { normalizeVariables } from '@figmavars/core'
+import { normalizeVariables } from '@primitree/core'
 import {
   buildLocalVariablesExport,
   summarizeExport,

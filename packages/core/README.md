@@ -1,10 +1,10 @@
-# @figmavars/core
+# @primitree/core
 
-`@figmavars/core` provides the shared Figma Variables types, normalization,
-alias resolution, comparison, and REST API functions used by FigmaVars.
+`@primitree/core` provides the Figma Variables types, normalization, alias
+resolution, comparison, and REST API functions shared across Primitree.
 
 ```sh
-npm install @figmavars/core
+npm install @primitree/core
 ```
 
 ## Requirements
@@ -14,7 +14,7 @@ npm install @figmavars/core
 ## Normalize a variables export
 
 ```ts
-import { normalizeVariables } from '@figmavars/core'
+import { normalizeVariables } from '@primitree/core'
 
 const normalized = normalizeVariables(json)
 
@@ -38,7 +38,7 @@ the mode values needed for conversion.
 ## Resolve aliases
 
 ```ts
-import { resolveAllVariableValues, resolveVariableValue } from '@figmavars/core'
+import { resolveAllVariableValues, resolveVariableValue } from '@primitree/core'
 
 const result = resolveVariableValue(normalized, 'VariableID:2:201', '1:0')
 
@@ -54,7 +54,7 @@ missing targets, and values that cannot resolve for a requested mode.
 ## Compare two exports
 
 ```ts
-import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
+import { diffVariables, formatDiffMarkdown } from '@primitree/core'
 
 const diff = diffVariables(previousExport, nextExport)
 
@@ -70,26 +70,26 @@ flag covers removals, renames, moves, and type changes.
 ## Call the Variables REST API
 
 ```ts
-import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT, mutator, withRetry } from '@figmavars/core'
+import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT, mutator, withRetry } from '@primitree/core'
 
 const variables = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
 ```
 
 The package exports endpoint builders, `FigmaApiError`, retry helpers, runtime
 type guards, mutation payload types, and Figma domain types. Import the domain
-types from the package root or `@figmavars/core/types`.
+types from the package root or `@primitree/core/types`.
 
-`redactToken` returns a shortened display value. The result still exposes token
-characters, so do not treat it as safe for logs.
+`redactToken` returns a shortened display value. The result exposes token
+characters, so do not log it.
 
 ## Related packages
 
-- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) converts normalized data into token files.
-- [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) writes a token pipeline to disk.
-- [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) provides React hooks.
+- [`@primitree/dtcg`](https://www.npmjs.com/package/@primitree/dtcg) converts normalized data into token files.
+- [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) writes a token pipeline to disk.
+- [`@primitree/hooks`](https://www.npmjs.com/package/@primitree/hooks) provides React hooks.
 
-Read the [FigmaVars documentation](https://figmavars.com) or review the
-[5.0.0 changelog](CHANGELOG.md).
+Read the [Primitree documentation](https://primitree.com) or review the
+[1.0.0 changelog](CHANGELOG.md).
 
 ## License
 

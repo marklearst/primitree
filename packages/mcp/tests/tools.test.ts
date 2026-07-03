@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { toDTCG } from '@figmavars/dtcg'
+import { toDTCG } from '@primitree/dtcg'
 import { loadTokenSource, type TokenSource } from '../src/source'
 import {
   diffTokens,
@@ -45,6 +45,9 @@ describe('getToken', () => {
     expect(result.css).toBe('#3366ff')
     expect(result.cssVar).toBe('var(--semantic-color-bg-brand)')
     expect(result.token?.$value).toBe('{primitives.color.blue.500}')
+    expect(result.token?.$extensions).toMatchObject({
+      'com.primitree': { variableId: 'VariableID:2:201' },
+    })
     expect((result.figma as { variableId: string }).variableId).toBe(
       'VariableID:2:201'
     )
@@ -106,7 +109,7 @@ describe('diffTokens', () => {
     const next = structuredClone(fixture)
     next.meta.variables['VariableID:2:201'].name = 'color/bg/primary'
     const markdown = diffTokens(fixture, next)
-    expect(markdown).toContain('**Breaking changes detected.**')
+    expect(markdown).toContain('**The diff contains breaking changes.**')
     expect(markdown).toContain('`color/bg/brand` -> `color/bg/primary`')
   })
 })
@@ -115,7 +118,7 @@ describe('loadTokenSource', () => {
   let tmpDir: string
 
   beforeAll(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'figma-vars-mcp-'))
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-mcp-'))
   })
 
   afterAll(async () => {
@@ -154,7 +157,7 @@ describe('loadTokenSource', () => {
     const emptyDir = path.join(tmpDir, 'empty')
     await fs.mkdir(emptyDir, { recursive: true })
     await expect(loadTokenSource(emptyDir)).rejects.toThrow(
-      /No tokens.resolver.json/
+      /contains no tokens\.resolver\.json/
     )
   })
 })

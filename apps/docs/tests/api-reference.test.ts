@@ -14,7 +14,7 @@ test('generated API pages do not link to ignored source files', () => {
   assert.equal(getDocsGithubUrl('api/core.mdx'), undefined)
   assert.equal(
     getDocsGithubUrl('hooks/index.mdx'),
-    'https://github.com/marklearst/figmavars/blob/main/apps/docs/content/docs/hooks/index.mdx'
+    'https://github.com/marklearst/primitree/blob/main/apps/docs/content/docs/hooks/index.mdx'
   )
 })
 
@@ -25,9 +25,9 @@ test('TypeDoc resolves workspace imports from source', async () => {
 
   assert.equal(config.compilerOptions.baseUrl, undefined)
   assert.deepEqual(config.compilerOptions.paths, {
-    '@figmavars/core': ['../../packages/core/src/index.ts'],
-    '@figmavars/core/types': ['../../packages/core/src/types/index.ts'],
-    '@figmavars/dtcg': ['../../packages/dtcg/src/index.ts'],
+    '@primitree/core': ['../../packages/core/src/index.ts'],
+    '@primitree/core/types': ['../../packages/core/src/types/index.ts'],
+    '@primitree/dtcg': ['../../packages/dtcg/src/index.ts'],
   })
   assert.deepEqual(config.include, [
     '../../packages/core/src',
@@ -60,9 +60,9 @@ test('docs and release scripts run the prose checks at the right build boundary'
   assert.ok(turbo.tasks.build.outputs.includes('content/docs/api/**'))
 })
 
-test('API reference generation writes the five public modules and an index', async () => {
+test('API reference generation writes the four public modules and an index', async () => {
   const outputDirectory = await mkdtemp(
-    path.join(tmpdir(), 'figmavars-api-reference-')
+    path.join(tmpdir(), 'primitree-api-reference-')
   )
 
   try {
@@ -72,7 +72,6 @@ test('API reference generation writes the five public modules and an index', asy
     assert.deepEqual((await readdir(outputDirectory)).sort(), [
       'core.mdx',
       'dtcg.mdx',
-      'hooks-core.mdx',
       'hooks.mdx',
       'index.mdx',
       'mcp.mdx',
@@ -91,7 +90,6 @@ test('API reference generation writes the five public modules and an index', asy
       'core.mdx': 'normalizeVariables',
       'dtcg.mdx': 'toDTCG',
       'hooks.mdx': 'TokensProvider',
-      'hooks-core.mdx': 'fetcher',
       'mcp.mdx': 'createServer',
     }
 
@@ -110,13 +108,22 @@ test('API reference generation writes the five public modules and an index', asy
       path.join(outputDirectory, 'index.mdx'),
       'utf8'
     )
-    assert.match(index, /^title: API reference$/mu)
+    assert.match(index, /^title: "API reference"$/mu)
+    assert.match(
+      index,
+      /^description: "Functions and types from the Primitree packages\."$/mu
+    )
     assert.match(index, /\[Core API\]\(\.\/core\)/u)
     assert.match(index, /\[MCP API\]\(\.\/mcp\)/u)
 
     const hooks = await readFile(
       path.join(outputDirectory, 'hooks.mdx'),
       'utf8'
+    )
+    assert.match(hooks, /^title: "React hooks API"$/mu)
+    assert.match(
+      hooks,
+      /^description: "@primitree\/hooks React providers and hooks\."$/mu
     )
     assert.match(hooks, /\]\(\.\/core#[^)]+\)/u)
     assert.match(hooks, /\]\(\.\/dtcg#[^)]+\)/u)

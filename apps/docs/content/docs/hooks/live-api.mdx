@@ -5,17 +5,17 @@ description: Enterprise Figma Variables REST API hooks with SWR caching.
 
 Figma limits the Variables REST API to Enterprise organizations. Reads need `file_variables:read` and access to the file. Mutations need a Full seat or administrator role, edit access, and `file_variables:write`.
 
-Page scripts in that browser session can read a personal access token passed to `FigmaVarsProvider`. Use the live hooks in an access-controlled internal tool. Keep the token out of source control and public browser bundles. Public applications can call the `@figmavars/core` request helpers from server code.
+Page scripts in that browser session can read the personal access token you pass to `FigmaVariablesProvider`. Use the live hooks in an access-controlled internal tool. Keep the token out of source control and public browser bundles. Public applications can call the `@primitree/core` request helpers from server code.
 
 ## Provider
 
 ```tsx
 import {
-  FigmaVarsProvider,
+  FigmaVariablesProvider,
   useInvalidateVariables,
   useVariables,
   useUpdateVariable,
-} from '@figmavars/hooks'
+} from '@primitree/hooks'
 
 interface InternalVariablesAppProps {
   token: string
@@ -24,11 +24,11 @@ interface InternalVariablesAppProps {
 
 function InternalVariablesApp({ token, fileKey }: InternalVariablesAppProps) {
   return (
-    <FigmaVarsProvider
+    <FigmaVariablesProvider
       token={token}
       fileKey={fileKey}>
       <VariablesDashboard />
-    </FigmaVarsProvider>
+    </FigmaVariablesProvider>
   )
 }
 
@@ -82,7 +82,7 @@ Each mutation hook returns `{ mutate, data, error, isLoading, isSuccess, isError
 Pass a local variables response instead of a token and file key:
 
 ```tsx
-<FigmaVarsProvider token={null} fileKey={null} fallbackFile={variablesJson}>
+<FigmaVariablesProvider token={null} fileKey={null} fallbackFile={variablesJson}>
 ```
 
 `useVariables` and the local collection queries read local response data. `usePublishedVariables` needs a published variables response. Set `fallbackKind='local'` or `fallbackKind='published'` when empty maps prevent the provider from identifying the response type.
@@ -96,7 +96,7 @@ import {
   isFigmaApiError,
   isRateLimited,
   withRetry,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 async function loadVariablesOnServer(url: string, token: string) {
   const fetchWithRetry = withRetry(() => fetcher(url, token), {
@@ -120,7 +120,7 @@ async function loadVariablesOnServer(url: string, token: string) {
 ## SWR config
 
 ```tsx
-<FigmaVarsProvider
+<FigmaVariablesProvider
   token={token}
   fileKey={key}
   swrConfig={{ refreshInterval: 30_000 }}>

@@ -3,7 +3,7 @@
  * Figma REST API constants and error messages.
  *
  * @remarks
- * Import these values from `@figmavars/core`.
+ * Import these values from `@primitree/core`.
  *
  * @public
  */
@@ -47,38 +47,38 @@ export const CONTENT_TYPE_JSON = 'application/json'
 export const FIGMA_TOKEN_HEADER = 'X-FIGMA-TOKEN'
 
 /** Message for requests without a Figma API token. */
-export const ERROR_MSG_TOKEN_REQUIRED = 'A Figma API token is required.'
+export const ERROR_MSG_TOKEN_REQUIRED = 'Provide a Figma API token.'
 
 /**
- * Error message when both the Figma API token and file key are missing.
+ * Message for requests without a Figma API token and file key.
  */
-export const ERROR_MSG_TOKEN_FILE_KEY_REQUIRED = `${ERROR_MSG_TOKEN_REQUIRED} and file key are required.`
+export const ERROR_MSG_TOKEN_FILE_KEY_REQUIRED =
+  'Provide a Figma API token and file key.'
 
 /**
- * Error message when a bulk update operation fails.
+ * Message for a failed bulk update request.
  */
-export const ERROR_MSG_BULK_UPDATE_FAILED = 'Failed to perform bulk update.'
+export const ERROR_MSG_BULK_UPDATE_FAILED = 'The bulk update request failed.'
 
 /**
- * Error message when creating a Figma variable fails.
+ * Message for a failed create-variable request.
  */
 export const ERROR_MSG_CREATE_VARIABLE_FAILED =
-  'Failed to create Figma variable.'
+  'The create-variable request failed.'
 
 /**
- * Error message when deleting a Figma variable fails.
+ * Message for a failed delete-variable request.
  */
 export const ERROR_MSG_DELETE_VARIABLE_FAILED =
-  'Failed to delete Figma variable.'
+  'The delete-variable request failed.'
 
 /**
- * Error message when updating a Figma variable fails.
+ * Message for a failed update-variable request.
  */
 export const ERROR_MSG_UPDATE_VARIABLE_FAILED =
-  'Failed to update Figma variable.'
+  'The update-variable request failed.'
 
 /**
- * Error message when fetching data from the Figma API fails.
+ * Message for a failed Figma API request.
  */
-export const ERROR_MSG_FETCH_FIGMA_DATA_FAILED =
-  'An error occurred while fetching data from the Figma API.'
+export const ERROR_MSG_FETCH_FIGMA_DATA_FAILED = 'The Figma API request failed.'

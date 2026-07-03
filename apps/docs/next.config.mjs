@@ -5,7 +5,7 @@ const withMDX = createMDX()
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
-  transpilePackages: ['@figmavars/core', '@figmavars/dtcg'],
+  transpilePackages: ['@primitree/core', '@primitree/dtcg'],
 }
 
 export default withMDX(config)

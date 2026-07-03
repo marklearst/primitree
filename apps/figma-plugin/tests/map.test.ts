@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLocalVariablesExport,
   type ExportVariable,
-} from '@figmavars/plugin-export'
+} from '@primitree/plugin-export'
 import { mapCollection, mapVariable } from '../src/map'
 
 function getOwnValue<T>(record: Record<string, T>, key: string): T {

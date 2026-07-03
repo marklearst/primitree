@@ -1,12 +1,12 @@
 {
-  "name": "@figmavars/mcp",
-  "version": "5.0.0",
-  "description": "MCP server for listing, resolving, searching, and comparing FigmaVars design tokens.",
+  "name": "@primitree/mcp",
+  "version": "1.0.0",
+  "description": "MCP server for listing, resolving, searching, and comparing Primitree design tokens.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "figma-vars-mcp": "./dist/cli.js"
+    "primitree-mcp": "./dist/cli.js"
   },
   "files": [
     "dist"
@@ -30,13 +30,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figmavars.git",
+    "url": "git+https://github.com/marklearst/primitree.git",
     "directory": "packages/mcp"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figmavars/issues"
+    "url": "https://github.com/marklearst/primitree/issues"
   },
-  "homepage": "https://github.com/marklearst/figmavars#readme",
+  "homepage": "https://github.com/marklearst/primitree#readme",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -56,8 +56,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*",
-    "@figmavars/dtcg": "workspace:*",
+    "@primitree/core": "workspace:*",
+    "@primitree/dtcg": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },

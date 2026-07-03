@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { CreateVariablePayload } from '@figmavars/core'
+import type { CreateVariablePayload } from '@primitree/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 /**
  * Create a Figma variable in the provider's file.
@@ -19,7 +19,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useCreateVariable } from '@figmavars/hooks';
+ * import { useCreateVariable } from '@primitree/hooks';
  *
  * function CreateVariableButton() {
  *   const { mutate, isLoading, isError, error } = useCreateVariable();

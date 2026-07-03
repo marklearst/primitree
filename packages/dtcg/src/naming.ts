@@ -1,5 +1,5 @@
 /**
- * Naming helpers shared by the DTCG emitter and pipeline generators.
+ * Naming helpers for the DTCG emitter and pipeline generators.
  */
 
 const DANGEROUS_OBJECT_SEGMENTS = new Set([
@@ -75,8 +75,8 @@ export function allocateUniqueSlugs<T>(
 }
 
 /**
- * Produce unique slugs for a list of names, appending `-2`, `-3`, ... on
- * collision.
+ * Return unique slugs for a list of names. Collisions receive `-2`, `-3`,
+ * and later suffixes.
  *
  * @public
  */

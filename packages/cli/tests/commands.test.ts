@@ -16,7 +16,7 @@ let tmpDir: string
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'figma-vars-cli-'))
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-cli-'))
   vi.clearAllMocks()
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
@@ -38,7 +38,7 @@ async function readOut(...segments: string[]): Promise<string> {
   return fs.readFile(path.join(tmpDir, ...segments), 'utf8')
 }
 
-describe('figma-vars global help', () => {
+describe('primitree global help', () => {
   it('accepts --help as a successful global option', () => {
     const cliPath = path.join(import.meta.dirname, '../dist/index.js')
     const result = spawnSync(process.execPath, [cliPath, '--help'], {
@@ -47,11 +47,12 @@ describe('figma-vars global help', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('Usage:')
+    expect(result.stdout).toContain('primitree <command> [options]')
     expect(result.stderr).toBe('')
   })
 })
 
-describe('figma-vars build', () => {
+describe('primitree build', () => {
   it('uses singular labels for one collection and token', async () => {
     const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'))
     const collectionId = 'VariableCollectionId:1:100'
@@ -72,7 +73,7 @@ describe('figma-vars build', () => {
     await runBuild(parseArgs([singleVariablePath, '--out', out]))
 
     expect(console.log).toHaveBeenCalledWith(
-      `Built 1 token from 1 collection into ${out}/`
+      `Wrote 1 token from 1 collection to ${out}/`
     )
   })
 
@@ -99,8 +100,8 @@ describe('figma-vars build', () => {
       'design-tokens',
       'design-tokens.workflow.yml'
     )
-    expect(workflow).toContain('@figmavars/cli@5.0.0')
-    expect(workflow).toContain('./node_modules/.bin/figma-vars build')
+    expect(workflow).toContain('@primitree/cli@1.0.0')
+    expect(workflow).toContain('./node_modules/.bin/primitree build')
     expect(workflow).not.toMatch(/\bnpx\b/)
   })
 
@@ -124,7 +125,7 @@ describe('figma-vars build', () => {
   })
 })
 
-describe('figma-vars diff', () => {
+describe('primitree diff', () => {
   it('writes a markdown changelog and sets exit code on breaking changes', async () => {
     const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'))
     const next = structuredClone(fixture)
@@ -139,7 +140,7 @@ describe('figma-vars diff', () => {
 
     const markdown = await fs.readFile(outPath, 'utf8')
     expect(markdown).toContain('`color/bg/brand` -> `color/bg/primary`')
-    expect(markdown).toContain('**Breaking changes detected.**')
+    expect(markdown).toContain('**The diff contains breaking changes.**')
     expect(process.exitCode).toBe(2)
   })
 
@@ -154,7 +155,7 @@ describe('figma-vars diff', () => {
   })
 })
 
-describe('figma-vars check', () => {
+describe('primitree check', () => {
   it('uses a singular warning label when one warning passes', async () => {
     const emptyPath = path.join(tmpDir, 'empty.json')
     await fs.writeFile(
@@ -211,7 +212,7 @@ describe('figma-vars check', () => {
   })
 })
 
-describe('figma-vars export', () => {
+describe('primitree export', () => {
   it('fetches the complete Figma response and writes it to the requested file', async () => {
     const response = JSON.parse(await fs.readFile(fixturePath, 'utf8'))
     const out = path.join(tmpDir, 'exports', 'variables.json')
@@ -239,7 +240,7 @@ describe('figma-vars export', () => {
       `${JSON.stringify(response, null, 2)}\n`
     )
     expect(console.log).toHaveBeenCalledWith(
-      `Saved variables to ${path.resolve(out)}`
+      `Wrote variables to ${path.resolve(out)}`
     )
     expect(console.log).toHaveBeenCalledWith('Collections: 3, variables: 12')
   })
@@ -265,16 +266,19 @@ describe('figma-vars export', () => {
   })
 })
 
-describe('figma-vars init', () => {
+describe('primitree init', () => {
   it('scaffolds a working tokens repo with sample data', async () => {
     const repo = path.join(tmpDir, 'my-tokens')
     await runInit(parseArgs([repo]))
 
     const pkg = JSON.parse(await readOut('my-tokens', 'package.json'))
-    expect(pkg.devDependencies['@figmavars/cli']).toBeDefined()
-    expect(pkg.scripts.build).toContain('figma-vars build')
+    expect(pkg.devDependencies['@primitree/cli']).toBeDefined()
+    expect(pkg.scripts.build).toContain('primitree build')
+    expect(pkg.scripts.check).toBe(
+      'primitree check variables.json && primitree check tokens'
+    )
     expect(pkg.scripts.diff).toBe(
-      'figma-vars diff backup/variables.json variables.json'
+      'primitree diff backup/variables.json variables.json'
     )
 
     await expect(readOut('my-tokens', 'variables.json')).resolves.toContain(
@@ -291,6 +295,9 @@ describe('figma-vars init', () => {
     ).resolves.toContain('variableCollections')
     await expect(readOut('my-tokens', 'README.md')).resolves.toContain(
       'The GitHub Actions workflow rebuilds and commits the pipeline after a push'
+    )
+    await expect(readOut('my-tokens', 'README.md')).resolves.toContain(
+      'primitree export'
     )
   })
 

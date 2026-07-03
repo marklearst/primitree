@@ -14,12 +14,16 @@ import test from 'node:test'
 
 import {
   collectDocsNavigationFiles,
+  collectFigmaPluginManifestFiles,
   collectMarkdownFiles,
   collectPackageManifests,
   collectPublicCopyFiles,
+  collectPublicHtmlFiles,
   validateBuiltProseFiles,
 } from './prose/files.mjs'
 import { scanDocsNavigationJson } from './prose/docs-json.mjs'
+import { scanHtml } from './prose/html.mjs'
+import { scanFigmaPluginManifest } from './prose/plugin-manifest.mjs'
 import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
 import { scanMarkdown } from './prose/markdown.mjs'
 import { scanPackageDescription } from './prose/package-json.mjs'
@@ -97,6 +101,143 @@ const view = <p>A seamless handoff</p>
   ])
 })
 
+test('documentation code fences check human-facing comments', () => {
+  const markdown = `\`\`\`ts
+// You can publish the generated files.
+// If the build fails, stop.
+// What happens next?
+// Then publish.
+// Error thrown.
+const command = 'pnpm publish'
+\`\`\`
+`
+  assert.deepEqual(ruleIds(scanMarkdown('guide.mdx', markdown)), [
+    'reader-permission',
+    'conditional-opener',
+    'wh-sentence-opener',
+    'sequence-adverb',
+    'passive-fragment',
+  ])
+
+  const source = `/**
+ * @example
+ * \`\`\`ts
+ * // A robust token export.
+ * // If the build fails, stop.
+ * const command = 'pnpm publish'
+ * \`\`\`
+ */
+export function publishTokens() {}
+`
+  assert.deepEqual(
+    ruleIds(
+      scanTypeScript('public.ts', source, {
+        includeDocComments: true,
+        includeStrings: false,
+      })
+    ),
+    ['robust', 'conditional-opener']
+  )
+
+  const blockComment = `const mode = 'plain'
+/*
+ * Keep this line.
+ * A robust token export.
+ * If the build fails, stop.
+ * What happens next?
+ * Then publish.
+ * Error thrown.
+ */
+`
+  const blockViolations = scanTypeScript('example.ts', blockComment, {
+    includeCodeComments: true,
+    includeDocComments: false,
+    includeStrings: false,
+  })
+  assert.deepEqual(ruleIds(blockViolations), [
+    'robust',
+    'conditional-opener',
+    'wh-sentence-opener',
+    'sequence-adverb',
+    'passive-fragment',
+  ])
+  assert.equal(blockViolations[0].line, 4)
+  assert.equal(blockViolations[0].column, 6)
+  assert.equal(blockViolations[1].line, 5)
+  assert.equal(blockViolations[1].column, 4)
+  assert.equal(blockViolations[4].line, 8)
+  assert.equal(blockViolations[4].column, 4)
+
+  const wrappedComment = `/*
+ * The package is not a
+ * wrapper, but a parser.
+ *
+ * You
+ * can publish this.
+ */
+`
+  const wrappedViolations = scanTypeScript('example.ts', wrappedComment, {
+    includeCodeComments: true,
+    includeDocComments: false,
+    includeStrings: false,
+  })
+  assert.deepEqual(ruleIds(wrappedViolations), [
+    'binary-contrast',
+    'reader-permission',
+  ])
+  assert.deepEqual(
+    wrappedViolations.map(violation => [violation.line, violation.column]),
+    [
+      [2, 19],
+      [5, 4],
+    ]
+  )
+
+  const wrappedLineComments = `// The package is not a
+// wrapper, but a parser.
+//
+// You
+// can publish this.
+`
+  const wrappedLineViolations = scanTypeScript(
+    'example.ts',
+    wrappedLineComments,
+    {
+      includeCodeComments: true,
+      includeDocComments: false,
+      includeStrings: false,
+    }
+  )
+  assert.deepEqual(ruleIds(wrappedLineViolations), [
+    'binary-contrast',
+    'reader-permission',
+  ])
+  assert.deepEqual(
+    wrappedLineViolations.map(violation => [violation.line, violation.column]),
+    [
+      [1, 19],
+      [4, 4],
+    ]
+  )
+
+  const wrappedContinuation = `/*
+ * Use the default mode
+ * when the caller omits one.
+ */
+
+// Use the default mode
+// when the caller omits one.
+`
+  assert.deepEqual(
+    scanTypeScript('example.ts', wrappedContinuation, {
+      includeCodeComments: true,
+      includeDocComments: false,
+      includeStrings: false,
+    }),
+    []
+  )
+})
+
 test('Markdown checks stop-slop filler and formulaic framing', () => {
   const source = `Here's the thing: this is actually a deep dive.
 
@@ -167,6 +308,113 @@ test('docs navigation JSON checks string values, including nested titles', () =>
   ])
 })
 
+test('Figma plugin manifest checks only human-facing fields', () => {
+  const source = `{
+  "name": "A robust export",
+  "id": "canonical",
+  "main": "dist/deterministic.js",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "reasoning": "A seamless offline workflow."
+  }
+}
+`
+
+  assert.deepEqual(ruleIds(scanFigmaPluginManifest('manifest.json', source)), [
+    'robust',
+    'seamless',
+  ])
+})
+
+test('HTML checks visible titles, descriptions, and body copy', () => {
+  const source = `<!doctype html>
+<html>
+  <head>
+    <title>A seamless token tool</title>
+    <meta name="description" content="A robust export workflow." />
+    <script>const label = 'canonical'</script>
+  </head>
+  <body>
+    <button>You can export tokens.</button>
+  </body>
+</html>
+`
+
+  assert.deepEqual(ruleIds(scanHtml('index.html', source)), [
+    'seamless',
+    'robust',
+    'reader-permission',
+  ])
+})
+
+test('HTML composes inline prose, scans visible attributes, and preserves positions', () => {
+  const source = `<!doctype html>
+<html>
+  <body>
+    <button aria-label="A robust export">Export</button>
+    <p>
+      The package is <strong>not a wrapper</strong>, but a parser.
+    </p>
+    <p>
+      A &amp; seamless handoff.
+    </p>
+    <pre>A powerful technical example</pre>
+    <code>canonical</code>
+  </body>
+</html>
+`
+
+  const violations = scanHtml('index.html', source)
+  assert.deepEqual(ruleIds(violations), [
+    'robust',
+    'binary-contrast',
+    'seamless',
+  ])
+  assert.deepEqual(
+    violations.map(violation => [violation.line, violation.column]),
+    [
+      [4, 27],
+      [6, 30],
+      [9, 15],
+    ]
+  )
+})
+
+test('HTML skips script comparisons without losing later body copy', () => {
+  const source = `<!doctype html>
+<html>
+  <body>
+    <script>const smaller = left < right</script>
+    <p>A robust token export.</p>
+  </body>
+</html>
+`
+
+  const violations = scanHtml('index.html', source)
+  assert.deepEqual(ruleIds(violations), ['robust'])
+  assert.deepEqual(
+    violations.map(violation => [violation.line, violation.column]),
+    [[5, 10]]
+  )
+})
+
+test('HTML keeps scanning after malformed numeric entities', () => {
+  const source = `<!doctype html>
+<html>
+  <body>
+    <p>&#1114112; &#xZZ; A robust token export.</p>
+  </body>
+</html>
+`
+
+  const violations = scanHtml('index.html', source)
+  assert.deepEqual(ruleIds(violations), ['robust'])
+  assert.deepEqual(
+    violations.map(violation => [violation.line, violation.column]),
+    [[4, 28]]
+  )
+})
+
 test('TypeScript checks public doc comments, prose strings, and JSX text', () => {
   const source = `/**
  * A deterministic token resolver.
@@ -188,6 +436,24 @@ export function Card() {
   })
 
   assert.deepEqual(ruleIds(violations), ['deterministic', 'robust', 'seamless'])
+})
+
+test('TypeScript checks one-word copy at known runtime call sites', () => {
+  const source = `throw new Error('Robust')
+console.warn('Canonical')
+setError('Seamless')
+const technicalIdentifier = path.join('Canonical')
+`
+
+  assert.deepEqual(
+    ruleIds(
+      scanTypeScript('public.ts', source, {
+        includeDocComments: false,
+        includeStrings: true,
+      })
+    ),
+    ['robust', 'canonical', 'seamless']
+  )
 })
 
 test('TypeScript ignores implementation comments, imports, identifiers, and code examples', () => {
@@ -348,6 +614,24 @@ export function readToken() {
   )
 })
 
+test('TypeScript checks internal TSDoc when the repository scans source files', () => {
+  const source = `/**
+ * A robust internal cache.
+ */
+function createCache() {}
+`
+
+  assert.deepEqual(
+    ruleIds(
+      scanTypeScript('internal.ts', source, {
+        includeDocComments: 'all',
+        includeStrings: false,
+      })
+    ),
+    ['robust']
+  )
+})
+
 test('package descriptions use the same prose rules', () => {
   const violations = scanPackageDescription(
     'package.json',
@@ -361,7 +645,7 @@ test('package descriptions use the same prose rules', () => {
 })
 
 test('repository discovery includes Markdown, docs navigation, generated API pages, package manifests, and shipped help', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'figmavars-prose-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'primitree-prose-'))
 
   try {
     await writeFile(path.join(root, 'README.md'), '# Read me\n')
@@ -387,13 +671,46 @@ test('repository discovery includes Markdown, docs navigation, generated API pag
       "console.log('Export variables help')\n"
     )
 
+    const additionalPublicSources = [
+      'apps/docs/app/layout.tsx',
+      'apps/docs/components/card.tsx',
+      'apps/docs/lib/copy.ts',
+      'apps/figma-plugin/src/ui.ts',
+      'apps/playground/src/App.tsx',
+      'packages/cli/src/index.ts',
+      'packages/core/src/index.ts',
+      'packages/dtcg/src/index.ts',
+      'packages/hooks/src/index.ts',
+      'packages/mcp/src/index.ts',
+      'packages/plugin-export/src/build.ts',
+    ]
+    for (const file of additionalPublicSources) {
+      const absolute = path.join(root, file)
+      await mkdir(path.dirname(absolute), { recursive: true })
+      await writeFile(absolute, "export const label = 'Public copy'\n")
+    }
+    await writeFile(
+      path.join(root, 'apps/playground/index.html'),
+      '<title>Playground</title>\n'
+    )
+    await writeFile(
+      path.join(root, 'apps/figma-plugin/src/ui.html'),
+      '<title>Plugin</title>\n'
+    )
+    await writeFile(
+      path.join(root, 'apps/figma-plugin/manifest.json'),
+      '{"name":"Plugin","networkAccess":{"reasoning":"No network calls."}}\n'
+    )
+
     const markdown = await collectMarkdownFiles(root, {
       useGit: false,
       includeGenerated: true,
     })
     const navigation = await collectDocsNavigationFiles(root)
+    const figmaPluginManifests = await collectFigmaPluginManifestFiles(root)
     const manifests = await collectPackageManifests(root)
     const publicCopy = await collectPublicCopyFiles(root)
+    const publicHtml = await collectPublicHtmlFiles(root)
 
     assert.deepEqual(
       markdown.map(file => path.relative(root, file)),
@@ -407,20 +724,51 @@ test('repository discovery includes Markdown, docs navigation, generated API pag
       ]
     )
     assert.deepEqual(
+      figmaPluginManifests.map(file => path.relative(root, file)),
+      ['apps/figma-plugin/manifest.json']
+    )
+    assert.deepEqual(
       manifests.map(file => path.relative(root, file)),
       ['package.json']
     )
     assert.deepEqual(
       publicCopy.map(file => path.relative(root, file)),
-      ['packages/hooks/scripts/export-variables.mjs']
+      [
+        'apps/docs/app/layout.tsx',
+        'apps/docs/components/card.tsx',
+        'apps/docs/lib/copy.ts',
+        'apps/figma-plugin/src/ui.ts',
+        'apps/playground/src/App.tsx',
+        'packages/cli/src/index.ts',
+        'packages/core/src/index.ts',
+        'packages/dtcg/src/index.ts',
+        'packages/hooks/scripts/export-variables.mjs',
+        'packages/hooks/src/index.ts',
+        'packages/mcp/src/index.ts',
+        'packages/plugin-export/src/build.ts',
+      ]
+    )
+    assert.deepEqual(
+      publicHtml.map(file => path.relative(root, file)),
+      ['apps/figma-plugin/src/ui.html', 'apps/playground/index.html']
     )
   } finally {
     await rm(root, { recursive: true, force: true })
   }
 })
 
+test('the repository source scan checks all TSDoc blocks', async () => {
+  const checker = await readFile(
+    new URL('./check-prose.mjs', import.meta.url),
+    'utf8'
+  )
+
+  assert.doesNotMatch(checker, /includeDocComments:\s*false/u)
+  assert.match(checker, /includeDocComments:\s*'all'/u)
+})
+
 test('repository discovery skips tracked Markdown deleted in the working tree', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'figmavars-prose-git-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'primitree-prose-git-'))
 
   try {
     execFileSync('git', ['init', '--quiet'], { cwd: root })
@@ -441,7 +789,7 @@ test('repository discovery skips tracked Markdown deleted in the working tree', 
 })
 
 test('repository discovery falls back to files outside a Git worktree', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'figmavars-prose-files-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'primitree-prose-files-'))
 
   try {
     await writeFile(path.join(root, 'README.md'), '# Read me\n')
@@ -469,13 +817,12 @@ test('built prose validation requires every API page and exact public declaratio
     'core.mdx',
     'dtcg.mdx',
     'hooks.mdx',
-    'hooks-core.mdx',
     'mcp.mdx',
     'meta.json',
   ].map(file => path.join(root, 'apps/docs/content/docs/api', file))
   const requiredDeclarations = new Map([
     [
-      '@figmavars/core',
+      '@primitree/core',
       [
         'dist/index.d.ts',
         'dist/index.d.cts',
@@ -483,18 +830,10 @@ test('built prose validation requires every API page and exact public declaratio
         'dist/types.d.cts',
       ],
     ],
-    ['@figmavars/dtcg', ['dist/index.d.ts', 'dist/index.d.cts']],
-    ['@figmavars/cli', ['dist/index.d.ts']],
-    [
-      '@figmavars/hooks',
-      [
-        'dist/index.d.ts',
-        'dist/index.d.cts',
-        'dist/core.d.ts',
-        'dist/core.d.cts',
-      ],
-    ],
-    ['@figmavars/mcp', ['dist/index.d.ts', 'dist/cli.d.ts']],
+    ['@primitree/dtcg', ['dist/index.d.ts', 'dist/index.d.cts']],
+    ['@primitree/cli', ['dist/index.d.ts']],
+    ['@primitree/hooks', ['dist/index.d.ts', 'dist/index.d.cts']],
+    ['@primitree/mcp', ['dist/index.d.ts', 'dist/cli.d.ts']],
   ])
   const declarationFiles = PUBLIC_RELEASE_PACKAGES.flatMap(config =>
     requiredDeclarations
@@ -509,10 +848,10 @@ test('built prose validation requires every API page and exact public declaratio
     () =>
       validateBuiltProseFiles(
         root,
-        markdownFiles.filter(file => !file.endsWith('hooks-core.mdx')),
+        markdownFiles.filter(file => !file.endsWith('hooks.mdx')),
         declarationFiles
       ),
-    /hooks-core\.mdx/u
+    /hooks\.mdx/u
   )
   assert.throws(
     () =>
@@ -520,10 +859,10 @@ test('built prose validation requires every API page and exact public declaratio
         root,
         markdownFiles,
         declarationFiles.filter(
-          file => file !== path.join(root, 'packages/hooks/dist/core.d.cts')
+          file => file !== path.join(root, 'packages/hooks/dist/index.d.cts')
         )
       ),
-    /packages\/hooks\/dist\/core\.d\.cts/u
+    /packages\/hooks\/dist\/index\.d\.cts/u
   )
 })
 
@@ -535,13 +874,13 @@ test('root prose and release scripts refresh and scan before packing', async () 
   const builtProseScript = manifest.scripts['check:prose:built']
   const releaseScript = manifest.scripts['check:release:built']
   const generateIndex = proseScript.indexOf(
-    'pnpm --filter figmavars-docs run generate:api'
+    'pnpm --filter primitree-docs run generate:api'
   )
   const scanIndex = proseScript.indexOf('pnpm run check:prose:scan')
   const builtScanIndex = releaseScript.indexOf('pnpm run check:prose:built')
   const packIndex = releaseScript.indexOf('pnpm run pack:release')
   const builtGenerateIndex = builtProseScript.indexOf(
-    'pnpm --filter figmavars-docs run generate:api'
+    'pnpm --filter primitree-docs run generate:api'
   )
   const declarationScanIndex = builtProseScript.indexOf(
     'node scripts/check-prose.mjs --built'

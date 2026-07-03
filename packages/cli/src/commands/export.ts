@@ -4,14 +4,14 @@ import {
   fetcher,
   FIGMA_LOCAL_VARIABLES_ENDPOINT,
   type LocalVariablesResponse,
-} from '@figmavars/core'
+} from '@primitree/core'
 import { getStringFlag, type ParsedArgs } from '../args'
 
 export const exportHelp = `
-figma-vars export: download local Figma variables as JSON
+primitree export: download local Figma variables as JSON
 
 Usage:
-  figma-vars export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
+  primitree export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
 
 Options:
   --file-key, --fileKey   Figma file key (or set FIGMA_FILE_KEY)
@@ -23,8 +23,8 @@ Environment:
 
 Notes:
   Figma requires an Enterprise seat and the file_variables:read scope for
-  this endpoint. You can also create variables JSON with a supported variables
-  plugin, then pass the file to 'figma-vars build'.
+  this endpoint. For other plans, create variables JSON with a supported variables
+  plugin and pass the file to 'primitree build'.
 `
 
 export async function runExport(args: ParsedArgs): Promise<void> {
@@ -50,7 +50,7 @@ export async function runExport(args: ParsedArgs): Promise<void> {
   await fs.mkdir(path.dirname(outputPath), { recursive: true })
   await fs.writeFile(outputPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8')
 
-  console.log(`Saved variables to ${outputPath}`)
+  console.log(`Wrote variables to ${outputPath}`)
   const variableCount = Object.keys(data.meta?.variables ?? {}).length
   const collectionCount = Object.keys(
     data.meta?.variableCollections ?? {}

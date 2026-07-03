@@ -1,9 +1,9 @@
 ---
 title: Pipeline Output
-description: Files written by figma-vars build and their roles in a repository.
+description: primitree build output and each file's role in a repository.
 ---
 
-`figma-vars build variables.json` writes `design-tokens/` unless you pass `--out`.
+`primitree build variables.json` writes `design-tokens/` unless you pass `--out`.
 
 ## Directory layout
 
@@ -25,13 +25,13 @@ With `--terrazzo`, you get `terrazzo.config.mjs` instead of Style Dictionary.
 
 ## tokens/\*.tokens.json
 
-DTCG 2025.10 token documents, plus the documented FigmaVars boolean extension. The build writes one base file per Figma collection and one override file for each non-default mode.
+DTCG 2025.10 token documents, plus the documented Primitree boolean extension. The build writes one base file per Figma collection and one override file for each non-default mode.
 
-Aliases remain `{dot.path}` references. Figma metadata lives under `$extensions['com.figma-vars']`.
+Aliases remain `{dot.path}` references. Figma metadata lives under `$extensions['com.primitree']`.
 
 ## tokens.resolver.json
 
-The Resolver lists the base token files, mode contexts, default context for each axis, and merge order. A collection named `Theme` with `Light` and `Dark` modes produces a `theme` axis with `light` as its default and `dark` as an override.
+The Resolver lists the base token files, mode contexts, default context for each axis, and merge order. A `Theme` collection with `Light` and `Dark` modes maps to a `theme` axis with `light` as its default and `dark` as an override.
 
 ```json
 {

@@ -404,9 +404,8 @@ such as `acme.semantic.tokens.json`. This keeps file ownership aligned with the
 public path prefix. Artifact path collisions stop the build.
 
 The implementation keeps the DTCG extension key behind one package constant.
-Migration readers accept the legacy `com.figma-vars` extension. The release
-identity decides whether writers retain that key or make one documented key
-change.
+Migration documentation records the extension-key change. Writers use one
+documented key.
 
 ### CSS
 
@@ -538,13 +537,13 @@ The new graph introduces these planned behavior changes:
 
 1. Token path collisions raise errors instead of receiving suffixes.
 2. `build` stops writing README, workflow, and transformer scaffold files.
-3. A new product identity may replace the `com.figma-vars` extension key.
+3. A new product identity may replace the extension key.
 
 The CLI will document these changes and provide migration examples.
 
-`@figma-vars/hooks@4.0.0` remains the legacy package. The replacement package
-family follows one fixed version train. The release plan will set its starting
-version after the product identity decision.
+The former hooks package ends at version 4.0.0. The replacement package family
+follows one fixed version train. The release plan sets its starting version
+after the product identity decision.
 
 The fixed Changesets group will include:
 

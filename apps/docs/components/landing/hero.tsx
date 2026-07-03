@@ -9,7 +9,7 @@ export function Hero() {
         <div className='hero-copy'>
           <p className='hero-eyebrow'>
             <span className='hero-eyebrow-dot' />
-            v5 · local export and build
+            v1 · local export and build
           </p>
 
           <h1 className='hero-title'>

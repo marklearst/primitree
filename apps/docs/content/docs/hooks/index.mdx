@@ -1,17 +1,17 @@
 ---
-title: Overview
+title: React hooks
 description: Typed React hooks for built design tokens or live Figma Variables API access.
 ---
 
 ```bash
-npm install @figmavars/hooks react@^19.0.0 swr@^2.3.7
+npm install @primitree/hooks react@^19.0.0 swr@^2.3.7
 ```
 
-`@figmavars/hooks` requires Node.js 24 or newer and React `^19.0.0`.
+`@primitree/hooks` requires Node.js 24 or newer and React `^19.0.0`.
 
 The package has two data paths:
 
-1. **Local tokens** read files from `figma-vars build`
+1. **Local tokens** read files from `primitree build`
 2. **Live API hooks** read or change variables through the Enterprise Variables REST API with SWR
 
 <Cards>
@@ -28,10 +28,10 @@ The package has two data paths:
   <Card
     title='Migration from 4.x'
     href='/docs/hooks/migration'
-    description='Package changes in v5'
+    description='Package changes in 1.0'
   />
 </Cards>
 
 ## Non-React usage
 
-Framework-agnostic utilities live in `@figmavars/core` (normalizer, fetcher, diff). The `@figmavars/hooks/core` subpath keeps the existing re-export path.
+Framework-agnostic utilities live in `@primitree/core`, including the normalizer, fetcher, and diff functions.

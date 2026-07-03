@@ -1,6 +1,6 @@
 {
-  "name": "@figmavars/dtcg",
-  "version": "5.0.0",
+  "name": "@primitree/dtcg",
+  "version": "1.0.0",
   "description": "Convert Figma variables JSON to DTCG 2025.10 plus a documented boolean extension, Resolver contexts, CSS, Tailwind, and TypeScript.",
   "author": "Mark Learst",
   "license": "MIT",
@@ -37,13 +37,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figmavars.git",
+    "url": "git+https://github.com/marklearst/primitree.git",
     "directory": "packages/dtcg"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figmavars/issues"
+    "url": "https://github.com/marklearst/primitree/issues"
   },
-  "homepage": "https://github.com/marklearst/figmavars#readme",
+  "homepage": "https://github.com/marklearst/primitree#readme",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -63,7 +63,7 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*"
+    "@primitree/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

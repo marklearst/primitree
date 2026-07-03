@@ -1,7 +1,8 @@
 import {
   buildLocalVariablesExport,
   summarizeExport,
-} from '@figmavars/plugin-export'
+} from '@primitree/plugin-export'
+import { formatCount } from './format'
 import { mapCollection, mapVariable } from './map'
 
 figma.showUI(__html__, { width: 360, height: 420, themeColors: true })
@@ -41,12 +42,14 @@ figma.ui.onmessage = async msg => {
     })
 
     figma.notify(
-      `Exported ${summary.variables} variables from ${summary.collections} collections`
+      `Primitree exported ${formatCount(summary.variables, 'variable')} from ${formatCount(summary.collections, 'collection')}`
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     figma.ui.postMessage({ type: 'error', message })
-    figma.notify(`Export failed: ${message}`, { error: true })
+    figma.notify(`Primitree could not export the variables: ${message}`, {
+      error: true,
+    })
   }
 }
 

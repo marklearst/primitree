@@ -46,13 +46,13 @@ export interface FetcherOptions {
  *
  * @returns Parsed JSON response.
  *
- * @throws Error when `token` is empty.
- * @throws FigmaApiError when Figma returns an unsuccessful response.
- * @throws AbortError when the signal aborts or the timeout expires.
+ * @throws Error for an empty `token`.
+ * @throws FigmaApiError for a non-2xx response from Figma.
+ * @throws AbortError when the caller aborts the signal or the timeout expires.
  *
  * @example
  * ```ts
- * import { fetcher } from '@figmavars/core';
+ * import { fetcher } from '@primitree/core';
  *
  * async function loadVariables(fileKey: string, token: string) {
  *   const url = `https://api.figma.com/v1/files/${fileKey}/variables`;

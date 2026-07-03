@@ -8,7 +8,7 @@
           "unit": "px"
         },
         "$extensions": {
-          "com.figma-vars": {
+          "com.primitree": {
             "variableId": "VariableID:3:301",
             "collectionId": "VariableCollectionId:3:300",
             "collectionName": "Density",

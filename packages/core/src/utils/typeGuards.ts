@@ -3,7 +3,7 @@ import type {
   PublishedVariablesResponse,
 } from '../types/figma'
 
-/** Figma Variables response kind used by fallback data. @public */
+/** Figma Variables response kind for fallback data. @public */
 export type FallbackDataKind = 'local' | 'published'
 
 /** Fallback data paired with its Variables API response kind. @public */
@@ -45,11 +45,11 @@ const everyEntryMatches = (
  * modes, and variable values.
  *
  * @param data - The data to validate
- * @returns `true` if data matches LocalVariablesResponse structure
+ * @returns `true` for LocalVariablesResponse data
  *
  * @example
  * ```ts
- * import { isLocalVariablesResponse } from '@figmavars/core';
+ * import { isLocalVariablesResponse } from '@primitree/core';
  *
  * if (isLocalVariablesResponse(fallbackData)) {
  *   console.log(fallbackData.meta.variables)
@@ -85,11 +85,11 @@ export function isLocalVariablesResponse(
  * The guard checks the published entry keys that the local response omits.
  *
  * @param data - The data to validate
- * @returns `true` if data matches PublishedVariablesResponse structure
+ * @returns `true` for PublishedVariablesResponse data
  *
  * @example
  * ```ts
- * import { isPublishedVariablesResponse } from '@figmavars/core';
+ * import { isPublishedVariablesResponse } from '@primitree/core';
  *
  * if (isPublishedVariablesResponse(fallbackData)) {
  *   console.log(fallbackData.meta.variables)

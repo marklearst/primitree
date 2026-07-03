@@ -15,6 +15,7 @@ import {
 const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const EXPECTED_AUTHOR = 'Mark Learst'
 const EXPECTED_LICENSE = 'MIT'
+const FORMER_PACKAGE_SCOPES = ['@figma-vars/', '@figmavars/']
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'optionalDependencies',
@@ -129,15 +130,18 @@ function validateJsonValue(value, label, errors, ancestors = new WeakSet()) {
   return valid
 }
 
-function containsLegacyNamespace(value, seen = new WeakSet()) {
-  if (typeof value === 'string') return value.includes('@figma-vars/')
+function containsFormerPackageScope(value, seen = new WeakSet()) {
+  if (typeof value === 'string') {
+    return FORMER_PACKAGE_SCOPES.some(scope => value.includes(scope))
+  }
   if (value === null || typeof value !== 'object' || seen.has(value)) {
     return false
   }
   seen.add(value)
   return Object.entries(value).some(
     ([key, child]) =>
-      key.includes('@figma-vars/') || containsLegacyNamespace(child, seen)
+      FORMER_PACKAGE_SCOPES.some(scope => key.includes(scope)) ||
+      containsFormerPackageScope(child, seen)
   )
 }
 
@@ -253,25 +257,27 @@ function validateCanonicalMetadata(pkg, config, errors) {
     errors.push(`${manifestPath} must use package type module`)
   }
   if (manifest.repository?.type !== RELEASE_REPOSITORY_TYPE) {
-    errors.push(`${manifestPath} must use the canonical repository type`)
+    errors.push(
+      `${manifestPath} repository.type must be ${RELEASE_REPOSITORY_TYPE}`
+    )
   }
   if (manifest.repository?.url !== RELEASE_REPOSITORY) {
-    errors.push(`${manifestPath} must use the canonical repository URL`)
+    errors.push(`${manifestPath} repository.url must be ${RELEASE_REPOSITORY}`)
   }
   if (manifest.repository?.directory !== config.path) {
     errors.push(`${manifestPath} repository.directory must be ${config.path}`)
   }
   if (manifest.homepage !== RELEASE_HOMEPAGE) {
-    errors.push(`${manifestPath} must use the canonical homepage`)
+    errors.push(`${manifestPath} homepage must be ${RELEASE_HOMEPAGE}`)
   }
   if (manifest.bugs?.url !== RELEASE_BUGS) {
-    errors.push(`${manifestPath} must use the canonical bugs URL`)
+    errors.push(`${manifestPath} bugs.url must be ${RELEASE_BUGS}`)
   }
   if (manifest.funding?.type !== RELEASE_FUNDING_TYPE) {
-    errors.push(`${manifestPath} must use the canonical funding type`)
+    errors.push(`${manifestPath} funding.type must be ${RELEASE_FUNDING_TYPE}`)
   }
   if (manifest.funding?.url !== RELEASE_FUNDING) {
-    errors.push(`${manifestPath} must use the canonical funding URL`)
+    errors.push(`${manifestPath} funding.url must be ${RELEASE_FUNDING}`)
   }
   if (manifest.engines?.node !== RELEASE_NODE_ENGINE) {
     errors.push(`${manifestPath} must support Node ${RELEASE_NODE_ENGINE}`)
@@ -360,7 +366,7 @@ function validateCanonicalMetadata(pkg, config, errors) {
       continue
     }
     for (const [name, specifier] of Object.entries(dependencies)) {
-      if (!name.startsWith('@figmavars/')) continue
+      if (!name.startsWith('@primitree/')) continue
       if (!INVENTORY_NAMES.has(name)) {
         errors.push(
           `${manifestPath} has unexpected internal dependency ${name}`
@@ -391,8 +397,10 @@ function validateCanonicalMetadata(pkg, config, errors) {
     )
   }
 
-  if (containsLegacyNamespace(manifest)) {
-    errors.push(`${manifestPath} contains the legacy namespace @figma-vars/`)
+  if (containsFormerPackageScope(manifest)) {
+    errors.push(
+      `${manifestPath} contains a former package scope: ${FORMER_PACKAGE_SCOPES.join(', ')}`
+    )
   }
   return true
 }
@@ -539,6 +547,9 @@ export function validateReleaseManifests(options) {
     if (manifest.private !== true) {
       errors.push(`${manifestPath} must be private`)
     }
+    if (Object.hasOwn(manifest, 'version')) {
+      errors.push(`${manifestPath} private package must not declare a version`)
+    }
   }
 
   if (tag !== undefined) {
@@ -565,6 +576,32 @@ export function validateReleaseManifests(options) {
   return {
     version,
     publicNames: PUBLIC_RELEASE_PACKAGES.map(config => config.name),
+  }
+}
+
+export function validateWorkspaceRootManifest(manifest) {
+  const errors = []
+  if (!isPlainObject(manifest)) {
+    throw new Error('Workspace root manifest must be a plain object')
+  }
+  if (!validateJsonValue(manifest, 'Workspace root manifest', errors)) {
+    throw new Error(
+      `Workspace root manifest check failed:\n- ${errors.join('\n- ')}`
+    )
+  }
+  if (manifest.name !== 'primitree') {
+    errors.push('Workspace root must be named primitree')
+  }
+  if (manifest.private !== true) {
+    errors.push('Workspace root must be private')
+  }
+  if (Object.hasOwn(manifest, 'version')) {
+    errors.push('Workspace root must not declare a version')
+  }
+  if (errors.length > 0) {
+    throw new Error(
+      `Workspace root manifest check failed:\n- ${errors.join('\n- ')}`
+    )
   }
 }
 
@@ -712,6 +749,9 @@ function readManifest(rootUrl, manifestPath) {
 
 export function checkRepository() {
   const rootUrl = new URL('../', import.meta.url)
+  validateWorkspaceRootManifest(
+    JSON.parse(readFileSync(new URL('package.json', rootUrl), 'utf8'))
+  )
   const workspaces = discoverWorkspaceManifestPaths(rootUrl).map(path =>
     readManifest(rootUrl, path)
   )

@@ -33,8 +33,8 @@ export interface RetryOptions {
    */
   retryOnlyRateLimits?: boolean
   /**
-   * Callback invoked before each retry attempt.
-   * Useful for logging or updating UI state.
+   * Function that runs before each retry attempt.
+   * Use it for logging or UI state updates.
    */
   onRetry?: (attempt: number, delayMs: number, error: Error) => void
 }
@@ -43,16 +43,16 @@ export interface RetryOptions {
  * Wrap an async function with retry and exponential backoff.
  *
  * @remarks
- * The default retries Figma HTTP 429 errors. `Retry-After` overrides the
- * backoff delay when the response supplies it.
+ * `withRetry` retries Figma HTTP 429 errors by default. A `Retry-After`
+ * response value replaces the backoff delay.
  *
  * @param fn - The async function to wrap with retry logic
  * @param options - Configuration for retry behavior
- * @returns A new function that will retry on failure
+ * @returns Wrapped function with retry behavior
  *
  * @example
  * ```ts
- * import { withRetry, fetcher } from '@figmavars/core';
+ * import { withRetry, fetcher } from '@primitree/core';
  *
  * const fetchWithRetry = withRetry(
  *   () => fetcher(url, token),

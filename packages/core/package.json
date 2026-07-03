@@ -1,6 +1,6 @@
 {
-  "name": "@figmavars/core",
-  "version": "5.0.0",
+  "name": "@primitree/core",
+  "version": "1.0.0",
   "description": "Types and functions for normalizing, resolving, comparing, and updating Figma Variables.",
   "author": "Mark Learst",
   "license": "MIT",
@@ -45,13 +45,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figmavars.git",
+    "url": "git+https://github.com/marklearst/primitree.git",
     "directory": "packages/core"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figmavars/issues"
+    "url": "https://github.com/marklearst/primitree/issues"
   },
-  "homepage": "https://github.com/marklearst/figmavars#readme",
+  "homepage": "https://github.com/marklearst/primitree#readme",
   "engines": {
     "node": ">=24.0.0"
   },

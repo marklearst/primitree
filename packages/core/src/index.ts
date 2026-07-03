@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT } from '@figmavars/core'
+ * import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT } from '@primitree/core'
  *
  * const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
  * ```

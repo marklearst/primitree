@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest'
 
 describe('main index barrel file', () => {
-  it('should export all hooks, provider, utils, and types', async () => {
+  it('exports the Figma variables provider without the old provider name', async () => {
     const indexModule = await import('../src/index')
 
-    // Check provider export
-    expect(indexModule.FigmaVarsProvider).toBeDefined()
-    expect(typeof indexModule.FigmaVarsProvider).toBe('function')
+    expect(indexModule.FigmaVariablesProvider).toBeDefined()
+    expect(typeof indexModule.FigmaVariablesProvider).toBe('function')
+    expect(indexModule).not.toHaveProperty(
+      ['Figma', 'Vars', 'Provider'].join('')
+    )
+  })
+
+  it('should export all hooks, utils, and types', async () => {
+    const indexModule = await import('../src/index')
 
     // Check hooks exports
     expect(indexModule.useVariables).toBeDefined()

@@ -50,10 +50,10 @@ importers:
 
   apps/docs:
     dependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@figmavars/dtcg':
+      '@primitree/dtcg':
         specifier: workspace:*
         version: link:../../packages/dtcg
       cnfast:
@@ -84,10 +84,10 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
     devDependencies:
-      '@figmavars/hooks':
+      '@primitree/hooks':
         specifier: workspace:*
         version: link:../../packages/hooks
-      '@figmavars/mcp':
+      '@primitree/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
       '@tailwindcss/postcss':
@@ -126,7 +126,7 @@ importers:
 
   apps/figma-plugin:
     dependencies:
-      '@figmavars/plugin-export':
+      '@primitree/plugin-export':
         specifier: workspace:*
         version: link:../../packages/plugin-export
     devDependencies:
@@ -148,10 +148,10 @@ importers:
 
   apps/playground:
     dependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@figmavars/dtcg':
+      '@primitree/dtcg':
         specifier: workspace:*
         version: link:../../packages/dtcg
       fflate:
@@ -185,10 +185,10 @@ importers:
 
   packages/cli:
     dependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../core
-      '@figmavars/dtcg':
+      '@primitree/dtcg':
         specifier: workspace:*
         version: link:../dtcg
     devDependencies:
@@ -228,7 +228,7 @@ importers:
 
   packages/dtcg:
     dependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -250,10 +250,10 @@ importers:
 
   packages/hooks:
     dependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../core
-      '@figmavars/dtcg':
+      '@primitree/dtcg':
         specifier: workspace:*
         version: link:../dtcg
     devDependencies:
@@ -323,15 +323,15 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@figmavars/core':
-        specifier: workspace:*
-        version: link:../core
-      '@figmavars/dtcg':
-        specifier: workspace:*
-        version: link:../dtcg
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
+      '@primitree/core':
+        specifier: workspace:*
+        version: link:../core
+      '@primitree/dtcg':
+        specifier: workspace:*
+        version: link:../dtcg
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -354,7 +354,7 @@ importers:
 
   packages/plugin-export:
     devDependencies:
-      '@figmavars/core':
+      '@primitree/core':
         specifier: workspace:*
         version: link:../core
       '@types/node':

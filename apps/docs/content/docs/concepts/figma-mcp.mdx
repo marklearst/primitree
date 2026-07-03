@@ -1,15 +1,15 @@
 ---
-title: Figma MCP and FigmaVars
+title: Figma MCP and Primitree
 description: Choose a Figma or repository data source for each token task.
 ---
 
-Figma's MCP servers read live Figma files. The FigmaVars plugin exports local variables from an open file, and `@figmavars/mcp` reads token data from a repository.
+Figma's MCP servers read live Figma files. The Primitree plugin exports local variables from an open file, and `@primitree/mcp` reads token data from a repository.
 
 ## Figma remote MCP server
 
-Figma [recommends the remote server](https://developers.figma.com/docs/figma-mcp-server/) and states that it has the broadest feature set. The remote server uses Figma links to identify files, frames, and layers.
+Figma [recommends the remote server](https://developers.figma.com/docs/figma-mcp-server/). The remote server uses Figma links to identify files, frames, and layers.
 
-Tools such as `get_design_context` and `get_variable_defs` return design context and variables used by the requested node. The remote server also provides:
+Tools such as `get_design_context` and `get_variable_defs` return design context and variables that the requested node references. The remote server provides:
 
 - `use_figma` for reading or changing objects through the Plugin API
 - `get_libraries` for libraries subscribed to a file and libraries available to add
@@ -37,28 +37,28 @@ Figma requires a supported MCP client and access to the requested file. Its curr
 
 Figma reserves the right to change these limits. Check its [rate limits and access](https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/) page before planning usage.
 
-## FigmaVars plugin and CLI
+## Primitree plugin and CLI
 
-The FigmaVars Export plugin calls the local variables Plugin API in the open file and writes `variables.json`.
+The Primitree export plugin calls the local variables Plugin API in the open file and writes `variables.json`.
 
 | Step   | Tool                                          |
 | ------ | --------------------------------------------- |
-| Export | [FigmaVars Export plugin](/docs/figma-plugin) |
-| Build  | `figma-vars build variables.json`             |
+| Export | [Primitree export plugin](/docs/figma-plugin) |
+| Build  | `primitree build variables.json`              |
 | Commit | `design-tokens/` in your repo                 |
 
 The export contains local collections, their modes, variable values, aliases, scopes, and code syntax. The plugin does not fetch remote library collections.
 
-## FigmaVars MCP (`@figmavars/mcp`)
+## Primitree MCP (`@primitree/mcp`)
 
-Point the server at a raw local variables export or the output from `figma-vars build`:
+Point the server at a raw local variables export or the output from `primitree build`:
 
 ```json
 {
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figmavars/mcp", "--tokens", "./design-tokens"]
+      "args": ["-y", "@primitree/mcp", "--tokens", "./design-tokens"]
     }
   }
 }
@@ -70,20 +70,20 @@ The MCP client can list token groups, read a token by dot path, select Resolver 
 
 ```
 Figma file
-  → FigmaVars Export plugin     (variables.json)
-  → figma-vars build            (design-tokens/)
-  → @figmavars/mcp              (repo token queries)
+  → Primitree export plugin     (variables.json)
+  → primitree build             (design-tokens/)
+  → @primitree/mcp              (repo token queries)
 
 Live Figma context
   → Figma remote MCP            (file or node link)
   → Figma desktop MCP           (file link or current selection)
 ```
 
-## Quick comparison
+## Choose a source
 
 | Tool              | Data source                      | Input                                 |
 | ----------------- | -------------------------------- | ------------------------------------- |
 | Figma remote MCP  | Figma-hosted file                | File, frame, or layer link            |
 | Figma desktop MCP | File open in the desktop app     | Current selection or copied node link |
-| FigmaVars Export  | Local variables in the open file | Plugin command                        |
-| `@figmavars/mcp`  | Repository token files           | `variables.json` or `design-tokens/`  |
+| Primitree export  | Local variables in the open file | Plugin command                        |
+| `@primitree/mcp`  | Repository token files           | `variables.json` or `design-tokens/`  |

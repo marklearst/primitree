@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { PipelineFile } from '@figmavars/dtcg'
+import type { PipelineFile } from '@primitree/dtcg'
 
 export async function readJsonFile(filePath: string): Promise<unknown> {
   const absolute = path.resolve(filePath)

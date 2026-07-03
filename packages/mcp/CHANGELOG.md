@@ -1,8 +1,8 @@
 # Changelog
 
-## 5.0.0 (Unreleased)
+## 1.0.0 (Unreleased)
 
-Initial release of `@figmavars/mcp`.
+Initial release of `@primitree/mcp`.
 
 ### Added
 

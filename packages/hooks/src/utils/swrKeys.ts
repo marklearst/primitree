@@ -1,10 +1,8 @@
 /**
- * Shared utilities for constructing SWR cache keys consistently across hooks.
+ * Build SWR cache keys for hooks.
  *
  * @remarks
- * Centralizes key construction logic to prevent mismatches between fetch hooks
- * and invalidation utilities. Ensures that invalidation keys match the keys
- * used by useSWR in fetch hooks.
+ * Fetch hooks and invalidation utilities use the same key shapes.
  *
  * @internal
  */
@@ -41,12 +39,10 @@ export interface PublishedVariablesKeyParams {
  * Constructs the SWR cache key for local variables.
  *
  * @remarks
- * If fallback is available, always returns a fallback key to prevent
- * fallback data from being cached under live API keys. This ensures
- * cache isolation between fallback and live data sources.
+ * Fallback data uses a fallback key instead of a live API key.
  *
  * @param params - Key construction parameters
- * @returns SWR key tuple, or null if no valid key can be constructed
+ * @returns SWR key tuple, or null without credentials or fallback data.
  *
  * @internal
  */
@@ -55,13 +51,12 @@ export function getVariablesKey(
 ): readonly [string, string] | null {
   const { fileKey, token, providerId, hasFallback } = params
 
-  // If fallback is available, always use fallback key to prevent
-  // fallback data from being cached under live API keys
+  // Fallback data uses a separate cache key.
   if (hasFallback) {
     return [`fallback-${providerId ?? 'default'}`, 'fallback'] as const
   }
 
-  // Only use live key if no fallback and we have credentials
+  // Live data needs both credentials.
   if (token && fileKey) {
     const url = `https://api.figma.com/v1/files/${fileKey}/variables/local`
     return [url, token] as const
@@ -74,12 +69,10 @@ export function getVariablesKey(
  * Constructs the SWR cache key for published variables.
  *
  * @remarks
- * If fallback is available, always returns a fallback key to prevent
- * fallback data from being cached under live API keys. This ensures
- * cache isolation between fallback and live data sources.
+ * Fallback data uses a fallback key instead of a live API key.
  *
  * @param params - Key construction parameters
- * @returns SWR key tuple, or null if no valid key can be constructed
+ * @returns SWR key tuple, or null without credentials or fallback data.
  *
  * @internal
  */
@@ -88,13 +81,12 @@ export function getPublishedVariablesKey(
 ): readonly [string, string] | null {
   const { fileKey, token, providerId, hasFallback } = params
 
-  // If fallback is available, always use fallback key to prevent
-  // fallback data from being cached under live API keys
+  // Fallback data uses a separate cache key.
   if (hasFallback) {
     return [`fallback-${providerId ?? 'default'}`, 'fallback'] as const
   }
 
-  // Only use live key if no fallback and we have credentials
+  // Live data needs both credentials.
   if (token && fileKey) {
     const url = `https://api.figma.com/v1/files/${fileKey}/variables/published`
     return [url, token] as const
@@ -104,11 +96,11 @@ export function getPublishedVariablesKey(
 }
 
 /**
- * Constructs all possible SWR cache keys for invalidation purposes.
- * Returns keys for both live and fallback scenarios to ensure complete invalidation.
+ * List cache keys that invalidation must clear.
+ * Includes live endpoints and the fallback key when their inputs exist.
  *
  * @param params - Key construction parameters
- * @returns Array of SWR keys that should be invalidated
+ * @returns SWR keys for matching live and fallback data.
  *
  * @internal
  */

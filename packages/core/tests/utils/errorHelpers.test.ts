@@ -80,13 +80,13 @@ describe('errorHelpers', () => {
     it('should return default message when Error has empty message', () => {
       const error = new Error('')
       // Empty string is falsy, so it falls back to default
-      expect(getErrorMessage(error)).toBe('An error occurred')
+      expect(getErrorMessage(error)).toBe('No error message available')
       expect(getErrorMessage(error, 'Custom default')).toBe('Custom default')
     })
 
     it('should return default message when Error message is undefined', () => {
       const error = { message: undefined } as unknown as Error
-      expect(getErrorMessage(error)).toBe('An error occurred')
+      expect(getErrorMessage(error)).toBe('No error message available')
       expect(getErrorMessage(error, 'Custom default')).toBe('Custom default')
     })
 
@@ -96,11 +96,11 @@ describe('errorHelpers', () => {
     })
 
     it('should return default message for non-string, non-Error values', () => {
-      expect(getErrorMessage(null)).toBe('An error occurred')
-      expect(getErrorMessage(undefined)).toBe('An error occurred')
-      expect(getErrorMessage(123)).toBe('An error occurred')
-      expect(getErrorMessage({})).toBe('An error occurred')
-      expect(getErrorMessage([])).toBe('An error occurred')
+      expect(getErrorMessage(null)).toBe('No error message available')
+      expect(getErrorMessage(undefined)).toBe('No error message available')
+      expect(getErrorMessage(123)).toBe('No error message available')
+      expect(getErrorMessage({})).toBe('No error message available')
+      expect(getErrorMessage([])).toBe('No error message available')
     })
 
     it('should use custom default message when provided', () => {

@@ -23,17 +23,17 @@ import {
 } from './release-publish.mjs'
 import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
 
-const VERSION = '5.0.0'
+const VERSION = '1.0.0'
 const SHA = '0123456789abcdef0123456789abcdef01234567'
 const TAG_REF = `refs/tags/v${VERSION}`
-const REPOSITORY = 'https://github.com/marklearst/figmavars'
+const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
 
 function fixtureArtifacts() {
-  const directory = mkdtempSync(path.join(tmpdir(), 'figmavars-publish-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'primitree-publish-'))
   const artifacts = PUBLIC_RELEASE_PACKAGES.map(config => {
-    const stem = config.name.slice('@figmavars/'.length)
-    const file = `figmavars-${stem}-${VERSION}.tgz`
+    const stem = config.name.slice('@primitree/'.length)
+    const file = `primitree-${stem}-${VERSION}.tgz`
     const bytes = Buffer.from(`${config.name} ${VERSION}\n`)
     writeFileSync(path.join(directory, file), bytes)
     return {
@@ -121,8 +121,8 @@ function metadataFor(name, bytes, registry = PUBLIC_NPM_REGISTRY) {
 }
 
 function fakePublishedPackage(directory, name) {
-  const stem = name.slice('@figmavars/'.length)
-  const artifactPath = path.join(directory, `figmavars-${stem}-${VERSION}.tgz`)
+  const stem = name.slice('@primitree/'.length)
+  const artifactPath = path.join(directory, `primitree-${stem}-${VERSION}.tgz`)
   const bytes = readFileSync(artifactPath)
   return {
     artifactPath,
@@ -135,7 +135,7 @@ function registryConfigResult(args, options = {}) {
   if (
     args[0] === 'config' &&
     args[1] === 'get' &&
-    ['registry', '@figmavars:registry'].includes(args[2])
+    ['registry', '@primitree:registry'].includes(args[2])
   ) {
     const values = new Map()
     for (const configPath of [
@@ -216,12 +216,12 @@ test('freshly fetches origin main and requires tag, main, and GITHUB_SHA equalit
 test('validates one exact identity-aware SLSA provenance statement', () => {
   const fixture = fixtureArtifacts()
   try {
-    const published = fakePublishedPackage(fixture.directory, '@figmavars/core')
+    const published = fakePublishedPackage(fixture.directory, '@primitree/core')
     assert.doesNotThrow(() =>
       validatePublishedPackage({
         ...published,
         expected: {
-          name: '@figmavars/core',
+          name: '@primitree/core',
           version: VERSION,
           repository: REPOSITORY,
           workflowPath: WORKFLOW_PATH,
@@ -240,7 +240,7 @@ test('validates one exact identity-aware SLSA provenance statement', () => {
       [
         'wrong PURL',
         statement => {
-          statement.subject[0].name = 'pkg:npm/%40figmavars/core@5.0.1'
+          statement.subject[0].name = `pkg:npm/%40figma${'vars'}/core@5.0.1`
         },
       ],
       [
@@ -281,7 +281,7 @@ test('validates one exact identity-aware SLSA provenance statement', () => {
 
     for (const [label, mutate] of cases) {
       const bytes = readFileSync(published.artifactPath)
-      const statement = statementFor('@figmavars/core', bytes)
+      const statement = statementFor('@primitree/core', bytes)
       mutate(statement)
       const attestation = {
         attestations: [
@@ -303,7 +303,7 @@ test('validates one exact identity-aware SLSA provenance statement', () => {
             ...published,
             attestation,
             expected: {
-              name: '@figmavars/core',
+              name: '@primitree/core',
               version: VERSION,
               repository: REPOSITORY,
               workflowPath: WORKFLOW_PATH,
@@ -332,16 +332,16 @@ test('publishes in dependency order, resumes partial publication, and polls dela
     const published = fakePublishedPackage(fixture.directory, config.name)
     states.set(config.name, {
       metadata: published.metadata,
-      present: config.name === '@figmavars/core',
+      present: config.name === '@primitree/core',
     })
-    delays.set(config.name, config.name === '@figmavars/mcp' ? 1 : 0)
+    delays.set(config.name, config.name === '@primitree/mcp' ? 1 : 0)
     attestationByUrl.set(
       published.metadata.dist.attestations.url,
       published.attestation
     )
     attestationDelays.set(
       published.metadata.dist.attestations.url,
-      config.name === '@figmavars/mcp' ? 1 : 0
+      config.name === '@primitree/mcp' ? 1 : 0
     )
   }
 
@@ -366,9 +366,9 @@ test('publishes in dependency order, resumes partial publication, and polls dela
     globalNpmrcPath = options.env.NPM_CONFIG_GLOBALCONFIG
     assert.match(readFileSync(npmrcPath, 'utf8'), /bootstrap-token/)
     assert.doesNotMatch(readFileSync(globalNpmrcPath, 'utf8'), /token|auth/i)
-    assert.match(options.env.HOME, /figmavars-publish-/)
+    assert.match(options.env.HOME, /primitree-publish-/)
     assert.match(options.env.NPM_CONFIG_CACHE, /npm-cache$/)
-    assert.match(options.cwd, /figmavars-publish-.*\/work$/)
+    assert.match(options.cwd, /primitree-publish-.*\/work$/)
     const configResult = registryConfigResult(args, options)
     if (configResult !== undefined) return configResult
     if (args[0] === '--version') {
@@ -467,7 +467,7 @@ test('OIDC publish uses only controlled npm config and GitHub request identity',
         NPM_CONFIG_USERCONFIG: '/tmp/attacker-user-npmrc',
         npm_config_globalconfig: '/tmp/attacker-global-npmrc',
         NPM_CONFIG_REGISTRY: 'https://evil.example/',
-        NPM_CONFIG__FIGMAVARS_REGISTRY: 'https://evil.example/',
+        NPM_CONFIG__PRIMITREE_REGISTRY: 'https://evil.example/',
         NPM_CONFIG_PROVENANCE: 'true',
         NPM_ID_TOKEN: 'must-not-leak',
         YARN_NPM_AUTH_TOKEN: 'must-not-leak',
@@ -490,14 +490,14 @@ test('OIDC publish uses only controlled npm config and GitHub request identity',
         )
         assert.match(
           controlledConfig,
-          /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+          /^@primitree:registry=https:\/\/registry\.npmjs\.org\/$/m
         )
         assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
         assert.equal(options.env.NPM_TOKEN, undefined)
         assert.equal(options.env.NODE_AUTH_TOKEN, undefined)
         assert.equal(options.env.NPM_CONFIG_TOKEN, undefined)
         assert.equal(options.env.NPM_CONFIG_REGISTRY, undefined)
-        assert.equal(options.env.NPM_CONFIG__FIGMAVARS_REGISTRY, undefined)
+        assert.equal(options.env.NPM_CONFIG__PRIMITREE_REGISTRY, undefined)
         assert.equal(options.env.NPM_CONFIG_PROVENANCE, undefined)
         assert.equal(options.env.NPM_ID_TOKEN, undefined)
         assert.equal(options.env.YARN_NPM_AUTH_TOKEN, undefined)
@@ -509,9 +509,9 @@ test('OIDC publish uses only controlled npm config and GitHub request identity',
           options.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
           'oidc-request-token'
         )
-        assert.match(options.env.HOME, /figmavars-publish-/)
+        assert.match(options.env.HOME, /primitree-publish-/)
         assert.match(options.env.NPM_CONFIG_CACHE, /npm-cache$/)
-        assert.match(options.cwd, /figmavars-publish-.*\/work$/)
+        assert.match(options.cwd, /primitree-publish-.*\/work$/)
         assert.notEqual(options.cwd, process.cwd())
         const configResult = registryConfigResult(args, options)
         if (configResult !== undefined) return configResult
@@ -538,12 +538,12 @@ test('OIDC publish uses only controlled npm config and GitHub request identity',
       calls.filter(call => call[1] === 'config').map(call => call.slice(1)),
       [
         ['config', 'get', 'registry'],
-        ['config', 'get', '@figmavars:registry'],
+        ['config', 'get', '@primitree:registry'],
       ]
     )
     const firstView = calls.findIndex(call => call[1] === 'view')
     const scopeCheck = calls.findIndex(
-      call => call[1] === 'config' && call[3] === '@figmavars:registry'
+      call => call[1] === 'config' && call[3] === '@primitree:registry'
     )
     assert.ok(scopeCheck < firstView)
     assert.equal(existsSync(npmrcPath), false)
@@ -619,7 +619,7 @@ test('fails closed on malformed registry state and finite polling exhaustion', a
 
 test('reports a timed-out attestation request with package context', async () => {
   const fixture = fixtureArtifacts()
-  const published = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  const published = fakePublishedPackage(fixture.directory, '@primitree/core')
   try {
     await assert.rejects(
       () =>
@@ -647,7 +647,7 @@ test('reports a timed-out attestation request with package context', async () =>
             throw new DOMException('request timed out', 'TimeoutError')
           },
         }),
-      /@figmavars\/core@5\.0\.0: attestation request timed out/
+      /@primitree\/core@1\.0\.0: attestation request timed out/
     )
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
@@ -707,7 +707,7 @@ test('accepts each dependency package before publishing its consumer', async () 
             args[1].endsWith(item.file)
           )
           assert.ok(artifact)
-          if (artifact.name === '@figmavars/dtcg' && coreAccepted === false) {
+          if (artifact.name === '@primitree/dtcg' && coreAccepted === false) {
             throw new Error('DTCG published before core was accepted')
           }
           publishOrder.push(artifact.name)
@@ -779,7 +779,7 @@ test('accepts metadata that becomes complete on the final propagation attempt', 
           const count = (viewCounts.get(name) ?? 0) + 1
           viewCounts.set(name, count)
           const metadata = structuredClone(publishedByName.get(name).metadata)
-          if (name === '@figmavars/core' && count < 3) {
+          if (name === '@primitree/core' && count < 3) {
             delete metadata.dist.attestations.url
           }
           return {
@@ -797,7 +797,7 @@ test('accepts metadata that becomes complete on the final propagation attempt', 
       },
     })
 
-    assert.equal(viewCounts.get('@figmavars/core'), 4)
+    assert.equal(viewCounts.get('@primitree/core'), 4)
     assert.equal(attestationFetches, PUBLIC_RELEASE_PACKAGES.length * 2)
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
@@ -806,7 +806,7 @@ test('accepts metadata that becomes complete on the final propagation attempt', 
 
 test('exhausts one package propagation budget before downstream writes', async () => {
   const fixture = fixtureArtifacts()
-  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  const core = fakePublishedPackage(fixture.directory, '@primitree/core')
   const views = []
   let publishes = 0
   try {
@@ -847,9 +847,9 @@ test('exhausts one package propagation budget before downstream writes', async (
             throw new Error('incomplete metadata must not be fetched')
           },
         }),
-      /@figmavars\/core.*after 2 attempts/
+      /@primitree\/core.*after 2 attempts/
     )
-    assert.deepEqual(views, ['@figmavars/core', '@figmavars/core'])
+    assert.deepEqual(views, ['@primitree/core', '@primitree/core'])
     assert.equal(publishes, 0)
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
@@ -858,7 +858,7 @@ test('exhausts one package propagation budget before downstream writes', async (
 
 test('rejects contradictory registry metadata before attestation fetch or publish', async () => {
   const fixture = fixtureArtifacts()
-  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  const core = fakePublishedPackage(fixture.directory, '@primitree/core')
   core.metadata.dist.integrity = 'sha512-incorrect'
   let attestationFetches = 0
   let publishes = 0
@@ -905,7 +905,7 @@ test('rejects contradictory registry metadata before attestation fetch or publis
 
 test('rejects hostile attestation URLs before network or registry mutation', async () => {
   const fixture = fixtureArtifacts()
-  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  const core = fakePublishedPackage(fixture.directory, '@primitree/core')
   core.metadata.dist.attestations.url =
     'https://registry.npmjs.org.evil.example/steal'
   let attestationFetches = 0
@@ -956,7 +956,7 @@ test('attestation fetches refuse redirects and stop after one response', async (
   assert.equal(typeof module.fetchAttestationJson, 'function')
   let requests = 0
   const result = await module.fetchAttestationJson(
-    'https://registry.npmjs.org/-/npm/v1/attestations/%40figmavars%2fcore@5.0.0',
+    'https://registry.npmjs.org/-/npm/v1/attestations/%40primitree%2fcore@1.0.0',
     {
       fetchImpl: async (url, options) => {
         requests += 1
@@ -1014,7 +1014,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         )
         assert.match(
           controlledConfig,
-          /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+          /^@primitree:registry=https:\/\/registry\.npmjs\.org\/$/m
         )
         assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
         const configResult = registryConfigResult(args, options)
@@ -1071,12 +1071,12 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
     )
     assert.equal(esmCalls.length, 1)
     assert.equal(esmCalls[0][2], '--eval')
-    assert.match(esmCalls[0][3], /await import\('@figmavars\/core'\)/)
+    assert.match(esmCalls[0][3], /await import\('@primitree\/core'\)/)
     assert.equal(commonJsCalls.length, 1)
     assert.equal(commonJsCalls[0][2], '--eval')
-    assert.match(commonJsCalls[0][3], /require\('@figmavars\/core'\)/)
+    assert.match(commonJsCalls[0][3], /require\('@primitree\/core'\)/)
     const scopeCheck = calls.findIndex(
-      call => call[1] === 'config' && call[3] === '@figmavars:registry'
+      call => call[1] === 'config' && call[3] === '@primitree:registry'
     )
     assert.ok(scopeCheck < installIndex)
     for (const environment of seenEnvironments) {
@@ -1097,7 +1097,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
       assert.match(environment.NPM_CONFIG_GLOBALCONFIG, /global-npmrc$/)
       assert.match(environment.NPM_CONFIG_CACHE, /npm-cache$/)
     }
-    for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
+    for (const bin of ['primitree', 'primitree-mcp']) {
       assert.ok(
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
@@ -1125,7 +1125,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
       NPM_CONFIG_USERCONFIG: '/tmp/attacker-user-npmrc',
       NPM_CONFIG_GLOBALCONFIG: '/tmp/attacker-global-npmrc',
       NPM_CONFIG_REGISTRY: 'https://evil.example/',
-      NPM_CONFIG__FIGMAVARS_REGISTRY: 'https://evil.example/',
+      NPM_CONFIG__PRIMITREE_REGISTRY: 'https://evil.example/',
       NPM_CONFIG_PROVENANCE: 'true',
       ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example',
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'must-not-leak',
@@ -1150,7 +1150,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
       )
       assert.match(
         controlledConfig,
-        /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+        /^@primitree:registry=https:\/\/registry\.npmjs\.org\/$/m
       )
       assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
       const configResult = registryConfigResult(args, options)
@@ -1192,7 +1192,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   )
   assert.equal(seenOptions[auditIndex].timeoutMs, 3 * 60_000)
   const scopeCheck = calls.findIndex(
-    call => call[1] === 'config' && call[3] === '@figmavars:registry'
+    call => call[1] === 'config' && call[3] === '@primitree:registry'
   )
   assert.ok(scopeCheck < installIndex)
   for (const environment of seenEnvironments) {
@@ -1201,7 +1201,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
       'NODE_AUTH_TOKEN',
       'NPM_ID_TOKEN',
       'NPM_CONFIG_REGISTRY',
-      'NPM_CONFIG__FIGMAVARS_REGISTRY',
+      'NPM_CONFIG__PRIMITREE_REGISTRY',
       'NPM_CONFIG_PROVENANCE',
       'ACTIONS_ID_TOKEN_REQUEST_URL',
       'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
@@ -1218,12 +1218,11 @@ test('creates a hermetic public-registry consumer with exact installs and signat
     assert.match(environment.NPM_CONFIG_CACHE, /npm-cache$/)
   }
   for (const specifier of [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
-    '@figmavars/mcp',
+    '@primitree/core',
+    '@primitree/core/types',
+    '@primitree/dtcg',
+    '@primitree/hooks',
+    '@primitree/mcp',
   ]) {
     assert.ok(
       calls.some(
@@ -1235,11 +1234,10 @@ test('creates a hermetic public-registry consumer with exact installs and signat
     )
   }
   for (const specifier of [
-    '@figmavars/core',
-    '@figmavars/core/types',
-    '@figmavars/dtcg',
-    '@figmavars/hooks',
-    '@figmavars/hooks/core',
+    '@primitree/core',
+    '@primitree/core/types',
+    '@primitree/dtcg',
+    '@primitree/hooks',
   ]) {
     assert.ok(
       calls.some(
@@ -1250,7 +1248,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
       `missing CommonJS smoke for ${specifier}`
     )
   }
-  for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
+  for (const bin of ['primitree', 'primitree-mcp']) {
     assert.ok(calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`)))
   }
   assert.ok(

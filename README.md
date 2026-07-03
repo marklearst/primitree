@@ -1,17 +1,17 @@
 <div align="center">
 
-# 🌳 FigmaVars
+# 🌳 Primitree
 
-Turn a Figma variables export into token files you can commit and review.
+Turn a Figma variables export into commit-ready token files for review.
 
-[![CI](https://github.com/marklearst/figmavars/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/figmavars/actions/workflows/ci.yml)
+[![CI](https://github.com/marklearst/primitree/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/primitree/actions/workflows/ci.yml)
 [![DTCG](https://img.shields.io/badge/DTCG-2025.10-7b8cff)](https://www.designtokens.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
 
 ```sh
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
 The command writes a design-token pipeline:
@@ -33,37 +33,38 @@ design-tokens/
 ```
 
 The token output follows DTCG 2025.10 plus a documented boolean extension.
-Aliases remain token references. Figma modes become Resolver contexts. Figma
-IDs, scopes, and code syntax live under `$extensions['com.figma-vars']`.
+Aliases remain token references. The converter maps Figma modes to Resolver
+contexts. Figma IDs, scopes, and code syntax live under
+`$extensions['com.primitree']`.
 
 Create `variables.json` with a variables plugin that exports local Figma
-variables. The FigmaVars Export workspace app supports local development.
-Teams with Enterprise access can use `figma-vars export` against the Variables
+variables. Use the Primitree export plugin during local development.
+Teams with Enterprise access can use `primitree export` against the Variables
 REST API.
 
 ## Packages
 
-| Package                                  | Purpose                                                                 |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
-| [`@figmavars/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API |
-| [`@figmavars/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript   |
-| [`@figmavars/cli`](packages/cli)         | Build, compare, check, scaffold, and export token projects              |
-| [`@figmavars/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR       |
-| [`@figmavars/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                  |
-| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                        |
+| Package                                  | Purpose                                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API                                      |
+| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                                        |
+| [`@primitree/cli`](packages/cli)         | Download local Figma variables JSON; build token files, compare exports, check inputs, and scaffold projects |
+| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                                            |
+| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                                                       |
+| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                                             |
 
 ## Review token changes
 
-`figma-vars diff` matches variables by stable Figma IDs. A renamed variable
+`primitree diff` matches variables by stable Figma IDs. A renamed variable
 keeps its identity in the report:
 
 ```sh
-figma-vars diff backup/variables.json variables.json --fail-on-breaking
+primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
 ```markdown
 Variables: 1 renamed, 1 value change.
-**Breaking changes detected.**
+**The diff contains breaking changes.**
 
 ### Renamed variables (breaking)
 
@@ -80,7 +81,7 @@ renames, moves, or type changes.
 ## Use built tokens in React
 
 ```tsx
-import { TokensProvider, useTheme, useToken } from '@figmavars/hooks'
+import { TokensProvider, useTheme, useToken } from '@primitree/hooks'
 
 function Brand() {
   const brand = useToken('semantic.color.bg.brand')
@@ -97,8 +98,7 @@ function Brand() {
 ```
 
 The local-token hooks read built artifacts. They do not need a Figma Personal
-Access Token or a network request. The package also includes live API hooks for
-Enterprise teams.
+Access Token or a network request. Enterprise teams can use the live API hooks.
 
 ## Connect an MCP client
 
@@ -107,7 +107,7 @@ Enterprise teams.
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
     }
   }
 }
@@ -118,12 +118,12 @@ The server provides `list_collections`, `get_token`, `resolve_context`,
 
 ## Documentation
 
-Read the documentation at [figmavars.com](https://figmavars.com).
+Read the documentation at [primitree.com](https://primitree.com).
 
 Run the site from the monorepo:
 
 ```sh
-pnpm --filter figmavars-docs dev
+pnpm --filter primitree-docs dev
 ```
 
 ## Repository layout
@@ -139,7 +139,7 @@ packages/
 ├── cli/                  Command-line package
 ├── hooks/                React package
 ├── mcp/                  MCP package
-└── plugin-export/        Private serializer used by the Figma plugin
+└── plugin-export/        Private serializer for the Figma plugin
 docs/                     Release notes, launch drafts, and maintainer docs
 ```
 
@@ -147,7 +147,7 @@ docs/                     Release notes, launch drafts, and maintainer docs
 
 - Node.js 24 or newer
 - pnpm 11 or newer for monorepo work
-- React `^19.0.0` and SWR `^2.3.7` for `@figmavars/hooks`
+- React `^19.0.0` and SWR `^2.3.7` for `@primitree/hooks`
 
 ## Development
 

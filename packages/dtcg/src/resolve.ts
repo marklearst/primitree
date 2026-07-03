@@ -82,7 +82,7 @@ export function flattenTokens(document: DTCGDocument): FlatToken[] {
 }
 
 /**
- * Resolver functions throw this error when a DTCG reference does not resolve.
+ * Resolver functions throw this error for an unresolved DTCG reference.
  *
  * @public
  */
@@ -396,7 +396,7 @@ export function resolveTokenValuesSafe(flat: FlatToken[]): {
 }
 
 /**
- * List the modifier axes and their contexts declared by a resolver.
+ * List Resolver modifier axes and contexts.
  *
  * @public
  */
@@ -434,7 +434,7 @@ function refToFileName(ref: string): string {
 /**
  * Apply a DTCG Resolver to token files for a context selection.
  *
- * @param files - Token documents keyed by file name (as produced by `toDTCG`).
+ * @param files - File-name map of token documents from `toDTCG`.
  * @param resolver - The resolver document.
  * @param input - Context selection per modifier (e.g. `{ semantic: 'dark' }`).
  *   Missing modifiers use their declared `default`, falling back to the first
@@ -550,7 +550,7 @@ export function applyResolver(
 }
 
 /**
- * List the context permutations declared by a Resolver.
+ * List Resolver context permutations.
  *
  * @returns Array of context selections (e.g. `[{ semantic: 'light', density: 'compact' }, ...]`).
  *

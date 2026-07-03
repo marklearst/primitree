@@ -281,6 +281,7 @@ function scanCodeBlock(file, node) {
   }
 
   return scanTypeScript(`${file}.${extension}`, node.value, {
+    includeCodeComments: true,
     includeDocComments: false,
     includeStrings: true,
   }).map(violation => ({

@@ -13,7 +13,7 @@ import { getInvalidationKeys } from '../utils/swrKeys'
  *
  * @example
  * ```tsx
- * import { useInvalidateVariables, useUpdateVariable } from '@figmavars/hooks';
+ * import { useInvalidateVariables, useUpdateVariable } from '@primitree/hooks';
  *
  * function UpdateButton() {
  *   const { mutate } = useUpdateVariable();
@@ -55,7 +55,7 @@ export const useInvalidateVariables = () => {
   }
 
   /**
-   * Requests a fresh value for each live and fallback cache key now.
+   * Requests a fresh value for each live and fallback cache key.
    */
   const revalidate = () => {
     // Get all possible keys that should be revalidated

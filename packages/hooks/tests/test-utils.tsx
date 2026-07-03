@@ -1,19 +1,19 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { ReactNode } from 'react'
 import { renderHook } from '@testing-library/react'
-import { FigmaVarsProvider } from '../src/contexts/FigmaVarsProvider'
+import { FigmaVariablesProvider } from '../src/contexts/FigmaVariablesProvider'
 
-export const TEST_FIGMA_TOKEN = 'figmavars-test-token'
-export const TEST_FIGMA_FILE_KEY = 'figmavars-test-file'
+export const TEST_FIGMA_TOKEN = 'primitree-test-token'
+export const TEST_FIGMA_FILE_KEY = 'primitree-test-file'
 
-// Wrapper component that provides deterministic unit-test credentials.
+// Wrapper component with fixed unit-test credentials.
 export const TestWrapper = ({ children }: { children: ReactNode }) => {
   return (
-    <FigmaVarsProvider
+    <FigmaVariablesProvider
       token={TEST_FIGMA_TOKEN}
       fileKey={TEST_FIGMA_FILE_KEY}>
       {children}
-    </FigmaVarsProvider>
+    </FigmaVariablesProvider>
   )
 }
 

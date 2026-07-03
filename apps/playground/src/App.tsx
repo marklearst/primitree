@@ -7,7 +7,7 @@ import {
   type Preview,
 } from './lib/pipeline'
 import sampleVariables from './sample-variables.json'
-import wordmark from './assets/figmavars.svg'
+import mark from './assets/primitree-icon.svg'
 
 const tabs = ['tokens', 'files'] as const
 
@@ -120,21 +120,23 @@ export default function App() {
       <header className='header'>
         <div className='brand'>
           <img
-            src={wordmark}
-            alt='FigmaVars'
-            className='brand-logo'
+            src={mark}
+            alt=''
+            aria-hidden='true'
+            className='brand-mark'
           />
+          <span className='brand-wordmark'>Primitree</span>
           <span className='brand-sub'>Playground</span>
         </div>
         <nav className='header-links'>
           <a
-            href='https://github.com/marklearst/figmavars'
+            href='https://github.com/marklearst/primitree'
             target='_blank'
             rel='noreferrer'>
             GitHub
           </a>
           <a
-            href='https://www.npmjs.com/package/@figmavars/cli'
+            href='https://www.npmjs.com/package/@primitree/cli'
             target='_blank'
             rel='noreferrer'>
             npm
@@ -144,16 +146,16 @@ export default function App() {
 
       <main className={preview ? 'report' : 'landing'}>
         <h1 className={`page-title${preview ? ' visually-hidden' : ''}`}>
-          Drop your Figma variables.
-          <br /> <em>Leave with a token pipeline.</em>
+          Preview your Figma variables export.
+          <br /> <em>Download the generated token files.</em>
         </h1>
 
         {!preview && (
           <div className='landing-content'>
             <p className='lede'>
-              DTCG 2025.10 tokens, a Resolver for your modes, CSS custom
-              properties, a Tailwind v4 theme, TypeScript types, and CI config —
-              generated in your browser. <strong>Nothing is uploaded.</strong>
+              Your browser writes DTCG 2025.10 tokens, Resolver contexts, CSS,
+              Tailwind v4, TypeScript, and CI config.{' '}
+              <strong>The playground sends no file data to a server.</strong>
             </p>
 
             <fieldset
@@ -172,8 +174,8 @@ export default function App() {
                 Drag a variables.json here
               </p>
               <p className='dz-sub'>
-                from <code>figma-vars export</code>, TokensBrücke, or any
-                variables plugin
+                from <code>primitree export</code>, TokensBrücke, or another
+                supported variables plugin
               </p>
               <div className='dz-actions'>
                 <button
@@ -214,15 +216,15 @@ export default function App() {
             <div className='steps'>
               <div className='step'>
                 <span className='step-n'>1</span>
-                Export variables from Figma (any plan — plugins work)
+                Use a Figma plugin to export variables without the REST API
               </div>
               <div className='step'>
                 <span className='step-n'>2</span>
-                Drop the JSON here, preview every collection and mode
+                Drop the JSON here to preview its collections and modes
               </div>
               <div className='step'>
                 <span className='step-n'>3</span>
-                Download the zip, commit it, ship tokens
+                Download the zip and commit the generated files
               </div>
             </div>
           </div>
@@ -365,7 +367,7 @@ export default function App() {
               )}
               {otherTokens.length > 0 && (
                 <section>
-                  <h3>Everything else</h3>
+                  <h3>Other token types</h3>
                   <section
                     className='table-region'
                     aria-label='Generated tokens'
@@ -436,12 +438,13 @@ export default function App() {
       </main>
 
       <footer className='footer'>
-        Runs 100% client-side — your tokens never leave this tab. Built with{' '}
+        The playground processes tokens in this browser tab and sends no token
+        data to a server. It uses{' '}
         <a
-          href='https://github.com/marklearst/figmavars'
+          href='https://github.com/marklearst/primitree'
           target='_blank'
           rel='noreferrer'>
-          @figmavars
+          @primitree
         </a>
         .
       </footer>

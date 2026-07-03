@@ -33,7 +33,7 @@ export interface FilterVariablesCriteria {
  *
  * @example
  * ```ts
- * import { filterVariables } from '@figmavars/core'
+ * import { filterVariables } from '@primitree/core'
  *
  * const colors = filterVariables(variables, { resolvedType: 'COLOR' })
  * const brand = filterVariables(variables, {

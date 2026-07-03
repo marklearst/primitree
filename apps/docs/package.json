@@ -1,9 +1,8 @@
 {
-  "name": "figmavars-docs",
-  "version": "5.0.0",
+  "name": "primitree-docs",
   "private": true,
   "type": "module",
-  "description": "FigmaVars documentation site (figmavars.com)",
+  "description": "Primitree documentation site.",
   "scripts": {
     "generate:api": "node scripts/generate-api.mjs",
     "check:prose": "node ../../scripts/check-prose.mjs",
@@ -17,8 +16,8 @@
     "postinstall": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*",
-    "@figmavars/dtcg": "workspace:*",
+    "@primitree/core": "workspace:*",
+    "@primitree/dtcg": "workspace:*",
     "cnfast": "^0.0.8",
     "fflate": "^0.8.2",
     "fumadocs-core": "16.10.7",
@@ -30,8 +29,8 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@figmavars/hooks": "workspace:*",
-    "@figmavars/mcp": "workspace:*",
+    "@primitree/hooks": "workspace:*",
+    "@primitree/mcp": "workspace:*",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/mdx": "^2.0.14",
     "@types/node": "^24.13.3",

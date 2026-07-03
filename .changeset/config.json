@@ -3,7 +3,7 @@
   "changelog": ["@changesets/cli/changelog", null],
   "commit": false,
   "fixed": [
-    ["@figmavars/core", "@figmavars/dtcg", "@figmavars/cli", "@figmavars/hooks", "@figmavars/mcp"]
+    ["@primitree/core", "@primitree/dtcg", "@primitree/cli", "@primitree/hooks", "@primitree/mcp"]
   ],
   "linked": [],
   "access": "public",
@@ -12,7 +12,7 @@
   "ignore": [],
   "snapshot": {
     "useCalculatedVersion": false,
-    "prereleaseTemplate": "{tag}-{commit}-{datetime}"
+    "prereleaseTemplate": "{tag}-{commit}"
   },
   "privatePackages": {
     "version": false,

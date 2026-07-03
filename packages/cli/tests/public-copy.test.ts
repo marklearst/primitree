@@ -10,6 +10,16 @@ import { diffHelp } from '../src/commands/diff'
 import { exportHelp } from '../src/commands/export'
 import { initHelp, runInit } from '../src/commands/init'
 
+const cliManifest = JSON.parse(
+  await fs.readFile(path.join(import.meta.dirname, '../package.json'), 'utf8')
+)
+const hooksManifest = JSON.parse(
+  await fs.readFile(
+    path.join(import.meta.dirname, '../../hooks/package.json'),
+    'utf8'
+  )
+)
+
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
@@ -38,11 +48,14 @@ describe('public CLI copy', () => {
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
     expect(copy).toContain(
-      'figma-vars: build design tokens from Figma variables'
+      'primitree: build design tokens from Figma variables'
     )
     expect(copy).toContain(
-      'DTCG 2025.10 tokens plus the documented FigmaVars boolean extension'
+      'DTCG 2025.10 tokens plus the documented Primitree boolean extension'
     )
+    for (const command of ['init', 'export', 'build', 'check', 'diff']) {
+      expect(copy).toContain(`primitree ${command}`)
+    }
     expect(exportHelp).toMatch(/a supported variables\s+plugin/u)
     expect(copy).not.toContain('TokensBrücke')
     expect(copy).not.toMatch(/[—]/)
@@ -51,7 +64,7 @@ describe('public CLI copy', () => {
 
   it('writes a concise scaffold README', async () => {
     const directory = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'figmavars-cli-copy-')
+      path.join(os.tmpdir(), 'primitree-cli-copy-')
     )
     temporaryDirectories.push(directory)
     const repository = path.join(directory, 'tokens')
@@ -69,5 +82,11 @@ describe('public CLI copy', () => {
     expect(readme).not.toContain('TokensBrücke')
     expect(readme).not.toMatch(/[—]/)
     expect(readme).not.toMatch(/\bautomatically\b/i)
+  })
+
+  it('exposes the Primitree CLI without a hooks export command', () => {
+    expect(cliManifest.bin).toEqual({ primitree: './dist/index.js' })
+    expect(hooksManifest.bin).toBeUndefined()
+    expect(hooksManifest.files).not.toContain('scripts/export-variables.mjs')
   })
 })
