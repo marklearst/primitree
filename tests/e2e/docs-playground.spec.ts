@@ -3,6 +3,7 @@ import type { Locator, Page } from '@playwright/test'
 import sampleVariables from '../../apps/docs/lib/playground/sample-variables.json' with { type: 'json' }
 
 const widths = [320, 375] as const
+const acceptanceWidths = [390, 1440] as const
 const pageHeading = 'Preview a variables export before you install the CLI.'
 
 function warningVariablesBuffer() {
@@ -58,26 +59,26 @@ async function expectEveryTouchTarget(locator: Locator) {
   ).toEqual([])
 }
 
-async function expectVisibleOutline(locator: Locator) {
+async function expectNeutralFocusOutline(locator: Locator) {
   const outline = await locator.evaluate(element => {
     const style = getComputedStyle(element)
-    const accentProbe = document.createElement('span')
-    accentProbe.style.color = 'var(--color-primitree-accent)'
-    document.body.append(accentProbe)
-    const accentColor = getComputedStyle(accentProbe).color
-    accentProbe.remove()
+    const textProbe = document.createElement('span')
+    textProbe.style.color = 'var(--color-primitree-text)'
+    document.body.append(textProbe)
+    const textColor = getComputedStyle(textProbe).color
+    textProbe.remove()
 
     return {
-      accentColor,
       color: style.outlineColor,
       style: style.outlineStyle,
+      textColor,
       width: Number.parseFloat(style.outlineWidth),
     }
   })
 
   expect(outline.style).not.toBe('none')
   expect(outline.width).toBeGreaterThanOrEqual(2)
-  expect(outline.color).toBe(outline.accentColor)
+  expect(outline.color).toBe(outline.textColor)
 }
 
 async function expectTabState(
@@ -188,7 +189,7 @@ for (const width of widths) {
     await tokens.focus()
     await page.keyboard.press('Tab')
     await expect(tableRegion).toBeFocused()
-    await expectVisibleOutline(tableRegion)
+    await expectNeutralFocusOutline(tableRegion)
     await expectNoDocumentOverflow(page)
 
     await files.click()
@@ -226,14 +227,86 @@ for (const width of widths) {
     await expect(summary).toBeVisible()
     await expect(summary).toContainText('warning')
     await expectEveryTouchTarget(summary)
+    const warning = page.locator('.pg-warnings')
+    await expect(warning).toHaveCSS('color', 'rgb(242, 184, 75)')
+    await expect(warning).toHaveCSS(
+      'background-color',
+      'rgba(242, 184, 75, 0.07)'
+    )
 
     await page.getByRole('button', { name: 'Download pipeline (.zip)' }).focus()
     await page.keyboard.press('Tab')
     await expect(summary).toBeFocused()
-    await expectVisibleOutline(summary)
+    await expectNeutralFocusOutline(summary)
     await expectNoDocumentOverflow(page)
   })
 }
+
+for (const width of acceptanceWidths) {
+  test(`embedded playground empty and sample states remain contained at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await gotoPlayground(page)
+
+    await expect(
+      page.getByRole('heading', {
+        level: 1,
+        name: pageHeading,
+      })
+    ).toBeVisible()
+    await expect(page.locator('.pg-dropzone')).toBeVisible()
+    await expectNoDocumentOverflow(page)
+
+    await page.getByRole('button', { name: 'Try the sample' }).click()
+
+    await expect(
+      page.getByRole('heading', {
+        level: 2,
+        name: 'sample-variables.json',
+      })
+    ).toBeVisible()
+    await expectNoDocumentOverflow(page)
+
+    await page.getByRole('tab', { name: 'Generated files' }).click()
+    await expect(
+      page.getByRole('tabpanel', { name: 'Generated files' })
+    ).toBeVisible()
+    await expectNoDocumentOverflow(page)
+  })
+}
+
+test('embedded playground applies Lichen to sample output states', async ({
+  page,
+}) => {
+  await gotoPlayground(page)
+  await page.getByRole('button', { name: 'Try the sample' }).click()
+
+  const selectedChip = page.locator('.pg-chip:has(input:checked)').first()
+  await expect(selectedChip).toHaveCSS('color', 'rgb(168, 201, 95)')
+  await expect(selectedChip).toHaveCSS(
+    'background-color',
+    'rgba(168, 201, 95, 0.1)'
+  )
+  await expect(selectedChip).toHaveCSS('border-color', 'rgb(168, 201, 95)')
+
+  const activeTab = page.getByRole('tab', { name: 'Tokens' })
+  await expect(activeTab).toHaveCSS('color', 'rgb(168, 201, 95)')
+  await expect(activeTab).toHaveCSS('border-bottom-color', 'rgb(168, 201, 95)')
+
+  const successChip = page.locator('.pg-type-chip').first()
+  await expect(successChip).toHaveCSS('color', 'rgb(69, 201, 139)')
+  await expect(successChip).toHaveCSS(
+    'background-color',
+    'rgba(69, 201, 139, 0.1)'
+  )
+
+  const primary = page.getByRole('button', {
+    name: 'Download pipeline (.zip)',
+  })
+  await expect(primary).toHaveCSS('background-color', 'rgb(250, 250, 250)')
+  await expect(primary).toHaveCSS('color', 'rgb(9, 9, 11)')
+})
 
 test('embedded playground tabs and context radios support the keyboard', async ({
   page,
@@ -279,7 +352,7 @@ test('embedded playground tabs and context radios support the keyboard', async (
   await expectTabState(files, tokens, filesPanel, tokensPanel)
   await files.press('ArrowLeft')
   await expectTabState(tokens, files, tokensPanel, filesPanel)
-  await expectVisibleOutline(tokens)
+  await expectNeutralFocusOutline(tokens)
 
   const semanticGroup = page.getByRole('group', { name: 'semantic' })
   const densityGroup = page.getByRole('group', { name: 'density' })
@@ -320,7 +393,7 @@ test('embedded playground tabs and context radios support the keyboard', async (
   await expect(compact).toBeChecked()
   await expect(comfortable).not.toBeChecked()
   await expect(densityRow).toContainText('32px')
-  await expectVisibleOutline(compactLabel)
+  await expectNeutralFocusOutline(compactLabel)
   await compact.press('ArrowLeft')
   await expect(comfortable).toBeFocused()
   await expect(comfortable).toBeChecked()
@@ -341,6 +414,8 @@ test('embedded playground announces malformed JSON', async ({ page }) => {
   const alert = page.locator('.pg-error[role="alert"]')
   await expect(alert).toHaveCount(1)
   await expect(alert).toBeVisible()
+  await expect(alert).toHaveCSS('color', 'rgb(242, 117, 117)')
+  await expect(alert).toHaveCSS('background-color', 'rgba(242, 117, 117, 0.08)')
   expect((await alert.textContent())?.trim().length).toBeGreaterThan(0)
 })
 

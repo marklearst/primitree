@@ -40,7 +40,7 @@ export function SiteHeader({
               className={cn(
                 'site-nav-link rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors',
                 active === item.key
-                  ? 'bg-white/8 text-primitree-text'
+                  ? 'bg-primitree-accent-wash text-primitree-accent'
                   : 'text-primitree-muted'
               )}>
               {item.label}

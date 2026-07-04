@@ -1,8 +1,16 @@
 import { fileURLToPath } from 'node:url'
-import { findBrandViolations, readBrandRecords } from './brand-rules.mjs'
+import {
+  findBrandViolations,
+  findLichenColorViolations,
+  readBrandRecords,
+} from './brand-rules.mjs'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const violations = findBrandViolations(readBrandRecords(repositoryRoot))
+const records = readBrandRecords(repositoryRoot)
+const violations = [
+  ...findBrandViolations(records),
+  ...findLichenColorViolations(records),
+]
 
 for (const violation of violations) {
   const location =
