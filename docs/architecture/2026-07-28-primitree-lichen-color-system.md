@@ -1,6 +1,6 @@
 # Primitree Lichen Color System
 
-Status: Ready for review
+Status: Approved
 
 ## Decision
 
@@ -54,6 +54,8 @@ light-surface accent, `#5F7F2F`, as a single solid fill.
 The docs site and standalone playground will share the same values, even though
 each app keeps its current CSS variable names.
 
+- The Fumadocs shell maps its background, text, links, focus, and status colors
+  to the Primitree palette.
 - Links, code paths, selected labels, and active borders use the dark accent.
 - Selected surfaces use the accent wash.
 - Text selection uses `rgb(168 201 95 / 25%)`.
@@ -95,8 +97,10 @@ contrast instead of assuming white works.
 
 Update the brand colors in these files:
 
+- `README.md`
 - `apps/docs/app/global.css`
 - `apps/docs/components/landing/animated-mark.tsx`
+- `apps/docs/components/landing/site-chrome.tsx`
 - `apps/docs/components/playground/playground.css`
 - `apps/docs/public/favicon.svg`
 - `apps/docs/public/primitree-icon.svg`
@@ -111,6 +115,7 @@ purple, or any other color when that value demonstrates library behavior.
 
 - The docs site and playground contain no former indigo or lavender brand
   values.
+- Public badges use the light-surface accent.
 - The static mark stays monochrome. Use Lichen for the homepage illustration's
   nodes and faint halo.
 - The docs playground and standalone playground match.

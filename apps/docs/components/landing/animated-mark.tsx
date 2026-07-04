@@ -82,25 +82,6 @@ export function AnimatedMark({ className }: { className?: string }) {
         fill='none'>
         <defs>
           <linearGradient
-            id='mark-fill'
-            x1='0%'
-            y1='0%'
-            x2='100%'
-            y2='100%'>
-            <stop
-              offset='0%'
-              stopColor='#ffffff'
-            />
-            <stop
-              offset='45%'
-              stopColor='#c7d2fe'
-            />
-            <stop
-              offset='100%'
-              stopColor='#8b9cff'
-            />
-          </linearGradient>
-          <linearGradient
             id='mark-sheen'
             x1='0%'
             y1='0%'
@@ -149,7 +130,7 @@ export function AnimatedMark({ className }: { className?: string }) {
         <path
           className='mark-body'
           d={MARK_PATH}
-          fill='url(#mark-fill)'
+          fill='white'
         />
         <path
           className='mark-sheen'

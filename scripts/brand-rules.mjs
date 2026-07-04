@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
+import postcss from 'postcss'
 
 const APPROVED_REFERENCE_PATHS = new Set([
   'apps/docs/content/docs/hooks/migration.mdx',
@@ -21,9 +22,90 @@ const EXCLUDED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
+  'playwright-report',
+  'test-results',
 ])
 const BRAND_PATTERN =
   /@figma[-]vars\/hooks(?:@\d+\.\d+\.\d+)?|@figma[-]vars\/|@figma(?:vars)\/|figma(?:[-_]|)vars|--[\w-]*fv-[\w-]+|\b(?:bg|text|border|ring|fill|stroke)-fv-[\w-]+/gi
+const LICHEN_CONTRACT_PATHS = new Set([
+  'README.md',
+  'apps/docs/app/global.css',
+  'apps/docs/components/landing/animated-mark.tsx',
+  'apps/docs/components/playground/playground.css',
+  'apps/docs/public/favicon.svg',
+  'apps/docs/public/primitree-icon.svg',
+  'apps/playground/public/favicon.svg',
+  'apps/playground/src/assets/primitree-icon.svg',
+  'apps/playground/src/styles.css',
+])
+const LICHEN_UI_PREFIXES = ['apps/docs/', 'apps/playground/']
+const LICHEN_UI_SOURCE_PATTERN = /\.(?:css|html|svg|[cm]?[jt]sx?)$/u
+const TEST_SOURCE_PATTERN = /(?:^|\/)(?:__tests__|tests?)\/|\.(?:spec|test)\./u
+const FORMER_BRAND_COLOR_PATTERN =
+  /#(?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|34d399|fbbf24|3ddc97|ffb454|ff6b81)(?:[\da-f]{2})?(?![\da-f])|rgba?\(\s*(?:139(?:\s*,\s*|\s+)156(?:\s*,\s*|\s+)255|123(?:\s*,\s*|\s+)140(?:\s*,\s*|\s+)255|52(?:\s*,\s*|\s+)211(?:\s*,\s*|\s+)153|251(?:\s*,\s*|\s+)191(?:\s*,\s*|\s+)36|61(?:\s*,\s*|\s+)220(?:\s*,\s*|\s+)151|255(?:\s*,\s*|\s+)180(?:\s*,\s*|\s+)84|255(?:\s*,\s*|\s+)107(?:\s*,\s*|\s+)129)[^)]*\)/gi
+const FORMER_BADGE_COLOR_PATTERN =
+  /img\.shields\.io\/badge\/[^)\s]*-((?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|34d399|fbbf24|3ddc97|ffb454|ff6b81)(?:[\da-f]{2})?)(?=[)\s]|$)/gi
+const APPROVED_CSS_VARIABLES = new Map([
+  [
+    'apps/docs/app/global.css',
+    new Map([
+      ['--color-primitree-bg', '#030304'],
+      ['--color-primitree-surface', '#08080a'],
+      ['--color-primitree-raised', '#0f0f12'],
+      ['--color-primitree-elevated', '#16161a'],
+      ['--color-primitree-text', '#fafafa'],
+      ['--color-primitree-accent', '#a8c95f'],
+      ['--color-primitree-accent-strong', '#5f7f2f'],
+      ['--color-primitree-accent-soft', '#dde9b9'],
+      ['--color-primitree-accent-wash', 'rgb(168 201 95 / 10%)'],
+      ['--color-primitree-good', '#45c98b'],
+      ['--color-primitree-warn', '#f2b84b'],
+      ['--color-primitree-error', '#f27575'],
+      ['--color-fd-background', 'var(--color-primitree-bg)'],
+      ['--color-fd-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-muted', 'var(--color-primitree-surface)'],
+      ['--color-fd-muted-foreground', 'var(--color-primitree-muted)'],
+      ['--color-fd-popover', 'var(--color-primitree-raised)'],
+      ['--color-fd-popover-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-card', 'var(--color-primitree-surface)'],
+      ['--color-fd-card-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-primary', 'var(--color-primitree-accent)'],
+      ['--color-fd-primary-foreground', '#09090b'],
+      ['--color-fd-secondary', 'var(--color-primitree-raised)'],
+      ['--color-fd-secondary-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-accent', 'var(--color-primitree-accent-wash)'],
+      ['--color-fd-accent-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-border', 'var(--color-primitree-border)'],
+      ['--color-fd-ring', 'var(--color-primitree-text)'],
+      ['--color-fd-success', 'var(--color-primitree-good)'],
+      ['--color-fd-warning', 'var(--color-primitree-warn)'],
+      ['--color-fd-error', 'var(--color-primitree-error)'],
+    ]),
+  ],
+  [
+    'apps/playground/src/styles.css',
+    new Map([
+      ['--bg', '#030304'],
+      ['--bg-surface', '#08080a'],
+      ['--bg-raised', '#0f0f12'],
+      ['--bg-hover', '#16161a'],
+      ['--text', '#fafafa'],
+      ['--accent', '#a8c95f'],
+      ['--accent-strong', '#5f7f2f'],
+      ['--accent-soft', '#dde9b9'],
+      ['--accent-wash', 'rgb(168 201 95 / 10%)'],
+      ['--good', '#45c98b'],
+      ['--warn', '#f2b84b'],
+      ['--error', '#f27575'],
+    ]),
+  ],
+])
+const APPROVED_SVG_FILLS = new Map([
+  ['apps/docs/public/favicon.svg', '#5f7f2f'],
+  ['apps/docs/public/primitree-icon.svg', '#ffffff'],
+  ['apps/playground/public/favicon.svg', '#5f7f2f'],
+  ['apps/playground/src/assets/primitree-icon.svg', '#ffffff'],
+])
 
 function normalizePath(path) {
   return path.replaceAll('\\', '/')
@@ -50,6 +132,349 @@ function matchesIn(value) {
   return Array.from(value.matchAll(BRAND_PATTERN), entry => entry[0])
 }
 
+function lineFromOffset(content, offset) {
+  return content.slice(0, offset).split(/\r?\n/).length
+}
+
+function normalizeColor(value) {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'white') return '#ffffff'
+  if (normalized === 'black') return '#000000'
+  if (/^#[\da-f]{3}$/u.test(normalized)) {
+    return `#${[...normalized.slice(1)].map(digit => digit.repeat(2)).join('')}`
+  }
+  return normalized
+}
+
+function readCssVariables(root) {
+  const variables = new Map()
+
+  root.walkDecls(declaration => {
+    if (!declaration.prop.startsWith('--')) return
+    const declarations = variables.get(declaration.prop) ?? []
+    declarations.push({
+      line: declaration.source?.start?.line ?? null,
+      value: normalizeColor(declaration.value),
+    })
+    variables.set(declaration.prop, declarations)
+  })
+
+  return variables
+}
+
+function functionalColor(value) {
+  const match = value
+    .trim()
+    .toLowerCase()
+    .match(
+      /^rgba?\(\s*(\d+)(?:\s*,\s*|\s+)(\d+)(?:\s*,\s*|\s+)(\d+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/u
+    )
+  if (!match) return null
+
+  const alpha =
+    match[4] === undefined
+      ? 1
+      : match[4].endsWith('%')
+        ? Number.parseFloat(match[4]) / 100
+        : Number.parseFloat(match[4])
+
+  return [
+    Number.parseInt(match[1], 10),
+    Number.parseInt(match[2], 10),
+    Number.parseInt(match[3], 10),
+    alpha,
+  ]
+}
+
+function findSelectionBackgrounds(root) {
+  const selections = []
+
+  root.walkRules(rule => {
+    if (!rule.selectors.some(selector => selector.includes('::selection'))) {
+      return
+    }
+    for (const declaration of rule.nodes ?? []) {
+      if (
+        declaration.type !== 'decl' ||
+        (declaration.prop !== 'background' &&
+          declaration.prop !== 'background-color')
+      ) {
+        continue
+      }
+      selections.push({
+        line: declaration.source?.start?.line ?? null,
+        value: declaration.value,
+      })
+    }
+  })
+
+  return selections
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
+function findCssPropertyValues(root, selector, property) {
+  const values = []
+  const selectorPattern = new RegExp(`${escapeRegExp(selector)}(?![\\w-])`, 'u')
+
+  root.walkRules(rule => {
+    if (!rule.selectors.some(candidate => selectorPattern.test(candidate))) {
+      return
+    }
+    for (const declaration of rule.nodes ?? []) {
+      if (declaration.type === 'decl' && declaration.prop === property) {
+        values.push(declaration.value.trim().replace(/\s+/gu, ' '))
+      }
+    }
+  })
+
+  return values
+}
+
+function parseCss(violations, path, content) {
+  try {
+    return postcss.parse(content, { from: path })
+  } catch (error) {
+    violations.push({
+      path,
+      line:
+        typeof error === 'object' &&
+        error !== null &&
+        'line' in error &&
+        typeof error.line === 'number'
+          ? error.line
+          : null,
+      match: 'CSS syntax must parse before checking the Lichen color contract',
+    })
+    return null
+  }
+}
+
+function addFormerColorViolations(violations, path, content) {
+  for (const [index, line] of content.split(/\r?\n/).entries()) {
+    for (const match of line.matchAll(FORMER_BRAND_COLOR_PATTERN)) {
+      violations.push({ path, line: index + 1, match: match[0] })
+    }
+    for (const match of line.matchAll(FORMER_BADGE_COLOR_PATTERN)) {
+      violations.push({
+        path,
+        line: index + 1,
+        match: `badge color: ${match[1]}`,
+      })
+    }
+  }
+}
+
+function addCssVariableViolations(violations, path, root) {
+  const expectedVariables = APPROVED_CSS_VARIABLES.get(path)
+  if (!expectedVariables || root === null) return
+
+  const actualVariables = readCssVariables(root)
+  for (const [name, expected] of expectedVariables) {
+    const actual = actualVariables.get(name) ?? []
+    const firstWrong = actual.find(
+      declaration => declaration.value !== expected
+    )
+    if (actual.length > 0 && firstWrong === undefined) continue
+
+    violations.push({
+      path,
+      line: firstWrong?.line ?? null,
+      match: `${name}: expected ${expected}, found ${firstWrong?.value ?? 'missing'}`,
+    })
+  }
+
+  const selections = findSelectionBackgrounds(root)
+  const wrongSelection = selections.find(selection => {
+    const color = functionalColor(selection.value)
+    return !(
+      color?.[0] === 168 &&
+      color[1] === 201 &&
+      color[2] === 95 &&
+      color[3] === 0.25
+    )
+  })
+  if (selections.length > 0 && wrongSelection === undefined) return
+
+  violations.push({
+    path,
+    line: wrongSelection?.line ?? null,
+    match: `text selection: expected rgb(168 201 95 / 25%), found ${wrongSelection?.value ?? 'missing'}`,
+  })
+}
+
+function addSvgFillViolation(violations, path, content) {
+  const expected = APPROVED_SVG_FILLS.get(path)
+  if (!expected) return
+
+  const fills = Array.from(
+    content.matchAll(/\bfill=["']([^"']+)["']/gu),
+    fill => ({
+      line: lineFromOffset(content, fill.index ?? 0),
+      value: normalizeColor(fill[1]),
+    })
+  ).filter(fill => fill.value !== 'none' && fill.value !== 'transparent')
+  const wrongFills = fills.filter(fill => fill.value !== expected)
+
+  if (fills.length === 0) {
+    violations.push({
+      path,
+      line: null,
+      match: `mark fill: expected ${expected}, found missing`,
+    })
+  }
+  for (const fill of wrongFills) {
+    violations.push({
+      path,
+      line: fill.line,
+      match: `mark fill: expected ${expected}, found ${fill.value}`,
+    })
+  }
+
+  const strokes = Array.from(
+    content.matchAll(/\bstroke=["']([^"']+)["']/gu),
+    stroke => ({
+      line: lineFromOffset(content, stroke.index ?? 0),
+      value: normalizeColor(stroke[1]),
+    })
+  ).filter(stroke => stroke.value !== 'none' && stroke.value !== 'transparent')
+  for (const stroke of strokes) {
+    violations.push({
+      path,
+      line: stroke.line,
+      match: `mark stroke: expected none, found ${stroke.value}`,
+    })
+  }
+
+  const cssPaint =
+    /<style\b|\bstyle\s*=\s*["'][^"']*(?:fill|stroke)\s*:/iu.exec(content)
+  if (cssPaint) {
+    violations.push({
+      path,
+      line: lineFromOffset(content, cssPaint.index ?? 0),
+      match: 'static mark must not override fill or stroke through CSS',
+    })
+  }
+
+  const gradient = /<(?:linear|radial)Gradient\b/iu.exec(content)
+  if (gradient) {
+    violations.push({
+      path,
+      line: lineFromOffset(content, gradient.index ?? 0),
+      match: 'static mark must use one solid fill',
+    })
+  }
+}
+
+function addAnimatedMarkViolations(violations, path, content) {
+  if (path !== 'apps/docs/components/landing/animated-mark.tsx') return
+
+  const body = /<path\b(?=[^>]*\bclassName=['"]mark-body['"])[^>]*>/u.exec(
+    content
+  )
+  const fill = body && /\bfill=['"]([^'"]+)['"]/u.exec(body[0])
+  const actual = fill ? normalizeColor(fill[1]) : null
+  if (actual !== '#ffffff') {
+    const offset =
+      body && fill ? (body.index ?? 0) + (fill.index ?? 0) : (body?.index ?? 0)
+    violations.push({
+      path,
+      line: body ? lineFromOffset(content, offset) : null,
+      match: `homepage mark body: expected #ffffff, found ${actual ?? 'missing'}`,
+    })
+  }
+
+  const gradient = /\bid=['"]mark-fill['"]/u.exec(content)
+  if (gradient) {
+    violations.push({
+      path,
+      line: lineFromOffset(content, gradient.index ?? 0),
+      match: 'homepage mark body must not use a color gradient',
+    })
+  }
+
+  const sheen =
+    /<linearGradient\b(?=[^>]*\bid=['"]mark-sheen['"])[^>]*>([\s\S]*?)<\/linearGradient>/u.exec(
+      content
+    )
+  const sheenColors = sheen
+    ? Array.from(sheen[1].matchAll(/\bstopColor=['"]([^'"]+)['"]/gu), match =>
+        normalizeColor(match[1])
+      )
+    : []
+  if (
+    sheenColors.length === 0 ||
+    sheenColors.some(color => color !== '#ffffff')
+  ) {
+    violations.push({
+      path,
+      line: sheen ? lineFromOffset(content, sheen.index ?? 0) : null,
+      match: 'homepage mark sheen must stay neutral white',
+    })
+  }
+}
+
+function addHomepageMarkStyleViolations(violations, path, root) {
+  if (path !== 'apps/docs/app/global.css' || root === null) return
+
+  const expectedTreatments = [
+    {
+      label: '10% Lichen halo',
+      property: 'background',
+      selector: '.mark-glow',
+      value: 'radial-gradient(circle, rgb(168 201 95 / 10%), transparent 70%)',
+    },
+    {
+      label: 'neutral first ring',
+      property: 'border',
+      selector: '.mark-ring',
+      value: '1px solid rgb(255 255 255 / 8%)',
+    },
+    {
+      label: 'neutral second ring',
+      property: 'border-color',
+      selector: '.mark-ring-2',
+      value: 'rgb(255 255 255 / 4%)',
+    },
+    {
+      label: 'neutral body shadow',
+      property: 'filter',
+      selector: '.mark-body',
+      value: 'drop-shadow(0 0 24px rgb(255 255 255 / 10%))',
+    },
+    {
+      label: 'Lichen node dots',
+      property: 'fill',
+      selector: '.mark-node-dot',
+      value: 'var(--color-primitree-accent)',
+    },
+    {
+      label: 'Lichen node pulses',
+      property: 'stroke',
+      selector: '.mark-node-pulse',
+      value: 'var(--color-primitree-accent)',
+    },
+  ]
+
+  for (const treatment of expectedTreatments) {
+    const values = findCssPropertyValues(
+      root,
+      treatment.selector,
+      treatment.property
+    )
+    if (values.length > 0 && values.every(value => value === treatment.value)) {
+      continue
+    }
+    violations.push({
+      path,
+      line: null,
+      match: `homepage mark: missing ${treatment.label}`,
+    })
+  }
+}
+
 export function findBrandViolations(records) {
   const violations = []
 
@@ -67,6 +492,34 @@ export function findBrandViolations(records) {
         }
       }
     }
+  }
+
+  return violations
+}
+
+export function findLichenColorViolations(records) {
+  const violations = []
+
+  for (const record of records) {
+    const path = normalizePath(record.path)
+    const isUiSource =
+      LICHEN_CONTRACT_PATHS.has(path) ||
+      (LICHEN_UI_PREFIXES.some(prefix => path.startsWith(prefix)) &&
+        LICHEN_UI_SOURCE_PATTERN.test(path) &&
+        !TEST_SOURCE_PATTERN.test(path))
+    if (!isUiSource || record.content === null) continue
+
+    const needsCssContract =
+      APPROVED_CSS_VARIABLES.has(path) || path === 'apps/docs/app/global.css'
+    const cssRoot = needsCssContract
+      ? parseCss(violations, path, record.content)
+      : null
+
+    addFormerColorViolations(violations, path, record.content)
+    addCssVariableViolations(violations, path, cssRoot)
+    addSvgFillViolation(violations, path, record.content)
+    addAnimatedMarkViolations(violations, path, record.content)
+    addHomepageMarkStyleViolations(violations, path, cssRoot)
   }
 
   return violations
