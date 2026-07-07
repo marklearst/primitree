@@ -1,3 +1,9 @@
+# Turborepo
+.turbo
+
+# Coverage
+coverage
+
 # Logs
 logs
 *.log
