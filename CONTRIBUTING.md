@@ -1,60 +1,57 @@
-# Contributing to figma-vars-hooks
+# Contributing to FigmaVars
 
-Thank you for your interest in contributing! We welcome pull requests, bug reports, and suggestions to make this library better for everyone.
+Thank you for your interest in contributing! We welcome pull requests, bug reports, and suggestions.
 
 ## Code of Conduct
 
 Please be respectful and inclusive. Harassment, discrimination, or inappropriate language will not be tolerated.
 
-## How to Contribute
+## Repository layout
 
-### 1. Fork & Clone
+This is a pnpm + Turborepo monorepo:
 
-- Fork the repository on GitHub
-- Clone your fork locally
-- Create a new branch for your work
+| Path              | Package                                                                 |
+| ----------------- | ----------------------------------------------------------------------- |
+| `packages/core`   | `@figma-vars/core` — normalizer, alias resolution, diffing, REST client |
+| `packages/dtcg`   | `@figma-vars/dtcg` — Figma JSON → DTCG 2025.10 + Resolver, emitters     |
+| `packages/cli`    | `@figma-vars/cli` — `figma-vars build/diff/check/init/export`           |
+| `packages/hooks`  | `@figma-vars/hooks` — React hooks (local tokens + live API)             |
+| `packages/mcp`    | `@figma-vars/mcp` — MCP server for AI agents                            |
+| `apps/playground` | Client-side playground app                                              |
 
-### 2. Install Dependencies
+## Getting started
+
+Requires Node >= 22 and pnpm 11 (`corepack enable` picks the right version).
 
 ```bash
-npm install
-# or
-yarn install
-# or
 pnpm install
+pnpm build          # turbo build across all packages (order-aware)
+pnpm test           # all test suites
+pnpm lint           # biome format
 ```
 
-### 3. Make Your Change
-
-- Follow the existing code style (TypeScript, Prettier, etc.)
-- Add or update tests if applicable
-- Document new features or changes in the README.md
-
-### 4. Run Tests & Lint
+Work on a single package:
 
 ```bash
-npm run lint
-npm run test
+pnpm --filter @figma-vars/dtcg test:watch
+pnpm --filter figma-vars-playground dev
 ```
 
-### 5. Commit Message Guidelines
+## Making changes
 
-- Use clear, conventional commits (e.g. `fix:`, `feat:`, `docs:`, `refactor:`)
-- Keep messages concise and descriptive
+- Follow the existing code style (Biome/Prettier are wired into pre-commit).
+- Add or update tests — every package has a `tests/` folder; the dtcg package uses golden files (`UPDATE_GOLDENS=1 pnpm --filter @figma-vars/dtcg test` to refresh them intentionally).
+- Update the relevant package README for user-facing changes, and `packages/hooks/CHANGELOG.md` for anything released.
 
-### 6. Pull Request
+## Commit and PR guidelines
 
-- Push your branch to GitHub
-- Open a pull request against `main`
-- Fill in the PR template and describe your changes
+- Use conventional commits (`fix:`, `feat:`, `docs:`, `refactor:`, with an optional package scope like `feat(dtcg):`).
+- Open pull requests against `main`; CI must pass (build, tests, coverage, publint/attw/size for hooks).
 
-## Bug Reports & Feature Requests
+## Bug reports & feature requests
 
-- Please use GitHub Issues for bugs or feature requests
-- Include as much detail as possible (steps, screenshots, logs)
+Use GitHub Issues, with as much detail as possible (steps, exports that reproduce it — scrub anything confidential first).
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
-
-Thank you for helping improve figma-vars-hooks! 🚀
