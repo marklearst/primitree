@@ -11,7 +11,10 @@
               "variableId": "VariableID:2:201",
               "collectionId": "VariableCollectionId:2:200",
               "collectionName": "Semantic",
-              "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+              "scopes": [
+                "FRAME_FILL",
+                "SHAPE_FILL"
+              ]
             }
           }
         },
@@ -33,7 +36,11 @@
           "$type": "color",
           "$value": {
             "colorSpace": "srgb",
-            "components": [0.96, 0.96, 0.98],
+            "components": [
+              0.96,
+              0.96,
+              0.98
+            ],
             "alpha": 1,
             "hex": "#f5f5fa"
           },
@@ -42,7 +49,9 @@
               "variableId": "VariableID:2:202",
               "collectionId": "VariableCollectionId:2:200",
               "collectionName": "Semantic",
-              "scopes": ["TEXT_FILL"]
+              "scopes": [
+                "TEXT_FILL"
+              ]
             }
           }
         }

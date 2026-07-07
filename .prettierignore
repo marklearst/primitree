@@ -7,6 +7,9 @@ node_modules/
 *.d.ts
 *.d.ts.map
 
+# Golden test files must stay byte-exact as emitted
+**/tests/goldens/
+
 # Lock files
 pnpm-lock.yaml
 package-lock.json

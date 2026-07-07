@@ -36,6 +36,13 @@
   },
   "files": {
     "include": ["packages", "apps"],
-    "ignore": ["dist/**", "node_modules/**", "docs-site/**", ".turbo/**", "coverage/**"]
+    "ignore": [
+      "dist/**",
+      "node_modules/**",
+      "docs-site/**",
+      ".turbo/**",
+      "coverage/**",
+      "**/tests/goldens/**"
+    ]
   }
 }

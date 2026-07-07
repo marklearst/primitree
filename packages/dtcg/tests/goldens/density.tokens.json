@@ -12,7 +12,9 @@
             "variableId": "VariableID:3:301",
             "collectionId": "VariableCollectionId:3:300",
             "collectionName": "Density",
-            "scopes": ["WIDTH_HEIGHT"]
+            "scopes": [
+              "WIDTH_HEIGHT"
+            ]
           }
         }
       }
