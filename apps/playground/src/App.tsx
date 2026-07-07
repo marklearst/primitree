@@ -7,6 +7,7 @@ import {
   type Preview,
 } from './lib/pipeline'
 import sampleVariables from './sample-variables.json'
+import wordmark from './assets/figmavars.svg'
 
 type Tab = 'tokens' | 'files'
 
@@ -76,12 +77,11 @@ export default function App() {
     <div className='shell'>
       <header className='header'>
         <div className='brand'>
-          <span
-            className='brand-mark'
-            aria-hidden>
-            ▚
-          </span>
-          <span className='brand-name'>FigmaVars</span>
+          <img
+            src={wordmark}
+            alt='FigmaVars'
+            className='brand-logo'
+          />
           <span className='brand-sub'>Playground</span>
         </div>
         <nav className='header-links'>
