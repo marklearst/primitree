@@ -47,7 +47,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.27.7)(yaml@2.9.0))
 
   packages/core:
     devDependencies:
@@ -65,7 +65,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.27.7)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(yaml@2.9.0))
 
   packages/dtcg:
     dependencies:
@@ -94,6 +94,9 @@ importers:
       '@figma-vars/core':
         specifier: workspace:*
         version: link:../core
+      '@figma-vars/dtcg':
+        specifier: workspace:*
+        version: link:../dtcg
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: ^0.18.4
@@ -3005,7 +3008,7 @@ snapshots:
       obug: 2.1.3
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(yaml@2.9.0))
+      vitest: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.27.7)(yaml@2.9.0))
 
   '@vitest/expect@4.1.10':
     dependencies:
@@ -3059,7 +3062,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vitest: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(yaml@2.9.0))
+      vitest: 4.1.10(@types/node@26.1.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.27.7)(yaml@2.9.0))
 
   '@vitest/utils@4.1.10':
     dependencies:

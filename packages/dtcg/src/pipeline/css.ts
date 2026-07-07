@@ -28,9 +28,7 @@ export function cssVarName(path: string): string {
 }
 
 function quoteIfNeeded(value: string): string {
-  return /^[a-zA-Z0-9-]+$/.test(value)
-    ? value
-    : `'${value.replace(/'/g, "\\'")}'`
+  return /[\s'"]/.test(value) ? `'${value.replace(/'/g, "\\'")}'` : value
 }
 
 /**

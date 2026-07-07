@@ -35,6 +35,7 @@ export default defineConfig({
         'react/jsx-runtime',
         'swr',
         /^@figma-vars\/core/,
+        /^@figma-vars\/dtcg/,
       ],
       output: {
         globals: {
