@@ -17,6 +17,13 @@ describe('main index barrel file', () => {
     expect(indexModule.useDeleteVariable).toBeDefined()
     expect(indexModule.useBulkUpdateVariables).toBeDefined()
 
+    // Granular selector + auth hooks (documented in README, added in 4.2.0)
+    expect(indexModule.useVariableById).toBeDefined()
+    expect(indexModule.useCollectionById).toBeDefined()
+    expect(indexModule.useModesByCollection).toBeDefined()
+    expect(indexModule.useFigmaToken).toBeDefined()
+    expect(indexModule.useFigmaTokenContext).toBeDefined()
+
     // Check utils export
     expect(indexModule.filterVariables).toBeDefined()
     expect(typeof indexModule.filterVariables).toBe('function')

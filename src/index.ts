@@ -59,12 +59,31 @@ export {
   usePublishedVariables,
   useVariableCollections,
   useVariableModes,
+  useVariableById,
+  useCollectionById,
+  useModesByCollection,
+  useFigmaToken,
   useCreateVariable,
   useUpdateVariable,
   useDeleteVariable,
   useBulkUpdateVariables,
   useInvalidateVariables,
 } from 'hooks'
+
+/**
+ * Direct access to the Figma token context for advanced integrations.
+ *
+ * @remarks
+ * `useFigmaTokenContext` returns the full provider context (token, fileKey, fallback data).
+ * Most apps should prefer the higher-level hooks; this is for custom data layers.
+ *
+ * @example
+ * ```tsx
+ * import { useFigmaTokenContext } from '@figma-vars/hooks';
+ * const { token, fileKey } = useFigmaTokenContext();
+ * ```
+ */
+export { useFigmaTokenContext } from 'contexts'
 
 /**
  * Utility functions for Figma Variable management.

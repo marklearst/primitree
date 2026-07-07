@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 4.2.0 (2026-07-06)
+
+### ✨ Added
+
+- **Export parity for documented hooks**: `useVariableById`, `useCollectionById`, `useModesByCollection`, and `useFigmaToken` are now exported from the package root, matching the README. Previously they existed in source but were missing from the main entry point.
+- **`useFigmaTokenContext` export**: Advanced consumers can now access the full provider context (token, file key, fallback data) from the package root.
+
+### 🧹 Chore
+
+- Removed stale `tsconfig.json` path aliases (`mutations/*`, `experimental/*`) that pointed at non-existent directories.
+- Removed the unused `directories.doc` field from `package.json`.
+
 ## 4.1.1 (2026-02-17)
 
 ### 🐛 Fixed

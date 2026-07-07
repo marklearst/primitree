@@ -24,8 +24,6 @@
     "baseUrl": "./src",
     "paths": {
       "api/*": ["api/*"],
-      "mutations/*": ["mutations/*"],
-      "experimental/*": ["experimental/*"],
       "constants/*": ["constants/*"],
       "contexts/*": ["contexts/*"],
       "hooks/*": ["hooks/*"],
