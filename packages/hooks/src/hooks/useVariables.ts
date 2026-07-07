@@ -1,8 +1,8 @@
 import useSWR from 'swr'
 import { fetcher } from '@figma-vars/core'
 import type { LocalVariablesResponse } from '@figma-vars/core'
-import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { getVariablesKey } from 'utils/swrKeys'
+import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
+import { getVariablesKey } from '../utils/swrKeys'
 
 /**
  * Hook to fetch and manage Figma Variables, including collections and modes.

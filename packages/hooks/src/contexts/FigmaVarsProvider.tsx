@@ -2,7 +2,7 @@ import { useMemo, useId } from 'react'
 import type {
   FigmaTokenContextType,
   FigmaVarsProviderProps,
-} from 'types/contexts'
+} from '../types/contexts'
 import { FigmaTokenContext } from './FigmaTokenContext'
 import { validateFallbackData } from '@figma-vars/core'
 

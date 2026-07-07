@@ -2,7 +2,6 @@
 
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { resolve } from 'path'
 import dts from 'vite-plugin-dts'
 
@@ -10,9 +9,8 @@ import dts from 'vite-plugin-dts'
 export default defineConfig({
   plugins: [
     react(),
-    tsconfigPaths(),
     dts({
-      insertTypesEntry: true,
+      bundleTypes: true,
       tsconfigPath: 'tsconfig.build.json',
       outDir: 'dist',
       include: ['src/**/*'],

@@ -1,5 +1,5 @@
-import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { useMutation } from 'hooks/useMutation'
+import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
+import { useMutation } from './useMutation'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,

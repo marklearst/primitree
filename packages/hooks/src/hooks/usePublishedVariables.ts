@@ -1,8 +1,8 @@
 import useSWR from 'swr'
 import { fetcher } from '@figma-vars/core'
 import type { PublishedVariablesResponse } from '@figma-vars/core'
-import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { getPublishedVariablesKey } from 'utils/swrKeys'
+import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
+import { getPublishedVariablesKey } from '../utils/swrKeys'
 
 /**
  * Hook to fetch published Figma Variables from a file.

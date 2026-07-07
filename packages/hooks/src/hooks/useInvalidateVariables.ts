@@ -1,6 +1,6 @@
 import { useSWRConfig } from 'swr'
-import { useFigmaTokenContext } from 'contexts/useFigmaTokenContext'
-import { getInvalidationKeys } from 'utils/swrKeys'
+import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
+import { getInvalidationKeys } from '../utils/swrKeys'
 
 /**
  * Hook that provides cache invalidation utilities for Figma variables.

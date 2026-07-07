@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { useVariables } from 'hooks/useVariables'
-import type { FigmaVariable } from 'types'
+import { useVariables } from './useVariables'
+import type { FigmaVariable } from '../types'
 
 /**
  * React hook that selects a single variable by ID from loaded Figma variables data.

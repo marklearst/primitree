@@ -31,7 +31,7 @@
  * }
  * ```
  */
-export { FigmaVarsProvider } from 'contexts'
+export { FigmaVarsProvider } from './contexts'
 
 /**
  * Core React hooks for interacting with Figma Variables.
@@ -68,7 +68,7 @@ export {
   useDeleteVariable,
   useBulkUpdateVariables,
   useInvalidateVariables,
-} from 'hooks'
+} from './hooks'
 
 /**
  * Direct access to the Figma token context for advanced integrations.
@@ -83,7 +83,7 @@ export {
  * const { token, fileKey } = useFigmaTokenContext();
  * ```
  */
-export { useFigmaTokenContext } from 'contexts'
+export { useFigmaTokenContext } from './contexts'
 
 /**
  * Utility functions for Figma Variable management.
@@ -115,7 +115,7 @@ export {
   isLocalVariablesResponse,
   isPublishedVariablesResponse,
   validateFallbackData,
-} from 'utils'
+} from './utils'
 
 /**
  * All official TypeScript types for advanced usage and type-safe integration.
@@ -128,4 +128,4 @@ export {
  * import type { FigmaVariable, CreateVariablePayload } from '@figma-vars/hooks';
  * ```
  */
-export * from 'types'
+export * from './types'
