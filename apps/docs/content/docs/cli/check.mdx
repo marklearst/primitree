@@ -1,13 +1,47 @@
 ---
 title: primitree check
-description: Validate a Figma variables export or a built design-tokens directory.
+description: Check one local DTCG token source against its project rules.
 ---
 
 ```bash
+primitree check [--config <path>] [--source <name>] [--format text|json]
 primitree check <variables.json | tokens-dir>
 ```
 
-`<path>` can point to:
+The first form reads `./primitree.config.ts` by default. `--config` names one
+exact config file. `--source` selects a source when the file contains several
+sources. `--format json` writes one JSON report.
+
+The source config names a local DTCG file, one to four layers, allowed value
+forms and references, and owners. Paths start from the config file directory.
+
+```ts
+import { defineConfig } from '@primitree/cli/config'
+
+export default defineConfig({
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [
+          { id: 'base', roots: ['color'], values: 'literal' },
+          {
+            id: 'meaning',
+            roots: ['semantic'],
+            values: 'reference',
+            references: ['base'],
+          },
+        ],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+})
+```
+
+The older `<path>` form can point to:
 
 - a `variables.json` export
 - a built `design-tokens/` directory
@@ -20,11 +54,17 @@ primitree check design-tokens
 primitree check . # initialized repository root
 ```
 
-Run the check before opening a pull request or after `primitree build` in CI.
-
 ## Checks
 
-**Variables export**
+**Configured DTCG source**
+
+- Token graph integrity
+- Exact layer roots
+- Literal and reference rules
+- Allowed reference layers
+- Owner rules
+
+**Older variables export**
 
 - Supported export shape
 - Alias graph cycles and dangling targets
@@ -36,4 +76,5 @@ Run the check before opening a pull request or after `primitree build` in CI.
 - Each declared context permutation merges
 - Token references resolve
 
-The command exits with code `0` after a valid check and code `1` when it finds an error.
+The command exits with code `0` after a passing check, code `1` for findings,
+and code `2` for command, config, or input errors.
