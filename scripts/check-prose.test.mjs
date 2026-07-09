@@ -828,6 +828,8 @@ test('built prose validation requires every API page and exact public declaratio
         'dist/index.d.cts',
         'dist/types.d.ts',
         'dist/types.d.cts',
+        'dist/policy.d.ts',
+        'dist/policy.d.cts',
       ],
     ],
     ['@primitree/dtcg', ['dist/index.d.ts', 'dist/index.d.cts']],
