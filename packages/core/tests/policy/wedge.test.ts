@@ -321,6 +321,52 @@ describe('token policy checks', () => {
     expect(second.findings[0]?.disposition).toBe('baseline')
   })
 
+  it('checks the largest IDs returned by the graph API', () => {
+    const sourceId = requireValue(createSourceId('\u0800'.repeat(256)))
+    const tokenId = requireValue(
+      qualifyId({
+        sourceId,
+        kind: 'token',
+        localId: '\u0801'.repeat(256),
+      })
+    )
+    const fragment = requireValue(
+      createGraphFragment({
+        source: { id: sourceId, type: 'dtcg' },
+        groups: [],
+        tokens: [
+          {
+            id: tokenId,
+            sourceId,
+            name: 'Token',
+            path: ['color', 'token'],
+            type: 'color',
+            values: [{ value: { kind: 'literal', value: '#36f' } }],
+          },
+        ],
+      })
+    )
+    const graph = requireValue(composeGraph([fragment]))
+    const view = requireValue(createSourceView(graph, { id: 'app' }))
+    const policy = requireValue(
+      createPolicy({
+        id: 'largest-ids',
+        viewId: 'app',
+        layers: [
+          {
+            id: 'base',
+            roots: ['color'],
+            values: 'literal',
+            references: [],
+          },
+        ],
+        ownership: { default: ['team'] },
+      })
+    )
+
+    expect(evaluatePolicy({ graph, view }, policy).ok).toBe(true)
+  })
+
   it('reports a known layer that references an unassigned token', () => {
     const snapshot = createSnapshot()
     const card = snapshot.graph.tokens.find(
