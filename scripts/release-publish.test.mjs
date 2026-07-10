@@ -1033,6 +1033,53 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
             )
           }
         }
+        if (command.endsWith('/node_modules/.bin/primitree')) {
+          if (args[0] === 'check') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'check',
+                source: 'brand',
+                summary: { active: 0, baseline: 0 },
+                findings: [],
+              })}\n`,
+              stderr: '',
+            }
+          }
+          if (args[0] === 'inspect') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'inspect',
+                source: 'brand',
+                token: { path: ['semantic', 'action'] },
+                resolvedValue: 8,
+              })}\n`,
+              stderr: '',
+            }
+          }
+          if (args[0] === 'diff') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'diff',
+                source: 'brand',
+                changes: [
+                  {
+                    kind: 'changed',
+                    token: { path: ['size', 'base'] },
+                    impacted: [{ path: ['semantic', 'action'] }],
+                  },
+                ],
+                findings: { added: [], resolved: [] },
+              })}\n`,
+              stderr: '',
+            }
+          }
+        }
         return { status: 0, stdout: '', stderr: '' }
       },
     })
@@ -1046,15 +1093,31 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
       calls.some(call => call[0] === 'pnpm'),
       false
     )
-    const install = calls.find(
+    const installs = calls.filter(
       call => call[0] === 'npm' && call[1] === 'install'
     )
+    assert.equal(installs.length, 2)
+    const [cliInstall, install] = installs
+    assert.ok(cliInstall)
     assert.ok(install)
+    for (const artifact of fixture.artifacts.slice(0, 3)) {
+      assert.ok(
+        cliInstall.includes(path.join(fixture.directory, artifact.file))
+      )
+    }
+    for (const artifact of fixture.artifacts.slice(3)) {
+      assert.equal(
+        cliInstall.includes(path.join(fixture.directory, artifact.file)),
+        false
+      )
+    }
+    assert.ok(cliInstall.includes('--offline'))
     for (const artifact of fixture.artifacts) {
       assert.ok(install.includes(path.join(fixture.directory, artifact.file)))
     }
     assert.ok(install.includes('--package-lock=false'))
     assert.ok(install.includes('--no-save'))
+    assert.equal(install.includes('--offline'), false)
     const installIndex = calls.indexOf(install)
     assert.equal(seenOptions[installIndex].timeoutMs, 5 * 60_000)
     assert.ok(
@@ -1102,6 +1165,46 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
     }
+    const cliCalls = calls.filter(call =>
+      call[0].endsWith('/node_modules/.bin/primitree')
+    )
+    assert.deepEqual(
+      cliCalls.map(call => call.slice(1)),
+      [
+        ['--help'],
+        [
+          'check',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'inspect',
+          'semantic.action',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'diff',
+          'before.tokens.json',
+          'after.tokens.json',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        ['--help'],
+      ]
+    )
     assert.equal(existsSync(npmrcPath), false)
     assert.equal(existsSync(globalNpmrcPath), false)
   } finally {
