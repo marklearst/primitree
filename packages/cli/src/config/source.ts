@@ -53,9 +53,7 @@ export async function loadConfiguredSourceGraph(
   if (stats.size > 10 * 1024 * 1024) {
     throw new Error(`Source "${sourceName}" exceeds the 10 MiB file limit.`)
   }
-  const document = await readJsonFile(source.file).catch(() => {
-    throw new Error(`Source "${sourceName}" is not valid JSON.`)
-  })
+  const document = await readJsonFile(source.file)
   const fragment = toGraphFragment(document, {
     source: sourceName,
     uri: path.relative(path.dirname(loaded.configPath), source.file),
