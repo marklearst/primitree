@@ -177,6 +177,13 @@
   color: var(--color-fv-warn);
 }
 
+.pg-warnings > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
 .pg-warnings ul {
   margin: 8px 0 4px;
   color: var(--color-fv-muted);
@@ -449,6 +456,7 @@
 .pg-tab:focus-visible,
 .pg-file:focus-visible,
 .pg-table-region:focus-visible,
+.pg-warnings > summary:focus-visible,
 .pg-link:focus-visible,
 .pg-footnote a:focus-visible,
 .pg-chip:has(input:focus-visible) {
