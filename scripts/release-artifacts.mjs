@@ -78,6 +78,19 @@ function resolveArtifactDirectory(value) {
 }
 
 function requireRealDirectory(directory) {
+  const parent = path.dirname(directory)
+  let parentStats
+  try {
+    parentStats = lstatSync(parent)
+  } catch (error) {
+    throw new Error(
+      `unable to inspect artifact directory parent ${parent}: ${error.message}`
+    )
+  }
+  if (parentStats.isSymbolicLink() || !parentStats.isDirectory()) {
+    throw new Error('artifact directory parent must be a real directory')
+  }
+
   let stats
   try {
     stats = lstatSync(directory)
@@ -561,10 +574,33 @@ export function npmPublishDryRunArgs(artifactPath) {
   ]
 }
 
-export function checkReleaseArtifacts() {
-  const before = verifyReleaseArtifacts({
-    artifactDirectory: ARTIFACT_DIRECTORY,
-  })
+function snapshotReleaseArtifactBytes(directory, verified) {
+  return [
+    MANIFEST_NAME,
+    CHECKSUMS_NAME,
+    ...verified.artifacts.map(artifact => artifact.file),
+  ].map(file => ({
+    file,
+    sha256: createHash('sha256')
+      .update(readRegularFile(path.join(directory, file), file))
+      .digest('hex'),
+  }))
+}
+
+function requireUnchangedSnapshot(before, after) {
+  if (
+    before.length !== after.length ||
+    before.some(
+      (entry, index) =>
+        entry.file !== after[index]?.file ||
+        entry.sha256 !== after[index]?.sha256
+    )
+  ) {
+    throw new Error('release artifact bytes changed during validation checks')
+  }
+}
+
+function runExternalReleaseChecks(before) {
   const temporaryRoot = mkdtempSync(
     path.join(tmpdir(), 'figmavars-release-check-')
   )
@@ -625,8 +661,32 @@ export function checkReleaseArtifacts() {
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true })
   }
+}
 
-  return verifyReleaseArtifacts({ artifactDirectory: ARTIFACT_DIRECTORY })
+export function checkReleaseArtifacts({
+  artifactDirectory = ARTIFACT_DIRECTORY,
+  runChecks = runExternalReleaseChecks,
+} = {}) {
+  const directory = resolveArtifactDirectory(artifactDirectory)
+  if (typeof runChecks !== 'function') {
+    throw new Error('runChecks must be a synchronous function')
+  }
+  const before = verifyReleaseArtifacts({ artifactDirectory: directory })
+  const beforeSnapshot = snapshotReleaseArtifactBytes(directory, before)
+
+  const checkResult = runChecks(before)
+  if (
+    checkResult !== null &&
+    (typeof checkResult === 'object' || typeof checkResult === 'function') &&
+    typeof checkResult.then === 'function'
+  ) {
+    throw new Error('runChecks must be a synchronous function')
+  }
+
+  const after = verifyReleaseArtifacts({ artifactDirectory: directory })
+  const afterSnapshot = snapshotReleaseArtifactBytes(directory, after)
+  requireUnchangedSnapshot(beforeSnapshot, afterSnapshot)
+  return after
 }
 
 export function verifyReleaseArtifacts({ artifactDirectory } = {}) {
