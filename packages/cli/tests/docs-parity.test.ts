@@ -25,15 +25,128 @@ function options(text: string): string[] {
   ].map(match => match[1] as string)
 }
 
-function markdownFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const entryPath = resolve(directory, entry.name)
-    if (entry.isDirectory()) {
-      return markdownFiles(entryPath)
-    }
-    return entry.isFile() && /\.(md|mdx)$/.test(entry.name) ? [entryPath] : []
-  })
+function matchingFiles(
+  directory: string,
+  matches: (fileName: string) => boolean
+): string[] {
+  return readdirSync(directory, { withFileTypes: true })
+    .flatMap(entry => {
+      const entryPath = resolve(directory, entry.name)
+      if (entry.isDirectory()) {
+        return matchingFiles(entryPath, matches)
+      }
+      return entry.isFile() && matches(entry.name) ? [entryPath] : []
+    })
+    .sort()
 }
+
+function markdownFiles(directory: string): string[] {
+  return matchingFiles(directory, fileName => /\.(md|mdx)$/.test(fileName))
+}
+
+function readmeFiles(directory: string): string[] {
+  return matchingFiles(directory, fileName => fileName === 'README.md')
+}
+
+function obsoleteCliOptions(text: string): string[] {
+  const obsolete = new Set(['--build', '--markdown'])
+  return [...new Set(options(text).filter(option => obsolete.has(option)))]
+}
+
+function withoutHooksMigration(text: string): string {
+  const migrationHeading = /^##[ \t]+Migrating from 4\.x[ \t]*\r?$/m.exec(text)
+  if (!migrationHeading || migrationHeading.index === undefined) {
+    return text
+  }
+
+  const afterHeading = migrationHeading.index + migrationHeading[0].length
+  const nextHeadingOffset = text.slice(afterHeading).search(/^##(?!#)[ \t]+/m)
+  const sectionEnd =
+    nextHeadingOffset === -1 ? text.length : afterHeading + nextHeadingOffset
+
+  return `${text.slice(0, migrationHeading.index)}${text.slice(sectionEnd)}`
+}
+
+const docsRoot = resolve(root, 'apps/docs/content/docs')
+const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
+  readmeFiles(resolve(root, directory)).map(file =>
+    relative(root, file).split(sep).join('/')
+  )
+)
+const publicMarkdownPaths = [
+  'README.md',
+  ...workspaceReadmePaths,
+  'docs/launch/announcement.md',
+  ...markdownFiles(docsRoot).map(file =>
+    relative(root, file).split(sep).join('/')
+  ),
+]
+
+describe('parity guard regressions', () => {
+  it.each([
+    {
+      name: 'multiline direct init',
+      text: 'figma-vars init project \\\n  --build',
+      option: '--build',
+    },
+    {
+      name: 'single-line npx init',
+      text: 'npx @figmavars/cli init project --build',
+      option: '--build',
+    },
+    {
+      name: 'multiline direct diff',
+      text: 'figma-vars diff old.json new.json \\\n  --markdown',
+      option: '--markdown',
+    },
+    {
+      name: 'single-line npx diff',
+      text: 'npx @figmavars/cli diff old.json new.json --markdown',
+      option: '--markdown',
+    },
+  ])('detects obsolete options in $name commands', ({ text, option }) => {
+    expect(obsoleteCliOptions(text)).toContain(option)
+  })
+
+  it('covers every intended public Markdown surface', () => {
+    expect(publicMarkdownPaths).toEqual(
+      expect.arrayContaining([
+        'README.md',
+        'docs/launch/announcement.md',
+        ...workspaceReadmePaths,
+      ])
+    )
+
+    for (const file of markdownFiles(docsRoot)) {
+      expect(publicMarkdownPaths).toContain(
+        relative(root, file).split(sep).join('/')
+      )
+    }
+  })
+
+  it('keeps post-migration hooks README sections in the scanned text', () => {
+    const readme = `# Hooks
+
+Current documentation.
+
+## Migrating from 4.x
+
+Replace @figma-vars/hooks with @figmavars/hooks.
+
+## License
+
+Later text containing @figma-vars/hooks must still be scanned.
+`
+
+    const withoutMigration = withoutHooksMigration(readme)
+    expect(withoutMigration).not.toContain(
+      'Replace @figma-vars/hooks with @figmavars/hooks.'
+    )
+    expect(withoutMigration).toContain(
+      'Later text containing @figma-vars/hooks must still be scanned.'
+    )
+  })
+})
 
 for (const [command, help] of commands) {
   it(`${command} docs expose exactly the implemented options`, () => {
@@ -46,18 +159,14 @@ for (const [command, help] of commands) {
 }
 
 describe('maintained examples', () => {
-  const maintained = [
-    'packages/cli/README.md',
-    'apps/docs/content/docs/cli/index.mdx',
-    'apps/docs/content/docs/concepts/diffing.mdx',
-    'apps/docs/content/docs/hooks/live-api.mdx',
-  ]
-    .map(file => readFileSync(resolve(root, file), 'utf8'))
-    .join('\n')
+  const publicMarkdown = publicMarkdownPaths.map(path => ({
+    path,
+    text: readFileSync(resolve(root, path), 'utf8'),
+  }))
+  const maintained = publicMarkdown.map(document => document.text).join('\n')
 
   it('contains no obsolete CLI switches', () => {
-    expect(maintained).not.toMatch(/figma-vars init[^\n]*--build/)
-    expect(maintained).not.toMatch(/figma-vars diff[^\n]*--markdown/)
+    expect(obsoleteCliOptions(maintained)).toEqual([])
   })
 
   it('uses old then new order for semantic diffs', () => {
@@ -70,22 +179,17 @@ describe('maintained examples', () => {
   })
 
   it('does not revive the legacy namespace outside migration guidance', () => {
-    const hooksReadme = readFileSync(
-      resolve(root, 'packages/hooks/README.md'),
-      'utf8'
-    )
-    const currentHooksReadme = hooksReadme.split('## Migrating from 4.x')[0]
-    const docsRoot = resolve(root, 'apps/docs/content/docs')
-    const docsFiles = markdownFiles(docsRoot)
+    const namespaceCorpus = publicMarkdown
       .filter(
-        file =>
-          relative(docsRoot, file).split(sep).join('/') !==
-          'hooks/migration.mdx'
+        document =>
+          document.path !== 'apps/docs/content/docs/hooks/migration.mdx'
       )
-      .map(file => readFileSync(file, 'utf8'))
+      .map(document =>
+        document.path === 'packages/hooks/README.md'
+          ? withoutHooksMigration(document.text)
+          : document.text
+      )
       .join('\n')
-    expect(`${maintained}\n${currentHooksReadme}\n${docsFiles}`).not.toContain(
-      '@figma-vars/'
-    )
+    expect(namespaceCorpus).not.toContain('@figma-vars/')
   })
 })
