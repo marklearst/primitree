@@ -1,5 +1,5 @@
 {
-  "name": "@figma-vars/core",
+  "name": "@figmavars/core",
   "version": "5.0.0",
   "description": "Framework-agnostic core for Figma Variables: typed REST client, Figma domain types, error helpers, and utilities.",
   "author": "Mark Learst",
@@ -45,13 +45,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figma-vars-hooks.git",
+    "url": "git+https://github.com/marklearst/figmavars.git",
     "directory": "packages/core"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figma-vars-hooks/issues"
+    "url": "https://github.com/marklearst/figmavars/issues"
   },
-  "homepage": "https://github.com/marklearst/figma-vars-hooks#readme",
+  "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
     "node": ">=20.0.0"
   },

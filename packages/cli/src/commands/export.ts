@@ -4,7 +4,7 @@ import {
   fetcher,
   FIGMA_LOCAL_VARIABLES_ENDPOINT,
   type LocalVariablesResponse,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 import { getStringFlag, type ParsedArgs } from '../args'
 
 export const exportHelp = `

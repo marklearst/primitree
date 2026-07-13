@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Barrel file for API utilities and mutators in @figma-vars/hooks.
+ * Barrel file for API utilities and mutators in @figmavars/core.
  *
  * @summary
  * Central entry point for all API-related utilities used to interact with the Figma Variables REST API.
@@ -11,7 +11,7 @@
  *
  * @example
  * ```ts
- * import { fetcher, mutator } from '@figma-vars/hooks/api';
+ * import { fetcher, mutator } from '@figmavars/core';
  *
  * async function loadVariables() {
  *   const variables = await fetcher('/variables', 'YOUR_FIGMA_TOKEN');

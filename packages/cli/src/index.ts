@@ -21,7 +21,7 @@ Commands:
 
 Run 'figma-vars <command> --help' for command-specific options.
 
-Docs: https://github.com/marklearst/figma-vars-hooks
+Docs: https://github.com/marklearst/figmavars
 `
 
 const commands: Record<
@@ -40,7 +40,11 @@ async function main(): Promise<void> {
   const commandName = argv[0]
   const rest = parseArgs(argv.slice(1))
 
-  if (commandName === undefined || commandName === 'help') {
+  if (
+    commandName === undefined ||
+    commandName === 'help' ||
+    commandName === '--help'
+  ) {
     console.log(GLOBAL_HELP)
     return
   }

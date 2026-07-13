@@ -4,7 +4,7 @@ import type {
   FigmaVarsProviderProps,
 } from '../types/contexts'
 import { FigmaTokenContext } from './FigmaTokenContext'
-import { validateFallbackData } from '@figma-vars/core'
+import { validateFallbackData } from '@figmavars/core'
 
 /**
  * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
@@ -18,7 +18,7 @@ import { validateFallbackData } from '@figma-vars/core'
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figma-vars/hooks/contexts';
+ * import { FigmaVarsProvider } from '@figmavars/hooks/contexts';
  *
  * function App() {
  *   return (
@@ -61,7 +61,7 @@ export const FigmaVarsProvider = ({
       // Invalid structure - log warning but don't crash
       if (process.env.NODE_ENV !== 'production') {
         console.warn(
-          '[figma-vars-hooks] fallbackFile object does not match expected Figma Variables API response structure. ' +
+          '[figmavars] fallbackFile object does not match expected Figma Variables API response structure. ' +
             'Expected { meta: { variableCollections: {...}, variables: {...} } }'
         )
       }
@@ -79,7 +79,7 @@ export const FigmaVarsProvider = ({
         // Invalid structure - log warning but don't crash
         if (process.env.NODE_ENV !== 'production') {
           console.warn(
-            '[figma-vars-hooks] Parsed fallbackFile JSON does not match expected Figma Variables API response structure. ' +
+            '[figmavars] Parsed fallbackFile JSON does not match expected Figma Variables API response structure. ' +
               'Expected { meta: { variableCollections: {...}, variables: {...} } }'
           )
         }
@@ -88,7 +88,7 @@ export const FigmaVarsProvider = ({
         // Log error but don't crash the provider
         if (process.env.NODE_ENV !== 'production') {
           console.error(
-            `[figma-vars-hooks] Failed to parse fallbackFile JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+            `[figmavars] Failed to parse fallbackFile JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
           )
         }
         return undefined

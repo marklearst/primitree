@@ -3,7 +3,7 @@ import type {
   MutationState,
   MutationResult,
   MutationOptions,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -18,7 +18,7 @@ type MutationStatus = 'idle' | 'loading' | 'success' | 'error'
  *
  * @example
  * ```ts
- * import { mutationReducer } from '@figma-vars/hooks';
+ * import { mutationReducer } from '@figmavars/hooks';
  * const [state, dispatch] = useReducer(mutationReducer, initialState);
  * // Internal pattern for mutation state management
  * ```
@@ -61,7 +61,7 @@ export function mutationReducer<TData>(
  *
  * @example
  * ```ts
- * import { useMutation } from '@figma-vars/hooks';
+ * import { useMutation } from '@figmavars/hooks';
  *
  * // Example: use for custom async logic
  * const { mutate, isLoading, isSuccess, error } = useMutation(async (payload: MyPayload) => {

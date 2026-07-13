@@ -1,9 +1,9 @@
-# @figma-vars/cli
+# @figmavars/cli
 
 Turn a Figma variables export into a production design-token pipeline.
 
 ```sh
-npx @figma-vars/cli build variables.json
+npx @figmavars/cli build variables.json
 ```
 
 Works with the variables JSON from **any Figma plan**: export with a plugin (e.g. TokensBrücke), a Dev Mode workflow, or `figma-vars export` (Enterprise REST API).
@@ -52,6 +52,6 @@ Download variables via the Figma REST API (requires an Enterprise seat and `FIGM
 
 ## Part of FigmaVars
 
-[`@figma-vars/dtcg`](https://www.npmjs.com/package/@figma-vars/dtcg) (the pure conversion engine) · [`@figma-vars/core`](https://www.npmjs.com/package/@figma-vars/core) (normalizer, diffing, REST client) · [`@figma-vars/hooks`](https://www.npmjs.com/package/@figma-vars/hooks) (React) · [`@figma-vars/mcp`](https://www.npmjs.com/package/@figma-vars/mcp) (AI agents)
+[`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) (the pure conversion engine) · [`@figmavars/core`](https://www.npmjs.com/package/@figmavars/core) (normalizer, diffing, REST client) · [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) (React) · [`@figmavars/mcp`](https://www.npmjs.com/package/@figmavars/mcp) (AI agents)
 
 MIT © Mark Learst

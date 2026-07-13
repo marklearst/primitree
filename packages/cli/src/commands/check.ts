@@ -4,7 +4,7 @@ import {
   normalizeVariables,
   resolveAllVariableValues,
   VariablesParseError,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 import {
   applyResolver,
   flattenTokens,
@@ -13,7 +13,7 @@ import {
   isToken,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 import { type ParsedArgs } from '../args'
 import { fileExists, readJsonFile } from '../io'
 

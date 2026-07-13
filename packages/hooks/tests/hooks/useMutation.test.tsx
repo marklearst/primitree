@@ -20,7 +20,7 @@ describe('useMutation', () => {
     const mutationFn = vi.fn().mockResolvedValue(mockData)
     const { result } = renderHook(() => useMutation(mutationFn))
 
-    let mutateResult
+    let mutateResult: Awaited<ReturnType<typeof result.current.mutate>>
     await act(async () => {
       mutateResult = await result.current.mutate({ payload: 'test' })
     })
@@ -39,7 +39,7 @@ describe('useMutation', () => {
     const mutationFn = vi.fn().mockRejectedValue(mockError)
     const { result } = renderHook(() => useMutation(mutationFn))
 
-    let mutateResult
+    let mutateResult: Awaited<ReturnType<typeof result.current.mutate>>
     await act(async () => {
       mutateResult = await result.current.mutate({ payload: 'test' })
     })

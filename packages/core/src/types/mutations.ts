@@ -17,7 +17,7 @@ import type { ResolvedType, VariableScope, VariableValue } from './figma.js'
  *
  * @example
  * ```ts
- * import type { CreateVariablePayload } from '@figma-vars/hooks';
+ * import type { CreateVariablePayload } from '@figmavars/hooks';
  *
  * const newVariable: CreateVariablePayload = {
  *   name: 'Primary Color',
@@ -57,7 +57,7 @@ export interface CreateVariablePayload {
  *
  * @example
  * ```ts
- * import type { UpdateVariablePayload } from '@figma-vars/hooks';
+ * import type { UpdateVariablePayload } from '@figmavars/hooks';
  *
  * const updatePayload: UpdateVariablePayload = {
  *   name: 'Updated Color Name',
@@ -99,7 +99,7 @@ export type VariableAction = 'CREATE' | 'UPDATE' | 'DELETE'
  *
  * @example
  * ```ts
- * import type { VariableCollectionChange } from '@figma-vars/hooks';
+ * import type { VariableCollectionChange } from '@figmavars/hooks';
  *
  * const change: VariableCollectionChange = {
  *   action: 'UPDATE',
@@ -132,7 +132,7 @@ export interface VariableCollectionChange {
  *
  * @example
  * ```ts
- * import type { VariableModeChange } from '@figma-vars/hooks';
+ * import type { VariableModeChange } from '@figmavars/hooks';
  *
  * const modeChange: VariableModeChange = {
  *   action: 'CREATE',
@@ -169,7 +169,7 @@ export interface VariableModeChange {
  *
  * @example
  * ```ts
- * import type { VariableChange } from '@figma-vars/hooks';
+ * import type { VariableChange } from '@figmavars/hooks';
  *
  * const varChange: VariableChange = {
  *   action: 'DELETE',
@@ -203,7 +203,7 @@ export interface VariableChange {
  *
  * @example
  * ```ts
- * import type { VariableModeValue } from '@figma-vars/hooks';
+ * import type { VariableModeValue } from '@figmavars/hooks';
  *
  * const modeValue: VariableModeValue = {
  *   variableId: 'VariableID:123:456',
@@ -233,7 +233,7 @@ export interface VariableModeValue {
  *
  * @example
  * ```ts
- * import type { BulkUpdatePayload } from '@figma-vars/hooks';
+ * import type { BulkUpdatePayload } from '@figmavars/hooks';
  *
  * const payload: BulkUpdatePayload = {
  *   variableCollections: [{ action: 'UPDATE', id: 'VariableCollectionId:123', name: 'New Name' }],
@@ -265,7 +265,7 @@ export interface BulkUpdatePayload {
  *
  * @example
  * ```ts
- * import type { BulkUpdateResponse } from '@figma-vars/hooks';
+ * import type { BulkUpdateResponse } from '@figmavars/hooks';
  *
  * function handleResponse(response: BulkUpdateResponse) {
  *   if (response.error) {

@@ -1,0 +1,65 @@
+---
+title: Overview
+description: figma-vars CLI commands for building, diffing, checking, and exporting design tokens.
+---
+
+Install globally or as a dev dependency:
+
+```bash
+npm i -D @figmavars/cli
+```
+
+Binary name: `figma-vars`.
+
+## Commands
+
+| Command  | Purpose                                            |
+| -------- | -------------------------------------------------- |
+| `build`  | Figma JSON → full token pipeline                   |
+| `diff`   | Semantic changelog between two exports             |
+| `check`  | Validate export or built tokens directory          |
+| `init`   | Scaffold a tokens repo with sample data            |
+| `export` | Download variables via Figma REST API (Enterprise) |
+
+```bash
+figma-vars <command> --help
+```
+
+## Typical workflow
+
+```bash
+figma-vars init my-tokens
+cd my-tokens
+# replace variables.json with your export
+figma-vars build variables.json
+figma-vars check design-tokens
+figma-vars diff variables.json ../backup/variables.json
+```
+
+<Cards>
+  <Card
+    title='build'
+    href='/docs/cli/build'
+    description='Generate the pipeline'
+  />
+  <Card
+    title='diff'
+    href='/docs/cli/diff'
+    description='Review token changes'
+  />
+  <Card
+    title='check'
+    href='/docs/cli/check'
+    description='Validate before merge'
+  />
+  <Card
+    title='init'
+    href='/docs/cli/init'
+    description='Start a tokens repo'
+  />
+  <Card
+    title='export'
+    href='/docs/cli/export'
+    description='Enterprise REST download'
+  />
+</Cards>

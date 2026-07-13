@@ -11,7 +11,7 @@ import { FigmaApiError } from '../types/figma'
  *
  * @example
  * ```tsx
- * import { isFigmaApiError } from '@figma-vars/hooks';
+ * import { isFigmaApiError } from '@figmavars/hooks';
  *
  * try {
  *   await mutate(payload);
@@ -43,7 +43,7 @@ export function isFigmaApiError(error: unknown): error is FigmaApiError {
  *
  * @example
  * ```tsx
- * import { getErrorStatus } from '@figma-vars/hooks';
+ * import { getErrorStatus } from '@figmavars/hooks';
  *
  * const status = getErrorStatus(error);
  * if (status === 401) {
@@ -72,7 +72,7 @@ export function getErrorStatus(error: unknown): number | null {
  *
  * @example
  * ```tsx
- * import { getErrorMessage } from '@figma-vars/hooks';
+ * import { getErrorMessage } from '@figmavars/hooks';
  *
  * const message = getErrorMessage(error);
  * toast.error(message);
@@ -105,7 +105,7 @@ export function getErrorMessage(
  *
  * @example
  * ```tsx
- * import { hasErrorStatus } from '@figma-vars/hooks';
+ * import { hasErrorStatus } from '@figmavars/hooks';
  *
  * if (hasErrorStatus(error, 401)) {
  *   // Handle unauthorized
@@ -129,7 +129,7 @@ export function hasErrorStatus(error: unknown, statusCode: number): boolean {
  *
  * @example
  * ```tsx
- * import { isRateLimited } from '@figma-vars/hooks';
+ * import { isRateLimited } from '@figmavars/hooks';
  *
  * if (isRateLimited(error)) {
  *   // Handle rate limit, maybe retry after delay
@@ -154,7 +154,7 @@ export function isRateLimited(error: unknown): boolean {
  *
  * @example
  * ```tsx
- * import { getRetryAfter } from '@figma-vars/hooks';
+ * import { getRetryAfter } from '@figmavars/hooks';
  *
  * const retryAfter = getRetryAfter(error);
  * if (retryAfter !== null) {

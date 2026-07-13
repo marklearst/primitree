@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import useSWR from 'swr'
 import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { fetcher as apiFetcher } from '@figma-vars/core'
+import { fetcher as apiFetcher } from '@figmavars/core'
 
 import { FigmaVarsProvider } from '../../src/contexts/FigmaVarsProvider'
 import { useVariables } from '../../src/hooks/useVariables'
@@ -13,8 +13,8 @@ import type { ReactNode } from 'react'
 // Mock the useSWR hook
 vi.mock('swr')
 
-vi.mock('@figma-vars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figma-vars/core')>()),
+vi.mock('@figmavars/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@figmavars/core')>()),
   fetcher: vi.fn(),
 }))
 

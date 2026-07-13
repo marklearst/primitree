@@ -1,0 +1,63 @@
+---
+title: MCP
+description: Expose design tokens to Cursor, Claude Code, and other MCP clients.
+---
+
+```bash
+npm i -D @figmavars/mcp
+```
+
+The MCP server reads either a raw `variables.json` export or a built `design-tokens/` directory.
+
+## Client config
+
+```json
+{
+  "mcpServers": {
+    "design-tokens": {
+      "command": "npx",
+      "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
+    }
+  }
+}
+```
+
+Or point at built output:
+
+```json
+{
+  "args": ["-y", "@figmavars/mcp", "--tokens", "./design-tokens"]
+}
+```
+
+Set `FIGMA_VARS_TOKENS` instead of `--tokens` if you prefer env vars.
+
+## Tools
+
+| Tool               | Description                         |
+| ------------------ | ----------------------------------- |
+| `list_collections` | All collections with modes          |
+| `get_token`        | Single token by path                |
+| `resolve_context`  | Resolve values under theme contexts |
+| `search_tokens`    | Search by name fragment             |
+| `diff_tokens`      | Compare two token sources           |
+
+## Why use this
+
+Generated UI code stops inventing random hex values when the agent can query your real palette, spacing scale, and semantic aliases.
+
+Works locally. No hosted service. Same data as `figma-vars build`.
+
+## Run manually
+
+```bash
+npx @figmavars/mcp --tokens ./variables.json
+```
+
+Stdio transport for MCP clients.
+
+## vs Figma's official MCP
+
+Figma MCP reads **selected frames** in Dev Mode. FigmaVars MCP reads your **full token repo**.
+
+Export with the [Figma plugin](/docs/figma-plugin), build with the CLI, point MCP at the output. See [Figma MCP vs FigmaVars](/docs/concepts/figma-mcp).

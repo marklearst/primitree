@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { CreateVariablePayload } from '@figma-vars/core'
+import type { CreateVariablePayload } from '@figmavars/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 /**
  * React hook that creates a new Figma variable in the current file using the Figma Variables API.
@@ -27,7 +27,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useCreateVariable } from '@figma-vars/hooks';
+ * import { useCreateVariable } from '@figmavars/hooks';
  *
  * function CreateVariableButton() {
  *   const { mutate, isLoading, isError, error } = useCreateVariable();

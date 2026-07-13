@@ -1,12 +1,12 @@
 /**
  * @packageDocumentation
  *
- * Entry point for **@figma-vars/dtcg** — convert Figma variables JSON into
+ * Entry point for **@figmavars/dtcg** — convert Figma variables JSON into
  * DTCG 2025.10 design tokens with a standards-compliant Resolver for modes.
  *
  * @remarks
  * Pure functions, no I/O: works in Node, browsers, and edge runtimes. Pairs
- * with `@figma-vars/cli` for file output and `@figma-vars/hooks` for runtime
+ * with `@figmavars/cli` for file output and `@figmavars/hooks` for runtime
  * consumption.
  */
 export { toDTCG, FIGMA_EXTENSION_KEY, RESOLVER_SCHEMA_URL } from './emit'

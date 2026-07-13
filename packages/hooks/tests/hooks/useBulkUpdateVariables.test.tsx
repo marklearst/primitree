@@ -8,13 +8,13 @@ import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
-} from '@figma-vars/core'
-import type { BulkUpdatePayload } from '@figma-vars/core'
+} from '@figmavars/core'
+import type { BulkUpdatePayload } from '@figmavars/core'
 
 // Mock dependencies
 vi.mock('../../src/contexts/useFigmaTokenContext')
-vi.mock('@figma-vars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figma-vars/core')>()),
+vi.mock('@figmavars/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@figmavars/core')>()),
   mutator: vi.fn(),
 }))
 

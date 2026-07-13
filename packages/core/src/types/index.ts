@@ -1,10 +1,10 @@
 /**
  * @packageDocumentation
- * Barrel file for all framework-agnostic types in @figma-vars/core.
+ * Barrel file for all framework-agnostic types in @figmavars/core.
  *
  * @remarks
  * Re-exports all Figma domain types (variables, collections, modes, API response
- * models) and mutation payload/result types. Published as the `@figma-vars/core/types`
+ * models) and mutation payload/result types. Published as the `@figmavars/core/types`
  * subpath so downstream packages can re-export the exact type surface.
  */
 export * from './figma'

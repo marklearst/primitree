@@ -1,0 +1,61 @@
+---
+title: Export Variables
+description: Every way to get a variables.json file from Figma, on any plan.
+---
+
+FigmaVars accepts the same JSON shapes that Figma plugins and the REST API produce. You do not need Enterprise to build a pipeline.
+
+## FigmaVars Export plugin (recommended, any plan)
+
+Use the official [FigmaVars Export](/docs/figma-plugin) plugin:
+
+1. Plugins → Development → Import `apps/figma-plugin/dist/manifest.json` (or install from Community when published)
+2. Run **FigmaVars Export** on your file
+3. Download `variables.json`
+
+Output matches the REST local variables shape. No third-party exporter required.
+
+## Other plugin exports (any plan)
+
+TokensBrücke, Variables Exporter for Dev Mode, and similar plugins also work. Save JSON as `variables.json` if the file contains `meta.variableCollections` and `meta.variables`.
+
+## Dev Mode / manual backup
+
+Some teams export through Dev Mode tooling or copy JSON from internal scripts. If the file contains `meta.variableCollections` and `meta.variables`, FigmaVars can normalize it.
+
+## Enterprise REST API
+
+If you have Enterprise and a token with `file_variables:read`:
+
+```bash
+export FIGMA_TOKEN=figd_...
+export FIGMA_FILE_KEY=AbCdEf...
+
+figma-vars export --out variables.json
+```
+
+Or use the legacy bin shipped with hooks:
+
+```bash
+npx --package @figmavars/hooks figma-vars-export --file-key "$FIGMA_FILE_KEY"
+```
+
+## What the file should look like
+
+FigmaVars normalizes several shapes:
+
+- REST API `GET /v1/files/:key/variables/local`
+- Plugin export with nested `meta`
+- Flat `variableCollections` + `variables` maps
+
+If `figma-vars check variables.json` passes, you are good to build.
+
+## Keep exports in version control
+
+Treat `variables.json` like any other source file:
+
+- Designers export after token changes
+- CI runs `figma-vars diff` against the previous export
+- Reviewers see renames and per-mode value changes, not noisy string diffs
+
+See [Semantic diffing](/docs/concepts/diffing) for how matching works.

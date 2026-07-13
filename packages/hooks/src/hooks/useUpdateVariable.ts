@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { UpdateVariablePayload } from '@figma-vars/core'
+import type { UpdateVariablePayload } from '@figmavars/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 /**
  * React hook that updates an existing Figma variable by ID using the Figma Variables API.
@@ -27,7 +27,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useUpdateVariable } from '@figma-vars/hooks';
+ * import { useUpdateVariable } from '@figmavars/hooks';
  *
  * function UpdateVariableButton({ id }: { id: string }) {
  *   const { mutate, isLoading, isError, error } = useUpdateVariable();

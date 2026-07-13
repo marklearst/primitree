@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { buildPipeline } from '@figma-vars/dtcg'
+import { buildPipeline } from '@figmavars/dtcg'
 import { getStringFlag, type ParsedArgs } from '../args'
 import { fileExists, readJsonFile, writePipelineFiles } from '../io'
 import { sampleVariables } from '../sample'
@@ -38,7 +38,7 @@ function tokensPackageJson(name: string): string {
         backup: 'mkdir -p backup && cp variables.json backup/variables.json',
       },
       devDependencies: {
-        '@figma-vars/cli': 'latest',
+        '@figmavars/cli': 'latest',
       },
     },
     null,
@@ -55,7 +55,7 @@ build/
 function repoReadme(name: string): string {
   return `# ${name}
 
-Design tokens pipeline generated with [\`@figma-vars/cli\`](https://github.com/marklearst/figma-vars-hooks).
+Design tokens pipeline generated with [\`@figmavars/cli\`](https://github.com/marklearst/figmavars).
 
 ## Workflow
 

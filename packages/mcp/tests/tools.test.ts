@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { toDTCG } from '@figma-vars/dtcg'
+import { toDTCG } from '@figmavars/dtcg'
 import { loadTokenSource, type TokenSource } from '../src/source'
 import {
   diffTokens,

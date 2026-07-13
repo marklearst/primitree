@@ -1,12 +1,12 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { useMutation } from './useMutation'
-import type { BulkUpdatePayload } from '@figma-vars/core'
+import type { BulkUpdatePayload } from '@figmavars/core'
 import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 /**
  * React hook that performs a bulk update of multiple Figma variables in a single request via the Figma Variables API.
@@ -28,7 +28,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useBulkUpdateVariables } from '@figma-vars/hooks';
+ * import { useBulkUpdateVariables } from '@figmavars/hooks';
  *
  * function BulkUpdateButton() {
  *   const { mutate, isLoading, isError, error } = useBulkUpdateVariables();

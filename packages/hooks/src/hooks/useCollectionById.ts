@@ -14,7 +14,7 @@ import type { FigmaCollection } from '../types'
  *
  * @example
  * ```tsx
- * import { useCollectionById } from '@figma-vars/hooks';
+ * import { useCollectionById } from '@figmavars/hooks';
  *
  * function CollectionDetails({ collectionId }: { collectionId: string }) {
  *   const collection = useCollectionById(collectionId);

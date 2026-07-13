@@ -1,0 +1,37 @@
+---
+title: Migration from @figma-vars/hooks
+description: Move from @figma-vars/hooks 4.x to @figmavars/hooks v5 and adopt local token hooks.
+---
+
+FigmaVars v5 moves the package to the `@figmavars` namespace and adds local-token hooks while keeping documented live-API APIs stable.
+
+## Update the package
+
+```bash
+npm uninstall @figma-vars/hooks
+npm install @figmavars/hooks
+```
+
+Change imports from `@figma-vars/hooks` to `@figmavars/hooks`. The exported hook, provider, utility, and type names are unchanged.
+
+## New in v5
+
+- `TokensProvider`, `useToken`, `useTokens`, `useTheme` for built DTCG artifacts
+- Monorepo split: `@figmavars/core`, `@figmavars/dtcg`, `@figmavars/cli`, `@figmavars/mcp`
+- CLI `build`, `diff`, `check`, `init` beyond export-only workflows
+
+## If you only used live API hooks
+
+Only the package import path changes for documented APIs. Update the dependency and imports, then run tests.
+
+## If you want local tokens
+
+1. Run `figma-vars build variables.json`
+2. Import JSON + resolver in `TokensProvider`
+3. Replace hard-coded colors with `useToken('path.to.token')`
+
+## CLI bin
+
+`figma-vars-export` still ships from hooks for backwards compatibility. New projects should use `@figmavars/cli` for the full command set.
+
+See the package CHANGELOG on GitHub for the full v5 release notes.

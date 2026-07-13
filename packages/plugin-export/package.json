@@ -1,0 +1,33 @@
+{
+  "name": "@figmavars/plugin-export",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Serialize Figma local variables into the REST export shape used by @figmavars/cli",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mark Learst",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@figmavars/core": "workspace:*",
+    "@types/node": "^26.1.0",
+    "tsup": "^8.5.0",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

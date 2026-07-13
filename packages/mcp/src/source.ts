@@ -4,7 +4,7 @@ import {
   toDTCG,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 
 /** An in-memory token source the MCP tools operate on. @public */
 export interface TokenSource {

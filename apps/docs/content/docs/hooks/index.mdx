@@ -1,0 +1,35 @@
+---
+title: Overview
+description: Typed React hooks for built design tokens or live Figma Variables API access.
+---
+
+```bash
+npm i @figmavars/hooks swr react
+```
+
+Two modes:
+
+1. **Local tokens (v5, any Figma plan)** consume artifacts from `figma-vars build`
+2. **Live API (Enterprise)** read and mutate variables through the REST API with SWR
+
+<Cards>
+  <Card
+    title='Local tokens'
+    href='/docs/hooks/local-tokens'
+    description='TokensProvider, useToken, useTheme'
+  />
+  <Card
+    title='Live API'
+    href='/docs/hooks/live-api'
+    description='useVariables and mutations'
+  />
+  <Card
+    title='Migration from 4.x'
+    href='/docs/hooks/migration'
+    description='What changed in v5'
+  />
+</Cards>
+
+## Non-React usage
+
+Framework-agnostic utilities live in `@figmavars/core` (normalizer, fetcher, diff). The `@figmavars/hooks/core` subpath re-exports them for backwards compatibility.

@@ -22,7 +22,7 @@ I rebuilt it around the one thing everyone has: the variables JSON you can
 export from any Figma plan (plugins like TokensBrücke, Dev Mode, or the REST
 API if you have it).
 
-`npx @figma-vars/cli build variables.json` gives you:
+`npx @figmavars/cli build variables.json` gives you:
 
 - DTCG 2025.10 token files (one per collection, aliases preserved as
   references) plus a Resolver document that maps Figma modes to standard
@@ -36,7 +36,7 @@ their stable Figma IDs, so a rename shows up as a rename instead of a
 remove+add. With `--fail-on-breaking` you can gate CI on design-token changes
 the way you gate on API changes.
 
-There's also an MCP server (`@figma-vars/mcp`) so coding agents can query
+There's also an MCP server (`@figmavars/mcp`) so coding agents can query
 your actual tokens (get/search/resolve/diff) instead of hallucinating hex
 values, React hooks that consume the built artifacts with runtime theme
 switching (no Figma token needed), and a playground that runs entirely
@@ -46,7 +46,7 @@ zip. Nothing is uploaded anywhere.
 Everything is MIT. I'd love feedback on the DTCG mapping decisions
 (especially FLOAT type inference and how modes become resolver modifiers).
 
-**Link:** https://github.com/marklearst/figma-vars-hooks
+**Link:** https://github.com/marklearst/figmavars
 
 ---
 
@@ -60,7 +60,7 @@ token pipeline — DTCG 2025.10, CSS, Tailwind v4, TypeScript, CI. In one
 command.
 
 **2/**
-`npx @figma-vars/cli build variables.json`
+`npx @figmavars/cli build variables.json`
 
 → tokens split by collection, aliases kept as references
 → a DTCG Resolver mapping your Figma modes to light/dark contexts
@@ -77,7 +77,7 @@ Renames are renames. Not remove+add.
 reviews like code.
 
 **4/**
-AI angle: `@figma-vars/mcp` serves your tokens to Cursor/Claude Code.
+AI angle: `@figmavars/mcp` serves your tokens to Cursor/Claude Code.
 
 get_token, search_tokens, resolve_context ("what does dark mode look
 like?"), diff_tokens.
@@ -93,7 +93,7 @@ useTheme() → setContext('semantic', 'dark')
 
 SSR-safe. No PAT in the browser. MIT.
 
-github.com/marklearst/figma-vars-hooks
+github.com/marklearst/figmavars
 
 ---
 
@@ -123,7 +123,7 @@ Set Width 1200
 Set Height 640
 Set Theme "Catppuccin Mocha"
 
-Type "npx @figma-vars/cli init my-tokens" Enter
+Type "npx @figmavars/cli init my-tokens" Enter
 Sleep 3s
 Type "cd my-tokens && ls" Enter
 Sleep 2s
@@ -132,7 +132,7 @@ Sleep 3s
 Type "head -18 css/tokens.css" Enter
 Sleep 3s
 # edit variables.json (rename a variable) beforehand in a second take
-Type "npx @figma-vars/cli diff backup/variables.json variables.json" Enter
+Type "npx @figmavars/cli diff backup/variables.json variables.json" Enter
 Sleep 5s
 ```
 
@@ -143,14 +143,17 @@ hit "Download pipeline (.zip)" — screen-record for the README hero GIF.
 
 ## Launch checklist
 
-- [ ] Push `main` and tags: `git push && git push origin v4.2.0 v5.0.0`
+- [ ] Do not push the existing local `v5.0.0` tag; it predates the
+      `@figmavars` migration.
+- [ ] After the release commit is on `main` and CI is green, recreate
+      `v5.0.0` at that verified commit and push only the fresh tag.
       (tag push triggers the npm publish workflow; verify NPM_TOKEN secret)
 - [ ] Verify all five packages on npm (cli, core, dtcg, hooks, mcp)
 - [ ] Deploy `apps/playground/dist` (GitHub Pages / Netlify / Vercel — it's
-      static; `pnpm --filter figma-vars-playground build`)
+      static; `pnpm --filter figmavars-playground build`)
 - [ ] Record the 60s GIF and embed at the top of the root README
-- [ ] Rename the GitHub repo `figma-vars-hooks` → `figma-vars` (redirects
-      are automatic; update badge/links in READMEs afterward)
+- [x] Rename the GitHub repo `figma-vars-hooks` → `figmavars` (redirects
+      are automatic; badges and links updated)
 - [ ] Post Show HN (Tue–Thu, 8–10am ET tends to do best)
 - [ ] Thread on X/Bluesky; cross-post to r/DesignSystems, r/FigmaDesign
 - [ ] Submit to newsletters: Design Systems Weekly, UI Dev Newsletter,

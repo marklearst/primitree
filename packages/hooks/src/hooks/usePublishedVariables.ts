@@ -1,6 +1,6 @@
 import useSWR from 'swr'
-import { fetcher } from '@figma-vars/core'
-import type { PublishedVariablesResponse } from '@figma-vars/core'
+import { fetcher } from '@figmavars/core'
+import type { PublishedVariablesResponse } from '@figmavars/core'
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getPublishedVariablesKey } from '../utils/swrKeys'
 
@@ -30,7 +30,7 @@ import { getPublishedVariablesKey } from '../utils/swrKeys'
  *
  * @example
  * ```tsx
- * import { usePublishedVariables } from '@figma-vars/hooks';
+ * import { usePublishedVariables } from '@figmavars/hooks';
  *
  * function LibraryTokens() {
  *   const { data, isLoading, error } = usePublishedVariables();

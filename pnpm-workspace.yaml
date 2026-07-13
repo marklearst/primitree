@@ -4,6 +4,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  sharp: true
 
 minimumReleaseAgeExclude:
   - '@vitest/coverage-v8@4.1.10'

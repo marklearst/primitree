@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "lib": ["ES2017"]
+  },
+  "files": ["node_modules/@figma/plugin-typings/index.d.ts"],
+  "include": ["src/code.ts", "src/map.ts"]
+}

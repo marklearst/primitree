@@ -14,7 +14,7 @@ import type { VariableMode } from '../types'
  *
  * @example
  * ```tsx
- * import { useModesByCollection } from '@figma-vars/hooks';
+ * import { useModesByCollection } from '@figmavars/hooks';
  *
  * function CollectionModes({ collectionId }: { collectionId: string }) {
  *   const modes = useModesByCollection(collectionId);

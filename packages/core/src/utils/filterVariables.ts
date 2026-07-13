@@ -33,7 +33,7 @@ export interface FilterVariablesCriteria {
  *
  * @example
  * ```ts
- * import { filterVariables } from '@figma-vars/hooks';
+ * import { filterVariables } from '@figmavars/hooks';
  *
  * // Example 1: Filter all color variables
  * const colorVars = filterVariables(allVars, { resolvedType: 'COLOR' });

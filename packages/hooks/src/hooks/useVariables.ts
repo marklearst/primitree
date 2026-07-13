@@ -1,6 +1,6 @@
 import useSWR from 'swr'
-import { fetcher } from '@figma-vars/core'
-import type { LocalVariablesResponse } from '@figma-vars/core'
+import { fetcher } from '@figmavars/core'
+import type { LocalVariablesResponse } from '@figmavars/core'
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getVariablesKey } from '../utils/swrKeys'
 

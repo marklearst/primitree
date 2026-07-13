@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import type { ReactNode } from 'react'
-import { toDTCG, type DTCGColorValue } from '@figma-vars/dtcg'
+import { toDTCG, type DTCGColorValue } from '@figmavars/dtcg'
 import { TokensProvider } from '../../src/tokens/TokensProvider'
 import { useToken } from '../../src/tokens/useToken'
 import { useTokens } from '../../src/tokens/useTokens'

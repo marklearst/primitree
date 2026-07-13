@@ -8,8 +8,8 @@ import {
   FIGMA_EXTENSION_KEY,
   type DTCGToken,
   type DTCGTokenValue,
-} from '@figma-vars/dtcg'
-import { diffVariables, formatDiffMarkdown } from '@figma-vars/core'
+} from '@figmavars/dtcg'
+import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
 import type { TokenSource } from './source'
 
 function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {

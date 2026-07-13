@@ -15,7 +15,7 @@ import type { FigmaCollection } from '../types'
  *
  * @example
  * ```tsx
- * import { useVariableCollections } from '@figma-vars/hooks';
+ * import { useVariableCollections } from '@figmavars/hooks';
  *
  * function CollectionList() {
  *   const { collections } = useVariableCollections();

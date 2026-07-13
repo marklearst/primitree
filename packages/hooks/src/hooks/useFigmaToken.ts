@@ -8,7 +8,7 @@ import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
  *
  * @example
  * ```tsx
- * import { useFigmaToken } from '@figma-vars/hooks';
+ * import { useFigmaToken } from '@figmavars/hooks';
  *
  * function AuthStatus() {
  *   const token = useFigmaToken();

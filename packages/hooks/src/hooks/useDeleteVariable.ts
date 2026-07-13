@@ -5,7 +5,7 @@ import {
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figma-vars/core'
+} from '@figmavars/core'
 
 /**
  * React hook that deletes a Figma variable by ID using the Figma Variables API.
@@ -26,7 +26,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useDeleteVariable } from '@figma-vars/hooks';
+ * import { useDeleteVariable } from '@figmavars/hooks';
  *
  * function DeleteVariableButton({ id }: { id: string }) {
  *   const { mutate, isLoading, isError, error } = useDeleteVariable();

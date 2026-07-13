@@ -9,9 +9,7 @@ describe('wallaby.js config', () => {
     expect(typeof wallabyConfig).toBe('function')
 
     // Should return a config object when called
-    const config = wallabyConfig({
-      /* mock wallaby object */
-    })
+    const config = wallabyConfig({/* mock wallaby object */})
 
     expect(config).toBeDefined()
     expect(config.files).toBeDefined()

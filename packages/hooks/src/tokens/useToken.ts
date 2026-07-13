@@ -4,7 +4,7 @@ import {
   cssVarName,
   type DTCGToken,
   type DTCGTokenValue,
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 import { useTokens } from './useTokens'
 
 /**

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   analyze,
   downloadBlob,
@@ -18,6 +18,7 @@ export default function App() {
   const [selection, setSelection] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<Tab>('tokens')
   const [openFile, setOpenFile] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback((text: string, name: string) => {
     try {
@@ -86,13 +87,13 @@ export default function App() {
         </div>
         <nav className='header-links'>
           <a
-            href='https://github.com/marklearst/figma-vars-hooks'
+            href='https://github.com/marklearst/figmavars'
             target='_blank'
             rel='noreferrer'>
             GitHub
           </a>
           <a
-            href='https://www.npmjs.com/package/@figma-vars/cli'
+            href='https://www.npmjs.com/package/@figmavars/cli'
             target='_blank'
             rel='noreferrer'>
             npm
@@ -113,29 +114,39 @@ export default function App() {
             generated in your browser. <strong>Nothing is uploaded.</strong>
           </p>
 
-          <div
+          <fieldset
+            aria-labelledby='dropzone-title'
             className={`dropzone${dragging ? ' dragging' : ''}`}
+            style={{ margin: 0, minInlineSize: 0 }}
             onDragOver={event => {
               event.preventDefault()
               setDragging(true)
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}>
-            <p className='dz-title'>Drag a variables.json here</p>
+            <p
+              id='dropzone-title'
+              className='dz-title'>
+              Drag a variables.json here
+            </p>
             <p className='dz-sub'>
               from <code>figma-vars export</code>, TokensBrücke, or any
               variables plugin
             </p>
             <div className='dz-actions'>
-              <label className='button primary'>
+              <button
+                type='button'
+                className='button primary'
+                onClick={() => fileInputRef.current?.click()}>
                 Choose file
-                <input
-                  type='file'
-                  accept='.json,application/json'
-                  onChange={onPick}
-                  hidden
-                />
-              </label>
+              </button>
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept='.json,application/json'
+                onChange={onPick}
+                hidden
+              />
               <button
                 type='button'
                 className='button ghost'
@@ -145,7 +156,7 @@ export default function App() {
                 Try the sample
               </button>
             </div>
-          </div>
+          </fieldset>
 
           {error && <div className='error'>{error}</div>}
 
@@ -338,10 +349,10 @@ export default function App() {
       <footer className='footer'>
         Runs 100% client-side — your tokens never leave this tab. Built with{' '}
         <a
-          href='https://github.com/marklearst/figma-vars-hooks'
+          href='https://github.com/marklearst/figmavars'
           target='_blank'
           rel='noreferrer'>
-          @figma-vars
+          @figmavars
         </a>
         .
       </footer>

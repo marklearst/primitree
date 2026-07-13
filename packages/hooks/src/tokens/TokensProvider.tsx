@@ -7,7 +7,7 @@ import {
   resolveTokenValuesSafe,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 import { TokensContext, type TokensContextValue } from './TokensContext'
 
 /**
@@ -53,7 +53,7 @@ function isFileMap(
  *
  * @example
  * ```tsx
- * import { TokensProvider, useToken, useTheme } from '@figma-vars/hooks'
+ * import { TokensProvider, useToken, useTheme } from '@figmavars/hooks'
  * import primitives from './tokens/primitives.tokens.json'
  * import semantic from './tokens/semantic.tokens.json'
  * import semanticDark from './tokens/semantic.dark.tokens.json'
@@ -83,6 +83,7 @@ export function TokensProvider({
     [resolver]
   )
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: defaultContexts is a mount-only initializer; changes after mount go through setContext.
   const initialContexts = useMemo(() => {
     const initial: Record<string, string> = {}
     if (resolver?.modifiers) {
@@ -95,8 +96,6 @@ export function TokensProvider({
       }
     }
     return initial
-    // defaultContexts is an initializer; changes after mount go through setContext.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolver])
 
   const [contexts, setContextsState] =

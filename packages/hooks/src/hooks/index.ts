@@ -18,7 +18,7 @@
  *
  * @example
  * ```tsx
- * import { useVariables } from '@figma-vars/hooks';
+ * import { useVariables } from '@figmavars/hooks';
  * const { data, isLoading } = useVariables();
  * ```
  *
@@ -33,7 +33,7 @@ export { useVariables } from './useVariables'
  *
  * @example
  * ```tsx
- * import { useVariableCollections } from '@figma-vars/hooks';
+ * import { useVariableCollections } from '@figmavars/hooks';
  * const { collections } = useVariableCollections();
  * ```
  *
@@ -48,7 +48,7 @@ export { useVariableCollections } from './useVariableCollections'
  *
  * @example
  * ```tsx
- * import { useVariableModes } from '@figma-vars/hooks';
+ * import { useVariableModes } from '@figmavars/hooks';
  * const { modes, modesById } = useVariableModes();
  * ```
  *
@@ -63,7 +63,7 @@ export { useVariableModes } from './useVariableModes'
  *
  * @example
  * ```tsx
- * import { useFigmaToken } from '@figma-vars/hooks';
+ * import { useFigmaToken } from '@figmavars/hooks';
  * const token = useFigmaToken();
  * ```
  *
@@ -80,7 +80,7 @@ export { default as useFigmaToken } from './useFigmaToken'
  *
  * @example
  * ```tsx
- * import { useCreateVariable } from '@figma-vars/hooks';
+ * import { useCreateVariable } from '@figmavars/hooks';
  * const { mutate, isLoading } = useCreateVariable();
  * // mutate({ name: 'Primary Color', ... })
  * ```
@@ -98,7 +98,7 @@ export { useCreateVariable } from './useCreateVariable'
  *
  * @example
  * ```tsx
- * import { useUpdateVariable } from '@figma-vars/hooks';
+ * import { useUpdateVariable } from '@figmavars/hooks';
  * const { mutate } = useUpdateVariable();
  * // mutate({ variableId: 'id', payload: { name: 'Updated' } })
  * ```
@@ -116,7 +116,7 @@ export { useUpdateVariable } from './useUpdateVariable'
  *
  * @example
  * ```tsx
- * import { useDeleteVariable } from '@figma-vars/hooks';
+ * import { useDeleteVariable } from '@figmavars/hooks';
  * const { mutate } = useDeleteVariable();
  * // mutate('variable-id')
  * ```
@@ -134,7 +134,7 @@ export { useDeleteVariable } from './useDeleteVariable'
  *
  * @example
  * ```tsx
- * import { useBulkUpdateVariables } from '@figma-vars/hooks';
+ * import { useBulkUpdateVariables } from '@figmavars/hooks';
  * const { mutate } = useBulkUpdateVariables();
  * // mutate({ variableIds: [...], updates: {...} })
  * ```
@@ -154,7 +154,7 @@ export { useInvalidateVariables } from './useInvalidateVariables'
  *
  * @example
  * ```tsx
- * import { usePublishedVariables } from '@figma-vars/hooks';
+ * import { usePublishedVariables } from '@figmavars/hooks';
  * const { data, isLoading } = usePublishedVariables();
  * ```
  *
@@ -169,7 +169,7 @@ export { usePublishedVariables } from './usePublishedVariables'
  *
  * @example
  * ```tsx
- * import { useVariableById } from '@figma-vars/hooks';
+ * import { useVariableById } from '@figmavars/hooks';
  * const variable = useVariableById('VariableID:123:456');
  * ```
  *
@@ -184,7 +184,7 @@ export { useVariableById } from './useVariableById'
  *
  * @example
  * ```tsx
- * import { useCollectionById } from '@figma-vars/hooks';
+ * import { useCollectionById } from '@figmavars/hooks';
  * const collection = useCollectionById('VariableCollectionId:123:456');
  * ```
  *
@@ -199,7 +199,7 @@ export { useCollectionById } from './useCollectionById'
  *
  * @example
  * ```tsx
- * import { useModesByCollection } from '@figma-vars/hooks';
+ * import { useModesByCollection } from '@figmavars/hooks';
  * const modes = useModesByCollection('VariableCollectionId:123:456');
  * ```
  *

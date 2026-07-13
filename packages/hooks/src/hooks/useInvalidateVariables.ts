@@ -16,7 +16,7 @@ import { getInvalidationKeys } from '../utils/swrKeys'
  *
  * @example
  * ```tsx
- * import { useInvalidateVariables, useUpdateVariable } from '@figma-vars/hooks';
+ * import { useInvalidateVariables, useUpdateVariable } from '@figmavars/hooks';
  *
  * function UpdateButton() {
  *   const { mutate } = useUpdateVariable();

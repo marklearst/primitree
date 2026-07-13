@@ -15,7 +15,7 @@ import type {
  *
  * @example
  * ```ts
- * import { isLocalVariablesResponse } from '@figma-vars/hooks';
+ * import { isLocalVariablesResponse } from '@figmavars/hooks';
  *
  * if (isLocalVariablesResponse(fallbackData)) {
  *   // Safe to use as LocalVariablesResponse
@@ -68,7 +68,7 @@ export function isLocalVariablesResponse(
  *
  * @example
  * ```ts
- * import { isPublishedVariablesResponse } from '@figma-vars/hooks';
+ * import { isPublishedVariablesResponse } from '@figmavars/hooks';
  *
  * if (isPublishedVariablesResponse(fallbackData)) {
  *   // Safe to use as PublishedVariablesResponse

@@ -1,0 +1,78 @@
+---
+title: Live API Hooks
+description: Enterprise Figma Variables REST API hooks with SWR caching.
+---
+
+Requires a Full seat in an Enterprise org and a token with `file_variables:read` (plus `file_variables:write` for mutations).
+
+## Provider
+
+```tsx
+import {
+  FigmaVarsProvider,
+  useVariables,
+  useUpdateVariable,
+} from '@figmavars/hooks'
+
+function App() {
+  return (
+    <FigmaVarsProvider
+      token={process.env.FIGMA_TOKEN}
+      fileKey='your-file-key'>
+      <VariablesDashboard />
+    </FigmaVarsProvider>
+  )
+}
+```
+
+## Query hooks
+
+- `useVariables`, `usePublishedVariables`
+- `useVariableCollections`, `useVariableModes`
+- `useVariableById`, `useCollectionById`, `useModesByCollection`
+
+## Mutation hooks
+
+Each returns `{ mutate, data, error, isLoading, isSuccess, isError }`:
+
+- `useCreateVariable`
+- `useUpdateVariable`
+- `useDeleteVariable`
+- `useBulkUpdateVariables`
+
+Call `useInvalidateVariables()` after writes to refresh SWR caches.
+
+## Offline fallback
+
+No Enterprise seat? Pass a JSON export:
+
+```tsx
+<FigmaVarsProvider token={null} fileKey={null} fallbackFile={variablesJson}>
+```
+
+Every read hook works against the local file.
+
+## Errors and retries
+
+```ts
+import {
+  isFigmaApiError,
+  isRateLimited,
+  getRetryAfter,
+  withRetry,
+} from '@figmavars/hooks'
+
+const fetchWithRetry = withRetry(() => fetcher(url, token), {
+  maxRetries: 3,
+  retryOnlyRateLimits: true,
+})
+```
+
+## SWR config
+
+```tsx
+<FigmaVarsProvider
+  token={token}
+  fileKey={key}
+  swrConfig={{ refreshInterval: 30_000 }}>
+```

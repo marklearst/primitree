@@ -4,7 +4,7 @@ import type {
   DTCGToken,
   DTCGTokenValue,
   FlatToken,
-} from '@figma-vars/dtcg'
+} from '@figmavars/dtcg'
 
 /**
  * Everything the local-token hooks derive from the provided documents.

@@ -229,7 +229,7 @@ export interface FigmaCollection {
  *
  * @example
  * ```ts
- * import type { LocalVariablesResponse } from '@figma-vars/hooks';
+ * import type { LocalVariablesResponse } from '@figmavars/hooks';
  *
  * function handleResponse(response: LocalVariablesResponse) {
  *   const collections = Object.values(response.meta.variableCollections);
@@ -284,7 +284,7 @@ export interface PublishedVariablesResponse {
  *
  * @example
  * ```ts
- * import type { FigmaError } from '@figma-vars/hooks';
+ * import type { FigmaError } from '@figmavars/hooks';
  *
  * function handleError(error: FigmaError) {
  *   console.error(error.statusCode, error.message);
@@ -311,7 +311,7 @@ export interface FigmaError {
  *
  * @example
  * ```ts
- * import { FigmaApiError } from '@figma-vars/hooks';
+ * import { FigmaApiError } from '@figmavars/hooks';
  *
  * try {
  *   await fetcher(url, token);

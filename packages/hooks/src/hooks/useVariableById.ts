@@ -14,7 +14,7 @@ import type { FigmaVariable } from '../types'
  *
  * @example
  * ```tsx
- * import { useVariableById } from '@figma-vars/hooks';
+ * import { useVariableById } from '@figmavars/hooks';
  *
  * function VariableDetails({ variableId }: { variableId: string }) {
  *   const variable = useVariableById(variableId);

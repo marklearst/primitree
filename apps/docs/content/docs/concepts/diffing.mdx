@@ -1,0 +1,42 @@
+---
+title: Semantic Diffing
+description: How figma-vars diff matches variables and detects breaking changes.
+---
+
+Token changes should be reviewable like code changes. FigmaVars diff uses **stable Figma variable IDs**, not string paths alone.
+
+## What counts as a rename
+
+Same ID, different name → reported as rename (breaking for consumers using old path strings).
+
+## What counts as a value change
+
+Same ID, different resolved value in a specific mode → value change table entry.
+
+## Breaking vs non-breaking
+
+**Breaking (exit code 2 with `--fail-on-breaking`):**
+
+- Removed variables
+- Renamed variables (path consumers may break)
+
+**Non-breaking:**
+
+- New variables
+- Value tweaks you accept intentionally
+
+## Markdown output
+
+Use `--markdown` for PR descriptions:
+
+```bash
+figma-vars diff main/variables.json pr/variables.json --markdown >> PR_BODY.md
+```
+
+## MCP
+
+The `diff_tokens` MCP tool uses the same engine for agent-assisted reviews.
+
+## Under the hood
+
+Implemented in `@figmavars/core` (`diffVariables`, `formatDiffMarkdown`). The normalizer ensures both exports use the same internal shape before comparison.

@@ -1,0 +1,83 @@
+---
+title: Pipeline Output
+description: Every file figma-vars build writes and how to use it in your repo.
+---
+
+Running `figma-vars build variables.json` scaffolds a directory ready to commit. Here is what each piece does.
+
+## Directory layout
+
+```
+design-tokens/
+├── tokens/
+│   ├── *.tokens.json          # one file per collection (+ mode files)
+│   └── tokens.resolver.json   # DTCG Resolver: modes → contexts
+├── css/
+│   ├── tokens.css             # custom properties + theme selectors
+│   └── tokens.tailwind.css    # Tailwind v4 @theme
+├── ts/tokens.ts               # TokenPath union + values
+├── style-dictionary.config.mjs
+├── design-tokens.workflow.yml
+└── README.md
+```
+
+With `--terrazzo`, you get `terrazzo.config.mjs` instead of Style Dictionary.
+
+## tokens/\*.tokens.json
+
+DTCG 2025.10 documents. One file per Figma collection. Extra Figma modes (e.g. Dark on a Semantic collection) become sibling files like `semantic.dark.tokens.json`.
+
+Aliases stay as `{references}`. Figma metadata (variable id, scopes, code syntax) lives under `$extensions`.
+
+## tokens.resolver.json
+
+Maps Figma mode names to resolver contexts. A collection called "Theme" with Light/Dark modes becomes contexts you switch at runtime:
+
+```json
+{
+  "semantic": "light"
+}
+```
+
+See [Resolver](/docs/concepts/resolver).
+
+## css/tokens.css
+
+CSS custom properties with optional `[data-theme="dark"]` (or similar) blocks per mode. Import once in your app entry:
+
+```css
+@import './design-tokens/css/tokens.css';
+```
+
+## css/tokens.tailwind.css
+
+Tailwind v4 `@theme` mappings generated from the same resolved values. Add to your CSS pipeline alongside `tokens.css`.
+
+## ts/tokens.ts
+
+TypeScript helpers:
+
+- `TokenPath` union of every token path
+- `token()` / `cssVar()` accessors
+- resolved value map for tooling
+
+## Transformer config
+
+`style-dictionary.config.mjs` or `terrazzo.config.mjs` is prewired to read the DTCG files. Extend it for custom platforms (iOS, Android, etc.).
+
+## design-tokens.workflow.yml
+
+GitHub Actions template: checkout, install CLI, rebuild on `variables.json` changes, optionally fail on breaking diffs.
+
+## Skip outputs
+
+| Flag                 | Effect                                  |
+| -------------------- | --------------------------------------- |
+| `--no-css`           | Skip `css/tokens.css`                   |
+| `--no-tailwind`      | Skip Tailwind file                      |
+| `--no-ts`            | Skip TypeScript                         |
+| `--no-transformer`   | Skip Style Dictionary / Terrazzo config |
+| `--no-github-action` | Skip workflow template                  |
+| `--no-readme`        | Skip generated README                   |
+
+Full flag list: [CLI build](/docs/cli/build).

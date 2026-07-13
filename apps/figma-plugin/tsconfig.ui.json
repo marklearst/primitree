@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2017", "DOM"]
+  },
+  "files": [],
+  "include": ["src/ui.ts"]
+}
