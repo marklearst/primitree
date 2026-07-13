@@ -457,6 +457,10 @@ describe('usePublishedVariables', () => {
         fileKey: null,
         fallbackFile: mockPublishedVariablesResponse,
         parsedFallbackFile: mockPublishedVariablesResponse,
+        validatedFallback: {
+          kind: 'published',
+          data: mockPublishedVariablesResponse,
+        },
       } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
 
     mockedUseSWR.mockReturnValue({
@@ -507,6 +511,42 @@ describe('usePublishedVariables', () => {
     expect(mockedUseSWR).toHaveBeenCalledWith(
       [
         'https://api.figma.com/v1/files/test-key/variables/published',
+        'test-token',
+      ],
+      expect.any(Function),
+      undefined
+    )
+
+    spy.mockRestore()
+  })
+
+  it('ignores local fallback data and retains the live key', () => {
+    const spy = vi
+      .spyOn(useFigmaTokenContextModule, 'useFigmaTokenContext')
+      .mockReturnValue({
+        token: 'test-token',
+        fileKey: 'test-file',
+        fallbackFile: mockLocalVariablesResponse,
+        parsedFallbackFile: mockLocalVariablesResponse,
+        validatedFallback: {
+          kind: 'local',
+          data: mockLocalVariablesResponse,
+        },
+        providerId: 'test-provider',
+      } as ReturnType<typeof useFigmaTokenContextModule.useFigmaTokenContext>)
+
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+    })
+
+    renderHook(() => usePublishedVariables())
+
+    expect(mockedUseSWR).toHaveBeenCalledWith(
+      [
+        'https://api.figma.com/v1/files/test-file/variables/published',
         'test-token',
       ],
       expect.any(Function),

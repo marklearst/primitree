@@ -18,10 +18,12 @@ import { getVariablesKey } from '../utils/swrKeys'
  * @public
  */
 export const useVariables = () => {
-  const { token, fileKey, parsedFallbackFile, providerId, swrConfig } =
+  const { token, fileKey, validatedFallback, providerId, swrConfig } =
     useFigmaTokenContext()
 
-  const hasFallback = Boolean(parsedFallbackFile)
+  const localFallback =
+    validatedFallback?.kind === 'local' ? validatedFallback.data : undefined
+  const hasFallback = Boolean(localFallback)
 
   const key = getVariablesKey({
     fileKey,
@@ -33,9 +35,9 @@ export const useVariables = () => {
   const swrResponse = useSWR<LocalVariablesResponse>(
     key,
     async (...args: [readonly [string, string]] | [string, string]) => {
-      // Use pre-parsed fallback file from provider (handles both string and object fallbackFile)
-      if (parsedFallbackFile) {
-        return parsedFallbackFile as LocalVariablesResponse
+      // Use only validated local fallback data for this endpoint.
+      if (localFallback) {
+        return localFallback
       }
 
       // At this point we expect live credentials; guard just in case

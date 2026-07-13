@@ -3,6 +3,38 @@ import type {
   PublishedVariablesResponse,
 } from '../types/figma'
 
+export type FallbackDataKind = 'local' | 'published'
+
+export type ClassifiedFallbackData =
+  | { kind: 'local'; data: LocalVariablesResponse }
+  | { kind: 'published'; data: PublishedVariablesResponse }
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+const hasLocalCollectionShape = (value: unknown): boolean =>
+  isPlainRecord(value) && Array.isArray(value.modes)
+
+const hasLocalVariableShape = (value: unknown): boolean =>
+  isPlainRecord(value) && isPlainRecord(value.valuesByMode)
+
+const hasPublishedEntryShape = (value: unknown): boolean =>
+  isPlainRecord(value) &&
+  typeof value.subscribed_id === 'string' &&
+  typeof value.key === 'string' &&
+  typeof value.updatedAt === 'string'
+
+const everyEntryMatches = (
+  record: Record<string, unknown>,
+  predicate: (value: unknown) => boolean
+): boolean => Object.values(record).every(predicate)
+
 /**
  * Runtime type guard to check if data matches LocalVariablesResponse structure.
  *
@@ -29,31 +61,19 @@ import type {
 export function isLocalVariablesResponse(
   data: unknown
 ): data is LocalVariablesResponse {
-  if (typeof data !== 'object' || data === null) {
+  if (!isPlainRecord(data) || !isPlainRecord(data.meta)) {
     return false
   }
 
-  const obj = data as Record<string, unknown>
-
-  if (typeof obj.meta !== 'object' || obj.meta === null) {
+  const { variableCollections, variables } = data.meta
+  if (!isPlainRecord(variableCollections) || !isPlainRecord(variables)) {
     return false
   }
 
-  const meta = obj.meta as Record<string, unknown>
-
-  // Check for required properties
-  if (
-    typeof meta.variableCollections !== 'object' ||
-    meta.variableCollections === null
-  ) {
-    return false
-  }
-
-  if (typeof meta.variables !== 'object' || meta.variables === null) {
-    return false
-  }
-
-  return true
+  return (
+    everyEntryMatches(variableCollections, hasLocalCollectionShape) &&
+    everyEntryMatches(variables, hasLocalVariableShape)
+  )
 }
 
 /**
@@ -82,31 +102,64 @@ export function isLocalVariablesResponse(
 export function isPublishedVariablesResponse(
   data: unknown
 ): data is PublishedVariablesResponse {
-  if (typeof data !== 'object' || data === null) {
+  if (!isPlainRecord(data) || !isPlainRecord(data.meta)) {
     return false
   }
 
-  const obj = data as Record<string, unknown>
-
-  if (typeof obj.meta !== 'object' || obj.meta === null) {
+  const { variableCollections, variables } = data.meta
+  if (!isPlainRecord(variableCollections) || !isPlainRecord(variables)) {
     return false
   }
 
-  const meta = obj.meta as Record<string, unknown>
+  return (
+    everyEntryMatches(variableCollections, hasPublishedEntryShape) &&
+    everyEntryMatches(variables, hasPublishedEntryShape)
+  )
+}
 
-  // Check for required properties
+/**
+ * Classifies structurally valid fallback data as local or published.
+ *
+ * @remarks
+ * Empty response maps are valid for both response shapes and therefore require
+ * an explicit kind. Invalid runtime discriminator values are rejected.
+ *
+ * @param data - The data to validate and classify
+ * @param explicitKind - Optional kind for otherwise ambiguous response data
+ * @returns The classified data, or undefined when invalid or ambiguous
+ *
+ * @public
+ */
+export function classifyFallbackData(
+  data: unknown,
+  explicitKind?: FallbackDataKind
+): ClassifiedFallbackData | undefined {
   if (
-    typeof meta.variableCollections !== 'object' ||
-    meta.variableCollections === null
+    explicitKind !== undefined &&
+    explicitKind !== 'local' &&
+    explicitKind !== 'published'
   ) {
-    return false
+    return undefined
   }
 
-  if (typeof meta.variables !== 'object' || meta.variables === null) {
-    return false
+  const local = isLocalVariablesResponse(data)
+  const published = isPublishedVariablesResponse(data)
+
+  if (explicitKind === 'local') {
+    return local ? { kind: 'local', data } : undefined
   }
 
-  return true
+  if (explicitKind === 'published') {
+    return published ? { kind: 'published', data } : undefined
+  }
+
+  if (local === published) {
+    return undefined
+  }
+
+  return local
+    ? { kind: 'local', data }
+    : { kind: 'published', data: data as PublishedVariablesResponse }
 }
 
 /**
@@ -124,10 +177,5 @@ export function isPublishedVariablesResponse(
 export function validateFallbackData(
   data: unknown
 ): LocalVariablesResponse | PublishedVariablesResponse | undefined {
-  // Both isLocalVariablesResponse and isPublishedVariablesResponse check the same structure,
-  // so we only need to check one. Using isLocalVariablesResponse as the canonical check.
-  if (isLocalVariablesResponse(data)) {
-    return data
-  }
-  return undefined
+  return classifyFallbackData(data)?.data
 }

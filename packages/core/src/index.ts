@@ -41,9 +41,14 @@ export {
   getRetryAfter,
 } from './utils/errorHelpers'
 export {
+  classifyFallbackData,
   isLocalVariablesResponse,
   isPublishedVariablesResponse,
   validateFallbackData,
+} from './utils/typeGuards'
+export type {
+  ClassifiedFallbackData,
+  FallbackDataKind,
 } from './utils/typeGuards'
 export { redactToken } from './utils/redactToken'
 export type { RedactTokenOptions } from './utils/redactToken'

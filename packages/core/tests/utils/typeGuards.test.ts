@@ -1,189 +1,266 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  classifyFallbackData,
   isLocalVariablesResponse,
   isPublishedVariablesResponse,
   validateFallbackData,
 } from '../../src/utils/typeGuards'
+import type { FallbackDataKind } from '../../src/utils/typeGuards'
+
+const localData = {
+  meta: {
+    variableCollections: {
+      'collection-1': {
+        modes: [{ modeId: 'mode-1', name: 'Default' }],
+      },
+    },
+    variables: {
+      'variable-1': {
+        valuesByMode: { 'mode-1': '#ffffff' },
+      },
+    },
+  },
+}
+
+const publishedData = {
+  meta: {
+    variableCollections: {
+      'collection-1': {
+        subscribed_id: 'subscribed-collection-1',
+        key: 'collection-key-1',
+        updatedAt: '2026-07-13T00:00:00Z',
+      },
+    },
+    variables: {
+      'variable-1': {
+        subscribed_id: 'subscribed-variable-1',
+        key: 'variable-key-1',
+        updatedAt: '2026-07-13T00:00:00Z',
+      },
+    },
+  },
+}
+
+const emptyData = {
+  meta: {
+    variableCollections: {},
+    variables: {},
+  },
+}
+
+const mixedData = {
+  meta: {
+    variableCollections: {
+      local: { modes: [] },
+      published: {
+        subscribed_id: 'subscribed-collection-1',
+        key: 'collection-key-1',
+        updatedAt: '2026-07-13T00:00:00Z',
+      },
+    },
+    variables: {},
+  },
+}
+
+class LocalCollectionMap {
+  collection = { modes: [] }
+}
+
+class LocalCollectionEntry {
+  modes: unknown[] = []
+}
 
 describe('typeGuards', () => {
   describe('isLocalVariablesResponse', () => {
-    it('should return true for valid LocalVariablesResponse', () => {
-      const validData = {
-        meta: {
-          variableCollections: { 'col-1': {} },
-          variables: { 'var-1': {} },
+    it('accepts local entries and rejects published entries', () => {
+      expect(isLocalVariablesResponse(localData)).toBe(true)
+      expect(isLocalVariablesResponse(publishedData)).toBe(false)
+    })
+
+    it('accepts empty plain-record maps as structurally local', () => {
+      expect(isLocalVariablesResponse(emptyData)).toBe(true)
+    })
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['a string', 'not an object'],
+      ['an array response', []],
+      ['a date response', new Date()],
+      ['an object without meta', { other: true }],
+      ['a null meta value', { meta: null }],
+      ['a missing collection map', { meta: { variables: {} } }],
+      ['a missing variable map', { meta: { variableCollections: {} } }],
+      [
+        'an array collection map',
+        { meta: { variableCollections: [], variables: {} } },
+      ],
+      [
+        'a date collection map',
+        { meta: { variableCollections: new Date(), variables: {} } },
+      ],
+      [
+        'a class-instance collection map',
+        {
+          meta: {
+            variableCollections: new LocalCollectionMap(),
+            variables: {},
+          },
         },
-      }
-      expect(isLocalVariablesResponse(validData)).toBe(true)
-    })
-
-    it('should return false for null', () => {
-      expect(isLocalVariablesResponse(null)).toBe(false)
-    })
-
-    it('should return false for undefined', () => {
-      expect(isLocalVariablesResponse(undefined)).toBe(false)
-    })
-
-    it('should return false for string', () => {
-      expect(isLocalVariablesResponse('not an object')).toBe(false)
-    })
-
-    it('should return false for object without meta', () => {
-      expect(isLocalVariablesResponse({ foo: 'bar' })).toBe(false)
-    })
-
-    it('should return false for object with null meta', () => {
-      expect(isLocalVariablesResponse({ meta: null })).toBe(false)
-    })
-
-    it('should return false for object without variableCollections', () => {
-      expect(isLocalVariablesResponse({ meta: { variables: {} } })).toBe(false)
-    })
-
-    it('should return false for object without variables', () => {
-      expect(
-        isLocalVariablesResponse({ meta: { variableCollections: {} } })
-      ).toBe(false)
-    })
-
-    it('should return false for object with null variableCollections', () => {
-      expect(
-        isLocalVariablesResponse({
-          meta: { variableCollections: null, variables: {} },
-        })
-      ).toBe(false)
-    })
-
-    it('should return false for object with null variables', () => {
-      expect(
-        isLocalVariablesResponse({
-          meta: { variableCollections: {}, variables: null },
-        })
-      ).toBe(false)
+      ],
+      [
+        'a class-instance collection entry',
+        {
+          meta: {
+            variableCollections: {
+              collection: new LocalCollectionEntry(),
+            },
+            variables: {},
+          },
+        },
+      ],
+      [
+        'a primitive collection entry',
+        { meta: { variableCollections: { collection: 42 }, variables: {} } },
+      ],
+      [
+        'a primitive variable entry',
+        { meta: { variableCollections: {}, variables: { variable: 'nope' } } },
+      ],
+      ['mixed local and published entries', mixedData],
+    ])('rejects %s', (_description, candidate) => {
+      expect(isLocalVariablesResponse(candidate)).toBe(false)
     })
   })
 
   describe('isPublishedVariablesResponse', () => {
-    it('should return true for valid PublishedVariablesResponse', () => {
-      const validData = {
-        meta: {
-          variableCollections: { 'col-1': {} },
-          variables: { 'var-1': {} },
+    it('accepts published entries and rejects local entries', () => {
+      expect(isPublishedVariablesResponse(publishedData)).toBe(true)
+      expect(isPublishedVariablesResponse(localData)).toBe(false)
+    })
+
+    it('accepts empty plain-record maps as structurally published', () => {
+      expect(isPublishedVariablesResponse(emptyData)).toBe(true)
+    })
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['a string', 'not an object'],
+      ['an array response', []],
+      ['a date response', new Date()],
+      ['an object without meta', { other: true }],
+      ['a null meta value', { meta: null }],
+      ['a missing collection map', { meta: { variables: {} } }],
+      ['a missing variable map', { meta: { variableCollections: {} } }],
+      [
+        'an array collection map',
+        { meta: { variableCollections: [], variables: {} } },
+      ],
+      [
+        'a date collection map',
+        { meta: { variableCollections: new Date(), variables: {} } },
+      ],
+      [
+        'a class-instance collection map',
+        {
+          meta: {
+            variableCollections: new LocalCollectionMap(),
+            variables: {},
+          },
         },
-      }
-      expect(isPublishedVariablesResponse(validData)).toBe(true)
+      ],
+      [
+        'a class-instance collection entry',
+        {
+          meta: {
+            variableCollections: {
+              collection: new LocalCollectionEntry(),
+            },
+            variables: {},
+          },
+        },
+      ],
+      [
+        'a primitive collection entry',
+        { meta: { variableCollections: { collection: 42 }, variables: {} } },
+      ],
+      [
+        'a primitive variable entry',
+        { meta: { variableCollections: {}, variables: { variable: 'nope' } } },
+      ],
+      ['mixed local and published entries', mixedData],
+    ])('rejects %s', (_description, candidate) => {
+      expect(isPublishedVariablesResponse(candidate)).toBe(false)
+    })
+  })
+
+  describe('classifyFallbackData', () => {
+    it('classifies local and published entry shapes', () => {
+      expect(classifyFallbackData(localData)).toEqual({
+        kind: 'local',
+        data: localData,
+      })
+      expect(classifyFallbackData(publishedData)).toEqual({
+        kind: 'published',
+        data: publishedData,
+      })
     })
 
-    it('should return false for null', () => {
-      expect(isPublishedVariablesResponse(null)).toBe(false)
+    it('requires an explicit kind for empty response maps', () => {
+      expect(classifyFallbackData(emptyData)).toBeUndefined()
+      expect(classifyFallbackData(emptyData, 'local')).toEqual({
+        kind: 'local',
+        data: emptyData,
+      })
+      expect(classifyFallbackData(emptyData, 'published')).toEqual({
+        kind: 'published',
+        data: emptyData,
+      })
     })
 
-    it('should return false for invalid structure', () => {
-      expect(isPublishedVariablesResponse({ foo: 'bar' })).toBe(false)
+    it('rejects an explicit kind that does not match the entries', () => {
+      expect(classifyFallbackData(localData, 'published')).toBeUndefined()
+      expect(classifyFallbackData(publishedData, 'local')).toBeUndefined()
     })
 
-    it('should return false for undefined', () => {
-      expect(isPublishedVariablesResponse(undefined)).toBe(false)
-    })
-
-    it('should return false for string', () => {
-      expect(isPublishedVariablesResponse('not an object')).toBe(false)
-    })
-
-    it('should return false for object without meta', () => {
-      expect(isPublishedVariablesResponse({ foo: 'bar' })).toBe(false)
-    })
-
-    it('should return false for object with null meta', () => {
-      expect(isPublishedVariablesResponse({ meta: null })).toBe(false)
-    })
-
-    it('should return false for object without variableCollections', () => {
-      expect(isPublishedVariablesResponse({ meta: { variables: {} } })).toBe(
-        false
-      )
-    })
-
-    it('should return false for object without variables', () => {
+    it('rejects hostile runtime kinds before classifying valid data', () => {
       expect(
-        isPublishedVariablesResponse({ meta: { variableCollections: {} } })
-      ).toBe(false)
+        classifyFallbackData(localData, 'unexpected' as FallbackDataKind)
+      ).toBeUndefined()
     })
 
-    it('should return false for object with null variableCollections', () => {
-      expect(
-        isPublishedVariablesResponse({
-          meta: { variableCollections: null, variables: {} },
-        })
-      ).toBe(false)
-    })
-
-    it('should return false for object with null variables', () => {
-      expect(
-        isPublishedVariablesResponse({
-          meta: { variableCollections: {}, variables: null },
-        })
-      ).toBe(false)
+    it.each([
+      ['an array', []],
+      ['a date', new Date()],
+      ['a class instance', new LocalCollectionMap()],
+      [
+        'a primitive entry',
+        {
+          meta: { variableCollections: { collection: 42 }, variables: {} },
+        },
+      ],
+      ['mixed local and published entries', mixedData],
+    ])('does not classify %s', (_description, candidate) => {
+      expect(classifyFallbackData(candidate)).toBeUndefined()
     })
   })
 
   describe('validateFallbackData', () => {
-    it('should return typed data for valid LocalVariablesResponse', () => {
-      const validData = {
-        meta: {
-          variableCollections: {},
-          variables: {},
-        },
-      }
-      const result = validateFallbackData(validData)
-      expect(result).toBe(validData)
+    it('returns discriminated local and published response data', () => {
+      expect(validateFallbackData(localData)).toBe(localData)
+      expect(validateFallbackData(publishedData)).toBe(publishedData)
     })
 
-    it('should return undefined for invalid data', () => {
+    it('does not guess the kind of empty response maps', () => {
+      expect(validateFallbackData(emptyData)).toBeUndefined()
+    })
+
+    it('returns undefined for invalid or mixed data', () => {
       expect(validateFallbackData(null)).toBeUndefined()
       expect(validateFallbackData({ invalid: true })).toBeUndefined()
       expect(validateFallbackData('string')).toBeUndefined()
-    })
-
-    it('should return typed data for valid PublishedVariablesResponse', () => {
-      const validData = {
-        meta: {
-          variableCollections: {},
-          variables: {},
-        },
-      }
-      const result = validateFallbackData(validData)
-      expect(result).toBe(validData)
-    })
-
-    it('should return PublishedVariablesResponse when isPublishedVariablesResponse returns true', () => {
-      // This test verifies that validateFallbackData correctly handles PublishedVariablesResponse data.
-      // Line 134 (return data) is executed when isPublishedVariablesResponse returns true.
-      // Since both type guards check the same structure, isLocalVariablesResponse will also return true
-      // for this data, so line 133 (LocalVariablesResponse path) executes first in practice.
-      // However, line 134 exists for completeness and would execute if isLocalVariablesResponse returned false.
-      const publishedData = {
-        meta: {
-          variableCollections: {},
-          variables: {},
-        },
-      }
-
-      // Verify both guards return true for this data
-      expect(isLocalVariablesResponse(publishedData)).toBe(true)
-      expect(isPublishedVariablesResponse(publishedData)).toBe(true)
-
-      // Call validateFallbackData - it will return via LocalVariablesResponse path (line 133)
-      // but the PublishedVariablesResponse check (line 134) exists and is correct
-      const result = validateFallbackData(publishedData)
-      expect(result).toBe(publishedData)
-    })
-
-    it('should return undefined when data matches neither type', () => {
-      const invalidData = { not: 'valid' }
-      const result = validateFallbackData(invalidData)
-      expect(result).toBeUndefined()
+      expect(validateFallbackData(mixedData)).toBeUndefined()
     })
   })
 })
