@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import { toDTCG } from '../src/emit'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
@@ -97,10 +98,12 @@ describe('emitTypescript', () => {
   it('emits token path union, var accessors, and resolved values', () => {
     expect(source).toContain('| "semantic.color.bg.brand"')
     expect(source).toContain(
-      '"semantic.color.bg.brand": "var(--semantic-color-bg-brand)",'
+      '["semantic.color.bg.brand"]: "var(--semantic-color-bg-brand)",'
     )
-    expect(source).toContain('"primitives.color.blue.500": "#3366ff",')
-    expect(source).toContain('"density.control.height": "40px",')
+    expect(source).toContain('["primitives.color.blue.500"]: "#3366ff",')
+    expect(source).toContain('["density.control.height"]: "40px",')
+    expect(source).toContain('["primitives.feature.rounded"]: true,')
+    expect(source).not.toContain('["primitives.feature.rounded"]: "true",')
   })
 
   it('emits valid TypeScript for hostile paths and string values', () => {
@@ -138,12 +141,60 @@ describe('emitTypescript', () => {
       reportDiagnostics: true,
     })
 
+    const pathLiteral = JSON.stringify(hostilePath)
+    const keyLiteral = `[${pathLiteral}]`
+
     expect(compiled.diagnostics ?? []).toEqual([])
-    expect(hostileSource).toContain(JSON.stringify(hostilePath))
+    expect(hostileSource).toContain(`| ${pathLiteral}`)
     expect(hostileSource).toContain(
-      JSON.stringify(`var(${cssVarName(hostilePath)})`)
+      `${keyLiteral}: ${JSON.stringify(`var(${cssVarName(hostilePath)})`)},`
     )
-    expect(hostileSource).toContain(JSON.stringify(cssValue(hostileValue)))
+    expect(hostileSource).toContain(
+      `${keyLiteral}: ${JSON.stringify(cssValue(hostileValue))},`
+    )
+  })
+
+  it('preserves an own __proto__ token in both generated maps at runtime', () => {
+    const prototypePath = '__proto__'
+    const prototypeValue = 'prototype-value'
+    const prototypeSource = emitTypescript(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                [prototypePath]: {
+                  $type: 'string',
+                  $value: prototypeValue,
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/base' }],
+      }
+    )
+    const compiled = ts.transpileModule(prototypeSource, {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.CommonJS,
+      },
+      reportDiagnostics: true,
+    })
+    const generated: {
+      tokenVars?: Record<string, string>
+      tokenValues?: Record<string, string>
+    } = {}
+
+    expect(compiled.diagnostics ?? []).toEqual([])
+    runInNewContext(compiled.outputText, { exports: generated })
+
+    expect(Object.hasOwn(generated.tokenVars ?? {}, prototypePath)).toBe(true)
+    expect(generated.tokenVars?.[prototypePath]).toBe('var(--proto)')
+    expect(Object.hasOwn(generated.tokenValues ?? {}, prototypePath)).toBe(true)
+    expect(generated.tokenValues?.[prototypePath]).toBe(prototypeValue)
   })
 })
 
