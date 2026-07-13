@@ -32,6 +32,35 @@ afterEach(() => {
   Reflect.deleteProperty(Object.prototype, 'polluted')
 })
 
+function arrayWithInheritedIndex<T>(value: T): T[] {
+  const prototype = Object.create(Array.prototype) as Record<number, T>
+  Object.defineProperty(prototype, '0', {
+    configurable: true,
+    enumerable: true,
+    value,
+  })
+  const array = new Array<T>(1)
+  Object.setPrototypeOf(array, prototype)
+  return array
+}
+
+function expectResolutionFailure(
+  action: () => unknown,
+  path: string,
+  message: RegExp
+): void {
+  let thrown: unknown
+  try {
+    action()
+  } catch (error) {
+    thrown = error
+  }
+
+  expect(thrown).toBeInstanceOf(ReferenceResolutionError)
+  expect(thrown).toMatchObject({ path })
+  expect((thrown as Error).message).toMatch(message)
+}
+
 describe('mergeDocuments', () => {
   it('later documents override earlier tokens', () => {
     const merged = mergeDocuments([
@@ -71,6 +100,46 @@ describe('mergeDocuments', () => {
     expect(Object.getPrototypeOf(proto)).toBeNull()
     expect((proto.polluted as DTCGToken).$value).toBe('still data')
     expect(Object.prototype).not.toHaveProperty('polluted')
+  })
+
+  it('rejects malformed nested group children with an actionable path', () => {
+    const malformed = {
+      group: { child: null },
+    } as unknown as DTCGDocument
+
+    expectResolutionFailure(
+      () => mergeDocuments([malformed]),
+      '#/documents/0/group/child',
+      /group child.*object/i
+    )
+  })
+
+  it('rejects cyclic groups with an actionable path', () => {
+    const cyclic = Object.create(null) as DTCGDocument
+    cyclic.loop = cyclic
+
+    expectResolutionFailure(
+      () => mergeDocuments([cyclic]),
+      '#/documents/0/loop',
+      /cycle/i
+    )
+  })
+
+  it('preserves reserved group metadata and $root tokens', () => {
+    const document = {
+      theme: {
+        $description: 'Theme tokens',
+        $extensions: { example: { enabled: true } },
+        $root: { $type: 'string', $value: 'default' },
+      },
+    } as unknown as DTCGDocument
+
+    const merged = mergeDocuments([document])
+    const theme = merged.theme as unknown as Record<string, unknown>
+
+    expect(theme.$description).toBe('Theme tokens')
+    expect(theme.$extensions).toEqual({ example: { enabled: true } })
+    expect((theme.$root as DTCGToken).$value).toBe('default')
   })
 })
 
@@ -321,6 +390,151 @@ describe('applyResolver + resolveTokenValues', () => {
     }
 
     expect(flattenTokens(applyResolver({}, inheritedOrderResolver))).toEqual([])
+  })
+
+  it.each([
+    ['sparse', new Array<DTCGRef | DTCGDocument>(1)],
+    [
+      'inherited',
+      arrayWithInheritedIndex<DTCGRef | DTCGDocument>({
+        inherited: { $value: 'unsafe' },
+      }),
+    ],
+  ])('rejects %s indices in set source arrays', (_, sources) => {
+    const invalidResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: { base: { sources } },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, invalidResolver),
+      '#/sets/base/sources/0',
+      /own element/i
+    )
+  })
+
+  it.each([
+    ['sparse', new Array<DTCGRef | DTCGDocument>(1)],
+    [
+      'inherited',
+      arrayWithInheritedIndex<DTCGRef | DTCGDocument>({
+        inherited: { $value: 'unsafe' },
+      }),
+    ],
+  ])('rejects %s indices in context source arrays', (_, sources) => {
+    const invalidResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        theme: {
+          default: 'light',
+          contexts: { light: sources },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, invalidResolver),
+      '#/modifiers/theme/contexts/light/0',
+      /own element/i
+    )
+  })
+
+  it.each([
+    ['sparse', new Array<DTCGRef>(1)],
+    ['inherited', arrayWithInheritedIndex<DTCGRef>({ $ref: '#/sets/base' })],
+  ])('rejects %s indices in resolutionOrder', (_, resolutionOrder) => {
+    const invalidResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ inherited: { $value: 'unsafe' } }] },
+      },
+      resolutionOrder,
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, invalidResolver),
+      '#/resolutionOrder/0',
+      /own element/i
+    )
+  })
+
+  it('rejects primitive group children in referenced documents', () => {
+    const referencedFiles = {
+      'malformed.tokens.json': {
+        group: { child: 'not a group' },
+      } as unknown as DTCGDocument,
+    }
+    const referencedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './malformed.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver(referencedFiles, referencedResolver),
+      './malformed.tokens.json/group/child',
+      /group child.*object/i
+    )
+  })
+
+  it('rejects primitive group children in inline documents', () => {
+    const inlineResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: {
+          sources: [
+            {
+              group: { child: null },
+            } as unknown as DTCGDocument,
+          ],
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, inlineResolver),
+      '#/sets/base/sources/0/group/child',
+      /group child.*object/i
+    )
+  })
+
+  it('rejects cyclic groups in referenced documents', () => {
+    const cyclic = Object.create(null) as DTCGDocument
+    cyclic.loop = cyclic
+    const referencedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './cyclic.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({ 'cyclic.tokens.json': cyclic }, referencedResolver),
+      './cyclic.tokens.json/loop',
+      /cycle/i
+    )
+  })
+
+  it('rejects cyclic groups in inline documents', () => {
+    const cyclic = Object.create(null) as DTCGDocument
+    cyclic.loop = cyclic
+    const inlineResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: { base: { sources: [cyclic] } },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, inlineResolver),
+      '#/sets/base/sources/0/loop',
+      /cycle/i
+    )
   })
 
   it.each([

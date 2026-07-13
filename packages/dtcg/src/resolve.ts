@@ -23,9 +23,18 @@ export interface FlatToken {
  */
 export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
   const result: DTCGGroup = createDictionary()
+  const validatedDocuments = ownArrayElements(documents, '#/documents')
+
+  for (let index = 0; index < validatedDocuments.length; index += 1) {
+    validateTokenDocument(validatedDocuments[index], `#/documents/${index}`)
+  }
 
   function mergeInto(target: DTCGGroup, source: DTCGGroup): void {
     for (const [key, value] of Object.entries(source)) {
+      if (isReservedGroupProperty(key)) {
+        Reflect.set(target, key, value)
+        continue
+      }
       if (isToken(value)) {
         target[key] = value
         continue
@@ -41,8 +50,8 @@ export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
     }
   }
 
-  for (const doc of documents) {
-    mergeInto(result, doc)
+  for (let index = 0; index < validatedDocuments.length; index += 1) {
+    mergeInto(result, validatedDocuments[index] as DTCGDocument)
   }
   return result
 }
@@ -90,6 +99,66 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function ownArrayElements<T>(values: T[], path: string): T[] {
+  const ownValues: T[] = []
+  for (let index = 0; index < values.length; index += 1) {
+    const entryPath = `${path}/${index}`
+    if (!hasOwn(values, index)) {
+      throw new ReferenceResolutionError(
+        `Array entry at "${entryPath}" must be an own element`,
+        entryPath
+      )
+    }
+    ownValues.push(values[index] as T)
+  }
+  return ownValues
+}
+
+function isReservedGroupProperty(key: string): boolean {
+  return key.startsWith('$') && key !== '$root'
+}
+
+function validateTokenDocument(document: unknown, path: string): void {
+  const activeGroups = new WeakSet<object>()
+
+  function validateGroup(group: unknown, groupPath: string): void {
+    if (!isRecord(group)) {
+      throw new ReferenceResolutionError(
+        `Token document group at "${groupPath}" must be an object`,
+        groupPath
+      )
+    }
+    if (activeGroups.has(group)) {
+      throw new ReferenceResolutionError(
+        `Token document group cycle at "${groupPath}"`,
+        groupPath
+      )
+    }
+
+    activeGroups.add(group)
+    try {
+      for (const [key, child] of Object.entries(group)) {
+        if (isReservedGroupProperty(key) || isToken(child)) {
+          continue
+        }
+
+        const childPath = `${groupPath}/${key}`
+        if (!isRecord(child)) {
+          throw new ReferenceResolutionError(
+            `Token document group child at "${childPath}" must be an object or token`,
+            childPath
+          )
+        }
+        validateGroup(child, childPath)
+      }
+    } finally {
+      activeGroups.delete(group)
+    }
+  }
+
+  validateGroup(document, path)
+}
+
 function resolverRecord(resolver: ResolverDocument): Record<string, unknown> {
   if (!isRecord(resolver)) {
     throw new ReferenceResolutionError(
@@ -114,7 +183,7 @@ function resolutionOrderOf(resolver: Record<string, unknown>): unknown[] {
       '#/resolutionOrder'
     )
   }
-  return resolutionOrder
+  return ownArrayElements(resolutionOrder, '#/resolutionOrder')
 }
 
 function optionalResolverContainer(
@@ -158,7 +227,10 @@ function setSources(
       `${path}/sources`
     )
   }
-  return sources as Array<DTCGRef | DTCGDocument>
+  return ownArrayElements(
+    sources as Array<DTCGRef | DTCGDocument>,
+    `${path}/sources`
+  )
 }
 
 interface ValidatedModifier {
@@ -197,7 +269,10 @@ function validateModifier(value: unknown, name: string): ValidatedModifier {
         `${path}/contexts/${context}`
       )
     }
-    contexts[context] = sources as Array<DTCGRef | DTCGDocument>
+    contexts[context] = ownArrayElements(
+      sources as Array<DTCGRef | DTCGDocument>,
+      `${path}/contexts/${context}`
+    )
   }
 
   let defaultContext: string | undefined
@@ -391,7 +466,9 @@ export function applyResolver(
     sources: Array<DTCGRef | DTCGDocument>,
     sourcePath: string
   ): DTCGDocument[] {
-    return sources.map((source, index) => {
+    const documents: DTCGDocument[] = []
+    for (let index = 0; index < sources.length; index += 1) {
+      const source = sources[index]
       if (isRef(source)) {
         const fileName = refToFileName(source.$ref)
         if (!hasOwn(files, fileName)) {
@@ -407,7 +484,9 @@ export function applyResolver(
             source.$ref
           )
         }
-        return file as DTCGDocument
+        validateTokenDocument(file, source.$ref)
+        documents.push(file as DTCGDocument)
+        continue
       }
       if (!isRecord(source)) {
         const path = `${sourcePath}/${index}`
@@ -416,11 +495,14 @@ export function applyResolver(
           path
         )
       }
-      return source as DTCGDocument
-    })
+      validateTokenDocument(source, `${sourcePath}/${index}`)
+      documents.push(source as DTCGDocument)
+    }
+    return documents
   }
 
-  for (const entry of resolutionOrder) {
+  for (let index = 0; index < resolutionOrder.length; index += 1) {
+    const entry = resolutionOrder[index]
     if (!isRef(entry)) {
       continue
     }
@@ -429,7 +511,12 @@ export function applyResolver(
     if (setMatch) {
       const name = setMatch[1] as string
       if (sets && hasOwn(sets, name)) {
-        ordered.push(...sourcesToDocuments(setSources(sets[name], name), ref))
+        ordered.push(
+          ...sourcesToDocuments(
+            setSources(sets[name], name),
+            `#/sets/${name}/sources`
+          )
+        )
       }
       continue
     }
