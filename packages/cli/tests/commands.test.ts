@@ -341,4 +341,77 @@ describe('figma-vars init', () => {
       await expect(fs.readdir(outside)).resolves.toEqual([])
     }
   )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a fresh destination beneath a symlinked parent',
+    async () => {
+      const outside = path.join(tmpDir, 'outside-fresh-parent')
+      const linkedParent = path.join(tmpDir, 'linked-fresh-parent')
+      const repo = path.join(linkedParent, 'fresh-repo')
+      await fs.mkdir(outside, { recursive: true })
+      await fs.writeFile(path.join(outside, 'sentinel.txt'), 'outside sentinel')
+      await fs.symlink(outside, linkedParent, 'dir')
+
+      await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+        /Unsafe[\s\S]*linked-fresh-parent[\s\S]*destination parent is a symbolic link[\s\S]*--force cannot bypass/i
+      )
+
+      expect((await fs.lstat(linkedParent)).isSymbolicLink()).toBe(true)
+      await expect(
+        fs.readFile(path.join(outside, 'sentinel.txt'), 'utf8')
+      ).resolves.toBe('outside sentinel')
+      await expect(fs.lstat(path.join(outside, 'fresh-repo'))).rejects.toThrow()
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects an existing destination beneath a symlinked parent',
+    async () => {
+      const outside = path.join(tmpDir, 'outside-existing-parent')
+      const existingRepo = path.join(outside, 'existing-repo')
+      const linkedParent = path.join(tmpDir, 'linked-existing-parent')
+      const repo = path.join(linkedParent, 'existing-repo')
+      await fs.mkdir(existingRepo, { recursive: true })
+      await fs.writeFile(
+        path.join(existingRepo, 'package.json'),
+        'package sentinel'
+      )
+      await fs.writeFile(path.join(existingRepo, 'notes.txt'), 'notes sentinel')
+      await fs.symlink(outside, linkedParent, 'dir')
+
+      await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+        /Unsafe[\s\S]*linked-existing-parent[\s\S]*destination parent is a symbolic link[\s\S]*--force cannot bypass/i
+      )
+
+      expect((await fs.lstat(linkedParent)).isSymbolicLink()).toBe(true)
+      await expect(
+        fs.readFile(path.join(existingRepo, 'package.json'), 'utf8')
+      ).resolves.toBe('package sentinel')
+      await expect(
+        fs.readFile(path.join(existingRepo, 'notes.txt'), 'utf8')
+      ).resolves.toBe('notes sentinel')
+      await expect(
+        fs.lstat(path.join(existingRepo, 'variables.json'))
+      ).rejects.toThrow()
+      await expect(fs.readdir(existingRepo)).resolves.toEqual([
+        'notes.txt',
+        'package.json',
+      ])
+    }
+  )
+
+  it('rejects a destination beneath a non-directory parent component', async () => {
+    const parentFile = path.join(tmpDir, 'file-parent')
+    const repo = path.join(parentFile, 'child-repo')
+    await fs.writeFile(parentFile, 'parent sentinel')
+
+    await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+      /Unsafe[\s\S]*file-parent[\s\S]*destination parent is not a directory[\s\S]*--force cannot bypass/i
+    )
+
+    await expect(fs.readFile(parentFile, 'utf8')).resolves.toBe(
+      'parent sentinel'
+    )
+    expect((await fs.lstat(parentFile)).isFile()).toBe(true)
+  })
 })

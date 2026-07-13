@@ -59,17 +59,80 @@ interface ScaffoldFinding {
   reason: string
 }
 
+const trustedMacOSRootAliases = new Set(['etc', 'tmp', 'var'])
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
+}
+
 async function lstatIfPresent(
   filePath: string
 ): Promise<Awaited<ReturnType<typeof fs.lstat>> | undefined> {
   try {
     return await fs.lstat(filePath)
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (hasErrorCode(error, 'ENOENT')) {
       return undefined
     }
     throw error
   }
+}
+
+async function rootAliasResolvesToDirectory(
+  filePath: string
+): Promise<boolean> {
+  try {
+    return (await fs.stat(filePath)).isDirectory()
+  } catch (error) {
+    if (hasErrorCode(error, 'ENOENT')) {
+      return false
+    }
+    throw error
+  }
+}
+
+async function inspectDestinationParents(
+  dir: string
+): Promise<ScaffoldFinding | undefined> {
+  const root = path.parse(dir).root
+  const segments = path.relative(root, dir).split(path.sep).filter(Boolean)
+  let currentPath = root
+
+  // macOS ships /etc, /tmp, and /var as root-owned aliases into /private.
+  // Trust only those known aliases; every user-controlled component below
+  // them must be a real directory.
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index] ?? ''
+    currentPath = path.join(currentPath, segment)
+    const stats = await lstatIfPresent(currentPath)
+    if (!stats) {
+      break
+    }
+
+    if (stats.isSymbolicLink()) {
+      const isTrustedMacOSRootAlias =
+        process.platform === 'darwin' &&
+        root === path.sep &&
+        index === 0 &&
+        trustedMacOSRootAliases.has(segment) &&
+        (await rootAliasResolvesToDirectory(currentPath))
+      if (isTrustedMacOSRootAlias) {
+        continue
+      }
+      return {
+        relativePath: path.relative(root, currentPath),
+        reason: 'destination parent is a symbolic link',
+      }
+    }
+    if (!stats.isDirectory()) {
+      return {
+        relativePath: path.relative(root, currentPath),
+        reason: 'destination parent is not a directory',
+      }
+    }
+  }
+
+  return undefined
 }
 
 function scaffoldError(findings: ScaffoldFinding[], canForce: boolean): Error {
@@ -139,6 +202,12 @@ export async function runInit(args: ParsedArgs): Promise<void> {
   const collisions: ScaffoldFinding[] = []
   const symlinkLeaves: string[] = []
   const unsafeAncestors = new Set<string>()
+
+  const destinationParentFinding = await inspectDestinationParents(dir)
+  if (destinationParentFinding) {
+    findings.push(destinationParentFinding)
+    throw scaffoldError(findings, false)
+  }
 
   const dirStats = await lstatIfPresent(dir)
   if (dirStats?.isSymbolicLink()) {
