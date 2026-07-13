@@ -11,6 +11,7 @@ node_modules/
 # Generated files
 *.d.ts
 *.d.ts.map
+.superpowers/sdd/
 
 # Golden test files must stay byte-exact as emitted
 **/tests/goldens/
