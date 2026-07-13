@@ -210,8 +210,12 @@ describe('mutator', () => {
       status: 429,
       headers: {
         get: (name: string) => {
-          if (name === 'content-type') return 'application/json'
-          if (name === 'Retry-After') return '17'
+          if (name === 'content-type') {
+            return 'application/json'
+          }
+          if (name === 'Retry-After') {
+            return '17'
+          }
           return null
         },
       },
