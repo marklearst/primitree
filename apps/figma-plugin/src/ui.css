@@ -60,17 +60,22 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   color: var(--figma-color-text-secondary);
   font-size: 11px;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 button {
   border: none;
   border-radius: 8px;
+  min-height: 44px;
   padding: 10px 12px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .primary {
@@ -78,7 +83,8 @@ button {
   color: var(--figma-color-text-onbrand);
 }
 
-.primary:disabled {
+.primary:disabled,
+.ghost:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -139,12 +145,39 @@ button {
 }
 
 .foot a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   color: var(--figma-color-text-brand);
   text-decoration: none;
+  touch-action: manipulation;
 }
 
-.foot a:hover {
-  text-decoration: underline;
+button:focus-visible,
+.foot a:focus-visible,
+.check:has(input:focus-visible) {
+  outline: 2px solid var(--figma-color-border-brand-strong);
+  outline-offset: 2px;
+}
+
+.check:has(input:focus-visible) {
+  border-radius: 8px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover {
+    background: var(--figma-color-bg-brand-hover);
+  }
+
+  .ghost:not(:disabled):hover {
+    background: var(--figma-color-bg-hover);
+  }
+
+  .foot a:hover {
+    text-decoration: underline;
+  }
 }
 
 .foot span {
