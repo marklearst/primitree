@@ -309,7 +309,7 @@ function validRegistryMetadata(root, { name, stem }, version = '5.0.0') {
     dist: {
       integrity,
       attestations: {
-        url: `${NPM_REGISTRY}/-/npm/v1/attestations/${stem}@${version}`,
+        url: `${NPM_REGISTRY}/-/npm/v1/attestations/${name.replace('/', '%2f')}@${version}`,
         provenance: { predicateType: PROVENANCE_PREDICATE },
       },
     },
@@ -1531,10 +1531,11 @@ test('publishes only independently validated stable tarballs', () => {
   )
   assert.match(publishStep, /hostname !== 'registry\.npmjs\.org'/)
   assert.match(publishStep, /port !== ''/)
-  assert.match(
-    publishStep,
-    /pathname\.startsWith\('\/-\/npm\/v1\/attestations\/'\)/
-  )
+  assert.match(publishStep, /packageName\.replace\('\/', '%2f'\)/)
+  assert.match(publishStep, /pathname !== expectedAttestationPath/)
+  assert.match(publishStep, /search !== ''/)
+  assert.match(publishStep, /hash !== ''/)
+  assert.doesNotMatch(publishStep, /pathname\.startsWith/)
   assert.match(publishStep, /https:\/\/slsa\.dev\/provenance\/v1/)
   assert.match(
     publishStep,
@@ -1647,7 +1648,7 @@ test('fails closed before publish on ambiguous or invalid registry state', async
       name: 'wrong attestation origin',
       mutate(metadata) {
         metadata.dist.attestations.url =
-          'https://attacker.example/-/npm/v1/attestations/core@5.0.0'
+          'https://attacker.example/-/npm/v1/attestations/@figmavars%2fcore@5.0.0'
       },
     },
     {
@@ -1661,7 +1662,39 @@ test('fails closed before publish on ambiguous or invalid registry state', async
       name: 'non-default attestation port',
       mutate(metadata) {
         metadata.dist.attestations.url =
-          'https://registry.npmjs.org:444/-/npm/v1/attestations/core@5.0.0'
+          'https://registry.npmjs.org:444/-/npm/v1/attestations/@figmavars%2fcore@5.0.0'
+      },
+    },
+    {
+      name: 'wrong attestation package',
+      mutate(metadata) {
+        metadata.dist.attestations.url =
+          'https://registry.npmjs.org/-/npm/v1/attestations/@figmavars%2fdtcg@5.0.0'
+      },
+    },
+    {
+      name: 'wrong attestation version',
+      mutate(metadata) {
+        metadata.dist.attestations.url =
+          'https://registry.npmjs.org/-/npm/v1/attestations/@figmavars%2fcore@5.0.1'
+      },
+    },
+    {
+      name: 'attestation path suffix',
+      mutate(metadata) {
+        metadata.dist.attestations.url += '/extra'
+      },
+    },
+    {
+      name: 'attestation query',
+      mutate(metadata) {
+        metadata.dist.attestations.url += '?package=@figmavars/core'
+      },
+    },
+    {
+      name: 'attestation fragment',
+      mutate(metadata) {
+        metadata.dist.attestations.url += '#other-version'
       },
     },
     {
@@ -1694,6 +1727,17 @@ test('fails closed before publish on ambiguous or invalid registry state', async
         }
         const result = harness.run({ '@figmavars/core@5.0.0': state })
         assert.notEqual(result.status, 0)
+        assert.deepEqual(
+          result.log.filter(args => args[0] === 'view'),
+          [
+            [
+              'view',
+              '@figmavars/core@5.0.0',
+              '--json',
+              `--registry=${NPM_REGISTRY}`,
+            ],
+          ]
+        )
         assert.deepEqual(
           result.log.filter(args => args[0] === 'publish'),
           []
