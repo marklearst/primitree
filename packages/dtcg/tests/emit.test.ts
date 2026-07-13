@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { toDTCG, FIGMA_EXTENSION_KEY } from '../src/emit'
-import type { DTCGGroup, DTCGToken } from '../src/types'
+import { isToken, type DTCGGroup, type DTCGToken } from '../src/types'
+import {
+  applyResolver,
+  flattenTokens,
+  resolveTokenValues,
+} from '../src/resolve'
 
 const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
@@ -53,12 +58,116 @@ const duplicateNamesFixture = {
   },
 }
 
+afterEach(() => {
+  Reflect.deleteProperty(Object.prototype, 'polluted')
+  Reflect.deleteProperty(Object, 'value')
+})
+
+function rootCollisionFixture(order: Array<'short' | 'long'>) {
+  const variables = {
+    short: {
+      id: 'short',
+      name: 'color/blue',
+      collectionId: 'primitives',
+      type: 'COLOR',
+      valuesByMode: {
+        'primitives-default': { r: 0, g: 0, b: 1, a: 1 },
+      },
+    },
+    long: {
+      id: 'long',
+      name: 'color/blue/500',
+      collectionId: 'primitives',
+      type: 'COLOR',
+      valuesByMode: {
+        'primitives-default': { r: 0.2, g: 0.4, b: 1, a: 1 },
+      },
+    },
+  }
+
+  return {
+    collections: [
+      {
+        id: 'primitives',
+        name: 'Primitives',
+        modes: [{ modeId: 'primitives-default', name: 'Default' }],
+        defaultModeId: 'primitives-default',
+      },
+      {
+        id: 'semantic',
+        name: 'Semantic',
+        modes: [{ modeId: 'semantic-default', name: 'Default' }],
+        defaultModeId: 'semantic-default',
+      },
+    ],
+    variables: [
+      ...order.map(key => variables[key]),
+      {
+        id: 'alias',
+        name: 'alias',
+        collectionId: 'semantic',
+        type: 'COLOR',
+        valuesByMode: {
+          'semantic-default': { type: 'VARIABLE_ALIAS', id: 'short' },
+        },
+      },
+    ],
+  }
+}
+
+const hostileFixture = {
+  collections: [
+    {
+      id: '__proto__',
+      name: 'Theme',
+      modes: [
+        { modeId: 'default', name: 'Default' },
+        { modeId: 'dark', name: 'Dark' },
+      ],
+      defaultModeId: 'default',
+      variableIds: ['__proto__', 'constructor', 'prototype'],
+    },
+  ],
+  variables: [
+    {
+      id: '__proto__',
+      name: '__proto__/polluted',
+      collectionId: '__proto__',
+      type: 'STRING',
+      valuesByMode: { default: 'safe', dark: 'safe-dark' },
+    },
+    {
+      id: 'constructor',
+      name: 'constructor/value',
+      collectionId: '__proto__',
+      type: 'STRING',
+      valuesByMode: { default: 'constructor-safe' },
+    },
+    {
+      id: 'prototype',
+      name: 'prototype/value',
+      collectionId: '__proto__',
+      type: 'STRING',
+      valuesByMode: { default: 'prototype-safe' },
+    },
+  ],
+}
+
 function tokenAt(group: DTCGGroup, path: string): DTCGToken {
   let node: unknown = group
   for (const segment of path.split('.')) {
     node = (node as DTCGGroup)[segment]
   }
   return node as DTCGToken
+}
+
+function expectNullPrototypeGroups(group: DTCGGroup): void {
+  expect(Object.getPrototypeOf(group)).toBeNull()
+  for (const value of Object.values(group)) {
+    if (!isToken(value)) {
+      expectNullPrototypeGroups(value)
+    }
+  }
 }
 
 describe('toDTCG', () => {
@@ -249,29 +358,59 @@ describe('toDTCG', () => {
     expect(output.warnings.some(w => w.includes('aliases missing'))).toBe(true)
   })
 
-  it('moves colliding token/group names into a base token', () => {
-    const colliding = structuredClone(fixture)
-    colliding.meta.variables['VariableID:1:108'] = {
-      id: 'VariableID:1:108',
-      name: 'color/blue',
-      variableCollectionId: 'VariableCollectionId:1:100',
-      resolvedType: 'COLOR',
-      valuesByMode: { '1:0': { r: 0, g: 0, b: 1, a: 1 } },
-      description: '',
-      hiddenFromPublishing: false,
-      scopes: [],
-      codeSyntax: {},
-    }
-    const output = toDTCG(colliding)
+  it.each([
+    ['shorter token first', ['short', 'long'] as Array<'short' | 'long'>],
+    ['longer token first', ['long', 'short'] as Array<'short' | 'long'>],
+  ])('canonicalizes a strict-prefix token to $root with %s', (_, order) => {
+    const output = toDTCG(rootCollisionFixture(order), {
+      includeFigmaExtensions: false,
+    })
     const primitives = output.files['primitives.tokens.json'] as DTCGGroup
-    const blueGroup = tokenAt(
-      primitives,
-      'primitives.color.blue'
-    ) as unknown as DTCGGroup
-    expect((blueGroup.base as DTCGToken).$type).toBe('color')
-    expect((blueGroup['500'] as DTCGToken).$type).toBe('color')
+    const semantic = output.files['semantic.tokens.json'] as DTCGGroup
+    const document = applyResolver(output.files, output.resolver)
+
+    expect(tokenAt(primitives, 'primitives.color.blue.$root').$type).toBe(
+      'color'
+    )
+    expect(tokenAt(primitives, 'primitives.color.blue.500').$type).toBe('color')
+    expect(tokenAt(semantic, 'semantic.alias').$value).toBe(
+      '{primitives.color.blue.$root}'
+    )
     expect(
-      output.warnings.some(w => w.includes('both a token and a group'))
-    ).toBe(true)
+      resolveTokenValues(flattenTokens(document)).get('semantic.alias')
+    ).toEqual({
+      colorSpace: 'srgb',
+      components: [0, 0, 1],
+      alpha: 1,
+      hex: '#0000ff',
+    })
+    expect(output.warnings).toEqual([
+      'Token path "primitives.color.blue" is also a group; moved the token to "$root"',
+    ])
+  })
+
+  it('emits hostile names as safe own properties in null-prototype dictionaries', () => {
+    const output = toDTCG(hostileFixture, {
+      includeFigmaExtensions: false,
+    })
+    const document = output.files['theme.tokens.json'] as DTCGGroup
+    const modeDocument = output.files['theme.dark.tokens.json'] as DTCGGroup
+
+    expect(Object.prototype).not.toHaveProperty('polluted')
+    expect(Object.getPrototypeOf(output.files)).toBeNull()
+    expectNullPrototypeGroups(document)
+    expectNullPrototypeGroups(modeDocument)
+    expect(tokenAt(document, 'theme.___proto___.polluted').$value).toBe('safe')
+    expect(tokenAt(document, 'theme._constructor_.value').$value).toBe(
+      'constructor-safe'
+    )
+    expect(tokenAt(document, 'theme._prototype_.value').$value).toBe(
+      'prototype-safe'
+    )
+    expect(Object.getPrototypeOf(output.resolver.sets)).toBeNull()
+    expect(Object.getPrototypeOf(output.resolver.modifiers)).toBeNull()
+    expect(
+      Object.getPrototypeOf(output.resolver.modifiers?.theme?.contexts)
+    ).toBeNull()
   })
 })

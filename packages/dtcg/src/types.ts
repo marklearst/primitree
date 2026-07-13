@@ -116,7 +116,8 @@ export function isToken(node: unknown): node is DTCGToken {
     typeof node === 'object' &&
     node !== null &&
     !Array.isArray(node) &&
-    '$value' in (node as Record<string, unknown>)
+    // biome-ignore lint/suspicious/noPrototypeBuiltins: Required for null-prototype dictionaries.
+    Object.prototype.hasOwnProperty.call(node, '$value')
   )
 }
 

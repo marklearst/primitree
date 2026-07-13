@@ -2,6 +2,12 @@
  * Naming helpers shared by the DTCG emitter and pipeline generators.
  */
 
+const DANGEROUS_OBJECT_SEGMENTS = new Set([
+  '__proto__',
+  'prototype',
+  'constructor',
+])
+
 /**
  * Kebab-case slug for file names, resolver set/modifier names, and
  * collection group names.
@@ -25,7 +31,10 @@ export function slugify(input: string): string {
  */
 export function sanitizeSegment(segment: string): string {
   const cleaned = segment.trim().replace(/[{}.]/g, '-').replace(/^\$+/, '')
-  return cleaned.length > 0 ? cleaned : 'unnamed'
+  if (cleaned.length === 0) {
+    return 'unnamed'
+  }
+  return DANGEROUS_OBJECT_SEGMENTS.has(cleaned) ? `_${cleaned}_` : cleaned
 }
 
 /**

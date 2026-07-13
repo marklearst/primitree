@@ -25,6 +25,16 @@ describe('sanitizeSegment', () => {
     expect(sanitizeSegment('$internal')).toBe('internal')
     expect(sanitizeSegment('')).toBe('unnamed')
   })
+
+  it('encodes object-prototype segment names', () => {
+    expect(sanitizeSegment('__proto__')).toBe('___proto___')
+    expect(sanitizeSegment('constructor')).toBe('_constructor_')
+    expect(sanitizeSegment('prototype')).toBe('_prototype_')
+    expect(sanitizeSegment(' $__proto__ ')).toBe('___proto___')
+    expect(sanitizeSegment('$constructor')).toBe('_constructor_')
+    expect(sanitizeSegment('$prototype')).toBe('_prototype_')
+    expect(sanitizeSegment('$root')).toBe('root')
+  })
 })
 
 describe('toPathSegments', () => {

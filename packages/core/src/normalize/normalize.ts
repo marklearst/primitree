@@ -176,14 +176,28 @@ function normalizeVariable(
     return null
   }
 
+  const valuesByMode = Object.create(null) as NormalizedVariable['valuesByMode']
+  if (isRecord(raw.valuesByMode)) {
+    for (const [modeId, value] of Object.entries(raw.valuesByMode)) {
+      valuesByMode[modeId] = value as NormalizedVariable['valuesByMode'][string]
+    }
+  }
+
+  const codeSyntax = Object.create(null) as Record<string, string>
+  if (isRecord(raw.codeSyntax)) {
+    for (const [platform, value] of Object.entries(raw.codeSyntax)) {
+      if (typeof value === 'string') {
+        codeSyntax[platform] = value
+      }
+    }
+  }
+
   return {
     id: raw.id,
     name: raw.name,
     collectionId,
     resolvedType,
-    valuesByMode: isRecord(raw.valuesByMode)
-      ? (raw.valuesByMode as NormalizedVariable['valuesByMode'])
-      : {},
+    valuesByMode,
     description: typeof raw.description === 'string' ? raw.description : '',
     hiddenFromPublishing: raw.hiddenFromPublishing === true,
     scopes: Array.isArray(raw.scopes)
@@ -191,13 +205,7 @@ function normalizeVariable(
           (s): s is string => typeof s === 'string'
         ) as NormalizedVariable['scopes'])
       : [],
-    codeSyntax: isRecord(raw.codeSyntax)
-      ? (Object.fromEntries(
-          Object.entries(raw.codeSyntax).filter(
-            ([, v]) => typeof v === 'string'
-          )
-        ) as Record<string, string>)
-      : {},
+    codeSyntax,
   }
 }
 
@@ -240,7 +248,10 @@ export function normalizeVariables(
     .map(raw => normalizeCollection(raw, warnings))
     .filter((c): c is NormalizedCollection => c !== null)
 
-  const collectionsById: Record<string, NormalizedCollection> = {}
+  const collectionsById = Object.create(null) as Record<
+    string,
+    NormalizedCollection
+  >
   for (const collection of collections) {
     collectionsById[collection.id] = collection
   }
@@ -249,7 +260,12 @@ export function normalizeVariables(
     .map(raw => normalizeVariable(raw, warnings))
     .filter((v): v is NormalizedVariable => v !== null)
     .filter(variable => {
-      if (!collectionsById[variable.collectionId]) {
+      // biome-ignore lint/suspicious/noPrototypeBuiltins: Required for null-prototype dictionaries.
+      const collectionExists = Object.prototype.hasOwnProperty.call(
+        collectionsById,
+        variable.collectionId
+      )
+      if (!collectionExists) {
         warnings.push(
           `Variable "${variable.name}" references missing collection ` +
             `"${variable.collectionId}"; skipped`
@@ -259,7 +275,10 @@ export function normalizeVariables(
       return true
     })
 
-  const variablesById: Record<string, NormalizedVariable> = {}
+  const variablesById = Object.create(null) as Record<
+    string,
+    NormalizedVariable
+  >
   for (const variable of variables) {
     variablesById[variable.id] = variable
   }
@@ -290,7 +309,10 @@ export function toLocalVariablesResponse(normalized: NormalizedVariables): {
     variables: Record<string, FigmaVariable>
   }
 } {
-  const variableCollections: Record<string, FigmaCollection> = {}
+  const variableCollections = Object.create(null) as Record<
+    string,
+    FigmaCollection
+  >
   for (const collection of normalized.collections) {
     variableCollections[collection.id] = {
       id: collection.id,
@@ -302,18 +324,26 @@ export function toLocalVariablesResponse(normalized: NormalizedVariables): {
       updatedAt: '',
     }
   }
-  const variables: Record<string, FigmaVariable> = {}
+  const variables = Object.create(null) as Record<string, FigmaVariable>
   for (const variable of normalized.variables) {
+    const valuesByMode = Object.create(null) as FigmaVariable['valuesByMode']
+    for (const [modeId, value] of Object.entries(variable.valuesByMode)) {
+      valuesByMode[modeId] = value
+    }
+    const codeSyntax = Object.create(null) as Record<string, string>
+    for (const [platform, value] of Object.entries(variable.codeSyntax)) {
+      codeSyntax[platform] = value
+    }
     variables[variable.id] = {
       id: variable.id,
       name: variable.name,
       variableCollectionId: variable.collectionId,
       resolvedType: variable.resolvedType,
-      valuesByMode: { ...variable.valuesByMode },
+      valuesByMode,
       description: variable.description,
       hiddenFromPublishing: variable.hiddenFromPublishing,
       scopes: [...variable.scopes],
-      codeSyntax: { ...variable.codeSyntax },
+      codeSyntax,
       updatedAt: '',
     }
   }

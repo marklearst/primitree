@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -10,6 +10,10 @@ import {
 const fixturePath = join(__dirname, '../fixtures/local-variables.json')
 const fixtureRaw = readFileSync(fixturePath, 'utf8')
 const fixture = JSON.parse(fixtureRaw)
+
+afterEach(() => {
+  Reflect.deleteProperty(Object.prototype, 'polluted')
+})
 
 describe('normalizeVariables', () => {
   it('normalizes a full REST local variables response', () => {
@@ -75,6 +79,98 @@ describe('normalizeVariables', () => {
     expect(result.variables[0]?.resolvedType).toBe('FLOAT')
     expect(result.variables[0]?.collectionId).toBe('c1')
     expect(result.collectionsById['c1']?.variableIds).toEqual(['v1'])
+  })
+
+  it('preserves hostile IDs as own entries in null-prototype ID maps', () => {
+    const result = normalizeVariables({
+      collections: [
+        {
+          id: '__proto__',
+          name: 'Theme',
+          modes: [{ modeId: 'default', name: 'Default' }],
+          defaultModeId: 'default',
+          variableIds: ['__proto__'],
+        },
+      ],
+      variables: [
+        {
+          id: '__proto__',
+          name: '__proto__/polluted',
+          collectionId: '__proto__',
+          type: 'STRING',
+          valuesByMode: { default: 'safe' },
+        },
+      ],
+    })
+
+    expect(Object.getPrototypeOf(result.collectionsById)).toBeNull()
+    expect(Object.getPrototypeOf(result.variablesById)).toBeNull()
+    expect(Object.hasOwn(result.collectionsById, '__proto__')).toBe(true)
+    expect(Object.hasOwn(result.variablesById, '__proto__')).toBe(true)
+    expect(Reflect.get(result.collectionsById, '__proto__')).toMatchObject({
+      id: '__proto__',
+    })
+    expect(Reflect.get(result.variablesById, '__proto__')).toMatchObject({
+      id: '__proto__',
+    })
+
+    const local = toLocalVariablesResponse(result)
+    expect(Object.getPrototypeOf(local.meta.variableCollections)).toBeNull()
+    expect(Object.getPrototypeOf(local.meta.variables)).toBeNull()
+    expect(Object.hasOwn(local.meta.variableCollections, '__proto__')).toBe(
+      true
+    )
+    expect(Object.hasOwn(local.meta.variables, '__proto__')).toBe(true)
+    expect(Object.prototype).not.toHaveProperty('polluted')
+  })
+
+  it('copies only own valuesByMode and codeSyntax entries into null-prototype records', () => {
+    const valuesByMode = Object.assign(
+      Object.create({ default: 'inherited' }) as Record<string, unknown>,
+      { alternate: 'safe' }
+    )
+    const codeSyntax = Object.assign(
+      Object.create({ ANDROID: 'inherited' }) as Record<string, unknown>,
+      { WEB: 'var(--safe)' }
+    )
+    const result = normalizeVariables({
+      collections: [
+        {
+          id: 'collection',
+          name: 'Theme',
+          modes: [{ modeId: 'default', name: 'Default' }],
+          defaultModeId: 'default',
+        },
+      ],
+      variables: [
+        {
+          id: 'variable',
+          name: 'safe',
+          collectionId: 'collection',
+          type: 'STRING',
+          valuesByMode,
+          codeSyntax,
+        },
+      ],
+    })
+    const variable = result.variablesById.variable
+
+    expect(Object.getPrototypeOf(variable?.valuesByMode)).toBeNull()
+    expect(variable?.valuesByMode).toEqual({ alternate: 'safe' })
+    expect(variable?.valuesByMode.default).toBeUndefined()
+    expect(Object.getPrototypeOf(variable?.codeSyntax)).toBeNull()
+    expect(variable?.codeSyntax).toEqual({ WEB: 'var(--safe)' })
+    expect(variable?.codeSyntax.ANDROID).toBeUndefined()
+
+    const localVariable =
+      toLocalVariablesResponse(result).meta.variables.variable
+    expect(Object.getPrototypeOf(localVariable?.valuesByMode)).toBeNull()
+    expect(localVariable?.valuesByMode).toEqual({ alternate: 'safe' })
+    expect(localVariable?.valuesByMode.default).toBeUndefined()
+    expect(Object.getPrototypeOf(localVariable?.codeSyntax)).toBeNull()
+    expect(localVariable?.codeSyntax).toEqual({ WEB: 'var(--safe)' })
+    expect(localVariable?.codeSyntax.ANDROID).toBeUndefined()
+    expect(Object.prototype).not.toHaveProperty('polluted')
   })
 
   it('drops variables whose collection is missing, with a warning', () => {
