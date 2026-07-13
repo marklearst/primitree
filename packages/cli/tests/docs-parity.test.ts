@@ -20,7 +20,7 @@ const commands = [
 function options(text: string): string[] {
   return [
     ...text.matchAll(
-      /(?<![A-Za-z0-9-])(--[A-Za-z][A-Za-z-]*)(?=$|[\s,`<>[\]()])/gm
+      /(?<![A-Za-z0-9-])(--[A-Za-z][A-Za-z-]*)(?=$|[\s,=`<>[\]()])/gm
     ),
   ].map(match => match[1] as string)
 }
@@ -106,6 +106,40 @@ describe('parity guard regressions', () => {
     },
   ])('detects obsolete options in $name commands', ({ text, option }) => {
     expect(obsoleteCliOptions(text)).toContain(option)
+  })
+
+  it.each([
+    {
+      name: 'obsolete build',
+      text: 'figma-vars init project --build=true',
+      option: '--build',
+    },
+    {
+      name: 'obsolete markdown',
+      text: 'figma-vars diff old.json new.json --markdown=true',
+      option: '--markdown',
+    },
+    {
+      name: 'value option',
+      text: 'figma-vars build variables.json --out=dist',
+      option: '--out',
+    },
+    {
+      name: 'hyphenated alias',
+      text: 'figma-vars export --file-key=abc',
+      option: '--file-key',
+    },
+    {
+      name: 'camel-case alias',
+      text: 'figma-vars export --fileKey=abc',
+      option: '--fileKey',
+    },
+  ])('tokenizes $name in equals form', ({ text, option }) => {
+    expect(options(text)).toContain(option)
+  })
+
+  it('does not treat equals-form substrings as obsolete options', () => {
+    expect(obsoleteCliOptions('not--build=true --builder=true')).toEqual([])
   })
 
   it('covers every intended public Markdown surface', () => {
