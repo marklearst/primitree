@@ -32,10 +32,11 @@ export interface MutatorOptions {
 }
 
 /**
- * Low-level utility to send authenticated POST, PUT, or DELETE requests to the Figma Variables REST API.
+ * Low-level utility to send authenticated POST requests to the Figma Variables REST API.
  *
  * @remarks
- * This function performs authenticated HTTP mutations (POST, PUT, DELETE) against the specified Figma API endpoint.
+ * This function performs authenticated mutations against the Figma Variables POST endpoint.
+ * Entry-level `action` fields in the request body select create, update, and delete behavior.
  * It handles JSON serialization of the request body, parses JSON responses, and propagates detailed errors.
  * Intended primarily for internal use by mutation hooks, but also suitable for direct custom API mutations.
  *
@@ -44,7 +45,7 @@ export interface MutatorOptions {
  * @typeParam TResponse - The expected response type returned from the Figma API.
  * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
  * @param token - Figma Personal Access Token (PAT) used for authentication.
- * @param action - The action for the mutation: 'CREATE', 'UPDATE', or 'DELETE'.
+ * @param _action - Compatibility parameter for the mutation action. Entry-level request body actions select API behavior.
  * @param body - Optional request payload. For bulk operations, use BulkUpdatePayload. For individual operations, use objects with `variables` array.
  * @param options - Optional configuration for abort signal, timeout, or custom fetch implementation.
  *
@@ -71,7 +72,7 @@ export interface MutatorOptions {
 export async function mutator<TResponse = unknown>(
   url: string,
   token: string,
-  action: VariableAction,
+  _action: VariableAction,
   body?:
     | BulkUpdatePayload
     | { variables?: Array<Record<string, unknown>> }
@@ -103,15 +104,8 @@ export async function mutator<TResponse = unknown>(
   }
 
   try {
-    const methodMap: Record<VariableAction, 'POST' | 'PUT' | 'DELETE'> = {
-      CREATE: 'POST',
-      UPDATE: 'PUT',
-      DELETE: 'DELETE',
-    }
-    const method = methodMap[action]
-
     const init: RequestInit = {
-      method,
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         [FIGMA_TOKEN_HEADER]: token,
@@ -176,6 +170,7 @@ export async function mutator<TResponse = unknown>(
         // Ignore parse errors, use default message
       }
 
+      errorMessage = errorMessage.replaceAll(token, '[redacted]')
       throw new FigmaApiError(errorMessage, statusCode, retryAfter)
     }
 

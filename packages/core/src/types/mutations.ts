@@ -1,4 +1,9 @@
-import type { ResolvedType, VariableScope, VariableValue } from './figma.js'
+import type {
+  Color,
+  ResolvedType,
+  VariableScope,
+  VariableValue,
+} from './figma.js'
 
 /**
  * Payload for creating a new Figma variable in a specific collection.
@@ -85,39 +90,54 @@ export interface UpdateVariablePayload {
  */
 export type VariableAction = 'CREATE' | 'UPDATE' | 'DELETE'
 
+type ChangeId = { id: string }
+type TemporaryId = { id?: string }
+type RootCollectionCreate = {
+  parentVariableCollectionId?: never
+  initialModeId?: string
+  initialModeIdToParentModeIdMapping?: never
+}
+type ExtendedCollectionCreate = {
+  parentVariableCollectionId: string
+  initialModeId?: never
+  initialModeIdToParentModeIdMapping?: Record<string, string>
+}
+
 /**
  * Represents a change operation on a Figma variable collection.
  *
  * @remarks
  * Use in bulk update payloads to create, update, or delete collections.
  *
- * @property action - The mutation action to perform.
- * @property id - Unique ID of the collection affected.
- * @property name - Optional new name for the collection.
- * @property initialModeId - Optional mode to set as default for the collection.
- * @property hiddenFromPublishing - Optional flag to update publishing visibility.
+ * Create actions require a name and may provide a temporary ID. Root collections
+ * can provide an initial mode ID, while extended collections identify their parent
+ * and may map parent mode IDs. Update and delete actions require an existing ID.
  *
  * @example
  * ```ts
  * import type { VariableCollectionChange } from '@figmavars/hooks';
  *
  * const change: VariableCollectionChange = {
- *   action: 'UPDATE',
- *   id: 'VariableCollectionId:123:456',
- *   name: 'New Collection Name',
+ *   action: 'CREATE',
+ *   name: 'New Collection',
  *   initialModeId: 'MODE:dark',
  * }
  * ```
  *
  * @public
  */
-export interface VariableCollectionChange {
-  action: VariableAction
-  id: string
-  name?: string
-  initialModeId?: string
-  hiddenFromPublishing?: boolean
-}
+export type VariableCollectionChange =
+  | (TemporaryId & {
+      action: 'CREATE'
+      name: string
+      hiddenFromPublishing?: boolean
+    } & (RootCollectionCreate | ExtendedCollectionCreate))
+  | (ChangeId & {
+      action: 'UPDATE'
+      name?: string
+      hiddenFromPublishing?: boolean
+    })
+  | (ChangeId & { action: 'DELETE' })
 
 /**
  * Represents a change operation on a Figma variable mode.
@@ -125,10 +145,8 @@ export interface VariableCollectionChange {
  * @remarks
  * Use in bulk update payloads to create, update, or delete modes.
  *
- * @property action - The mutation action to perform.
- * @property id - Unique ID of the mode affected.
- * @property name - Optional new name for the mode.
- * @property variableCollectionId - The ID of the collection this mode belongs to.
+ * Create actions require a name and collection ID and may provide a temporary ID.
+ * Update and delete actions require an existing mode ID and collection ID.
  *
  * @example
  * ```ts
@@ -136,7 +154,6 @@ export interface VariableCollectionChange {
  *
  * const modeChange: VariableModeChange = {
  *   action: 'CREATE',
- *   id: 'MODE:light',
  *   name: 'Light Mode',
  *   variableCollectionId: 'VariableCollectionId:123:456',
  * }
@@ -144,11 +161,25 @@ export interface VariableCollectionChange {
  *
  * @public
  */
-export interface VariableModeChange {
-  action: VariableAction
-  id: string
+export type VariableModeChange =
+  | (TemporaryId & {
+      action: 'CREATE'
+      name: string
+      variableCollectionId: string
+    })
+  | (ChangeId & {
+      action: 'UPDATE'
+      name?: string
+      variableCollectionId: string
+    })
+  | (ChangeId & { action: 'DELETE'; variableCollectionId: string })
+
+type VariableMutableFields = {
   name?: string
-  variableCollectionId: string
+  description?: string
+  hiddenFromPublishing?: boolean
+  scopes?: VariableScope[]
+  codeSyntax?: Record<string, string>
 }
 
 /**
@@ -157,15 +188,9 @@ export interface VariableModeChange {
  * @remarks
  * Use in bulk update payloads to create, update, or delete variables.
  *
- * @property action - The mutation action to perform.
- * @property id - Unique ID of the variable affected.
- * @property name - Optional new name for the variable.
- * @property variableCollectionId - Optional new collection ID for the variable.
- * @property resolvedType - Optional new data type for the variable.
- * @property description - Optional new description.
- * @property hiddenFromPublishing - Optional update to publishing visibility.
- * @property scopes - Optional update to scopes.
- * @property codeSyntax - Optional update to code syntax.
+ * Create actions require a name, collection ID, and resolved type and may provide
+ * a temporary ID. Update and delete actions require an existing variable ID;
+ * creation-only fields cannot be changed later.
  *
  * @example
  * ```ts
@@ -179,17 +204,19 @@ export interface VariableModeChange {
  *
  * @public
  */
-export interface VariableChange {
-  action: VariableAction
-  id: string
-  name?: string
-  variableCollectionId?: string
-  resolvedType?: ResolvedType
-  description?: string
-  hiddenFromPublishing?: boolean
-  scopes?: VariableScope[]
-  codeSyntax?: Record<string, string>
-}
+export type VariableChange =
+  | (TemporaryId & {
+      action: 'CREATE'
+      name: string
+      variableCollectionId: string
+      resolvedType: ResolvedType
+      description?: string
+      hiddenFromPublishing?: boolean
+      scopes?: VariableScope[]
+      codeSyntax?: Record<string, string>
+    })
+  | (ChangeId & { action: 'UPDATE' } & VariableMutableFields)
+  | (ChangeId & { action: 'DELETE' })
 
 /**
  * Value assignment for a specific Figma variable in a specific mode.
@@ -199,7 +226,7 @@ export interface VariableChange {
  *
  * @property variableId - The Figma variable ID being set.
  * @property modeId - The mode ID (e.g., 'MODE:dark') this value applies to.
- * @property value - The variable value, which can be a string, number, boolean, Color, or VariableAlias.
+ * @property value - The variable value, including RGB/RGBA colors, aliases, or null to remove an override.
  *
  * @example
  * ```ts
@@ -214,10 +241,12 @@ export interface VariableChange {
  *
  * @public
  */
+export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
+
 export interface VariableModeValue {
   variableId: string
   modeId: string
-  value: VariableValue
+  value: VariableMutationValue
 }
 
 /**
@@ -237,7 +266,7 @@ export interface VariableModeValue {
  *
  * const payload: BulkUpdatePayload = {
  *   variableCollections: [{ action: 'UPDATE', id: 'VariableCollectionId:123', name: 'New Name' }],
- *   variableModes: [{ action: 'CREATE', id: 'MODE:light', name: 'Light', variableCollectionId: 'VariableCollectionId:123' }],
+ *   variableModes: [{ action: 'CREATE', name: 'Light', variableCollectionId: 'VariableCollectionId:123' }],
  *   variables: [{ action: 'DELETE', id: 'VariableID:456' }],
  *   variableModeValues: [{ variableId: 'VariableID:789', modeId: 'MODE:dark', value: true }],
  * }
