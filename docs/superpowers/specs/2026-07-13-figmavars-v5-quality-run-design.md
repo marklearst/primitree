@@ -205,7 +205,12 @@ validates its seven-entry structure and checksums, installs all five tarballs by
 absolute path with scripts, lockfile creation, audit, and funding disabled, and
 smoke-tests ESM, CommonJS, and executable entry points. The tag-only publish job
 depends on both preceding jobs, downloads and validates the same artifact, and
-publishes the five literal tarball paths in dependency order. Publication
+conditionally publishes the five literal tarball paths in dependency order.
+The job is bound to the GitHub environment `npm`. Before each command it queries
+the exact package version at the public npm registry. Only `E404` permits a
+publish. An existing version is skipped only after its `dist.integrity` matches
+the local tarball SRI and its `dist.attestations` contains a valid URL and the
+SLSA v1 provenance predicate; every other state fails closed. Publication
 accepts only strict `vMAJOR.MINOR.PATCH` tags; prerelease tags are rejected, and
 every publish command names the npm registry and uses public access,
 `--tag=latest`, and `--ignore-scripts`. Neither downstream job rebuilds source.
@@ -214,9 +219,14 @@ publishing step.
 
 A checked-in runbook separates automated preflight from manual external steps:
 scope access, two-factor authentication, new-package bootstrap, trusted
-publishing, GitHub rulesets, tag recreation, ordered publication, partial-failure
-recovery, rollback/deprecation, and post-publish verification. External steps
-remain unchecked until Mark performs them.
+publishing, the protected GitHub environment `npm`, GitHub rulesets, tag
+recreation, ordered publication, partial-failure recovery,
+rollback/deprecation, and post-publish verification. **Re-run failed jobs** on
+the original workflow run is the only selective recovery path, and it consumes
+the unchanged same-run artifact. A pushed wrong tag may move only after the old
+run is canceled and terminal, the publish job never started, and all five npm
+queries return `E404`. External steps remain unchecked until Mark performs
+them.
 
 ## Error handling and compatibility
 

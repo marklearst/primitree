@@ -264,6 +264,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     needs: [quality, consumer-compatibility]
+    environment: npm
     permissions:
       contents: read
       id-token: write
@@ -380,11 +381,125 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
-          npm publish "artifacts/npm/figmavars-core-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-          npm publish "artifacts/npm/figmavars-dtcg-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-          npm publish "artifacts/npm/figmavars-cli-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-          npm publish "artifacts/npm/figmavars-hooks-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-          npm publish "artifacts/npm/figmavars-mcp-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+
+          release_state() {
+            local package_name="$1"
+            local artifact_path="$2"
+            local metadata_path
+            local error_path
+            local npm_status
+            local error_code
+            if ! metadata_path=$(mktemp); then
+              echo 'unable to create npm metadata temporary file' >&2
+              return 1
+            fi
+            if ! error_path=$(mktemp); then
+              echo 'unable to create npm error temporary file' >&2
+              rm -f "$metadata_path"
+              return 1
+            fi
+
+            if npm view "${package_name}@${VERSION}" --json --registry=https://registry.npmjs.org >"$metadata_path" 2>"$error_path"; then
+              if ! node --input-type=module - "$metadata_path" "$artifact_path" "$package_name" "$VERSION" <<'NODE'
+              import { createHash } from 'node:crypto'
+              import { readFileSync } from 'node:fs'
+
+              const [, , metadataPath, artifactPath, packageName, version] = process.argv
+              const fail = message => {
+                throw new Error(`${packageName}@${version}: ${message}`)
+              }
+
+              let metadata
+              try {
+                metadata = JSON.parse(readFileSync(metadataPath, 'utf8'))
+              } catch {
+                fail('npm registry metadata is not valid JSON')
+              }
+              if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+                fail('npm registry metadata must be an object')
+              }
+              if (metadata.name !== packageName || metadata.version !== version) {
+                fail('npm registry package identity does not match the release')
+              }
+
+              const localIntegrity = `sha512-${createHash('sha512')
+                .update(readFileSync(artifactPath))
+                .digest('base64')}`
+              if (metadata.dist?.integrity !== localIntegrity) {
+                fail('npm registry integrity does not match the release tarball')
+              }
+
+              const attestationUrl = metadata.dist?.attestations?.url
+              let parsedAttestationUrl
+              try {
+                parsedAttestationUrl = new URL(attestationUrl)
+              } catch {
+                fail('npm registry attestation URL is missing or invalid')
+              }
+              if (
+                parsedAttestationUrl.protocol !== 'https:' ||
+                parsedAttestationUrl.hostname !== 'registry.npmjs.org' ||
+                parsedAttestationUrl.port !== '' ||
+                parsedAttestationUrl.username !== '' ||
+                parsedAttestationUrl.password !== '' ||
+                !parsedAttestationUrl.pathname.startsWith('/-/npm/v1/attestations/')
+              ) {
+                fail('npm registry attestation URL must be an absolute HTTPS URL')
+              }
+              if (
+                metadata.dist?.attestations?.provenance?.predicateType !==
+                'https://slsa.dev/provenance/v1'
+              ) {
+                fail('npm registry provenance predicate is missing or invalid')
+              }
+          NODE
+              then
+                rm -f "$metadata_path" "$error_path"
+                return 1
+              fi
+              rm -f "$metadata_path" "$error_path"
+              printf '%s\n' present
+              return 0
+            else
+              npm_status=$?
+            fi
+
+            error_code=$(sed -nE 's/^npm (error|ERR!) code ([A-Z0-9]+)$/\2/p' "$error_path")
+            if [[ "$error_code" == 'E404' ]]; then
+              rm -f "$metadata_path" "$error_path"
+              printf '%s\n' missing
+              return 0
+            fi
+
+            cat "$error_path" >&2
+            rm -f "$metadata_path" "$error_path"
+            return "$npm_status"
+          }
+
+          CORE_STATE=$(release_state "@figmavars/core" "artifacts/npm/figmavars-core-${VERSION}.tgz")
+          if [[ "$CORE_STATE" == 'missing' ]]; then
+            npm publish "artifacts/npm/figmavars-core-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          fi
+
+          DTCG_STATE=$(release_state "@figmavars/dtcg" "artifacts/npm/figmavars-dtcg-${VERSION}.tgz")
+          if [[ "$DTCG_STATE" == 'missing' ]]; then
+            npm publish "artifacts/npm/figmavars-dtcg-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          fi
+
+          CLI_STATE=$(release_state "@figmavars/cli" "artifacts/npm/figmavars-cli-${VERSION}.tgz")
+          if [[ "$CLI_STATE" == 'missing' ]]; then
+            npm publish "artifacts/npm/figmavars-cli-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          fi
+
+          HOOKS_STATE=$(release_state "@figmavars/hooks" "artifacts/npm/figmavars-hooks-${VERSION}.tgz")
+          if [[ "$HOOKS_STATE" == 'missing' ]]; then
+            npm publish "artifacts/npm/figmavars-hooks-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          fi
+
+          MCP_STATE=$(release_state "@figmavars/mcp" "artifacts/npm/figmavars-mcp-${VERSION}.tgz")
+          if [[ "$MCP_STATE" == 'missing' ]]; then
+            npm publish "artifacts/npm/figmavars-mcp-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
