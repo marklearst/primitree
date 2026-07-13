@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
+import { parse as parseYaml } from 'yaml'
 import { toDTCG } from '../src/emit'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
@@ -154,6 +157,36 @@ describe('emitTypescript', () => {
     )
   })
 
+  it('emits syntactically valid TypeScript when no token paths exist', () => {
+    const emptySource = emitTypescript(
+      {},
+      {
+        version: '2025.10',
+        sets: {},
+        resolutionOrder: [],
+      }
+    )
+    const directory = mkdtempSync(join(tmpdir(), 'figmavars-empty-types-'))
+    const file = join(directory, 'tokens.ts')
+
+    try {
+      writeFileSync(file, emptySource)
+      const program = ts.createProgram([file], {
+        module: ts.ModuleKind.ESNext,
+        noEmit: true,
+        skipLibCheck: true,
+        target: ts.ScriptTarget.ES2022,
+      })
+      const sourceFile = program.getSourceFile(file)
+
+      expect(sourceFile).toBeDefined()
+      expect(program.getSyntacticDiagnostics(sourceFile)).toEqual([])
+      expect(emptySource).toContain('export type TokenPath = never')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('preserves an own __proto__ token in both generated maps at runtime', () => {
     const prototypePath = '__proto__'
     const prototypeValue = 'prototype-value'
@@ -248,19 +281,183 @@ describe('buildPipeline', () => {
     expect(config?.contents).not.toContain('semantic.dark.tokens.json')
   })
 
-  it('pins generated workflow actions to reviewed revisions', () => {
+  it('isolates generated workflow builds from branch write credentials', () => {
     const result = buildPipeline(fixture)
     const workflow = result.files.find(
       file => file.path === 'design-tokens.workflow.yml'
     )?.contents
 
-    expect(workflow).toContain(
-      'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4'
+    expect(workflow).toBeDefined()
+    const document = parseYaml(workflow ?? '')
+
+    expect(document.permissions).toEqual({ contents: 'read' })
+    expect(document.on.push.branches).toEqual(['**'])
+    expect(Object.keys(document.jobs)).toEqual([
+      'build-tokens',
+      'commit-tokens',
+    ])
+    expect(document.jobs['build-tokens'].permissions).toBeUndefined()
+    expect(document.jobs['commit-tokens'].permissions).toEqual({
+      contents: 'write',
+    })
+    expect(document.jobs['build-tokens'].if).toBe("github.ref_type == 'branch'")
+    expect(document.jobs['commit-tokens'].if).toBe(
+      "github.ref_type == 'branch'"
     )
-    expect(workflow).toContain(
-      'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4'
+
+    const buildSteps = document.jobs['build-tokens'].steps as Array<
+      Record<string, unknown>
+    >
+    const commitSteps = document.jobs['commit-tokens'].steps as Array<
+      Record<string, unknown>
+    >
+    const checkoutSteps = [...buildSteps, ...commitSteps].filter(step =>
+      String(step.uses ?? '').startsWith('actions/checkout@')
     )
-    expect(workflow).not.toContain('actions/checkout@v4')
-    expect(workflow).not.toContain('actions/setup-node@v4')
+
+    expect(checkoutSteps).toHaveLength(2)
+    for (const checkout of checkoutSteps) {
+      expect(checkout.with).toMatchObject({
+        ref: '$' + '{{ github.sha }}',
+        'persist-credentials': false,
+      })
+    }
+
+    const buildRuns = buildSteps
+      .map(step => step.run)
+      .filter((run): run is string => typeof run === 'string')
+      .join('\n')
+    const commitRuns = commitSteps
+      .map(step => step.run)
+      .filter((run): run is string => typeof run === 'string')
+      .join('\n')
+
+    expect(buildRuns).not.toContain('github.token')
+    expect(buildRuns).not.toContain('GITHUB_TOKEN')
+    expect(buildRuns).not.toContain('git push')
+    expect(commitRuns).toContain('refs/heads/*')
+    expect(commitRuns).toContain('git ls-remote --exit-code --refs')
+    expect(commitRuns).toContain('"$REMOTE_SHA" != "$GITHUB_SHA"')
+    expect(commitRuns).toContain('HEAD:$GITHUB_REF')
+    expect(commitRuns).not.toMatch(/git push\s*$/m)
+    expect(commitRuns).not.toContain('git add -A')
+    expect(commitRuns).toMatch(/git add --all -- [^\n]+/)
+
+    const tokenSteps = commitSteps.filter(step => {
+      const env = step.env as Record<string, unknown> | undefined
+      return env?.GITHUB_TOKEN === '$' + '{{ github.token }}'
+    })
+    expect(tokenSteps).toHaveLength(1)
+    expect(tokenSteps[0]?.name).toBe('Commit generated tokens')
+
+    for (const step of [...buildSteps, ...commitSteps]) {
+      if (typeof step.run !== 'string') {
+        continue
+      }
+      const syntax = spawnSync('bash', ['-n'], {
+        encoding: 'utf8',
+        input: step.run,
+      })
+      expect(syntax.status, syntax.stderr).toBe(0)
+    }
+  })
+
+  it('pins every generated workflow action and executable tool', () => {
+    const variants = [
+      buildPipeline(fixture),
+      buildPipeline(fixture, { transformer: 'terrazzo' }),
+      buildPipeline(fixture, { transformer: 'none' }),
+    ]
+
+    for (const result of variants) {
+      const workflow = result.files.find(
+        file => file.path === 'design-tokens.workflow.yml'
+      )?.contents
+
+      expect(workflow).toBeDefined()
+      expect(workflow).toContain('@figmavars/cli@5.0.0')
+      expect(workflow).toContain('node-version: 22.13.0')
+      expect(workflow).not.toMatch(/\bnpx\b/)
+      expect(workflow).not.toContain('git add -A')
+
+      for (const action of [
+        'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4',
+        'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4',
+        'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4',
+        'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4',
+      ]) {
+        expect(workflow).toContain(action)
+      }
+      expect(workflow).not.toMatch(/actions\/[a-z-]+@v\d/)
+    }
+
+    const styleDictionary = variants[0]?.files.find(
+      file => file.path === 'design-tokens.workflow.yml'
+    )?.contents
+    expect(styleDictionary).toContain('style-dictionary@5.5.0')
+    expect(styleDictionary).toContain('--style-dictionary')
+    expect(styleDictionary).not.toContain('@terrazzo/cli@')
+
+    const terrazzo = variants[1]?.files.find(
+      file => file.path === 'design-tokens.workflow.yml'
+    )?.contents
+    expect(terrazzo).toContain('@terrazzo/cli@2.4.0')
+    expect(terrazzo).toContain('@terrazzo/plugin-css@2.4.0')
+    expect(terrazzo).toContain('--terrazzo')
+    expect(terrazzo).not.toContain('style-dictionary@')
+
+    const noTransformer = variants[2]?.files.find(
+      file => file.path === 'design-tokens.workflow.yml'
+    )?.contents
+    expect(noTransformer).toContain('--no-transformer')
+    expect(noTransformer).not.toContain('style-dictionary@')
+    expect(noTransformer).not.toContain('@terrazzo/cli@')
+  })
+
+  it('keeps generated workflow output paths aligned with pipeline opt-outs', () => {
+    const result = buildPipeline(fixture, {
+      transformer: 'none',
+      css: false,
+      tailwind: false,
+      typescript: false,
+    })
+    const workflow = result.files.find(
+      file => file.path === 'design-tokens.workflow.yml'
+    )?.contents
+    const document = parseYaml(workflow ?? '')
+    const buildSteps = document.jobs['build-tokens'].steps as Array<
+      Record<string, unknown>
+    >
+    const commitSteps = document.jobs['commit-tokens'].steps as Array<
+      Record<string, unknown>
+    >
+    const build = buildSteps.find(step => step.name === 'Build token pipeline')
+    const seal = buildSteps.find(
+      step => step.name === 'Seal generated artifact root'
+    )
+    const upload = buildSteps.find(
+      step => step.name === 'Upload generated tokens'
+    )
+    const install = commitSteps.find(
+      step => step.name === 'Validate and install generated tokens'
+    )
+    const commit = commitSteps.find(
+      step => step.name === 'Commit generated tokens'
+    )
+
+    expect(build?.run).toContain(
+      '--no-css --no-tailwind --no-ts --no-transformer'
+    )
+    expect(seal?.run).toContain(
+      `printf '%s\\n' '{"schema":1}' > figmavars-artifact-root.json`
+    )
+    expect(upload?.with).toMatchObject({
+      path: 'figmavars-artifact-root.json\ntokens/\n',
+    })
+    expect(install?.run).toContain(
+      "readFileSync(artifactRootPath, 'utf8') !== artifactRootContents"
+    )
+    expect(commit?.run).toContain('git add --all -- tokens')
+    expect(commit?.run).not.toMatch(/git add --all --[^\n]*\b(css|ts|build)\b/)
   })
 })

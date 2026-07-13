@@ -64,9 +64,13 @@ describe('figma-vars build', () => {
     const sd = await readOut('design-tokens', 'style-dictionary.config.mjs')
     expect(sd).toContain('tokens/primitives.tokens.json')
 
-    await expect(
-      readOut('design-tokens', 'design-tokens.workflow.yml')
-    ).resolves.toContain('npx @figmavars/cli build')
+    const workflow = await readOut(
+      'design-tokens',
+      'design-tokens.workflow.yml'
+    )
+    expect(workflow).toContain('@figmavars/cli@5.0.0')
+    expect(workflow).toContain('./node_modules/.bin/figma-vars build')
+    expect(workflow).not.toMatch(/\bnpx\b/)
   })
 
   it('supports --terrazzo and opt-out flags', async () => {
