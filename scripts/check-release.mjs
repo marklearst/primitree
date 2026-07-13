@@ -210,7 +210,7 @@ function exactJsonStructure(actual, expected) {
   const actualKeys = Object.keys(actual)
   const expectedKeys = Object.keys(expected)
   return (
-    sameStringSet(actualKeys, expectedKeys) &&
+    exactStringArray(actualKeys, expectedKeys) &&
     expectedKeys.every(key => exactJsonStructure(actual[key], expected[key]))
   )
 }
@@ -219,9 +219,11 @@ function validateCanonicalMetadata(pkg, config, errors) {
   const { manifest, manifestPath, licenseText } = pkg
   if (!isPlainObject(manifest)) {
     errors.push(`${manifestPath} manifest must be a plain object`)
-    return
+    return false
   }
-  if (!validateJsonValue(manifest, `${manifestPath} manifest`, errors)) return
+  if (!validateJsonValue(manifest, `${manifestPath} manifest`, errors)) {
+    return false
+  }
 
   if (manifest.name !== config.name) {
     errors.push(`${manifestPath} must be named ${config.name}`)
@@ -229,7 +231,10 @@ function validateCanonicalMetadata(pkg, config, errors) {
   if (manifest.private !== undefined && manifest.private !== false) {
     errors.push(`${manifestPath} must be publishable`)
   }
-  if (licenseText?.trimEnd() !== ROOT_LICENSE) {
+  if (
+    typeof licenseText !== 'string' ||
+    licenseText.trimEnd() !== ROOT_LICENSE
+  ) {
     errors.push(`${config.path}/LICENSE must match the repository LICENSE`)
   }
   if (
@@ -389,6 +394,7 @@ function validateCanonicalMetadata(pkg, config, errors) {
   if (containsLegacyNamespace(manifest)) {
     errors.push(`${manifestPath} contains the legacy namespace @figma-vars/`)
   }
+  return true
 }
 
 function ownDataValue(object, key, label, errors, required = true) {
@@ -487,8 +493,8 @@ export function validateReleaseManifests(options) {
     if (path !== config.path) {
       errors.push(`${manifestPath} package path must be ${config.path}`)
     }
-    validateCanonicalMetadata(pkg, config, errors)
-    if (isPlainObject(manifest)) versions.add(manifest.version)
+    const manifestIsSafe = validateCanonicalMetadata(pkg, config, errors)
+    if (manifestIsSafe) versions.add(manifest.version)
   }
 
   for (const config of PUBLIC_RELEASE_PACKAGES) {
@@ -543,7 +549,13 @@ export function validateReleaseManifests(options) {
       typeof tag !== 'string' ||
       !new RegExp(`^v${RELEASE_VERSION_PATTERN.source.slice(1, -1)}$`).test(tag)
     ) {
-      errors.push(`release tag ${String(tag)} must use vMAJOR.MINOR.PATCH`)
+      const tagDescription =
+        typeof tag === 'string'
+          ? tag
+          : tag === null
+            ? '<null>'
+            : `<${typeof tag}>`
+      errors.push(`release tag ${tagDescription} must use vMAJOR.MINOR.PATCH`)
     } else if (typeof version === 'string' && tag !== `v${version}`) {
       errors.push(`tag ${tag} does not match package version ${version}`)
     }
