@@ -64,6 +64,15 @@ body {
 
 .brand-logo-link {
   flex: 0 0 auto;
+  min-block-size: 44px;
+  align-items: center;
+}
+
+.site-footer-link {
+  display: inline-flex;
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  align-items: center;
 }
 
 .brand-logo-link:focus-visible,
@@ -654,7 +663,9 @@ body {
 }
 
 .workflow-link {
-  display: inline-block;
+  display: inline-flex;
+  min-block-size: 44px;
+  align-items: center;
   margin-top: 24px;
   font-size: 14px;
   color: var(--color-fv-accent);
