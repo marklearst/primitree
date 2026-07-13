@@ -86,6 +86,135 @@ export class ReferenceResolutionError extends Error {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function resolverRecord(resolver: ResolverDocument): Record<string, unknown> {
+  if (!isRecord(resolver)) {
+    throw new ReferenceResolutionError(
+      'Resolver document must be an object',
+      '#'
+    )
+  }
+  return resolver as unknown as Record<string, unknown>
+}
+
+function resolutionOrderOf(resolver: Record<string, unknown>): unknown[] {
+  if (!hasOwn(resolver, 'resolutionOrder')) {
+    throw new ReferenceResolutionError(
+      'Resolver resolutionOrder must be an own array',
+      '#/resolutionOrder'
+    )
+  }
+  const resolutionOrder = resolver.resolutionOrder
+  if (!Array.isArray(resolutionOrder)) {
+    throw new ReferenceResolutionError(
+      'Resolver resolutionOrder must be an own array',
+      '#/resolutionOrder'
+    )
+  }
+  return resolutionOrder
+}
+
+function optionalResolverContainer(
+  resolver: Record<string, unknown>,
+  key: 'sets' | 'modifiers'
+): Record<string, unknown> | undefined {
+  if (!hasOwn(resolver, key)) {
+    return undefined
+  }
+  const container = resolver[key]
+  if (!isRecord(container)) {
+    throw new ReferenceResolutionError(
+      `Resolver ${key} must be an object`,
+      `#/${key}`
+    )
+  }
+  return container
+}
+
+function setSources(
+  value: unknown,
+  name: string
+): Array<DTCGRef | DTCGDocument> {
+  const path = `#/sets/${name}`
+  if (!isRecord(value)) {
+    throw new ReferenceResolutionError(
+      `Resolver set "${name}" must be an object`,
+      path
+    )
+  }
+  if (!hasOwn(value, 'sources')) {
+    throw new ReferenceResolutionError(
+      `Resolver set "${name}" sources must be an own array`,
+      `${path}/sources`
+    )
+  }
+  const sources = value.sources
+  if (!Array.isArray(sources)) {
+    throw new ReferenceResolutionError(
+      `Resolver set "${name}" sources must be an own array`,
+      `${path}/sources`
+    )
+  }
+  return sources as Array<DTCGRef | DTCGDocument>
+}
+
+interface ValidatedModifier {
+  contexts: Record<string, Array<DTCGRef | DTCGDocument>>
+  defaultContext: string | undefined
+}
+
+function validateModifier(value: unknown, name: string): ValidatedModifier {
+  const path = `#/modifiers/${name}`
+  if (!isRecord(value)) {
+    throw new ReferenceResolutionError(
+      `Resolver modifier "${name}" must be an object`,
+      path
+    )
+  }
+
+  if (!hasOwn(value, 'contexts')) {
+    throw new ReferenceResolutionError(
+      `Resolver modifier "${name}" contexts must be an own object`,
+      `${path}/contexts`
+    )
+  }
+  const rawContexts = value.contexts
+  if (!isRecord(rawContexts)) {
+    throw new ReferenceResolutionError(
+      `Resolver modifier "${name}" contexts must be an own object`,
+      `${path}/contexts`
+    )
+  }
+
+  const contexts = createDictionary<Array<DTCGRef | DTCGDocument>>()
+  for (const [context, sources] of Object.entries(rawContexts)) {
+    if (!Array.isArray(sources)) {
+      throw new ReferenceResolutionError(
+        `Resolver context "${context}" for modifier "${name}" must have a sources array`,
+        `${path}/contexts/${context}`
+      )
+    }
+    contexts[context] = sources as Array<DTCGRef | DTCGDocument>
+  }
+
+  let defaultContext: string | undefined
+  if (hasOwn(value, 'default')) {
+    const rawDefault = value.default
+    if (rawDefault !== undefined && typeof rawDefault !== 'string') {
+      throw new ReferenceResolutionError(
+        `Resolver modifier "${name}" default must be a string`,
+        `${path}/default`
+      )
+    }
+    defaultContext = rawDefault
+  }
+
+  return { contexts, defaultContext }
+}
+
 /**
  * Resolve `{dot.path}` references in a flattened token map to concrete
  * values. Cycle-safe.
@@ -202,13 +331,20 @@ export function listContexts(
   resolver: ResolverDocument
 ): Record<string, string[]> {
   const result = createDictionary<string[]>()
-  for (const [name, modifier] of Object.entries(resolver.modifiers ?? {})) {
-    result[name] = Object.keys(modifier.contexts)
+  const modifiers = optionalResolverContainer(
+    resolverRecord(resolver),
+    'modifiers'
+  )
+  if (!modifiers) {
+    return result
+  }
+  for (const [name, modifier] of Object.entries(modifiers)) {
+    result[name] = Object.keys(validateModifier(modifier, name).contexts)
   }
   return result
 }
 
-function isRef(source: DTCGRef | DTCGDocument): source is DTCGRef {
+function isRef(source: unknown): source is DTCGRef {
   return (
     typeof source === 'object' &&
     source !== null &&
@@ -246,11 +382,16 @@ export function applyResolver(
   input: Record<string, string> = {}
 ): DTCGDocument {
   const ordered: DTCGDocument[] = []
+  const root = resolverRecord(resolver)
+  const resolutionOrder = resolutionOrderOf(root)
+  const sets = optionalResolverContainer(root, 'sets')
+  const modifiers = optionalResolverContainer(root, 'modifiers')
 
   function sourcesToDocuments(
-    sources: Array<DTCGRef | DTCGDocument>
+    sources: Array<DTCGRef | DTCGDocument>,
+    sourcePath: string
   ): DTCGDocument[] {
-    return sources.map(source => {
+    return sources.map((source, index) => {
       if (isRef(source)) {
         const fileName = refToFileName(source.$ref)
         if (!hasOwn(files, fileName)) {
@@ -259,13 +400,27 @@ export function applyResolver(
             source.$ref
           )
         }
-        return files[fileName] as DTCGDocument
+        const file = files[fileName]
+        if (!isRecord(file)) {
+          throw new ReferenceResolutionError(
+            `Resolver file "${source.$ref}" must contain a token document object`,
+            source.$ref
+          )
+        }
+        return file as DTCGDocument
       }
-      return source
+      if (!isRecord(source)) {
+        const path = `${sourcePath}/${index}`
+        throw new ReferenceResolutionError(
+          `Resolver source at "${path}" must be a reference or token document object`,
+          path
+        )
+      }
+      return source as DTCGDocument
     })
   }
 
-  for (const entry of resolver.resolutionOrder) {
+  for (const entry of resolutionOrder) {
     if (!isRef(entry)) {
       continue
     }
@@ -273,27 +428,24 @@ export function applyResolver(
     const setMatch = ref.match(/^#\/sets\/(.+)$/)
     if (setMatch) {
       const name = setMatch[1] as string
-      if (resolver.sets && hasOwn(resolver.sets, name)) {
-        const set = resolver.sets[name]
-        if (set) {
-          ordered.push(...sourcesToDocuments(set.sources))
-        }
+      if (sets && hasOwn(sets, name)) {
+        ordered.push(...sourcesToDocuments(setSources(sets[name], name), ref))
       }
       continue
     }
     const modifierMatch = ref.match(/^#\/modifiers\/(.+)$/)
     if (modifierMatch) {
       const name = modifierMatch[1] as string
-      if (!resolver.modifiers || !hasOwn(resolver.modifiers, name)) {
+      if (!modifiers || !hasOwn(modifiers, name)) {
         continue
       }
-      const modifier = resolver.modifiers[name] as NonNullable<
-        ResolverDocument['modifiers']
-      >[string]
+      const modifier = validateModifier(modifiers[name], name)
       const contextNames = Object.keys(modifier.contexts)
       const selected = hasOwn(input, name) ? input[name] : undefined
       const chosen =
-        selected ?? modifier.default ?? (contextNames[0] as string | undefined)
+        selected ??
+        modifier.defaultContext ??
+        (contextNames[0] as string | undefined)
       if (typeof chosen !== 'string' || !hasOwn(modifier.contexts, chosen)) {
         throw new ReferenceResolutionError(
           `Unknown context "${chosen}" for modifier "${name}" ` +
@@ -301,8 +453,12 @@ export function applyResolver(
           ref
         )
       }
-      const sources = modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>
-      ordered.push(...sourcesToDocuments(sources))
+      ordered.push(
+        ...sourcesToDocuments(
+          modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>,
+          `${ref}/contexts/${chosen}`
+        )
+      )
     }
   }
 

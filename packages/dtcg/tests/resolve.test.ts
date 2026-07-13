@@ -322,6 +322,235 @@ describe('applyResolver + resolveTokenValues', () => {
 
     expect(flattenTokens(applyResolver({}, inheritedOrderResolver))).toEqual([])
   })
+
+  it.each([
+    [
+      'inherited',
+      Object.assign(
+        Object.create({
+          resolutionOrder: [{ $ref: '#/sets/attacker' }],
+        }),
+        {
+          version: '2025.10',
+          sets: {
+            attacker: { sources: [{ attacker: { $value: 'unsafe' } }] },
+          },
+        }
+      ) as ResolverDocument,
+    ],
+    [
+      'missing',
+      {
+        version: '2025.10',
+        sets: {
+          attacker: { sources: [{ attacker: { $value: 'unsafe' } }] },
+        },
+      } as unknown as ResolverDocument,
+    ],
+  ])('rejects an %s top-level resolutionOrder', (_, invalidResolver) => {
+    expect(() => applyResolver({}, invalidResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, invalidResolver)).toThrow(
+      /resolutionOrder.*own array/i
+    )
+  })
+
+  it('ignores top-level sets found only through the resolver prototype', () => {
+    const inheritedSetsResolver = Object.assign(
+      Object.create({
+        sets: {
+          attacker: { sources: [{ attacker: { $value: 'unsafe' } }] },
+        },
+      }),
+      {
+        version: '2025.10',
+        resolutionOrder: [{ $ref: '#/sets/attacker' }],
+      }
+    ) as ResolverDocument
+
+    expect(flattenTokens(applyResolver({}, inheritedSetsResolver))).toEqual([])
+  })
+
+  it('ignores top-level modifiers found only through the resolver prototype', () => {
+    const inheritedModifiersResolver = Object.assign(
+      Object.create({
+        modifiers: {
+          attacker: {
+            default: 'unsafe',
+            contexts: {
+              unsafe: [{ attacker: { $value: 'unsafe' } }],
+            },
+          },
+        },
+      }),
+      {
+        version: '2025.10',
+        resolutionOrder: [{ $ref: '#/modifiers/attacker' }],
+      }
+    ) as ResolverDocument
+
+    expect(
+      flattenTokens(applyResolver({}, inheritedModifiersResolver))
+    ).toEqual([])
+    expect(listContexts(inheritedModifiersResolver)).toEqual({})
+  })
+
+  it('rejects a set whose sources exist only on its prototype', () => {
+    const inheritedSources = Object.create({
+      sources: [{ attacker: { $value: 'unsafe' } }],
+    }) as ResolverSet
+    const inheritedSourcesResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: { base: inheritedSources },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(() => applyResolver({}, inheritedSourcesResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, inheritedSourcesResolver)).toThrow(
+      /set "base".*sources.*own array/i
+    )
+  })
+
+  it('rejects a set with a malformed own sources value', () => {
+    const malformedSourcesResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: {
+          sources: { attacker: { $value: 'unsafe' } },
+        } as unknown as ResolverSet,
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(() => applyResolver({}, malformedSourcesResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, malformedSourcesResolver)).toThrow(
+      /set "base".*sources.*own array/i
+    )
+  })
+
+  it('rejects a modifier whose contexts exist only on its prototype', () => {
+    const inheritedContexts = Object.assign(
+      Object.create({
+        contexts: {
+          unsafe: [{ attacker: { $value: 'unsafe' } }],
+        },
+      }),
+      { default: 'unsafe' }
+    ) as ResolverModifier
+    const inheritedContextsResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: { theme: inheritedContexts },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expect(() => applyResolver({}, inheritedContextsResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, inheritedContextsResolver)).toThrow(
+      /modifier "theme".*contexts.*own object/i
+    )
+    expect(() => listContexts(inheritedContextsResolver)).toThrow(
+      ReferenceResolutionError
+    )
+  })
+
+  it('rejects a modifier with a malformed own contexts value', () => {
+    const malformedContextsResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        theme: { contexts: [] } as unknown as ResolverModifier,
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expect(() => applyResolver({}, malformedContextsResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, malformedContextsResolver)).toThrow(
+      /modifier "theme".*contexts.*own object/i
+    )
+    expect(() => listContexts(malformedContextsResolver)).toThrow(
+      ReferenceResolutionError
+    )
+  })
+
+  it('rejects a modifier context with malformed own sources', () => {
+    const malformedContextSourcesResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        theme: {
+          default: 'dark',
+          contexts: {
+            dark: { attacker: { $value: 'unsafe' } } as unknown as Array<
+              DTCGRef | DTCGDocument
+            >,
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expect(() => applyResolver({}, malformedContextSourcesResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => applyResolver({}, malformedContextSourcesResolver)).toThrow(
+      /context "dark".*sources.*array/i
+    )
+    expect(() => listContexts(malformedContextSourcesResolver)).toThrow(
+      ReferenceResolutionError
+    )
+  })
+
+  it('ignores a default context found only through the modifier prototype', () => {
+    const inheritedDefault = Object.assign(Object.create({ default: 'dark' }), {
+      contexts: {
+        light: [{ selected: { $value: 'light' } }],
+        dark: [{ selected: { $value: 'unsafe' } }],
+      },
+    }) as ResolverModifier
+    const inheritedDefaultResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: { theme: inheritedDefault },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    const merged = applyResolver({}, inheritedDefaultResolver)
+    expect((merged.selected as DTCGToken).$value).toBe('light')
+  })
+
+  it.each([
+    [
+      'sets',
+      {
+        version: '2025.10',
+        sets: [],
+        resolutionOrder: [],
+      } as unknown as ResolverDocument,
+    ],
+    [
+      'modifiers',
+      {
+        version: '2025.10',
+        modifiers: [],
+        resolutionOrder: [],
+      } as unknown as ResolverDocument,
+    ],
+  ])(
+    'rejects a malformed own top-level %s container',
+    (name, invalidResolver) => {
+      expect(() => applyResolver({}, invalidResolver)).toThrow(
+        ReferenceResolutionError
+      )
+      expect(() => applyResolver({}, invalidResolver)).toThrow(
+        new RegExp(`${name}.*object`, 'i')
+      )
+    }
+  )
 })
 
 describe('listContexts / listPermutations', () => {
