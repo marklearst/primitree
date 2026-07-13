@@ -179,21 +179,38 @@ dependencies, and absence of legacy namespace leakage. Tests exercise
 repository discovery from a non-root working directory and representative
 environment/tag cases.
 
-CI tests Node 20.19, the repository tooling floor required by Vite 8, as well
-as the primary Node 22 lane. Published package manifests retain the broader
-Node `>=20.0.0` consumer contract; the source workspace itself requires
-`>=20.19.0`.
-Unit coverage does not receive live Figma credentials. Package-manager build
-policy is represented by one supported pnpm setting. Action references are
-pinned immutably where maintainable update metadata can be preserved.
+The source workspace requires Node `>=22.13.0` and pnpm `11.10.0`; CI uses the
+exact Node `22.13.0` runtime for source quality and publication. Published
+package manifests retain the broader Node `>=20.0.0` consumer contract. That
+floor is tested at exact Node `20.0.0` against downloaded package tarballs,
+with no pnpm workspace install or source build in that job.
 
-Release packaging creates the five public tarballs once, then runs metadata,
-Publint, type-surface, packed-file-set, checksum, dry-run, and install checks
-against those exact artifacts. The hooks bundle-size budget runs against the
-single built output immediately before packaging. The tag-only publish job
-later consumes the saved artifacts instead of rebuilding source. This run may
-implement and test that workflow locally but must not exercise its publishing
-step.
+Unit coverage does not receive live Figma credentials. The Node 20 consumer
+job has no source checkout, pnpm setup, repository install, source command,
+secret, or identity-token permission. Package-manager build policy is
+represented by the `allowBuilds` setting for `esbuild` and `sharp`. Every
+workflow action reference is pinned to an approved immutable revision with a
+major-version update comment.
+
+Release packaging creates the five public tarballs once in the Node 22 quality
+job, then runs metadata, Publint, type-surface, packed-file-set, checksum,
+dry-run, and install checks against those exact artifacts. The hooks bundle-size
+budget runs against the same single built output within that release gate. The
+job uploads an artifact containing exactly the five tarballs, `manifest.json`,
+and `SHA256SUMS`.
+
+The workflow dependency chain is quality, then consumer compatibility, then
+publish. The exact Node `20.0.0` consumer job downloads the quality artifact,
+validates its seven-entry structure and checksums, installs all five tarballs by
+absolute path with scripts, lockfile creation, audit, and funding disabled, and
+smoke-tests ESM, CommonJS, and executable entry points. The tag-only publish job
+depends on both preceding jobs, downloads and validates the same artifact, and
+publishes the five literal tarball paths in dependency order. Publication
+accepts only strict `vMAJOR.MINOR.PATCH` tags; prerelease tags are rejected, and
+every publish command names the npm registry and uses public access,
+`--tag=latest`, and `--ignore-scripts`. Neither downstream job rebuilds source.
+This run may implement and test that workflow locally but must not exercise its
+publishing step.
 
 A checked-in runbook separates automated preflight from manual external steps:
 scope access, two-factor authentication, new-package bootstrap, trusted
@@ -224,9 +241,12 @@ it is verified against current code and upstream contracts before changes are
 made. Critical and Important findings block the next slice; Minor findings are
 recorded for the final whole-branch review.
 
-The final local gate includes formatting, linting, Node 20 and Node 22 relevant
-tests, typechecking, all builds and tests, coverage thresholds, release metadata
-validation, package linting, type-surface checks, size checks, exact-tarball dry
-runs, narrow-viewport browser checks, and a fresh whole-branch review. Passing
-that gate means the branch is ready for Mark's later npm/GitHub phase, not that
-it has been merged or released.
+The final local gate includes formatting, linting, source typechecking and tests
+on the Node 22 toolchain, coverage thresholds, all builds, static workflow tests
+for the exact Node 20 tarball-consumer boundary, release metadata validation,
+package linting, type-surface checks, size checks, exact-tarball dry runs,
+narrow-viewport browser checks, and a fresh whole-branch review. The release
+slice explicitly runs its focused workflow tests, a frozen install, the root
+test suite, and `pnpm run check:release`. Passing that gate means the branch is
+ready for Mark's later npm/GitHub phase, not that it has been merged or
+released.

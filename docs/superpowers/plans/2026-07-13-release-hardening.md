@@ -4,18 +4,20 @@
 
 **Goal:** Make the local and GitHub Actions release path validate complete package contracts, test supported runtimes without secrets, and publish only the exact five tarballs that passed CI.
 
-**Architecture:** One release inventory drives manifest validation and artifact packaging. CI builds once, tests source, packs exactly five public tarballs, validates and hashes those artifacts, then uploads them. A tag-only publish job downloads the saved artifacts and publishes them in dependency order without checkout, install, or rebuild.
+**Architecture:** One release inventory drives manifest validation and artifact packaging. A Node 22 quality job builds and tests source, packs exactly five public tarballs, validates and hashes them, then uploads one seven-file artifact. An exact Node 20 consumer job downloads, validates, installs, and smoke-tests those tarballs without touching the source workspace. A stable-tag-only publish job depends on both jobs and publishes the same downloaded tarballs in dependency order without checkout, install, or rebuild.
 
-**Tech Stack:** Node.js 20/22, pnpm 11, GitHub Actions, Vitest coverage-v8, Publint, Are the Types Wrong, npm tarballs.
+**Tech Stack:** Node.js 22.13 source tooling, Node.js 20.0 tarball-consumer testing, pnpm 11.10, GitHub Actions, Vitest coverage-v8, Publint, Are the Types Wrong, npm tarballs.
 
 ## Global Constraints
 
 - The public release set is exactly `@figmavars/core`, `@figmavars/dtcg`, `@figmavars/cli`, `@figmavars/hooks`, and `@figmavars/mcp`, all on one `MAJOR.MINOR.PATCH` version.
 - Private apps and `@figmavars/plugin-export` are never publishable.
-- Public consumer runtime remains Node `>=20.0.0`; repository development uses Node `>=20.19.0` because Vite 8 requires it.
+- Public consumer runtime remains Node `>=20.0.0`; the source workspace requires Node `>=22.13.0` and pnpm `11.10.0`.
 - Unit tests use deterministic fake credentials and never receive live Figma secrets.
-- CI creates the five npm tarballs once; the publish job consumes those exact checksummed files and never rebuilds.
-- Package publication order is core, dtcg, then cli/hooks/mcp.
+- CI creates the five npm tarballs once; the exact Node `20.0.0` consumer job and Node `22.13.0` publish job download those checksummed files and never rebuild them.
+- The consumer job depends on quality, and publish depends on both quality and consumer compatibility.
+- Publication accepts only strict stable `vMAJOR.MINOR.PATCH` tags. Every real publish names the npm registry and uses public access, `--tag=latest`, and `--ignore-scripts`.
+- Package publication order is core, dtcg, cli, hooks, then mcp.
 - The existing token-based publish authentication remains until trusted publishing is configured for all five packages in the later external phase.
 - No publish, tag creation/movement, push, merge, deployment, credential change, ruleset change, or npm/GitHub administrative mutation during this run.
 - No new public package.
@@ -339,7 +341,8 @@ In a temporary directory, write five dummy tarball files and a manifest. Test:
 
 - exactly five expected package names and one shared version pass;
 - missing, extra, wrong-name, and wrong-version manifest entries fail;
-- missing/extra `.tgz` files and missing/extra/reordered checksum lines fail;
+- missing or extra directory entries and missing/extra/reordered checksum lines
+  fail;
 - symlink or non-regular tarball paths fail;
 - a modified artifact fails SHA-256 verification;
 - `SHA256SUMS` contains one relative filename per package in dependency order.
@@ -356,22 +359,48 @@ Expected: module/functions do not exist.
 
 - [ ] **Step 3: Implement packing and checksum verification**
 
-Import `fileURLToPath` from `node:url`. For each inventory entry, run one
+Import `path` from `node:path` and `fileURLToPath` from `node:url`. Resolve the
+artifact URL to an absolute filesystem directory, then use native
+`path.join` for the pnpm output pattern. For each inventory entry, run one
 command with `spawnSync`:
 
 ```js
-const artifactDirectory = new URL('../artifacts/npm/', import.meta.url)
-const outputPattern = fileURLToPath(new URL('%s-%v.tgz', artifactDirectory))
+const artifactDirectory = fileURLToPath(new URL('../artifacts/npm/', import.meta.url))
+const outputPattern = path.join(artifactDirectory, '%s-%v.tgz')
 const result = spawnSync(
   'pnpm',
-  ['--filter', config.name, 'pack', '--json', '--out', outputPattern],
+  [
+    '--filter',
+    config.name,
+    'pack',
+    '--json',
+    '--out',
+    outputPattern,
+    '--config.ignore-scripts=true',
+  ],
   { cwd: repositoryRoot, encoding: 'utf8' }
 )
 ```
 
 Parse each JSON result and require its `name`, shared `version`, and filename
-`figmavars-${config.name.split('/')[1]}-${version}.tgz`. Hash each written file
-with SHA-256 and write:
+`figmavars-${config.name.split('/')[1]}-${version}.tgz`. Require the reported
+filename to be absolute after resolution, have the expected basename, and
+resolve to the exact expected absolute path:
+
+```js
+const expectedFilename = `figmavars-${config.name.split('/')[1]}-${version}.tgz`
+const expectedPath = path.join(artifactDirectory, expectedFilename)
+if (
+  typeof packResult.filename !== 'string' ||
+  path.basename(packResult.filename) !== expectedFilename ||
+  path.resolve(packResult.filename) !== expectedPath
+) {
+  throw new Error(`pnpm pack returned an unsafe filename for ${config.name}`)
+}
+```
+
+This rejects parent traversal and any output outside the owned artifact
+directory. Hash each written file with SHA-256 and write:
 
 ```json
 {
@@ -391,22 +420,25 @@ contain each tarball's computed digest. Write `SHA256SUMS` as one digest, two
 spaces, and the relative filename, for example
 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  figmavars-core-5.0.0.tgz`.
 `pack` owns and recreates `artifacts/npm`; `verify` never deletes or rebuilds
-anything. Verification compares the directory's complete `.tgz` file set, the
-manifest entries, and checksum lines with the five names derived from the
-inventory and shared version. It rejects unlisted tarballs, symlinks, non-files,
+anything. Verification requires the complete directory entry set to be exactly
+the five tarballs, `manifest.json`, and `SHA256SUMS`. It compares the manifest
+entries and checksum lines with the five names derived from the inventory and
+shared version. It rejects missing or extra entries, symlinks, non-files,
 duplicate entries, reordered checksums, uppercase/non-64-character digests,
 and any computed digest mismatch.
 
 - [ ] **Step 4: Validate exact tarballs with existing tools**
 
 The `check` mode first verifies manifest/checksums. For every inventory entry,
-call `spawnSync('pnpm', ['exec', 'publint', tarballPath, '--strict'])`. When
+call `spawnSync('pnpm', ['exec', 'publint', tarballPath, '--strict'])` exactly;
+do not insert `run`. When
 `config.attwProfile` is non-null, also call
 `spawnSync('pnpm', ['exec', 'attw', tarballPath, '--profile',
 config.attwProfile])`; this covers core (`node16`), dtcg (`strict`), hooks
 (`strict`), and mcp (`esm-only`) while skipping the bin-only CLI. For all five,
 call `spawnSync('npm', ['publish', tarballPath, '--dry-run',
-'--ignore-scripts'])`.
+'--offline', '--provenance=false', '--access=public', '--tag=latest',
+'--ignore-scripts', '--registry=https://registry.npmjs.org/'])`.
 
 Finally create a temporary consumer directory and call `spawnSync('npm',
 ['install', '--ignore-scripts', '--package-lock=false', ...tarballPaths],
@@ -470,17 +502,22 @@ git commit -m "build: validate exact npm release artifacts"
 **Interfaces:**
 
 - Consumes: source checkout, release scripts, exact artifact directory.
-- Produces: Node 20.19 compatibility job, Node 22 quality/artifact job, tag-only download-and-publish job.
+- Produces: exact Node `22.13.0` source-quality artifact job, exact Node
+  `20.0.0` downloaded-tarball consumer job, and stable-tag-only
+  download-and-publish job.
 
 - [ ] **Step 1: Add failing workflow/config assertions**
 
-In `check-release.test.mjs`, read the workflow and workspace config. Extract a
-top-level job by locating its two-space-indented job key and slicing through
-the next two-space job key. Assert:
+In `check-release.test.mjs`, read the workflow, root manifest, public manifests,
+and workspace config. Extract a top-level job by locating its
+two-space-indented job key and slicing through the next two-space job key.
+Assert:
 
 ```js
 assert.doesNotMatch(workflow, /VITE_FIGMA_TOKEN|VITE_FIGMA_FILE_KEY/)
-assert.match(workflow, /node-version: 20\.19\.0/)
+assert.equal(rootManifest.engines.node, '>=22.13.0')
+assert.match(workflow, /node-version: 22\.13\.0/)
+assert.match(workflow, /node-version: 20\.0\.0/)
 assert.match(workflow, /download-artifact@[0-9a-f]{40}/)
 assert.doesNotMatch(workspaceConfig, /onlyBuiltDependencies/)
 ```
@@ -489,17 +526,36 @@ Add exact assertions that:
 
 - every `uses:` value in the repository workflow is one of the six approved
   40-character revisions in Step 4;
-- both source jobs use checkout with `fetch-depth: 0`, while the publish job
-  contains no checkout, pnpm setup, dependency install, test, or build step;
-- publish uses pinned setup-node with Node 22, npm registry URL, and
+- each public package retains `engines.node: ">=20.0.0"` while the root and
+  contributor documentation require Node `>=22.13.0` and pnpm `11.10.0`;
+- the top-level jobs are `quality`, `consumer-compatibility`, and `publish`;
+  consumer compatibility needs quality, and publish needs both preceding jobs;
+- only quality uses checkout and pnpm setup. Its checkout uses
+  `fetch-depth: 0` and `persist-credentials: false`, and its setup-node action
+  uses exact Node `22.13.0` with the pnpm cache and lockfile dependency path;
+- consumer compatibility uses exact Node `20.0.0` and contains no checkout,
+  pnpm setup, source install/build/typecheck/test command, secret reference, or
+  `id-token` permission;
+- publish uses pinned setup-node with exact Node `22.13.0`, npm registry URL, and
   `@figmavars` scope;
-- upload/download share the literal artifact name
-  `npm-packages-${{ github.sha }}`, and download writes to `artifacts/npm`;
-- checksum verification runs from `artifacts/npm`, manifest version is read,
-  and the five exact versioned tarballs appear in dependency order without
-  globs;
-- publish depends on both source jobs, retains token/provenance environment,
-  and tag concurrency can never be canceled.
+- quality upload and both downloads share the literal artifact name
+  `npm-packages-${{ github.sha }}` and path `artifacts/npm`;
+- consumer and publish each reject anything other than the five expected
+  tarballs, `manifest.json`, and `SHA256SUMS`; verify manifest names, shared
+  stable version, checksum order, regular-file status, and SHA-256 digests;
+- the consumer install uses the five absolute tarball paths in dependency order
+  with the registry, engine-strict, no-user-config, no-script, no-lockfile,
+  no-save, no-audit, and no-funding safeguards from Step 6;
+- consumer smoke tests cover the required ESM and CommonJS exports plus all
+  three executable `--help` paths;
+- quality rejects every tag except strict `vMAJOR.MINOR.PATCH` and proves the
+  tagged commit is on `origin/main`;
+- publish is tag-only, retains token/provenance environment only in that job,
+  names five literal tarballs in dependency order without globs, and gives
+  every command `--registry=https://registry.npmjs.org`, `--access=public`,
+  `--tag=latest`, and `--ignore-scripts`;
+- concurrency is the exact two-line policy in Step 8, so tag runs cannot be
+  canceled.
 
 In `pipeline.test.ts`, assert generated workflows contain exact 40-character
 checkout/setup-node pins and no `actions/checkout@v4` or `actions/setup-node@v4`.
@@ -511,12 +567,16 @@ node --test scripts/check-release.test.mjs
 pnpm --filter @figmavars/dtcg exec vitest run tests/pipeline.test.ts
 ```
 
-Expected: current workflow is Node-22-only, secret-bearing, mutable-tagged, and rebuilds on publish; generated workflows use mutable action tags.
+Expected: the current workflow does not yet enforce the reviewed three-job
+dependency chain, exact runtime boundary, immutable actions, stable-tag gate,
+artifact validation in both downstream jobs, or tarball-only consumer smoke
+tests. Generated workflows still use mutable action tags.
 
 - [ ] **Step 3: Harmonize local toolchain policy**
 
-Set root `engines.node` and `CONTRIBUTING.md` to `>=20.19.0`, leaving the five
-public package consumer engines at `>=20.0.0`. In `pnpm-workspace.yaml`, retain:
+Keep `packageManager` at `pnpm@11.10.0`. Set root `engines.node` and
+`CONTRIBUTING.md` to `>=22.13.0`, leaving the five public package consumer
+engines at `>=20.0.0`. In `pnpm-workspace.yaml`, retain:
 
 ```yaml
 allowBuilds:
@@ -542,13 +602,14 @@ codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45 # v5
 
 Generated customer workflows use the same checkout and setup-node pins.
 
-- [ ] **Step 5: Add the Node 20.19 compatibility job**
+- [ ] **Step 5: Build and upload once in the Node 22 quality job**
 
-It performs checkout with `fetch-depth: 0`, pnpm setup, Node `20.19.0`, frozen
-install, typecheck, build, and tests. It receives no secrets. The Node 22
-quality job also checks out with `fetch-depth: 0`, keeps lint and formatting,
-runs full tests and `pnpm run test:coverage`, installs Chromium, runs
-`pnpm test:e2e`, then runs `pnpm run check:release:built`.
+The `quality` job checks out with `fetch-depth: 0` and
+`persist-credentials: false`, configures pnpm `11.10.0`, and uses exact Node
+`22.13.0` with `cache: pnpm` and `cache-dependency-path: pnpm-lock.yaml`. It
+runs the frozen install, formatting, linting, typechecking, build, root tests,
+and `pnpm run test:coverage`. It installs Chromium and runs `pnpm test:e2e`.
+No live Figma credential is present.
 
 Upload coverage from `packages/*/coverage/`. Configure Codecov with:
 
@@ -563,34 +624,99 @@ disable_search: true
 fail_ci_if_error: true
 ```
 
-Upload `artifacts/npm/` as `npm-packages-${{ github.sha }}`. On tags, run
-`git merge-base --is-ancestor "$GITHUB_SHA" origin/main` before packaging;
-the full checkout makes `origin/main` available.
+Configure the `artifacts/npm/` upload as
+`npm-packages-${{ github.sha }}`. On tags, run an explicit gate before
+packaging that accepts only `^v[0-9]+\.[0-9]+\.[0-9]+$`, rejects prerelease
+tags, invokes tag-aware `pnpm run check:release-metadata` to compare the tag
+with the five public package versions, and runs
+`git merge-base --is-ancestor "$GITHUB_SHA" origin/main`. The full checkout
+makes `origin/main` available.
 
-- [ ] **Step 6: Make publish consume only downloaded artifacts**
+After the tag gate, run `pnpm run check:release:built`. Require it to leave
+`artifacts/npm` with exactly five tarballs, `manifest.json`, and
+`SHA256SUMS`. Upload that directory only after release-artifact validation
+succeeds.
 
-The tag-only `publish` job depends on both compatibility and quality jobs. It
-uses pinned setup-node with Node 22 plus
+- [ ] **Step 6: Test downloaded tarballs at exact Node 20.0.0**
+
+Add `consumer-compatibility` with `needs: quality`. It uses exact Node `20.0.0`
+and downloads `npm-packages-${{ github.sha }}` to `artifacts/npm`. It has no
+checkout, pnpm setup, repository install, source command, secret, or
+`id-token: write` permission.
+
+Using Node built-ins, validate before installation that the artifact directory
+contains exactly these seven regular, non-symlink files:
+
+```text
+figmavars-core-<version>.tgz
+figmavars-dtcg-<version>.tgz
+figmavars-cli-<version>.tgz
+figmavars-hooks-<version>.tgz
+figmavars-mcp-<version>.tgz
+manifest.json
+SHA256SUMS
+```
+
+Require a strict stable manifest version, the five manifest entries in release
+inventory order, matching names and filenames, lowercase 64-character digests,
+and checksum lines in the same order. On a tag run, require `v$VERSION` to
+equal `$GITHUB_REF_NAME`. Run `sha256sum --check SHA256SUMS` from
+`artifacts/npm` after structural validation.
+
+Create a temporary consumer directory and install the five absolute tarball
+paths in dependency order:
+
+```bash
+NPM_CONFIG_USERCONFIG=/dev/null npm install \
+  --registry=https://registry.npmjs.org \
+  --engine-strict \
+  --ignore-scripts \
+  --package-lock=false \
+  --no-save \
+  --audit=false \
+  --fund=false \
+  "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" \
+  "$ARTIFACT_DIR/figmavars-dtcg-$VERSION.tgz" \
+  "$ARTIFACT_DIR/figmavars-cli-$VERSION.tgz" \
+  "$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz" \
+  "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz"
+```
+
+Smoke-test ESM imports for `@figmavars/core`, `@figmavars/core/types`,
+`@figmavars/dtcg`, `@figmavars/hooks`, `@figmavars/hooks/core`, and
+`@figmavars/mcp`. Smoke-test CommonJS `require` for core, core types, dtcg,
+hooks, and hooks core. Run `figma-vars --help`,
+`figma-vars-export --help`, and `figma-vars-mcp --help` from the temporary
+install.
+
+- [ ] **Step 7: Publish only the validated stable-tag artifact**
+
+The `publish` job has `needs: [quality, consumer-compatibility]` and runs only
+for tags that passed the quality job's strict stable-tag gate. It uses pinned
+setup-node with exact Node `22.13.0` plus
 `registry-url: 'https://registry.npmjs.org'` and `scope: '@figmavars'`, then
-downloads `npm-packages-${{ github.sha }}` to `artifacts/npm`. Its checksum step
-uses `working-directory: artifacts/npm` and runs `sha256sum --check
-SHA256SUMS`. The publish step reads the version from the downloaded manifest
-and names every tarball exactly:
+downloads `npm-packages-${{ github.sha }}` to `artifacts/npm`.
+
+Repeat the exact seven-file, manifest, regular-file, checksum-order, and digest
+validation from the consumer job before publication. Read the stable version
+from the downloaded manifest, require `v$VERSION` to equal
+`$GITHUB_REF_NAME`, and name every tarball literally:
 
 ```bash
 VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
-npm publish "artifacts/npm/figmavars-core-${VERSION}.tgz" --access public
-npm publish "artifacts/npm/figmavars-dtcg-${VERSION}.tgz" --access public
-npm publish "artifacts/npm/figmavars-cli-${VERSION}.tgz" --access public
-npm publish "artifacts/npm/figmavars-hooks-${VERSION}.tgz" --access public
-npm publish "artifacts/npm/figmavars-mcp-${VERSION}.tgz" --access public
+npm publish "artifacts/npm/figmavars-core-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "artifacts/npm/figmavars-dtcg-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "artifacts/npm/figmavars-cli-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "artifacts/npm/figmavars-hooks-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "artifacts/npm/figmavars-mcp-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
 ```
 
 It does not checkout, install dependencies, test, or build. Retain
 `NODE_AUTH_TOKEN` and
 `NPM_CONFIG_PROVENANCE: 'true'` until the later trusted-publishing migration.
+Only this job receives the npm secret and `id-token: write` permission.
 
-- [ ] **Step 7: Add safe concurrency and verify workflows locally**
+- [ ] **Step 8: Add safe concurrency and verify workflows locally**
 
 Add exactly:
 
@@ -610,9 +736,10 @@ pnpm run test
 pnpm run check:release
 ```
 
-Expected: config assertions, generated workflow tests, install, full tests, and exact-artifact release check pass.
+Expected: config assertions, generated workflow tests, the frozen install, the
+full root tests, and the exact-artifact release check pass.
 
-- [ ] **Step 8: Commit the task**
+- [ ] **Step 9: Commit the task**
 
 ```bash
 git add package.json CONTRIBUTING.md pnpm-workspace.yaml .github/workflows/ci.yml packages/dtcg/src/pipeline/build.ts packages/dtcg/tests/pipeline.test.ts scripts/check-release.test.mjs
@@ -668,10 +795,11 @@ Leave every item unchecked and explicitly external:
 - [ ] **Step 3: Document failure recovery without rebuilding**
 
 Use `VERSION=5.0.0` and `ARTIFACT_DIR=artifacts/npm` in command examples. Begin
-every recovery by running:
+every recovery by running the macOS-provided `shasum` command below. GitHub's
+Linux jobs use `sha256sum --check SHA256SUMS` instead.
 
 ```bash
-(cd "$ARTIFACT_DIR" && sha256sum --check SHA256SUMS)
+(cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 npm view "@figmavars/core@$VERSION" version
 npm view "@figmavars/dtcg@$VERSION" version
 npm view "@figmavars/cli@$VERSION" version
@@ -684,11 +812,11 @@ recovery. Show one exact same-byte retry per package, to be run only when that
 package is missing:
 
 ```bash
-npm publish "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" --access public
-npm publish "$ARTIFACT_DIR/figmavars-dtcg-$VERSION.tgz" --access public
-npm publish "$ARTIFACT_DIR/figmavars-cli-$VERSION.tgz" --access public
-npm publish "$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz" --access public
-npm publish "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz" --access public
+npm publish "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "$ARTIFACT_DIR/figmavars-dtcg-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "$ARTIFACT_DIR/figmavars-cli-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
 ```
 
 For wrong dist-tags, use `npm dist-tag ls`, then show
@@ -707,7 +835,7 @@ RECOVERY_DIR=$(mktemp -d)
 gh run download "$RUN_ID" \
   --name "npm-packages-$COMMIT_SHA" \
   --dir "$RECOVERY_DIR"
-(cd "$RECOVERY_DIR" && sha256sum --check SHA256SUMS)
+(cd "$RECOVERY_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
 
 If npm succeeded but the GitHub Release failed, recreate release metadata from
@@ -728,7 +856,8 @@ cannot diverge.
 In `check-release.test.mjs`, assert `CONTRIBUTING.md` links
 `docs/releasing.md`, the announcement links `../releasing.md`, the announcement
 contains neither `npm publish` nor `git push --tags`, and the runbook contains
-the five exact version-query and tarball-publish command stems above.
+the five exact version-query and tarball-publish command stems above, including
+the registry, public-access, `latest` dist-tag, and ignored-script flags.
 
 - [ ] **Step 5: Verify formatting and commands named by the runbook**
 
