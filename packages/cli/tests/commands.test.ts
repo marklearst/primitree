@@ -156,6 +156,9 @@ describe('figma-vars init', () => {
     const pkg = JSON.parse(await readOut('my-tokens', 'package.json'))
     expect(pkg.devDependencies['@figmavars/cli']).toBeDefined()
     expect(pkg.scripts.build).toContain('figma-vars build')
+    expect(pkg.scripts.diff).toBe(
+      'figma-vars diff backup/variables.json variables.json'
+    )
 
     await expect(readOut('my-tokens', 'variables.json')).resolves.toContain(
       'variableCollections'
@@ -169,6 +172,9 @@ describe('figma-vars init', () => {
     await expect(
       readOut('my-tokens', 'backup', 'variables.json')
     ).resolves.toContain('variableCollections')
+    await expect(readOut('my-tokens', 'README.md')).resolves.toContain(
+      'Pushing a new `variables.json` to GitHub triggers the workflow'
+    )
   })
 
   it('seeds from a provided export and refuses to overwrite', async () => {
@@ -181,4 +187,158 @@ describe('figma-vars init', () => {
       runInit(parseArgs([repo, '--from', fixturePath]))
     ).rejects.toThrow(/refusing to overwrite/i)
   })
+
+  it('reports every owned collision and writes nothing', async () => {
+    const repo = path.join(tmpDir, 'occupied')
+    await fs.mkdir(path.join(repo, '.github', 'workflows'), { recursive: true })
+    await fs.writeFile(path.join(repo, 'package.json'), 'package sentinel')
+    await fs.writeFile(
+      path.join(repo, '.github', 'workflows', 'design-tokens.yml'),
+      'workflow sentinel'
+    )
+
+    await expect(runInit(parseArgs([repo]))).rejects.toThrow(
+      /package\.json[\s\S]*\.github\/workflows\/design-tokens\.yml/
+    )
+    await expect(readOut('occupied', 'package.json')).resolves.toBe(
+      'package sentinel'
+    )
+    await expect(
+      readOut('occupied', '.github', 'workflows', 'design-tokens.yml')
+    ).resolves.toBe('workflow sentinel')
+    await expect(fs.lstat(path.join(repo, 'variables.json'))).rejects.toThrow()
+  })
+
+  it('force replaces owned paths and preserves unrelated files', async () => {
+    const repo = path.join(tmpDir, 'forced')
+    await fs.mkdir(repo, { recursive: true })
+    await fs.writeFile(path.join(repo, 'package.json'), 'old')
+    await fs.writeFile(path.join(repo, 'notes.txt'), 'keep me')
+
+    await runInit(parseArgs([repo, '--force']))
+
+    expect(JSON.parse(await readOut('forced', 'package.json')).private).toBe(
+      true
+    )
+    await expect(readOut('forced', 'notes.txt')).resolves.toBe('keep me')
+  })
+
+  it('initializes a non-empty directory when no owned path collides', async () => {
+    const repo = path.join(tmpDir, 'notes-only')
+    await fs.mkdir(repo, { recursive: true })
+    await fs.writeFile(path.join(repo, 'notes.txt'), 'keep me')
+
+    await runInit(parseArgs([repo]))
+
+    await expect(readOut('notes-only', 'variables.json')).resolves.toContain(
+      'variableCollections'
+    )
+    await expect(readOut('notes-only', 'notes.txt')).resolves.toBe('keep me')
+  })
+
+  it('rejects non-directory ancestors even with force before writing', async () => {
+    const repo = path.join(tmpDir, 'file-ancestor')
+    await fs.mkdir(repo, { recursive: true })
+    await fs.writeFile(path.join(repo, 'tokens'), 'token sentinel')
+    await fs.writeFile(path.join(repo, 'package.json'), 'package sentinel')
+
+    await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+      /tokens[\s\S]*not a directory[\s\S]*package\.json/i
+    )
+    await expect(readOut('file-ancestor', 'tokens')).resolves.toBe(
+      'token sentinel'
+    )
+    await expect(readOut('file-ancestor', 'package.json')).resolves.toBe(
+      'package sentinel'
+    )
+    await expect(fs.lstat(path.join(repo, 'variables.json'))).rejects.toThrow()
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects symlink ancestors even with force without writing through them',
+    async () => {
+      const repo = path.join(tmpDir, 'linked-ancestor')
+      const outside = path.join(tmpDir, 'outside-tokens')
+      await fs.mkdir(repo, { recursive: true })
+      await fs.mkdir(outside, { recursive: true })
+      await fs.symlink(outside, path.join(repo, 'tokens'), 'dir')
+
+      await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+        /tokens[\s\S]*symbolic link/i
+      )
+      expect((await fs.lstat(path.join(repo, 'tokens'))).isSymbolicLink()).toBe(
+        true
+      )
+      await expect(fs.readdir(outside)).resolves.toEqual([])
+      await expect(
+        fs.lstat(path.join(repo, 'variables.json'))
+      ).rejects.toThrow()
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'force replaces an owned leaf symlink without touching its target',
+    async () => {
+      const repo = path.join(tmpDir, 'linked-leaf')
+      const outside = path.join(tmpDir, 'outside-readme.md')
+      await fs.mkdir(repo, { recursive: true })
+      await fs.writeFile(outside, 'outside sentinel')
+      await fs.symlink(outside, path.join(repo, 'README.md'))
+
+      await runInit(parseArgs([repo, '--force']))
+
+      expect(
+        (await fs.lstat(path.join(repo, 'README.md'))).isSymbolicLink()
+      ).toBe(false)
+      await expect(readOut('linked-leaf', 'README.md')).resolves.toContain(
+        '# linked-leaf'
+      )
+      await expect(fs.readFile(outside, 'utf8')).resolves.toBe(
+        'outside sentinel'
+      )
+    }
+  )
+
+  it('rejects owned leaf directories even with force before writing', async () => {
+    const repo = path.join(tmpDir, 'directory-leaf')
+    await fs.mkdir(path.join(repo, 'README.md'), { recursive: true })
+    await fs.writeFile(
+      path.join(repo, 'README.md', 'notes.txt'),
+      'directory sentinel'
+    )
+
+    await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+      /README\.md[\s\S]*directory/i
+    )
+    await expect(
+      readOut('directory-leaf', 'README.md', 'notes.txt')
+    ).resolves.toBe('directory sentinel')
+    await expect(fs.lstat(path.join(repo, 'variables.json'))).rejects.toThrow()
+  })
+
+  it('rejects a non-directory target even with force', async () => {
+    const repo = path.join(tmpDir, 'target-file')
+    await fs.writeFile(repo, 'target sentinel')
+
+    await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+      /target-file[\s\S]*not a directory/i
+    )
+    await expect(fs.readFile(repo, 'utf8')).resolves.toBe('target sentinel')
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a symlink target even with force without writing through it',
+    async () => {
+      const outside = path.join(tmpDir, 'outside-repo')
+      const repo = path.join(tmpDir, 'linked-repo')
+      await fs.mkdir(outside, { recursive: true })
+      await fs.symlink(outside, repo, 'dir')
+
+      await expect(runInit(parseArgs([repo, '--force']))).rejects.toThrow(
+        /linked-repo[\s\S]*symbolic link/i
+      )
+      expect((await fs.lstat(repo)).isSymbolicLink()).toBe(true)
+      await expect(fs.readdir(outside)).resolves.toEqual([])
+    }
+  )
 })
