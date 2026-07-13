@@ -9,7 +9,9 @@ import {
 import sampleVariables from './sample-variables.json'
 import wordmark from './assets/figmavars.svg'
 
-type Tab = 'tokens' | 'files'
+const tabs = ['tokens', 'files'] as const
+
+type Tab = (typeof tabs)[number]
 
 export default function App() {
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -19,6 +21,45 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('tokens')
   const [openFile, setOpenFile] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const tokensTabRef = useRef<HTMLButtonElement>(null)
+  const filesTabRef = useRef<HTMLButtonElement>(null)
+
+  const tabRefs = {
+    tokens: tokensTabRef,
+    files: filesTabRef,
+  } as const
+
+  const onTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    currentTab: Tab
+  ) => {
+    const currentIndex = tabs.indexOf(currentTab)
+    let nextTab: Tab | undefined
+
+    switch (event.key) {
+      case 'ArrowRight':
+        nextTab = tabs[(currentIndex + 1) % tabs.length]
+        break
+      case 'ArrowLeft':
+        nextTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length]
+        break
+      case 'Home':
+        nextTab = tabs[0]
+        break
+      case 'End':
+        nextTab = tabs[tabs.length - 1]
+        break
+      default:
+        return
+    }
+
+    event.preventDefault()
+    if (!nextTab) {
+      return
+    }
+    setTab(nextTab)
+    tabRefs[nextTab].current?.focus()
+  }
 
   const load = useCallback((text: string, name: string) => {
     try {
@@ -101,168 +142,207 @@ export default function App() {
         </nav>
       </header>
 
-      {!preview && (
-        <main className='landing'>
-          <h1>
-            Drop your Figma variables.
-            <br />
-            <em>Leave with a token pipeline.</em>
-          </h1>
-          <p className='lede'>
-            DTCG 2025.10 tokens, a Resolver for your modes, CSS custom
-            properties, a Tailwind v4 theme, TypeScript types, and CI config —
-            generated in your browser. <strong>Nothing is uploaded.</strong>
-          </p>
+      <main className={preview ? 'report' : 'landing'}>
+        <h1 className={`page-title${preview ? ' visually-hidden' : ''}`}>
+          Drop your Figma variables.
+          <br /> <em>Leave with a token pipeline.</em>
+        </h1>
 
-          <fieldset
-            aria-labelledby='dropzone-title'
-            className={`dropzone${dragging ? ' dragging' : ''}`}
-            style={{ margin: 0, minInlineSize: 0 }}
-            onDragOver={event => {
-              event.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}>
-            <p
-              id='dropzone-title'
-              className='dz-title'>
-              Drag a variables.json here
+        {!preview && (
+          <div className='landing-content'>
+            <p className='lede'>
+              DTCG 2025.10 tokens, a Resolver for your modes, CSS custom
+              properties, a Tailwind v4 theme, TypeScript types, and CI config —
+              generated in your browser. <strong>Nothing is uploaded.</strong>
             </p>
-            <p className='dz-sub'>
-              from <code>figma-vars export</code>, TokensBrücke, or any
-              variables plugin
-            </p>
-            <div className='dz-actions'>
-              <button
-                type='button'
-                className='button primary'
-                onClick={() => fileInputRef.current?.click()}>
-                Choose file
-              </button>
-              <input
-                ref={fileInputRef}
-                type='file'
-                accept='.json,application/json'
-                onChange={onPick}
-                hidden
-              />
-              <button
-                type='button'
-                className='button ghost'
-                onClick={() =>
-                  load(JSON.stringify(sampleVariables), 'sample-variables.json')
-                }>
-                Try the sample
-              </button>
-            </div>
-          </fieldset>
 
-          {error && <div className='error'>{error}</div>}
+            <fieldset
+              aria-labelledby='dropzone-title'
+              className={`dropzone${dragging ? ' dragging' : ''}`}
+              style={{ margin: 0, minInlineSize: 0 }}
+              onDragOver={event => {
+                event.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}>
+              <p
+                id='dropzone-title'
+                className='dz-title'>
+                Drag a variables.json here
+              </p>
+              <p className='dz-sub'>
+                from <code>figma-vars export</code>, TokensBrücke, or any
+                variables plugin
+              </p>
+              <div className='dz-actions'>
+                <button
+                  type='button'
+                  className='button primary'
+                  onClick={() => fileInputRef.current?.click()}>
+                  Choose file
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type='file'
+                  accept='.json,application/json'
+                  onChange={onPick}
+                  hidden
+                />
+                <button
+                  type='button'
+                  className='button ghost'
+                  onClick={() =>
+                    load(
+                      JSON.stringify(sampleVariables),
+                      'sample-variables.json'
+                    )
+                  }>
+                  Try the sample
+                </button>
+              </div>
+            </fieldset>
 
-          <div className='steps'>
-            <div className='step'>
-              <span className='step-n'>1</span>
-              Export variables from Figma (any plan — plugins work)
-            </div>
-            <div className='step'>
-              <span className='step-n'>2</span>
-              Drop the JSON here, preview every collection and mode
-            </div>
-            <div className='step'>
-              <span className='step-n'>3</span>
-              Download the zip, commit it, ship tokens
+            {error ? (
+              <div
+                className='error'
+                role='alert'>
+                {error}
+              </div>
+            ) : null}
+
+            <div className='steps'>
+              <div className='step'>
+                <span className='step-n'>1</span>
+                Export variables from Figma (any plan — plugins work)
+              </div>
+              <div className='step'>
+                <span className='step-n'>2</span>
+                Drop the JSON here, preview every collection and mode
+              </div>
+              <div className='step'>
+                <span className='step-n'>3</span>
+                Download the zip, commit it, ship tokens
+              </div>
             </div>
           </div>
-        </main>
-      )}
+        )}
 
-      {preview && (
-        <main className='report'>
-          <section className='report-head'>
-            <div>
-              <h2>{preview.fileName}</h2>
-              <p className='stats'>
-                {preview.pipeline.summary.collections} collections ·{' '}
-                {preview.pipeline.summary.variables} tokens ·{' '}
-                {Object.keys(preview.contexts).length} theme axes ·{' '}
-                {preview.pipeline.files.length} files generated
-              </p>
-            </div>
-            <div className='report-actions'>
-              <button
-                type='button'
-                className='button ghost'
-                onClick={() => setPreview(null)}>
-                Start over
-              </button>
-              <button
-                type='button'
-                className='button primary'
-                onClick={() =>
-                  downloadBlob(
-                    zipPipeline(preview.pipeline),
-                    'design-tokens.zip'
-                  )
-                }>
-                Download pipeline (.zip)
-              </button>
-            </div>
-          </section>
-
-          {preview.dtcg.warnings.length > 0 && (
-            <details className='warnings'>
-              <summary>{preview.dtcg.warnings.length} warning(s)</summary>
-              <ul>
-                {preview.dtcg.warnings.map(warning => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </details>
-          )}
-
-          {Object.keys(preview.contexts).length > 0 && (
-            <section className='contexts'>
-              {Object.entries(preview.contexts).map(([axis, contexts]) => (
-                <div
-                  className='axis'
-                  key={axis}>
-                  <span className='axis-name'>{axis}</span>
-                  <div className='axis-options'>
-                    {contexts.map(context => (
-                      <button
-                        type='button'
-                        key={context}
-                        className={`chip${selection[axis] === context ? ' active' : ''}`}
-                        onClick={() =>
-                          setSelection(prev => ({ ...prev, [axis]: context }))
-                        }>
-                        {context}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        {preview && (
+          <>
+            <section className='report-head'>
+              <div>
+                <h2>{preview.fileName}</h2>
+                <p className='stats'>
+                  {preview.pipeline.summary.collections} collections ·{' '}
+                  {preview.pipeline.summary.variables} tokens ·{' '}
+                  {Object.keys(preview.contexts).length} theme axes ·{' '}
+                  {preview.pipeline.files.length} files generated
+                </p>
+              </div>
+              <div className='report-actions'>
+                <button
+                  type='button'
+                  className='button ghost'
+                  onClick={() => setPreview(null)}>
+                  Start over
+                </button>
+                <button
+                  type='button'
+                  className='button primary'
+                  onClick={() =>
+                    downloadBlob(
+                      zipPipeline(preview.pipeline),
+                      'design-tokens.zip'
+                    )
+                  }>
+                  Download pipeline (.zip)
+                </button>
+              </div>
             </section>
-          )}
 
-          <nav className='tabs'>
-            <button
-              type='button'
-              className={`tab${tab === 'tokens' ? ' active' : ''}`}
-              onClick={() => setTab('tokens')}>
-              Tokens
-            </button>
-            <button
-              type='button'
-              className={`tab${tab === 'files' ? ' active' : ''}`}
-              onClick={() => setTab('files')}>
-              Generated files
-            </button>
-          </nav>
+            {preview.dtcg.warnings.length > 0 && (
+              <details className='warnings'>
+                <summary>{preview.dtcg.warnings.length} warning(s)</summary>
+                <ul>
+                  {preview.dtcg.warnings.map(warning => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
-          {tab === 'tokens' && (
-            <>
+            {Object.keys(preview.contexts).length > 0 && (
+              <section className='contexts'>
+                {Object.entries(preview.contexts).map(([axis, contexts]) => (
+                  <fieldset
+                    className='axis'
+                    key={axis}>
+                    <legend className='axis-name'>{axis}</legend>
+                    <div className='axis-options'>
+                      {contexts.map(context => (
+                        <label
+                          key={context}
+                          className='chip'>
+                          <input
+                            type='radio'
+                            name={`standalone-context-${axis}`}
+                            value={context}
+                            checked={selection[axis] === context}
+                            onChange={() =>
+                              setSelection(previous => ({
+                                ...previous,
+                                [axis]: context,
+                              }))
+                            }
+                          />
+                          <span>{context}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </section>
+            )}
+
+            <div
+              className='tabs'
+              role='tablist'
+              aria-label='Preview output'>
+              <button
+                ref={tokensTabRef}
+                type='button'
+                id='standalone-tab-tokens'
+                role='tab'
+                aria-selected={tab === 'tokens'}
+                aria-controls='standalone-panel-tokens'
+                tabIndex={tab === 'tokens' ? 0 : -1}
+                className={`tab${tab === 'tokens' ? ' active' : ''}`}
+                onClick={() => setTab('tokens')}
+                onKeyDown={event => onTabKeyDown(event, 'tokens')}>
+                Tokens
+              </button>
+              <button
+                ref={filesTabRef}
+                type='button'
+                id='standalone-tab-files'
+                role='tab'
+                aria-selected={tab === 'files'}
+                aria-controls='standalone-panel-files'
+                tabIndex={tab === 'files' ? 0 : -1}
+                className={`tab${tab === 'files' ? ' active' : ''}`}
+                onClick={() => setTab('files')}
+                onKeyDown={event => onTabKeyDown(event, 'files')}>
+                Generated files
+              </button>
+            </div>
+
+            <section
+              className='tab-panel'
+              id='standalone-panel-tokens'
+              role='tabpanel'
+              aria-labelledby='standalone-tab-tokens'
+              hidden={tab !== 'tokens'}>
               {colorTokens.length > 0 && (
                 <section>
                   <h3>Colors</h3>
@@ -286,39 +366,48 @@ export default function App() {
               {otherTokens.length > 0 && (
                 <section>
                   <h3>Everything else</h3>
-                  <table className='token-table'>
-                    <thead>
-                      <tr>
-                        <th>Token</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {otherTokens.map(token => (
-                        <tr key={token.path}>
-                          <td>
-                            <code>{token.path}</code>
-                          </td>
-                          <td>
-                            <span className='type-chip'>{token.type}</span>
-                          </td>
-                          <td>
-                            <code>
-                              {token.css ?? JSON.stringify(token.value)}
-                            </code>
-                          </td>
+                  <section
+                    className='table-region'
+                    aria-label='Generated tokens'
+                    // biome-ignore lint/a11y/noNoninteractiveTabindex: This labeled overflow region must be focusable so keyboard users can scroll its wide table.
+                    tabIndex={0}>
+                    <table className='token-table'>
+                      <thead>
+                        <tr>
+                          <th>Token</th>
+                          <th>Type</th>
+                          <th>Value</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {otherTokens.map(token => (
+                          <tr key={token.path}>
+                            <td>
+                              <code>{token.path}</code>
+                            </td>
+                            <td>
+                              <span className='type-chip'>{token.type}</span>
+                            </td>
+                            <td>
+                              <code>
+                                {token.css ?? JSON.stringify(token.value)}
+                              </code>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
                 </section>
               )}
-            </>
-          )}
+            </section>
 
-          {tab === 'files' && (
-            <section className='files'>
+            <section
+              className='tab-panel files'
+              id='standalone-panel-files'
+              role='tabpanel'
+              aria-labelledby='standalone-tab-files'
+              hidden={tab !== 'files'}>
               <ul className='file-list'>
                 {preview.pipeline.files.map(file => (
                   <li key={file.path}>
@@ -342,9 +431,9 @@ export default function App() {
                 </code>
               </pre>
             </section>
-          )}
-        </main>
-      )}
+          </>
+        )}
+      </main>
 
       <footer className='footer'>
         Runs 100% client-side — your tokens never leave this tab. Built with{' '}
