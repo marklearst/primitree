@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderHookWithWrapper } from '../test-utils'
+import { renderHookWithWrapper, TEST_FIGMA_TOKEN } from '../test-utils'
 import useFigmaToken from '../../src/hooks/useFigmaToken'
 
 describe('useFigmaToken', () => {
@@ -17,8 +17,7 @@ describe('useFigmaToken', () => {
   it('should return the token from context', () => {
     const { result } = renderHookWithWrapper(() => useFigmaToken())
 
-    // Should return the token from the test environment
-    expect(result.current).toBe(process.env.VITE_FIGMA_TOKEN)
+    expect(result.current).toBe(TEST_FIGMA_TOKEN)
   })
 
   it('should throw error when no context provider is available', () => {
