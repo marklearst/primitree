@@ -12,6 +12,8 @@
   "scripts": {
     "build": "turbo run build",
     "test": "node --test scripts/check-release.test.mjs && turbo run test",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
     "test:coverage": "turbo run test:coverage",
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",
@@ -32,6 +34,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.4",
     "@biomejs/biome": "^2.5.2",
+    "@playwright/test": "1.61.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
