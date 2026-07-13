@@ -10,101 +10,381 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
-  ci:
+  quality:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.10.0
+          run_install: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: 22.13.0
           cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm run lint
 
-      - name: Check Formatting
+      - name: Check formatting
         run: pnpm run format:check
 
-      - name: Typecheck All Workspaces
+      - name: Typecheck all workspaces
         run: pnpm run typecheck
 
-      - name: Build All Packages
+      - name: Build all packages
         run: pnpm run build
 
-      - name: Run Tests
+      - name: Run tests
         run: pnpm run test
 
-      - name: Run Tests with Coverage (hooks)
-        run: pnpm --filter @figmavars/hooks run test:coverage
-        env:
-          VITE_FIGMA_TOKEN: ${{ secrets.VITE_FIGMA_TOKEN }}
-          VITE_FIGMA_FILE_KEY: ${{ secrets.VITE_FIGMA_FILE_KEY }}
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
 
-      - name: Upload Coverage Report (GitHub Artifact)
-        uses: actions/upload-artifact@v4
+      - name: Install Chromium
+        run: pnpm run test:e2e:install
+
+      - name: Run browser tests
+        run: pnpm run test:e2e
+
+      - name: Validate stable release tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          pnpm run check:release-metadata
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Check built release packages
+        run: pnpm run check:release:built
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-report
-          path: packages/hooks/coverage/
+          path: packages/*/coverage/
+          if-no-files-found: error
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45 # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./packages/hooks/coverage/lcov.info
-          flags: unittests
-          name: codecov-coverage
+          files: >-
+            ./packages/core/coverage/lcov.info,
+            ./packages/dtcg/coverage/lcov.info,
+            ./packages/cli/coverage/lcov.info,
+            ./packages/hooks/coverage/lcov.info,
+            ./packages/mcp/coverage/lcov.info
+          disable_search: true
           fail_ci_if_error: true
 
-      - name: Check Release Packages
-        run: pnpm run check:release
+      - name: Upload npm release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-packages-${{ github.sha }}
+          path: artifacts/npm/
+          if-no-files-found: error
+
+  consumer-compatibility:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20.0.0
+
+      - name: Download npm release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-packages-${{ github.sha }}
+          path: artifacts/npm
+
+      - name: Validate release artifact boundary
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { readFileSync, readdirSync } from 'node:fs'
+          import path from 'node:path'
+
+          const artifactDirectory = path.resolve('artifacts/npm')
+          const entries = readdirSync(artifactDirectory, { withFileTypes: true })
+          if (entries.length !== 7) {
+            throw new Error('release artifact directory must contain exactly seven entries')
+          }
+          if (entries.some(entry => !entry.isFile() || entry.isSymbolicLink())) {
+            throw new Error('every release artifact entry must be a regular non-symlink file')
+          }
+
+          const hasExactKeys = (value, expected) => {
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+            const actual = Object.keys(value).sort()
+            return actual.length === expected.length &&
+              actual.every((key, index) => key === [...expected].sort()[index])
+          }
+          const manifest = JSON.parse(
+            readFileSync(path.join(artifactDirectory, 'manifest.json'), 'utf8')
+          )
+          if (!hasExactKeys(manifest, ['version', 'artifacts'])) {
+            throw new Error('release manifest must contain exactly version and artifacts')
+          }
+          const { version } = manifest
+          if (typeof version !== 'string' || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+            throw new Error('release manifest version must be stable MAJOR.MINOR.PATCH')
+          }
+          const expectedArtifacts = [
+            { name: '@figmavars/core', file: `figmavars-core-${version}.tgz` },
+            { name: '@figmavars/dtcg', file: `figmavars-dtcg-${version}.tgz` },
+            { name: '@figmavars/cli', file: `figmavars-cli-${version}.tgz` },
+            { name: '@figmavars/hooks', file: `figmavars-hooks-${version}.tgz` },
+            { name: '@figmavars/mcp', file: `figmavars-mcp-${version}.tgz` },
+          ]
+          if (!Array.isArray(manifest.artifacts) ||
+              manifest.artifacts.length !== expectedArtifacts.length) {
+            throw new Error('release manifest must contain five artifacts')
+          }
+          for (let index = 0; index < expectedArtifacts.length; index += 1) {
+            const artifact = manifest.artifacts[index]
+            const expected = expectedArtifacts[index]
+            if (!hasExactKeys(artifact, ['name', 'file', 'sha256']) ||
+                artifact.name !== expected.name ||
+                artifact.file !== expected.file ||
+                typeof artifact.sha256 !== 'string' ||
+                !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+              throw new Error(`release manifest artifact ${index + 1} is invalid`)
+            }
+          }
+
+          const expectedEntries = [
+            'manifest.json',
+            'SHA256SUMS',
+            ...expectedArtifacts.map(artifact => artifact.file),
+          ].sort()
+          const actualEntries = entries.map(entry => entry.name).sort()
+          if (JSON.stringify(actualEntries) !== JSON.stringify(expectedEntries)) {
+            throw new Error('release artifact directory contains an unexpected filename')
+          }
+          const canonicalChecksums = `${manifest.artifacts
+            .map(artifact => `${artifact.sha256}  ${artifact.file}`)
+            .join('\n')}\n`
+          if (
+            readFileSync(path.join(artifactDirectory, 'SHA256SUMS'), 'utf8') !==
+            canonicalChecksums
+          ) {
+            throw new Error('SHA256SUMS is not canonical')
+          }
+          for (const artifact of manifest.artifacts) {
+            const computedDigest = createHash('sha256')
+              .update(readFileSync(path.join(artifactDirectory, artifact.file)))
+              .digest('hex')
+            if (computedDigest !== artifact.sha256) {
+              throw new Error(`SHA-256 mismatch for ${artifact.file}`)
+            }
+          }
+          if (
+            process.env.GITHUB_REF_TYPE === 'tag' &&
+            process.env.GITHUB_REF_NAME !== `v${version}`
+          ) {
+            throw new Error('release tag does not match the artifact version')
+          }
+          NODE
+
+      - name: Verify release checksums
+        working-directory: artifacts/npm
+        run: sha256sum --check SHA256SUMS
+
+      - name: Install and smoke-test tarballs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$(realpath artifacts/npm)"
+          VERSION="$(node -p "require('./artifacts/npm/manifest.json').version")"
+          CONSUMER_DIR="$(mktemp -d "$RUNNER_TEMP/figmavars-consumer-XXXXXX")"
+          trap 'rm -rf "$CONSUMER_DIR"' EXIT
+          cd "$CONSUMER_DIR"
+          printf '%s\n' '{"name":"figmavars-release-consumer","version":"0.0.0","private":true,"type":"module"}' > package.json
+          NPM_CONFIG_USERCONFIG=/dev/null npm install \
+            --registry=https://registry.npmjs.org \
+            --engine-strict \
+            --ignore-scripts \
+            --package-lock=false \
+            --no-save \
+            --audit=false \
+            --fund=false \
+            "$ARTIFACT_DIR/figmavars-core-$VERSION.tgz" \
+            "$ARTIFACT_DIR/figmavars-dtcg-$VERSION.tgz" \
+            "$ARTIFACT_DIR/figmavars-cli-$VERSION.tgz" \
+            "$ARTIFACT_DIR/figmavars-hooks-$VERSION.tgz" \
+            "$ARTIFACT_DIR/figmavars-mcp-$VERSION.tgz"
+
+          node --input-type=module <<'NODE'
+          await import('@figmavars/core')
+          await import('@figmavars/core/types')
+          await import('@figmavars/dtcg')
+          await import('@figmavars/hooks')
+          await import('@figmavars/hooks/core')
+          await import('@figmavars/mcp')
+          NODE
+
+          node --input-type=commonjs <<'NODE'
+          require('@figmavars/core')
+          require('@figmavars/core/types')
+          require('@figmavars/dtcg')
+          require('@figmavars/hooks')
+          require('@figmavars/hooks/core')
+          NODE
+
+          ./node_modules/.bin/figma-vars --help
+          ./node_modules/.bin/figma-vars-export --help
+          ./node_modules/.bin/figma-vars-mcp --help
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [quality, consumer-compatibility]
     permissions:
       contents: read
       id-token: write
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version: 22.13.0
           registry-url: 'https://registry.npmjs.org'
           scope: '@figmavars'
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Download npm release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-packages-${{ github.sha }}
+          path: artifacts/npm
 
-      - name: Build All Packages
-        run: pnpm run build
+      - name: Validate release artifact boundary
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { readFileSync, readdirSync } from 'node:fs'
+          import path from 'node:path'
 
-      - name: Publish to NPM
-        run: >-
-          pnpm
-          --filter @figmavars/core
-          --filter @figmavars/dtcg
-          --filter @figmavars/cli
-          --filter @figmavars/hooks
-          --filter @figmavars/mcp
-          -r publish --access public --no-git-checks
+          const artifactDirectory = path.resolve('artifacts/npm')
+          const entries = readdirSync(artifactDirectory, { withFileTypes: true })
+          if (entries.length !== 7) {
+            throw new Error('release artifact directory must contain exactly seven entries')
+          }
+          if (entries.some(entry => !entry.isFile() || entry.isSymbolicLink())) {
+            throw new Error('every release artifact entry must be a regular non-symlink file')
+          }
+
+          const hasExactKeys = (value, expected) => {
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+            const actual = Object.keys(value).sort()
+            return actual.length === expected.length &&
+              actual.every((key, index) => key === [...expected].sort()[index])
+          }
+          const manifest = JSON.parse(
+            readFileSync(path.join(artifactDirectory, 'manifest.json'), 'utf8')
+          )
+          if (!hasExactKeys(manifest, ['version', 'artifacts'])) {
+            throw new Error('release manifest must contain exactly version and artifacts')
+          }
+          const { version } = manifest
+          if (typeof version !== 'string' || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+            throw new Error('release manifest version must be stable MAJOR.MINOR.PATCH')
+          }
+          const expectedArtifacts = [
+            { name: '@figmavars/core', file: `figmavars-core-${version}.tgz` },
+            { name: '@figmavars/dtcg', file: `figmavars-dtcg-${version}.tgz` },
+            { name: '@figmavars/cli', file: `figmavars-cli-${version}.tgz` },
+            { name: '@figmavars/hooks', file: `figmavars-hooks-${version}.tgz` },
+            { name: '@figmavars/mcp', file: `figmavars-mcp-${version}.tgz` },
+          ]
+          if (!Array.isArray(manifest.artifacts) ||
+              manifest.artifacts.length !== expectedArtifacts.length) {
+            throw new Error('release manifest must contain five artifacts')
+          }
+          for (let index = 0; index < expectedArtifacts.length; index += 1) {
+            const artifact = manifest.artifacts[index]
+            const expected = expectedArtifacts[index]
+            if (!hasExactKeys(artifact, ['name', 'file', 'sha256']) ||
+                artifact.name !== expected.name ||
+                artifact.file !== expected.file ||
+                typeof artifact.sha256 !== 'string' ||
+                !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+              throw new Error(`release manifest artifact ${index + 1} is invalid`)
+            }
+          }
+
+          const expectedEntries = [
+            'manifest.json',
+            'SHA256SUMS',
+            ...expectedArtifacts.map(artifact => artifact.file),
+          ].sort()
+          const actualEntries = entries.map(entry => entry.name).sort()
+          if (JSON.stringify(actualEntries) !== JSON.stringify(expectedEntries)) {
+            throw new Error('release artifact directory contains an unexpected filename')
+          }
+          const canonicalChecksums = `${manifest.artifacts
+            .map(artifact => `${artifact.sha256}  ${artifact.file}`)
+            .join('\n')}\n`
+          if (
+            readFileSync(path.join(artifactDirectory, 'SHA256SUMS'), 'utf8') !==
+            canonicalChecksums
+          ) {
+            throw new Error('SHA256SUMS is not canonical')
+          }
+          for (const artifact of manifest.artifacts) {
+            const computedDigest = createHash('sha256')
+              .update(readFileSync(path.join(artifactDirectory, artifact.file)))
+              .digest('hex')
+            if (computedDigest !== artifact.sha256) {
+              throw new Error(`SHA-256 mismatch for ${artifact.file}`)
+            }
+          }
+          if (
+            process.env.GITHUB_REF_TYPE === 'tag' &&
+            process.env.GITHUB_REF_NAME !== `v${version}`
+          ) {
+            throw new Error('release tag does not match the artifact version')
+          }
+          NODE
+
+      - name: Verify release checksums
+        working-directory: artifacts/npm
+        run: sha256sum --check SHA256SUMS
+
+      - name: Publish npm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+          npm publish "artifacts/npm/figmavars-core-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          npm publish "artifacts/npm/figmavars-dtcg-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          npm publish "artifacts/npm/figmavars-cli-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          npm publish "artifacts/npm/figmavars-hooks-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+          npm publish "artifacts/npm/figmavars-mcp-${VERSION}.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
