@@ -72,23 +72,56 @@ function Toolbar() {
 
 Requires a Full seat in an Enterprise org and a token with `file_variables:read` (and `file_variables:write` for mutations).
 
-```tsx
-import { FigmaVarsProvider, useVariables, useUpdateVariable } from '@figmavars/hooks'
+A PAT supplied to `FigmaVarsProvider` is visible to that browser session. Use the live hooks only in a trusted, access-controlled internal tool. Never commit a PAT or expose it through a public browser-bundled environment variable. Public applications should use `@figmavars/core` from server-only code.
 
-function App() {
+```tsx
+import {
+  FigmaVarsProvider,
+  useInvalidateVariables,
+  useUpdateVariable,
+  useVariables,
+} from '@figmavars/hooks'
+
+interface InternalVariablesAppProps {
+  token: string
+  fileKey: string
+}
+
+function InternalVariablesApp({ token, fileKey }: InternalVariablesAppProps) {
   return (
     <FigmaVarsProvider
-      token={process.env.FIGMA_TOKEN}
-      fileKey='your-file-key'>
+      token={token}
+      fileKey={fileKey}>
       <VariablesDashboard />
     </FigmaVarsProvider>
   )
 }
 
 function VariablesDashboard() {
-  const { data, isLoading, error } = useVariables()
+  const { data, error } = useVariables()
   const { mutate: update, isLoading: saving } = useUpdateVariable()
-  // update({ variableId, payload: { name: 'color/bg/brand' } })
+  const { invalidate } = useInvalidateVariables()
+
+  const renameVariable = async () => {
+    const result = await update({
+      variableId: 'VariableID:123:456',
+      payload: { name: 'color/bg/brand' },
+    })
+
+    if (result) {
+      invalidate()
+    }
+  }
+
+  if (error) return <p role='alert'>{error.message}</p>
+
+  return (
+    <button
+      disabled={saving || !data}
+      onClick={renameVariable}>
+      Rename variable
+    </button>
+  )
 }
 ```
 
@@ -109,12 +142,25 @@ No Enterprise seat? Feed the provider a variables JSON export and every read hoo
 ### Error handling and retries
 
 ```ts
-import { isFigmaApiError, isRateLimited, getRetryAfter, withRetry } from '@figmavars/hooks'
+import { fetcher, getRetryAfter, isFigmaApiError, isRateLimited, withRetry } from '@figmavars/core'
 
-const fetchWithRetry = withRetry(() => fetcher(url, token), {
-  maxRetries: 3,
-  retryOnlyRateLimits: true, // respects Retry-After on 429s
-})
+async function loadVariablesOnServer(url: string, token: string) {
+  const fetchWithRetry = withRetry(() => fetcher(url, token), {
+    maxRetries: 3,
+    retryOnlyRateLimits: true,
+  })
+
+  try {
+    return await fetchWithRetry()
+  } catch (error) {
+    if (isRateLimited(error)) {
+      console.error('Retry after seconds:', getRetryAfter(error))
+    } else if (isFigmaApiError(error)) {
+      console.error('Figma API status:', error.statusCode)
+    }
+    throw error
+  }
+}
 ```
 
 ### SWR configuration

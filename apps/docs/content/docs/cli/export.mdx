@@ -22,7 +22,18 @@ Or pass the file key explicitly while keeping the token in the environment:
 
 ```bash
 figma-vars export --file-key "$FIGMA_FILE_KEY" --out variables.json
+figma-vars export --fileKey "$FIGMA_FILE_KEY" --out variables.json
 ```
+
+`--file-key` is the preferred spelling. `--fileKey` remains available as a compatibility alias.
+
+## Options
+
+| Option             | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `--file-key <key>` | Figma file key (or set `FIGMA_FILE_KEY`)         |
+| `--fileKey <key>`  | Compatibility alias for `--file-key`             |
+| `--out <path>`     | Output path (defaults to `figma-variables.json`) |
 
 ## After export
 

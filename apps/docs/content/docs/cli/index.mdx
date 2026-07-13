@@ -31,9 +31,10 @@ figma-vars <command> --help
 figma-vars init my-tokens
 cd my-tokens
 # replace variables.json with your export
-figma-vars build variables.json
-figma-vars check design-tokens
-figma-vars diff variables.json ../backup/variables.json
+npm install
+npm run check
+npm run diff
+npm run build
 ```
 
 <Cards>

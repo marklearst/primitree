@@ -4,7 +4,7 @@ description: Validate a Figma variables export or a built design-tokens director
 ---
 
 ```bash
-figma-vars check <path> [options]
+figma-vars check <variables.json | tokens-dir>
 ```
 
 `<path>` is either:
@@ -17,6 +17,7 @@ figma-vars check <path> [options]
 ```bash
 figma-vars check variables.json
 figma-vars check design-tokens
+figma-vars check . # initialized repository root
 ```
 
 Use before opening a PR or in CI after `figma-vars build`.
@@ -25,14 +26,14 @@ Use before opening a PR or in CI after `figma-vars build`.
 
 **Variables export**
 
-- Required meta fields present
-- Collection and variable references resolve
-- Alias targets exist
+- Supported export shape
+- Alias graph cycles and dangling targets
+- Per-mode value resolution
 
 **Built directory**
 
-- DTCG schema expectations
-- Resolver references valid token files
-- No orphaned mode files
+- DTCG Resolver version
+- Every context permutation merges successfully
+- Every token reference resolves
 
 Exit code non-zero on failure.

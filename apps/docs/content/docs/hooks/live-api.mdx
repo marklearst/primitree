@@ -5,22 +5,57 @@ description: Enterprise Figma Variables REST API hooks with SWR caching.
 
 Requires a Full seat in an Enterprise org and a token with `file_variables:read` (plus `file_variables:write` for mutations).
 
+A PAT supplied to `FigmaVarsProvider` is visible to that browser session. Use the live hooks only in a trusted, access-controlled internal tool. Never commit a PAT or expose it through a public browser-bundled environment variable. Public applications should call the framework-agnostic `@figmavars/core` helpers from server-only code instead.
+
 ## Provider
 
 ```tsx
 import {
   FigmaVarsProvider,
+  useInvalidateVariables,
   useVariables,
   useUpdateVariable,
 } from '@figmavars/hooks'
 
-function App() {
+interface InternalVariablesAppProps {
+  token: string
+  fileKey: string
+}
+
+function InternalVariablesApp({ token, fileKey }: InternalVariablesAppProps) {
   return (
     <FigmaVarsProvider
-      token={process.env.FIGMA_TOKEN}
-      fileKey='your-file-key'>
+      token={token}
+      fileKey={fileKey}>
       <VariablesDashboard />
     </FigmaVarsProvider>
+  )
+}
+
+function VariablesDashboard() {
+  const { data, error } = useVariables()
+  const { mutate: update, isLoading: saving } = useUpdateVariable()
+  const { invalidate } = useInvalidateVariables()
+
+  const renameVariable = async () => {
+    const result = await update({
+      variableId: 'VariableID:123:456',
+      payload: { name: 'color/bg/brand' },
+    })
+
+    if (result) {
+      invalidate()
+    }
+  }
+
+  if (error) return <p role='alert'>{error.message}</p>
+
+  return (
+    <button
+      disabled={saving || !data}
+      onClick={renameVariable}>
+      Rename variable
+    </button>
   )
 }
 ```
@@ -40,7 +75,7 @@ Each returns `{ mutate, data, error, isLoading, isSuccess, isError }`:
 - `useDeleteVariable`
 - `useBulkUpdateVariables`
 
-Call `useInvalidateVariables()` after writes to refresh SWR caches.
+Destructure `invalidate` or `revalidate` from `useInvalidateVariables()`. Invoke it only after the mutation returns a successful result, as in the provider example above.
 
 ## Offline fallback
 
@@ -56,16 +91,30 @@ Every read hook works against the local file.
 
 ```ts
 import {
+  fetcher,
+  getRetryAfter,
   isFigmaApiError,
   isRateLimited,
-  getRetryAfter,
   withRetry,
-} from '@figmavars/hooks'
+} from '@figmavars/core'
 
-const fetchWithRetry = withRetry(() => fetcher(url, token), {
-  maxRetries: 3,
-  retryOnlyRateLimits: true,
-})
+async function loadVariablesOnServer(url: string, token: string) {
+  const fetchWithRetry = withRetry(() => fetcher(url, token), {
+    maxRetries: 3,
+    retryOnlyRateLimits: true,
+  })
+
+  try {
+    return await fetchWithRetry()
+  } catch (error) {
+    if (isRateLimited(error)) {
+      console.error('Retry after seconds:', getRetryAfter(error))
+    } else if (isFigmaApiError(error)) {
+      console.error('Figma API status:', error.statusCode)
+    }
+    throw error
+  }
+}
 ```
 
 ## SWR config
