@@ -5,7 +5,10 @@ export {
 } from './build'
 export type {
   ExportCollection,
+  ExportExtendedCollection,
+  ExportExtendedMode,
   ExportMode,
+  ExportRootCollection,
   ExportSummary,
   ExportVariable,
   LocalVariablesExport,
