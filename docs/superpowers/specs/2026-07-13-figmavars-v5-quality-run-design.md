@@ -74,6 +74,13 @@ signature for compatibility and documentation clarity, but no longer chooses
 the HTTP method. Core contract tests and hook tests must assert the same
 transport and payload behavior so the packages cannot drift.
 
+The exported mutation payload types also mirror the current endpoint contract:
+create operations may use optional temporary IDs, update and delete operations
+require IDs, extended collections expose their parent/mode mapping fields,
+mutation colors accept both RGB and RGBA input, and an extended-mode override
+may use `null` to remove the override. Discriminated action unions encode those
+requirements without weakening update/delete calls.
+
 The implementation must be checked against current official Figma REST
 documentation before it changes production code. If the upstream contract does
 not match this design, implementation stops and the specification is amended
@@ -101,9 +108,10 @@ suffixes and cannot overwrite files or resolver entries.
 
 Token paths are canonicalized before values and alias references are emitted.
 A trie-like allocation pass identifies token/group prefix collisions, moves a
-terminal token to a unique `base` leaf when necessary, and records the final
+terminal token to the DTCG 2025.10 reserved `$root` leaf, and records the final
 path by variable ID. Both token insertion and alias formatting consume that
-same final map.
+same final map. Flattening, resolution, and generated outputs include `$root`
+in the canonical token path exactly as required by the format specification.
 
 Nested output dictionaries use prototype-safe construction and own-property
 checks. Reserved JavaScript object segments such as `__proto__`, `prototype`,
@@ -171,16 +179,21 @@ dependencies, and absence of legacy namespace leakage. Tests exercise
 repository discovery from a non-root working directory and representative
 environment/tag cases.
 
-CI tests Node 20, the declared minimum, as well as the primary Node 22 lane.
+CI tests Node 20.19, the repository tooling floor required by Vite 8, as well
+as the primary Node 22 lane. Published package manifests retain the broader
+Node `>=20.0.0` consumer contract; the source workspace itself requires
+`>=20.19.0`.
 Unit coverage does not receive live Figma credentials. Package-manager build
 policy is represented by one supported pnpm setting. Action references are
 pinned immutably where maintainable update metadata can be preserved.
 
 Release packaging creates the five public tarballs once, then runs metadata,
-Publint, type-surface, size, and dry-run/install checks against those exact
-artifacts. The tag-only publish job later consumes the saved artifacts instead
-of rebuilding source. This run may implement and test that workflow locally but
-must not exercise its publishing step.
+Publint, type-surface, packed-file-set, checksum, dry-run, and install checks
+against those exact artifacts. The hooks bundle-size budget runs against the
+single built output immediately before packaging. The tag-only publish job
+later consumes the saved artifacts instead of rebuilding source. This run may
+implement and test that workflow locally but must not exercise its publishing
+step.
 
 A checked-in runbook separates automated preflight from manual external steps:
 scope access, two-factor authentication, new-package bootstrap, trusted
