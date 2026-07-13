@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import ts from 'typescript'
 import { toDTCG } from '../src/emit'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
@@ -91,15 +92,58 @@ describe('emitTailwind', () => {
 })
 
 describe('emitTypescript', () => {
-  const ts = emitTypescript(files, resolver)
+  const source = emitTypescript(files, resolver)
 
   it('emits token path union, var accessors, and resolved values', () => {
-    expect(ts).toContain("| 'semantic.color.bg.brand'")
-    expect(ts).toContain(
-      "'semantic.color.bg.brand': 'var(--semantic-color-bg-brand)',"
+    expect(source).toContain('| "semantic.color.bg.brand"')
+    expect(source).toContain(
+      '"semantic.color.bg.brand": "var(--semantic-color-bg-brand)",'
     )
-    expect(ts).toContain("'primitives.color.blue.500': '#3366ff',")
-    expect(ts).toContain("'density.control.height': '40px',")
+    expect(source).toContain('"primitives.color.blue.500": "#3366ff",')
+    expect(source).toContain('"density.control.height": "40px",')
+  })
+
+  it('emits valid TypeScript for hostile paths and string values', () => {
+    const hostileGroup = "group'\\line\n\u2028separator"
+    const hostileToken = "token'\\line\n\u2028separator"
+    const hostilePath = `${hostileGroup}.${hostileToken}`
+    const hostileValue = "value'\\line\n\u2028separator"
+    const hostileSource = emitTypescript(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          hostile: {
+            sources: [
+              {
+                [hostileGroup]: {
+                  [hostileToken]: {
+                    $type: 'string',
+                    $value: hostileValue,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/hostile' }],
+      }
+    )
+
+    const compiled = ts.transpileModule(hostileSource, {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+      },
+      reportDiagnostics: true,
+    })
+
+    expect(compiled.diagnostics ?? []).toEqual([])
+    expect(hostileSource).toContain(JSON.stringify(hostilePath))
+    expect(hostileSource).toContain(
+      JSON.stringify(`var(${cssVarName(hostilePath)})`)
+    )
+    expect(hostileSource).toContain(JSON.stringify(cssValue(hostileValue)))
   })
 })
 

@@ -2,6 +2,10 @@ import type { DTCGDocument, ResolverDocument } from '../types'
 import { applyResolver, flattenTokens, resolveTokenValues } from '../resolve'
 import { cssVarName, cssValue } from './css'
 
+function stringLiteral(value: string): string {
+  return JSON.stringify(value)
+}
+
 /**
  * Emit a typed TypeScript module for the generated tokens: a `TokenPath`
  * union, a map of CSS `var()` accessors, and the resolved default-context
@@ -28,7 +32,7 @@ export function emitTypescript(
     'export type TokenPath =',
   ]
   for (const path of paths) {
-    lines.push(`  | '${path}'`)
+    lines.push(`  | ${stringLiteral(path)}`)
   }
   lines.push('')
 
@@ -37,7 +41,9 @@ export function emitTypescript(
   )
   lines.push('export const tokenVars = {')
   for (const path of paths) {
-    lines.push(`  '${path}': 'var(${cssVarName(path)})',`)
+    lines.push(
+      `  ${stringLiteral(path)}: ${stringLiteral(`var(${cssVarName(path)})`)},`
+    )
   }
   lines.push('} as const satisfies Record<TokenPath, string>')
   lines.push('')
@@ -47,11 +53,8 @@ export function emitTypescript(
   for (const path of paths) {
     const value = resolved.get(path)
     const css = value === undefined ? null : cssValue(value)
-    const literal =
-      css !== null
-        ? `'${css.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
-        : JSON.stringify(value)
-    lines.push(`  '${path}': ${literal},`)
+    const literal = css === null ? JSON.stringify(value) : stringLiteral(css)
+    lines.push(`  ${stringLiteral(path)}: ${literal},`)
   }
   lines.push('} as const')
   lines.push('')
