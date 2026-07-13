@@ -219,14 +219,29 @@ export type VariableChange =
   | (ChangeId & { action: 'DELETE' })
 
 /**
+ * Value accepted when assigning a Figma variable in a mutation request.
+ *
+ * @remarks
+ * `null` removes an override only for an extended mode. Its `modeId` may be an
+ * extended-mode ID or a mapped inherited-mode temporary ID. Figma rejects
+ * `null` for root-mode values upstream.
+ *
+ * @public
+ */
+export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
+
+/**
  * Value assignment for a specific Figma variable in a specific mode.
  *
  * @remarks
  * Used to represent the value of a variable for a given mode in bulk updates and payloads.
+ * When `value` is `null`, `modeId` must identify an extended-mode override; a
+ * mapped inherited-mode temporary ID is also valid. Figma rejects root-mode
+ * `null` assignments upstream.
  *
  * @property variableId - The Figma variable ID being set.
  * @property modeId - The mode ID (e.g., 'MODE:dark') this value applies to.
- * @property value - The variable value, including RGB/RGBA colors, aliases, or null to remove an override.
+ * @property value - The variable value, including RGB/RGBA colors, aliases, or null to remove an extended-mode override.
  *
  * @example
  * ```ts
@@ -241,8 +256,6 @@ export type VariableChange =
  *
  * @public
  */
-export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
-
 export interface VariableModeValue {
   variableId: string
   modeId: string
