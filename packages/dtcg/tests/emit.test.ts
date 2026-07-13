@@ -8,6 +8,51 @@ const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
 )
 
+const duplicateNamesFixture = {
+  meta: {
+    variableCollections: {
+      'collection-a': {
+        id: 'collection-a',
+        name: 'Theme',
+        modes: [
+          { modeId: 'a-default', name: 'Default' },
+          { modeId: 'a-dark-1', name: 'Dark' },
+          { modeId: 'a-dark-2', name: 'Dark' },
+        ],
+        defaultModeId: 'a-default',
+        variableIds: ['variable-a'],
+      },
+      'collection-b': {
+        id: 'collection-b',
+        name: 'Theme',
+        modes: [{ modeId: 'b-default', name: 'Default' }],
+        defaultModeId: 'b-default',
+        variableIds: ['variable-b'],
+      },
+    },
+    variables: {
+      'variable-a': {
+        id: 'variable-a',
+        name: 'collection-a-only',
+        variableCollectionId: 'collection-a',
+        resolvedType: 'STRING',
+        valuesByMode: {
+          'a-default': 'base-a',
+          'a-dark-1': 'dark-a-1',
+          'a-dark-2': 'dark-a-2',
+        },
+      },
+      'variable-b': {
+        id: 'variable-b',
+        name: 'collection-b-only',
+        variableCollectionId: 'collection-b',
+        resolvedType: 'STRING',
+        valuesByMode: { 'b-default': 'base-b' },
+      },
+    },
+  },
+}
+
 function tokenAt(group: DTCGGroup, path: string): DTCGToken {
   let node: unknown = group
   for (const segment of path.split('.')) {
@@ -151,6 +196,47 @@ describe('toDTCG', () => {
       { $ref: '#/modifiers/semantic' },
       { $ref: '#/modifiers/density' },
     ])
+  })
+
+  it('preserves duplicate collection and mode names by identity', () => {
+    const output = toDTCG(duplicateNamesFixture, {
+      includeFigmaExtensions: false,
+    })
+
+    expect(output.files['theme.tokens.json']).toEqual({
+      theme: {
+        'collection-a-only': { $type: 'string', $value: 'base-a' },
+      },
+    })
+    expect(output.files['theme-2.tokens.json']).toEqual({
+      'theme-2': {
+        'collection-b-only': { $type: 'string', $value: 'base-b' },
+      },
+    })
+    expect(output.resolver.sets).toEqual({
+      theme: { sources: [{ $ref: './theme.tokens.json' }] },
+      'theme-2': { sources: [{ $ref: './theme-2.tokens.json' }] },
+    })
+
+    expect(output.files['theme.dark.tokens.json']).toEqual({
+      theme: {
+        'collection-a-only': { $type: 'string', $value: 'dark-a-1' },
+      },
+    })
+    expect(output.files['theme.dark-2.tokens.json']).toEqual({
+      theme: {
+        'collection-a-only': { $type: 'string', $value: 'dark-a-2' },
+      },
+    })
+    expect(output.resolver.modifiers?.theme).toEqual({
+      description: 'Figma modes for the "Theme" collection',
+      default: 'default',
+      contexts: {
+        default: [],
+        dark: [{ $ref: './theme.dark.tokens.json' }],
+        'dark-2': [{ $ref: './theme.dark-2.tokens.json' }],
+      },
+    })
   })
 
   it('warns when a variable aliases a missing target', () => {

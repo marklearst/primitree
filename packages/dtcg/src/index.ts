@@ -26,7 +26,13 @@ export type { FlatToken } from './resolve'
 
 export { figmaColorToDTCG, colorToHex, isFigmaColor } from './color'
 export { inferTokenType } from './inferType'
-export { slugify, sanitizeSegment, toPathSegments, uniqueSlugs } from './naming'
+export {
+  allocateUniqueSlugs,
+  slugify,
+  sanitizeSegment,
+  toPathSegments,
+  uniqueSlugs,
+} from './naming'
 
 export { emitCss, cssVarName, cssValue } from './pipeline/css'
 export type { EmitCssOptions } from './pipeline/css'

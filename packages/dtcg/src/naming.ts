@@ -43,6 +43,29 @@ export function toPathSegments(variableName: string): string[] {
 }
 
 /**
+ * Allocate unique slugs while preserving each item's input position.
+ *
+ * @public
+ */
+export function allocateUniqueSlugs<T>(
+  items: readonly T[],
+  getName: (item: T) => string
+): string[] {
+  const used = new Set<string>()
+  return items.map(item => {
+    const base = slugify(getName(item))
+    let candidate = base
+    let suffix = 2
+    while (used.has(candidate)) {
+      candidate = `${base}-${suffix}`
+      suffix += 1
+    }
+    used.add(candidate)
+    return candidate
+  })
+}
+
+/**
  * Produce unique slugs for a list of names, appending `-2`, `-3`, ... on
  * collision.
  *

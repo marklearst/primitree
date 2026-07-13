@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  allocateUniqueSlugs,
   slugify,
   sanitizeSegment,
   toPathSegments,
@@ -40,6 +41,34 @@ describe('uniqueSlugs', () => {
     expect(slugs.get('Theme')).toBe('theme')
     expect(slugs.get('theme')).toBe('theme-2')
     expect(slugs.get('Theme!')).toBe('theme-3')
+  })
+})
+
+describe('allocateUniqueSlugs', () => {
+  it('preserves exact duplicate names by input position', () => {
+    expect(
+      allocateUniqueSlugs(
+        [
+          { id: 'a', name: 'Theme' },
+          { id: 'b', name: 'Theme' },
+          { id: 'c', name: 'theme!' },
+        ],
+        item => item.name
+      )
+    ).toEqual(['theme', 'theme-2', 'theme-3'])
+  })
+
+  it('avoids collisions with previously allocated suffixed slugs', () => {
+    expect(
+      allocateUniqueSlugs(
+        [
+          { id: 'a', name: 'Theme' },
+          { id: 'b', name: 'Theme' },
+          { id: 'c', name: 'Theme-2' },
+        ],
+        item => item.name
+      )
+    ).toEqual(['theme', 'theme-2', 'theme-2-2'])
   })
 })
 
