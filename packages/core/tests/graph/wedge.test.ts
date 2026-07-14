@@ -16,7 +16,9 @@ import {
 
 function requireValue<Value>(result: Result<Value>): Value {
   expect(result.ok).toBe(true)
-  if (!result.ok) throw new Error('Expected a successful graph result.')
+  if (!result.ok) {
+    throw new Error('Expected a successful graph result.')
+  }
   return result.value
 }
 
@@ -69,6 +71,200 @@ describe('source-neutral graph', () => {
     expect(fragment.references).toEqual([])
     expect(Object.isFrozen(fragment)).toBe(true)
     expect(Object.isFrozen(fragment.tokens[0])).toBe(true)
+  })
+
+  it('copies composite values and provenance fields', () => {
+    const sourceId = requireValue(createSourceId('composite'))
+    const groupId = requireValue(
+      qualifyId({ sourceId, kind: 'group', localId: 'group' })
+    )
+    const tokenId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'token' })
+    )
+    const provenance = [
+      {
+        uri: 'tokens.json',
+        pointer: '/group/token',
+        digest: 'abc123',
+        line: 2,
+        column: 4,
+      },
+    ]
+
+    const fragment = requireValue(
+      createGraphFragment({
+        source: { id: sourceId, type: 'dtcg', provenance },
+        groups: [
+          {
+            id: groupId,
+            sourceId,
+            name: 'Group',
+            path: ['group'],
+            provenance,
+          },
+        ],
+        tokens: [
+          {
+            id: tokenId,
+            sourceId,
+            groupId,
+            name: 'Token',
+            path: ['group', 'token'],
+            type: 'extension:composite',
+            provenance,
+            values: [
+              {
+                value: {
+                  kind: 'literal',
+                  value: {
+                    list: [1, true, null, 'text'],
+                    nested: { count: 2 },
+                  },
+                },
+                conditions: { theme: 'dark' },
+                priority: 1,
+                provenance,
+              },
+            ],
+          },
+        ],
+      })
+    )
+
+    expect(fragment.source.provenance).toEqual(provenance)
+    expect(fragment.groups[0]?.provenance).toEqual(provenance)
+    expect(fragment.tokens[0]?.values[0]?.value).toEqual({
+      kind: 'literal',
+      value: {
+        list: [1, true, null, 'text'],
+        nested: { count: 2 },
+      },
+    })
+    expect(Object.isFrozen(fragment.tokens[0]?.values[0]?.value)).toBe(true)
+  })
+
+  it('returns exact diagnostics for invalid graph records', () => {
+    const sourceId = requireValue(createSourceId('invalid-records'))
+    const groupId = requireValue(
+      qualifyId({ sourceId, kind: 'group', localId: 'group' })
+    )
+    const tokenId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'token' })
+    )
+    const validToken = {
+      id: tokenId,
+      sourceId,
+      name: 'Token',
+      path: ['token'],
+      type: 'color',
+      values: [{ value: { kind: 'literal', value: '#36f' } }],
+    }
+    const fragment = (overrides: Record<string, unknown>) => ({
+      source: { id: sourceId, type: 'dtcg' },
+      groups: [],
+      tokens: [],
+      ...overrides,
+    })
+    const cases = [
+      [() => createSourceId('\u0000'), 'graph.invalid-source-id'],
+      [
+        () => qualifyId({ sourceId, kind: 'token', localId: ' ' }),
+        'graph.invalid-qualified-id',
+      ],
+      [() => createGraphFragment({}), 'graph.invalid-fragment'],
+      [
+        () => createGraphFragment(fragment({ source: { id: '', type: '' } })),
+        'graph.invalid-source',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({
+              source: { id: sourceId, type: 'dtcg', provenance: {} },
+            })
+          ),
+        'graph.invalid-source',
+      ],
+      [
+        () => createGraphFragment(fragment({ groups: {} })),
+        'graph.invalid-fragment',
+      ],
+      [
+        () => createGraphFragment(fragment({ groups: [null] })),
+        'graph.invalid-group',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({
+              groups: [
+                {
+                  id: groupId,
+                  sourceId,
+                  name: 'Group',
+                  path: ['bad\u0000path'],
+                },
+              ],
+            })
+          ),
+        'graph.invalid-group',
+      ],
+      [
+        () => createGraphFragment(fragment({ tokens: [null] })),
+        'graph.invalid-token',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({ tokens: [{ ...validToken, values: [] }] })
+          ),
+        'graph.invalid-token',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({ tokens: [{ ...validToken, values: [null] }] })
+          ),
+        'graph.invalid-token',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({
+              tokens: [
+                {
+                  ...validToken,
+                  values: [{ value: { kind: 'literal', value: Number.NaN } }],
+                },
+              ],
+            })
+          ),
+        'graph.invalid-token',
+      ],
+      [
+        () =>
+          createGraphFragment(
+            fragment({
+              tokens: [
+                {
+                  ...validToken,
+                  values: [
+                    {
+                      value: { kind: 'literal', value: '#36f' },
+                      conditions: [],
+                    },
+                  ],
+                },
+              ],
+            })
+          ),
+        'graph.invalid-token',
+      ],
+    ] as const
+
+    for (const [run, code] of cases) {
+      expect(run().diagnostics[0]?.code).toBe(code)
+    }
   })
 
   it('composes fragments and rejects missing reference targets', () => {
@@ -331,6 +527,199 @@ describe('source-neutral graph', () => {
         diffGraphViews(
           snapshot({ red: 51, blue: 255 }),
           snapshot({ blue: 255, red: 51 })
+        )
+      ).changes
+    ).toEqual([])
+  })
+
+  it('compares view membership, paths, and impact', () => {
+    const sourceId = requireValue(createSourceId('view-diff'))
+    const tokenId = (localId: string) =>
+      requireValue(qualifyId({ sourceId, kind: 'token', localId }))
+    const baseId = tokenId('base')
+    const aliasId = tokenId('alias')
+    const hiddenAliasId = tokenId('hidden-alias')
+    const hiddenLiteralId = tokenId('hidden-literal')
+    const graphFor = (baseValue: string, hiddenValue: string) => {
+      const fragment = requireValue(
+        createGraphFragment({
+          source: { id: sourceId, type: 'dtcg' },
+          groups: [],
+          tokens: [
+            {
+              id: baseId,
+              sourceId,
+              name: 'Base',
+              path: ['source', 'base'],
+              type: 'color',
+              values: [{ value: { kind: 'literal', value: baseValue } }],
+            },
+            {
+              id: aliasId,
+              sourceId,
+              name: 'Alias',
+              path: ['source', 'alias'],
+              type: 'color',
+              values: [{ value: { kind: 'reference', target: baseId } }],
+            },
+            {
+              id: hiddenAliasId,
+              sourceId,
+              name: 'Hidden alias',
+              path: ['source', 'hidden-alias'],
+              type: 'color',
+              values: [{ value: { kind: 'reference', target: baseId } }],
+            },
+            {
+              id: hiddenLiteralId,
+              sourceId,
+              name: 'Hidden literal',
+              path: ['source', 'hidden-literal'],
+              type: 'color',
+              values: [{ value: { kind: 'literal', value: hiddenValue } }],
+            },
+          ],
+        })
+      )
+      return requireValue(composeGraph([fragment]))
+    }
+    const beforeGraph = graphFor('#36f', '#111')
+    const afterGraph = graphFor('#69f', '#222')
+    const sourceView = requireValue(
+      createSourceView(beforeGraph, { id: 'app' })
+    )
+    const view = Object.freeze({
+      ...sourceView,
+      tokens: Object.freeze([
+        Object.freeze({ tokenId: baseId, path: ['theme', 'base'] }),
+        Object.freeze({ tokenId: aliasId, path: ['theme', 'alias'] }),
+      ]),
+    })
+
+    expect(
+      requireValue(
+        diffGraphViews(
+          { graph: beforeGraph, view },
+          { graph: afterGraph, view }
+        )
+      ).changes
+    ).toEqual([
+      { kind: 'changed', tokenId: baseId, impactedTokenIds: [aliasId] },
+    ])
+
+    const renamedView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([
+        Object.freeze({ tokenId: baseId, path: ['theme', 'renamed'] }),
+        view.tokens[1]!,
+      ]),
+    })
+    expect(
+      requireValue(
+        diffGraphViews(
+          { graph: beforeGraph, view },
+          { graph: beforeGraph, view: renamedView }
+        )
+      ).changes
+    ).toEqual([
+      { kind: 'changed', tokenId: baseId, impactedTokenIds: [aliasId] },
+    ])
+
+    const reducedView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([view.tokens[0]!]),
+    })
+    expect(
+      requireValue(
+        diffGraphViews(
+          { graph: beforeGraph, view },
+          { graph: beforeGraph, view: reducedView }
+        )
+      ).changes
+    ).toEqual([{ kind: 'removed', tokenId: aliasId, impactedTokenIds: [] }])
+
+    const missingId = tokenId('missing')
+    const invalidView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([
+        Object.freeze({ tokenId: missingId, path: ['theme', 'missing'] }),
+      ]),
+    })
+    expect(
+      diffGraphViews(
+        { graph: beforeGraph, view: invalidView },
+        { graph: beforeGraph, view }
+      ).diagnostics[0]?.code
+    ).toBe('graph.invalid-diff-input')
+    expect(
+      diffGraphViews(
+        { graph: beforeGraph, view },
+        { graph: beforeGraph, view: invalidView }
+      ).diagnostics[0]?.code
+    ).toBe('graph.invalid-diff-input')
+
+    const otherView = requireValue(
+      createSourceView(beforeGraph, { id: 'other' })
+    )
+    expect(
+      diffGraphViews(
+        { graph: beforeGraph, view },
+        { graph: beforeGraph, view: otherView }
+      ).diagnostics[0]?.code
+    ).toBe('graph.snapshot-view-mismatch')
+  })
+
+  it('orders object keys by code unit when comparing values', () => {
+    const sourceId = requireValue(createSourceId('key-order'))
+    const tokenId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'object' })
+    )
+    const fragment = requireValue(
+      createGraphFragment({
+        source: { id: sourceId, type: 'dtcg' },
+        groups: [],
+        tokens: [
+          {
+            id: tokenId,
+            sourceId,
+            name: 'Object',
+            path: ['object'],
+            type: 'extension:object',
+            values: [{ value: { kind: 'literal', value: null } }],
+          },
+        ],
+      })
+    )
+    const graph = requireValue(composeGraph([fragment]))
+    const view = requireValue(createSourceView(graph, { id: 'app' }))
+    const valueFor = (reverse: boolean) => {
+      const value: Record<string, number> = {}
+      const keys = reverse ? ['\u0000', ''] : ['', '\u0000']
+      for (const key of keys) {
+        value[key] = key.length
+      }
+      const token = graph.tokens[0]!
+      return Object.freeze({
+        ...graph,
+        tokens: Object.freeze([
+          Object.freeze({
+            ...token,
+            values: Object.freeze([
+              Object.freeze({
+                ...token.values[0]!,
+                value: Object.freeze({ kind: 'literal' as const, value }),
+              }),
+            ]),
+          }),
+        ]),
+      })
+    }
+
+    expect(
+      requireValue(
+        diffGraphViews(
+          { graph: valueFor(false), view },
+          { graph: valueFor(true), view }
         )
       ).changes
     ).toEqual([])
