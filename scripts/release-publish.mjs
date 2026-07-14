@@ -733,6 +733,7 @@ function runInstalledPackageSmokeChecks({
 }) {
   const esmSpecifiers = [
     '@primitree/core',
+    '@primitree/core/policy',
     '@primitree/core/types',
     '@primitree/dtcg',
     '@primitree/hooks',
@@ -740,6 +741,7 @@ function runInstalledPackageSmokeChecks({
   ]
   const cjsSpecifiers = [
     '@primitree/core',
+    '@primitree/core/policy',
     '@primitree/core/types',
     '@primitree/dtcg',
     '@primitree/hooks',

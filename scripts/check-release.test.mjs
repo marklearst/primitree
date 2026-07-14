@@ -1644,6 +1644,23 @@ test('pins repository actions and exposes only the four reviewed jobs', () => {
   )
 })
 
+test('keeps Codecov informational while package coverage gates remain blocking', () => {
+  const configUrl = new URL('../codecov.yml', import.meta.url)
+  assert.equal(existsSync(configUrl), true)
+  assert.deepEqual(parseYaml(readFileSync(configUrl, 'utf8')), {
+    coverage: {
+      status: {
+        project: {
+          default: { target: 'auto', informational: true },
+        },
+        patch: {
+          default: { target: 'auto', informational: true },
+        },
+      },
+    },
+  })
+})
+
 test('rejects YAML forms that bypass workflow trust-boundary checks', () => {
   assert.doesNotThrow(() => assertWorkflowTrustPolicy(workflow))
 
