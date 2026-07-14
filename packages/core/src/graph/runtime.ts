@@ -1094,9 +1094,18 @@ function resolveTokenInput(
       'The context selection is invalid.'
     )
   }
+  const checkedViewTokens = viewTokenMap({ graph, view }, 'resolve')
+  if (!checkedViewTokens.ok) {
+    return checkedViewTokens
+  }
   return resolveTokenWithMaps(
     tokenMap(graph),
-    new Map(view.tokens.map(token => [token.tokenId, token.path])),
+    new Map(
+      [...checkedViewTokens.value].map(([memberId, member]) => [
+        memberId,
+        member.path,
+      ])
+    ),
     tokenId,
     selected,
     { remaining: MAX_OPERATION_WORK }
@@ -1140,15 +1149,24 @@ export function resolveView(
         'The context selection is invalid.'
       )
     }
+    const checkedViewTokens = viewTokenMap({ graph, view }, 'resolve')
+    if (!checkedViewTokens.ok) {
+      return checkedViewTokens
+    }
     const tokens = tokenMap(graph)
-    const paths = new Map(view.tokens.map(token => [token.tokenId, token.path]))
+    const paths = new Map(
+      [...checkedViewTokens.value].map(([memberId, member]) => [
+        memberId,
+        member.path,
+      ])
+    )
     const output: ResolvedToken[] = []
     const budget = { remaining: MAX_OPERATION_WORK }
-    for (const member of view.tokens) {
+    for (const member of checkedViewTokens.value.values()) {
       const resolved = resolveTokenWithMaps(
         tokens,
         paths,
-        member.tokenId,
+        member.token.id,
         selected,
         budget
       )
@@ -1172,14 +1190,18 @@ function inspectTokenInput(
   target: TokenInspectionTarget,
   selection?: ContextSelection
 ): Result<TokenInspection> {
+  const checkedViewTokens = viewTokenMap(snapshot, 'inspect')
+  if (!checkedViewTokens.ok) {
+    return checkedViewTokens
+  }
   let tokenId: TokenId | undefined
   if (target.kind === 'token-id') {
     tokenId = target.tokenId
   } else if (target.kind === 'path' && Array.isArray(target.path)) {
     const key = pathKey(target.path)
-    tokenId = snapshot.view.tokens.find(
-      token => pathKey(token.path) === key
-    )?.tokenId
+    tokenId = [...checkedViewTokens.value].find(
+      ([, member]) => pathKey(member.path) === key
+    )?.[0]
   }
   if (tokenId === undefined) {
     return failure(
@@ -1291,7 +1313,8 @@ interface ViewTokenRecord {
 }
 
 function viewTokenMap(
-  snapshot: GraphSnapshot
+  snapshot: GraphSnapshot,
+  phase: 'resolve' | 'inspect' | 'diff'
 ): Result<ReadonlyMap<TokenId, ViewTokenRecord>> {
   const graphTokens = tokenMap(snapshot.graph)
   const tokens = new Map<TokenId, ViewTokenRecord>()
@@ -1308,9 +1331,15 @@ function viewTokenMap(
       tokens.has(member.tokenId) ||
       paths.has(key)
     ) {
+      const code =
+        phase === 'resolve'
+          ? 'graph.invalid-resolution-input'
+          : phase === 'inspect'
+            ? 'graph.invalid-inspection-input'
+            : 'graph.invalid-diff-input'
       return failure(
-        'graph.invalid-diff-input',
-        'diff',
+        code,
+        phase,
         'A graph snapshot contains an invalid view member.'
       )
     }
@@ -1331,11 +1360,11 @@ function diffGraphViewsInput(
       'Graph snapshots must use the same view ID.'
     )
   }
-  const checkedBeforeTokens = viewTokenMap(before)
+  const checkedBeforeTokens = viewTokenMap(before, 'diff')
   if (!checkedBeforeTokens.ok) {
     return checkedBeforeTokens
   }
-  const checkedAfterTokens = viewTokenMap(after)
+  const checkedAfterTokens = viewTokenMap(after, 'diff')
   if (!checkedAfterTokens.ok) {
     return checkedAfterTokens
   }
