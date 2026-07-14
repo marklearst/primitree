@@ -1,13 +1,16 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineConfig } from '../src/config'
 import { loadPrimitreeConfig } from '../src/config/load'
+import { loadConfiguredSourceGraph } from '../src/config/source'
+import * as io from '../src/io'
 
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
+  vi.restoreAllMocks()
   await Promise.all(
     temporaryDirectories
       .splice(0)
@@ -58,6 +61,25 @@ const source = {
   },
   ownership: { default: ['design-systems'] },
 } as const
+
+describe('loadConfiguredSourceGraph', () => {
+  it('keeps source file read errors', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, '{}', 'utf8')
+    vi.spyOn(io, 'readJsonFile').mockRejectedValue(
+      new Error(`Could not read file: ${tokenPath}`)
+    )
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      `Could not read file: ${tokenPath}`
+    )
+  })
+})
 
 describe('defineConfig', () => {
   it('returns the typed config object unchanged', () => {
