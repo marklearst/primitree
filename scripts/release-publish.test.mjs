@@ -1073,6 +1073,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
     assert.equal(esmCalls[0][2], '--eval')
     assert.match(esmCalls[0][3], /await import\('@primitree\/core'\)/)
     assert.match(esmCalls[0][3], /await import\('@primitree\/core\/policy'\)/)
+    assert.match(esmCalls[0][3], /await import\('@primitree\/cli\/config'\)/)
     assert.equal(commonJsCalls.length, 1)
     assert.equal(commonJsCalls[0][2], '--eval')
     assert.match(commonJsCalls[0][3], /require\('@primitree\/core'\)/)
@@ -1104,6 +1105,20 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
     }
+    const configuredCheckIndex = calls.findIndex(
+      call =>
+        call[0].endsWith('/node_modules/.bin/primitree') && call[1] === 'check'
+    )
+    assert.notEqual(configuredCheckIndex, -1)
+    assert.deepEqual(calls[configuredCheckIndex].slice(1), [
+      'check',
+      '--format',
+      'json',
+    ])
+    assert.equal(
+      path.basename(seenOptions[configuredCheckIndex].cwd),
+      'configured-cli'
+    )
     assert.equal(existsSync(npmrcPath), false)
     assert.equal(existsSync(globalNpmrcPath), false)
   } finally {
