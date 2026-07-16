@@ -9,6 +9,7 @@ import { checkHelp } from '../src/commands/check'
 import { diffHelp } from '../src/commands/diff'
 import { exportHelp } from '../src/commands/export'
 import { initHelp, runInit } from '../src/commands/init'
+import { inspectHelp } from '../src/commands/inspect'
 
 const cliManifest = JSON.parse(
   await fs.readFile(path.join(import.meta.dirname, '../package.json'), 'utf8')
@@ -43,6 +44,7 @@ describe('public CLI copy', () => {
       diffHelp,
       exportHelp,
       initHelp,
+      inspectHelp,
     ].join('\n')
 
     expect(result.status).toBe(0)
@@ -53,7 +55,14 @@ describe('public CLI copy', () => {
     expect(copy).toContain(
       'DTCG 2025.10 tokens plus the documented Primitree boolean extension'
     )
-    for (const command of ['init', 'export', 'build', 'check', 'diff']) {
+    for (const command of [
+      'init',
+      'export',
+      'build',
+      'check',
+      'diff',
+      'inspect',
+    ]) {
       expect(copy).toContain(`primitree ${command}`)
     }
     expect(exportHelp).toMatch(/a supported variables\s+plugin/u)

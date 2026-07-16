@@ -4,6 +4,7 @@ import { runExport, exportHelp } from './commands/export'
 import { runBuild, buildHelp } from './commands/build'
 import { runDiff, diffHelp } from './commands/diff'
 import { runCheck, checkHelp } from './commands/check'
+import { runInspect, inspectHelp } from './commands/inspect'
 import { runInit, initHelp } from './commands/init'
 
 const GLOBAL_HELP = `
@@ -16,6 +17,7 @@ Commands:
   build    Convert variables JSON into token files and code
   diff     Compare two variables exports by stable Figma ID
   check    Check a configured DTCG source, Figma export, or built token directory
+  inspect  Explain one token from a configured DTCG source
   init     Create a token repository from sample data or an export
   export   Download local variables through the Figma REST API
 
@@ -32,6 +34,7 @@ const commands: Record<
   build: { run: runBuild, help: buildHelp },
   diff: { run: runDiff, help: diffHelp },
   check: { run: runCheck, help: checkHelp },
+  inspect: { run: runInspect, help: inspectHelp },
   init: { run: runInit, help: initHelp },
 }
 
