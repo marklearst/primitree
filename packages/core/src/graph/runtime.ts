@@ -1210,6 +1210,14 @@ function inspectTokenInput(
       'The requested token is not in the view.'
     )
   }
+  const viewMember = checkedViewTokens.value.get(tokenId)
+  if (viewMember === undefined) {
+    return failure(
+      'graph.unknown-token',
+      'inspect',
+      'The requested token is not in the view.'
+    )
+  }
   const token = tokenMap(snapshot.graph).get(tokenId)
   if (token === undefined) {
     return failure(
@@ -1242,8 +1250,7 @@ function inspectTokenInput(
   return success(
     Object.freeze({
       tokenId,
-      path: snapshot.view.tokens.find(member => member.tokenId === tokenId)!
-        .path,
+      path: viewMember.path,
       token,
       dependencies: dependencies.value,
       dependents: dependents.value,
