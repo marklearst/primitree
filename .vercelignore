@@ -1,0 +1,26 @@
+# Local caches and review state
+.turbo/
+.superpowers/
+.playwright-cli/
+logs/
+*.log
+.vscode/
+.cursor/
+.idea/
+private/
+
+# Local credentials and environment overrides
+.env
+.env.*
+**/.env
+**/.env.*
+*.local
+**/*.local
+
+# Generated release and test output
+artifacts/
+dist/
+test-results/
+**/.turbo/
+**/coverage/
+**/dist/
