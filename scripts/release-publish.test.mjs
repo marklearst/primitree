@@ -15,6 +15,7 @@ import {
   PUBLIC_NPM_REGISTRY,
   REQUIRED_NPM_VERSION,
   assertNpmVersion,
+  runPackedCliTarballConsumer,
   runPackedTarballConsumer,
   runPublicRegistryConsumer,
   runReleasePublish,
@@ -975,6 +976,60 @@ test('attestation fetches refuse redirects and stop after one response', async (
   assert.equal(requests, 1)
 })
 
+test('limits invalid packed CLI output in error messages', () => {
+  const fixture = fixtureArtifacts()
+  const hiddenTail = 'tail-must-not-appear'
+  const invalidOutput = `not-json ${'x'.repeat(500)} ${hiddenTail}`
+  try {
+    assert.throws(
+      () =>
+        runPackedCliTarballConsumer({
+          artifactDirectory: fixture.directory,
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
+            if (command === 'npm' && args[0] === 'install') {
+              for (const config of PUBLIC_RELEASE_PACKAGES) {
+                const packageDirectory = path.join(
+                  options.cwd,
+                  'node_modules',
+                  ...config.name.split('/')
+                )
+                mkdirSync(packageDirectory, { recursive: true })
+                writeFileSync(
+                  path.join(packageDirectory, 'package.json'),
+                  `${JSON.stringify({
+                    name: config.name,
+                    version: VERSION,
+                  })}\n`
+                )
+              }
+            }
+            if (
+              command.endsWith('/node_modules/.bin/primitree') &&
+              args[0] === 'check'
+            ) {
+              return { status: 0, stdout: invalidOutput, stderr: '' }
+            }
+            return { status: 0, stdout: '', stderr: '' }
+          },
+        }),
+      error => {
+        assert.match(
+          error.message,
+          /packed primitree check did not return valid JSON:/
+        )
+        assert.match(error.message, /stdout: "not-json /)
+        assert.doesNotMatch(error.message, new RegExp(hiddenTail))
+        assert.ok(error.message.length < 500)
+        return true
+      }
+    )
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
 test('smoke-tests downloaded tarballs without workspace dependencies', () => {
   const fixture = fixtureArtifacts()
   const calls = []
@@ -1033,6 +1088,53 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
             )
           }
         }
+        if (command.endsWith('/node_modules/.bin/primitree')) {
+          if (args[0] === 'check') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'check',
+                source: 'brand',
+                summary: { active: 0, baseline: 0 },
+                findings: [],
+              })}\n`,
+              stderr: '',
+            }
+          }
+          if (args[0] === 'inspect') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'inspect',
+                source: 'brand',
+                token: { path: ['semantic', 'action'] },
+                resolvedValue: 8,
+              })}\n`,
+              stderr: '',
+            }
+          }
+          if (args[0] === 'diff') {
+            return {
+              status: 0,
+              stdout: `${JSON.stringify({
+                schemaVersion: 1,
+                command: 'diff',
+                source: 'brand',
+                changes: [
+                  {
+                    kind: 'changed',
+                    token: { path: ['size', 'base'] },
+                    impacted: [{ path: ['semantic', 'action'] }],
+                  },
+                ],
+                findings: { added: [], resolved: [] },
+              })}\n`,
+              stderr: '',
+            }
+          }
+        }
         return { status: 0, stdout: '', stderr: '' }
       },
     })
@@ -1046,15 +1148,31 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
       calls.some(call => call[0] === 'pnpm'),
       false
     )
-    const install = calls.find(
+    const installs = calls.filter(
       call => call[0] === 'npm' && call[1] === 'install'
     )
+    assert.equal(installs.length, 2)
+    const [cliInstall, install] = installs
+    assert.ok(cliInstall)
     assert.ok(install)
+    const cliPackageNames = new Set([
+      '@primitree/core',
+      '@primitree/dtcg',
+      '@primitree/cli',
+    ])
+    for (const artifact of fixture.artifacts) {
+      assert.equal(
+        cliInstall.includes(path.join(fixture.directory, artifact.file)),
+        cliPackageNames.has(artifact.name)
+      )
+    }
+    assert.ok(cliInstall.includes('--offline'))
     for (const artifact of fixture.artifacts) {
       assert.ok(install.includes(path.join(fixture.directory, artifact.file)))
     }
     assert.ok(install.includes('--package-lock=false'))
     assert.ok(install.includes('--no-save'))
+    assert.equal(install.includes('--offline'), false)
     const installIndex = calls.indexOf(install)
     assert.equal(seenOptions[installIndex].timeoutMs, 5 * 60_000)
     assert.ok(
@@ -1105,16 +1223,54 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
     }
+    const cliCalls = calls.filter(call =>
+      call[0].endsWith('/node_modules/.bin/primitree')
+    )
+    assert.deepEqual(
+      cliCalls.map(call => call.slice(1)),
+      [
+        ['--help'],
+        [
+          'check',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'inspect',
+          'semantic.action',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'diff',
+          'before.tokens.json',
+          'after.tokens.json',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        ['--help'],
+        ['check', '--format', 'json'],
+      ]
+    )
     const configuredCheckIndex = calls.findIndex(
       call =>
-        call[0].endsWith('/node_modules/.bin/primitree') && call[1] === 'check'
+        call[0].endsWith('/node_modules/.bin/primitree') &&
+        call[1] === 'check' &&
+        !call.includes('--config')
     )
     assert.notEqual(configuredCheckIndex, -1)
-    assert.deepEqual(calls[configuredCheckIndex].slice(1), [
-      'check',
-      '--format',
-      'json',
-    ])
     assert.equal(
       path.basename(seenOptions[configuredCheckIndex].cwd),
       'configured-cli'
