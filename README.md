@@ -86,10 +86,14 @@ Check one source or explain one exact token path:
 ```sh
 primitree check --source brand
 primitree inspect semantic.action --source brand
+primitree diff backup.tokens.json tokens.json --config primitree.config.ts
 ```
 
 The inspection report includes the token ID, resolved value, alias chain,
 owners, direct dependents, and source location.
+
+The configured diff reports changed tokens, affected aliases, and new or
+resolved policy findings.
 
 ## Use built tokens in React
 
