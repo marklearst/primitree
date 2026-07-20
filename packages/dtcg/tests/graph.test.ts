@@ -390,6 +390,64 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic.message).toContain('64 path segments')
   })
 
+  it('rejects token and group paths longer than 256 joined characters', () => {
+    const segment = 'a'.repeat(128)
+    const cases = [
+      {
+        document: {
+          [segment]: {
+            [segment]: { $type: 'number', $value: 1 },
+          },
+        },
+        message: 'A DTCG token path can contain at most 256 characters.',
+      },
+      {
+        document: {
+          [segment]: {
+            [segment]: {},
+          },
+        },
+        message: 'A DTCG group path can contain at most 256 characters.',
+      },
+    ]
+
+    for (const { document, message } of cases) {
+      expect(
+        requireFailure(toGraphFragment(document, { source: 'brand' }))
+      ).toEqual({
+        phase: 'source',
+        code: 'dtcg.invalid-document',
+        message,
+      })
+    }
+  })
+
+  it('accepts token and group paths with 256 joined characters', () => {
+    const first = 'a'.repeat(127)
+    const second = 'b'.repeat(128)
+
+    expect(
+      toGraphFragment(
+        {
+          [first]: {
+            [second]: { $type: 'number', $value: 1 },
+          },
+        },
+        { source: 'brand' }
+      ).ok
+    ).toBe(true)
+    expect(
+      toGraphFragment(
+        {
+          [first]: {
+            [second]: {},
+          },
+        },
+        { source: 'brand' }
+      ).ok
+    ).toBe(true)
+  })
+
   it('uses one shared work limit for the document and token values', () => {
     const document: Record<string, unknown> = {}
     for (let index = 0; index < 14_286; index += 1) {
