@@ -1,10 +1,11 @@
 /**
- * Framework-independent Figma Variables utilities.
+ * Framework-independent Figma Variables and token graph utilities.
  *
  * @remarks
  * The package exports Figma Variables REST clients, endpoint builders, data
  * types, normalization, alias resolution, diffs, error helpers, and retry
- * support. It has no React or SWR dependency.
+ * support. It also exports functions to build, inspect, resolve, and compare
+ * token graphs. It has no React or SWR dependency.
  *
  * @example
  * ```ts
@@ -17,6 +18,7 @@
  */
 export * from './normalize/index'
 export * from './diff/index'
+export * from './graph/index'
 
 export { fetcher } from './api/fetcher'
 export type { FetcherOptions } from './api/fetcher'
