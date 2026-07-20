@@ -24,6 +24,13 @@ function requireValue<Value>(result: TestResult<Value>): Value {
   return result.value
 }
 
+function requireItem<Value>(value: Value | undefined): Value {
+  if (value === undefined) {
+    throw new Error('Expected the test fixture to contain an item.')
+  }
+  return value
+}
+
 function createSnapshot() {
   const sourceId = requireValue(createSourceId('brand'))
   const tokenId = (name: string) =>
@@ -626,6 +633,112 @@ describe('token policy checks', () => {
     )
 
     expect(report.summary).toEqual({ active: 0, baseline: 300 })
+  })
+
+  it('rejects a policy snapshot that exceeds the work limit', () => {
+    const snapshot = createSnapshot()
+    const blue = requireItem(
+      snapshot.graph.tokens.find(token => token.id === snapshot.ids.blue)
+    )
+    const graph = Object.freeze({
+      ...snapshot.graph,
+      tokens: Object.freeze(
+        snapshot.graph.tokens.map(token =>
+          token.id === blue.id
+            ? Object.freeze({
+                ...token,
+                values: Object.freeze([
+                  Object.freeze({
+                    ...requireItem(token.values[0]),
+                    value: Object.freeze({
+                      kind: 'literal' as const,
+                      value: 'x'.repeat(1_000_001),
+                    }),
+                  }),
+                ]),
+              })
+            : token
+        )
+      ),
+    })
+    const policy = requireValue(createPolicy(policyInput))
+
+    const result = evaluatePolicy({ graph, view: snapshot.view }, policy)
+
+    expect(result.diagnostics[0]?.code).toBe('policy.work-limit')
+  })
+
+  it('stops before checking references when token values exceed the work limit', () => {
+    const snapshot = createSnapshot()
+    const action = requireItem(
+      snapshot.graph.tokens.find(token => token.id === snapshot.ids.action)
+    )
+    const actionValue = requireItem(action.values[0])
+    const missing = requireValue(
+      qualifyId({
+        sourceId: requireValue(createSourceId('brand')),
+        kind: 'token',
+        localId: 'missing',
+      })
+    )
+    const missingReference = Object.freeze({
+      ...actionValue,
+      value: Object.freeze({
+        kind: 'reference' as const,
+        target: missing,
+      }),
+    })
+    let authoredReads = 0
+    const values = new Proxy([actionValue], {
+      get(target, property, receiver) {
+        if (property === Symbol.iterator) {
+          return function* () {
+            for (let index = 0; index <= 1_000_000; index += 1) {
+              authoredReads += 1
+              yield index === 1_000_000 ? missingReference : actionValue
+            }
+          }
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+    const graph = Object.freeze({
+      ...snapshot.graph,
+      tokens: Object.freeze(
+        snapshot.graph.tokens.map(token =>
+          token.id === action.id ? Object.freeze({ ...token, values }) : token
+        )
+      ),
+    })
+    const policy = requireValue(createPolicy(policyInput))
+
+    const result = evaluatePolicy({ graph, view: snapshot.view }, policy)
+
+    expect(result.diagnostics[0]?.code).toBe('policy.work-limit')
+    expect(authoredReads).toBeLessThan(1_000_001)
+  })
+
+  it('limits array reads when a policy input changes its reported length', () => {
+    let lengthReads = 0
+    let layerReads = 0
+    const layers = new Proxy([policyInput.layers[0]], {
+      get(target, property, receiver) {
+        if (property === 'length') {
+          lengthReads += 1
+          return lengthReads === 1 ? 1 : 10_000
+        }
+        if (typeof property === 'string' && /^\d+$/u.test(property)) {
+          layerReads += 1
+          return target[0]
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const result = createPolicy({ ...policyInput, layers })
+
+    expect(result.diagnostics[0]?.code).toBe('policy.invalid-config')
+    expect(layerReads).toBe(1)
   })
 
   it('limits owner paths and total policy input work', () => {
