@@ -8,6 +8,12 @@
   "bin": {
     "primitree": "./dist/index.js"
   },
+  "exports": {
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    }
+  },
   "files": [
     "dist"
   ],

@@ -697,8 +697,12 @@ function exactPackageSpecs(version) {
   return PUBLIC_RELEASE_PACKAGES.map(config => `${config.name}@${version}`)
 }
 
-function assertInstalledVersions(consumerDirectory, version) {
-  for (const config of PUBLIC_RELEASE_PACKAGES) {
+function assertInstalledVersions(
+  consumerDirectory,
+  version,
+  packages = PUBLIC_RELEASE_PACKAGES
+) {
+  for (const config of packages) {
     const manifestPath = path.join(
       consumerDirectory,
       'node_modules',
@@ -735,6 +739,7 @@ function runInstalledPackageSmokeChecks({
     '@primitree/core',
     '@primitree/core/policy',
     '@primitree/core/types',
+    '@primitree/cli/config',
     '@primitree/dtcg',
     '@primitree/hooks',
     '@primitree/mcp',
@@ -774,6 +779,254 @@ function runInstalledPackageSmokeChecks({
       options
     )
   }
+
+  const configuredDirectory = path.join(consumerDirectory, 'configured-cli')
+  mkdirSync(configuredDirectory, { recursive: true })
+  writeFileSync(
+    path.join(configuredDirectory, 'package.json'),
+    `${JSON.stringify({ private: true, type: 'commonjs' }, null, 2)}\n`
+  )
+  writeFileSync(
+    path.join(configuredDirectory, 'primitree.config.ts'),
+    `import { defineConfig } from '@primitree/cli/config'
+
+export default defineConfig({
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [{ id: 'base', roots: ['size'], values: 'literal' }],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+})
+`
+  )
+  writeFileSync(
+    path.join(configuredDirectory, 'tokens.json'),
+    `${JSON.stringify({
+      size: { base: { $type: 'number', $value: 4 } },
+    })}\n`
+  )
+  smokeCommand(
+    runCommand,
+    path.join(consumerDirectory, 'node_modules', '.bin', 'primitree'),
+    ['check', '--format', 'json'],
+    { ...options, cwd: configuredDirectory }
+  )
+}
+
+const CLI_ERROR_DETAIL_LIMIT = 160
+
+function boundedErrorText(value) {
+  const text = value.trim()
+  return text.length <= CLI_ERROR_DETAIL_LIMIT
+    ? text
+    : `${text.slice(0, CLI_ERROR_DETAIL_LIMIT - 3)}...`
+}
+
+function parseCliJson(result, label) {
+  const output = requireCommandSuccess(result, label).stdout.trim()
+  let report
+  try {
+    report = JSON.parse(output)
+  } catch (error) {
+    const parseError = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `${label} did not return valid JSON: ${JSON.stringify(
+        boundedErrorText(parseError)
+      )}; stdout: ${JSON.stringify(boundedErrorText(output))}`
+    )
+  }
+  if (!isPlainObject(report)) {
+    throw new Error(`${label} did not return a JSON object`)
+  }
+  return report
+}
+
+function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
+  writeFileSync(
+    path.join(consumerDirectory, 'primitree.config.ts'),
+    `export default {
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './after.tokens.json',
+      architecture: {
+        layers: [
+          { id: 'base', roots: ['size'], values: 'literal' },
+          {
+            id: 'meaning',
+            roots: ['semantic'],
+            values: 'reference',
+            references: ['base', 'meaning'],
+          },
+        ],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+}
+`
+  )
+  const tokens = value => ({
+    size: { base: { $type: 'number', $value: value } },
+    semantic: {
+      action: { $type: 'number', $value: '{size.base}' },
+    },
+  })
+  writeFileSync(
+    path.join(consumerDirectory, 'before.tokens.json'),
+    `${JSON.stringify(tokens(4), null, 2)}\n`
+  )
+  writeFileSync(
+    path.join(consumerDirectory, 'after.tokens.json'),
+    `${JSON.stringify(tokens(8), null, 2)}\n`
+  )
+
+  const cli = path.join(consumerDirectory, 'node_modules', '.bin', 'primitree')
+  const shared = [
+    '--config',
+    'primitree.config.ts',
+    '--source',
+    'brand',
+    '--format',
+    'json',
+  ]
+  const check = parseCliJson(
+    runCommand(cli, ['check', ...shared], options),
+    'packed primitree check'
+  )
+  if (
+    check.command !== 'check' ||
+    check.source !== 'brand' ||
+    check.summary?.active !== 0 ||
+    !Array.isArray(check.findings) ||
+    check.findings.length !== 0
+  ) {
+    throw new Error(
+      'packed primitree check report did not match the expected command, source, summary, and findings'
+    )
+  }
+
+  const inspect = parseCliJson(
+    runCommand(cli, ['inspect', 'semantic.action', ...shared], options),
+    'packed primitree inspect'
+  )
+  if (
+    inspect.command !== 'inspect' ||
+    inspect.source !== 'brand' ||
+    inspect.resolvedValue !== 8 ||
+    inspect.token?.path?.join('.') !== 'semantic.action'
+  ) {
+    throw new Error(
+      'packed primitree inspect report did not match the expected command, source, value, and token path'
+    )
+  }
+
+  const diff = parseCliJson(
+    runCommand(
+      cli,
+      ['diff', 'before.tokens.json', 'after.tokens.json', ...shared],
+      options
+    ),
+    'packed primitree diff'
+  )
+  const changedBase = diff.changes?.find(
+    change =>
+      change?.kind === 'changed' &&
+      change.token?.path?.join('.') === 'size.base'
+  )
+  if (
+    diff.command !== 'diff' ||
+    diff.source !== 'brand' ||
+    changedBase?.impacted?.some(
+      token => token?.path?.join('.') === 'semantic.action'
+    ) !== true ||
+    diff.findings?.added?.length !== 0 ||
+    diff.findings?.resolved?.length !== 0
+  ) {
+    throw new Error(
+      'packed primitree diff report did not match the expected command, source, affected token, and findings'
+    )
+  }
+}
+
+export function runPackedCliTarballConsumer({
+  artifactDirectory,
+  environment = process.env,
+  registry = PUBLIC_NPM_REGISTRY,
+  runCommand = defaultRunCommand,
+}) {
+  const verified = verifyReleaseArtifacts({ artifactDirectory })
+  const cliPackages = PUBLIC_RELEASE_PACKAGES.filter(config =>
+    ['@primitree/core', '@primitree/dtcg', '@primitree/cli'].includes(
+      config.name
+    )
+  )
+  const cliPackageNames = new Set(cliPackages.map(config => config.name))
+  const cliArtifacts = verified.artifacts.filter(artifact =>
+    cliPackageNames.has(artifact.name)
+  )
+  const commandContext = createNpmExecutionContext({
+    environment,
+    keepOidc: false,
+    prefix: 'primitree-packed-cli-',
+    registry,
+  })
+  const consumerDirectory = commandContext.workingDirectory
+  writeFileSync(
+    path.join(consumerDirectory, 'package.json'),
+    `${JSON.stringify(
+      {
+        name: 'primitree-packed-cli-consumer',
+        version: '0.0.0',
+        private: true,
+        type: 'module',
+      },
+      null,
+      2
+    )}\n`
+  )
+  const options = commandOptions(commandContext)
+
+  try {
+    assertEffectiveRegistry(commandContext, registry, runCommand)
+    smokeCommand(
+      runCommand,
+      'npm',
+      [
+        'install',
+        '--ignore-scripts',
+        '--offline',
+        '--package-lock=false',
+        '--no-save',
+        '--engine-strict',
+        '--audit=false',
+        '--fund=false',
+        `--registry=${registry}`,
+        '--fetch-retries=0',
+        `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+        ...cliArtifacts.map(artifact => artifact.path),
+      ],
+      commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
+    )
+    assertInstalledVersions(consumerDirectory, verified.version, cliPackages)
+    smokeCommand(
+      runCommand,
+      path.join(consumerDirectory, 'node_modules', '.bin', 'primitree'),
+      ['--help'],
+      options
+    )
+    runPackedCliUserPath({ consumerDirectory, options, runCommand })
+    return { version: verified.version }
+  } finally {
+    commandContext.cleanup()
+  }
 }
 
 export function runPackedTarballConsumer({
@@ -783,6 +1036,12 @@ export function runPackedTarballConsumer({
   runCommand = defaultRunCommand,
 }) {
   const verified = verifyReleaseArtifacts({ artifactDirectory })
+  runPackedCliTarballConsumer({
+    artifactDirectory,
+    environment,
+    registry,
+    runCommand,
+  })
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,
