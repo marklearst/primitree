@@ -7,14 +7,19 @@ import { parseArgs } from '../src/args'
 import { runBuild } from '../src/commands/build'
 import { runDiff } from '../src/commands/diff'
 import { runCheck } from '../src/commands/check'
+import { runExport } from '../src/commands/export'
 import { runInit } from '../src/commands/init'
 
 const fixturePath = path.join(__dirname, 'fixtures/local-variables.json')
 
 let tmpDir: string
+let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'figma-vars-cli-'))
+  vi.clearAllMocks()
+  fetchMock = vi.fn()
+  vi.stubGlobal('fetch', fetchMock)
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -23,6 +28,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   process.exitCode = undefined
   await fs.rm(tmpDir, { recursive: true, force: true })
 })
@@ -149,6 +156,60 @@ describe('figma-vars check', () => {
 
     await runCheck(parseArgs([out]))
     expect(process.exitCode).toBeUndefined()
+  })
+})
+
+describe('figma-vars export', () => {
+  it('fetches the complete Figma response and writes it to the requested file', async () => {
+    const response = JSON.parse(await fs.readFile(fixturePath, 'utf8'))
+    const out = path.join(tmpDir, 'exports', 'variables.json')
+    vi.stubEnv('FIGMA_TOKEN', 'fixture-token')
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await runExport(parseArgs(['--file-key', 'fixture-file', '--out', out]))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.figma.com/v1/files/fixture-file/variables/local',
+      {
+        method: 'GET',
+        headers: {
+          'X-FIGMA-TOKEN': 'fixture-token',
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+    await expect(fs.readFile(out, 'utf8')).resolves.toBe(
+      `${JSON.stringify(response, null, 2)}\n`
+    )
+    expect(console.log).toHaveBeenCalledWith(
+      `Saved variables to ${path.resolve(out)}`
+    )
+    expect(console.log).toHaveBeenCalledWith('Collections: 3, variables: 12')
+  })
+
+  it('rejects a missing token before attempting a live export', async () => {
+    vi.stubEnv('FIGMA_TOKEN', '')
+    vi.stubEnv('FIGMA_PAT', '')
+
+    await expect(
+      runExport(parseArgs(['--file-key', 'fixture-file']))
+    ).rejects.toThrow('FIGMA_TOKEN (or FIGMA_PAT) is required')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing file key before attempting a live export', async () => {
+    vi.stubEnv('FIGMA_TOKEN', 'fixture-token')
+    vi.stubEnv('FIGMA_FILE_KEY', '')
+
+    await expect(runExport(parseArgs([]))).rejects.toThrow(
+      '--file-key or FIGMA_FILE_KEY is required'
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

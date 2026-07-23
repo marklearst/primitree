@@ -12,6 +12,14 @@ import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
 import { buildPipeline } from '../src/pipeline/build'
 
+const cliPackageManifest = JSON.parse(
+  readFileSync(join(__dirname, '../../cli/package.json'), 'utf8')
+)
+const pipelineSource = readFileSync(
+  join(__dirname, '../src/pipeline/build.ts'),
+  'utf8'
+)
+
 const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
 )
@@ -375,16 +383,18 @@ describe('buildPipeline', () => {
       )?.contents
 
       expect(workflow).toBeDefined()
-      expect(workflow).toContain('@figmavars/cli@5.0.0')
-      expect(workflow).toContain('node-version: 22.13.0')
+      expect(workflow).toContain(`@figmavars/cli@${cliPackageManifest.version}`)
+      expect(pipelineSource).toContain('cliPackageManifest.version')
+      expect(pipelineSource).not.toContain("'@figmavars/cli@5.0.0'")
+      expect(workflow).toContain('node-version: 24.18.0')
       expect(workflow).not.toMatch(/\bnpx\b/)
       expect(workflow).not.toContain('git add -A')
 
       for (const action of [
-        'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4',
-        'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4',
-        'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4',
-        'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4',
+        'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7',
+        'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7',
+        'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7',
+        'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8',
       ]) {
         expect(workflow).toContain(action)
       }

@@ -3,6 +3,7 @@ import { flattenTokens, listContexts } from '../resolve'
 import { emitCss } from './css'
 import { emitTailwind } from './tailwind'
 import { emitTypescript } from './typescript'
+import cliPackageManifest from '../../../cli/package.json' with { type: 'json' }
 
 /** A file to be written (CLI) or zipped (playground). @public */
 export interface PipelineFile {
@@ -124,7 +125,7 @@ function githubWorkflow(
     >
   >
 ): string {
-  const toolPackages = ['@figmavars/cli@5.0.0']
+  const toolPackages = [`@figmavars/cli@${cliPackageManifest.version}`]
   const buildFlags = ['--no-github-action', '--no-readme']
   const generatedEntries: GeneratedWorkflowEntry[] = [
     { path: 'tokens', kind: 'directory' },
@@ -206,15 +207,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source revision
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ github.sha }}
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.13.0
+          node-version: 24.18.0
 
       - name: Install pinned token tools
         run: >-
@@ -232,7 +233,7 @@ ${transformStep}
           printf '%s\\n' '{"schema":1}' > ${artifactRootName}
 
       - name: Upload generated tokens
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: design-tokens-\${{ github.sha }}
           path: |
@@ -248,18 +249,18 @@ ${artifactPaths}
       contents: write
     steps:
       - name: Checkout source revision
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ github.sha }}
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.13.0
+          node-version: 24.18.0
 
       - name: Download generated tokens
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: design-tokens-\${{ github.sha }}
           path: .figmavars-generated
