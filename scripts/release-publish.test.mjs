@@ -131,6 +131,34 @@ function fakePublishedPackage(directory, name) {
   }
 }
 
+function registryConfigResult(args, options = {}) {
+  if (
+    args[0] === 'config' &&
+    args[1] === 'get' &&
+    ['registry', '@figmavars:registry'].includes(args[2])
+  ) {
+    const values = new Map()
+    for (const configPath of [
+      options.env?.NPM_CONFIG_GLOBALCONFIG,
+      options.env?.NPM_CONFIG_USERCONFIG,
+    ]) {
+      if (typeof configPath !== 'string') continue
+      for (const line of readFileSync(configPath, 'utf8').split('\n')) {
+        const separator = line.indexOf('=')
+        if (separator > 0) {
+          values.set(line.slice(0, separator), line.slice(separator + 1))
+        }
+      }
+    }
+    return {
+      status: 0,
+      stdout: `${values.get(args[2]) ?? ''}\n`,
+      stderr: '',
+    }
+  }
+  return undefined
+}
+
 test('requires the exact npm release version', () => {
   assert.equal(REQUIRED_NPM_VERSION, '11.18.0')
   assert.doesNotThrow(() => assertNpmVersion('11.18.0\n'))
@@ -318,16 +346,36 @@ test('publishes in dependency order, resumes partial publication, and polls dela
   }
 
   let npmrcPath
+  let globalNpmrcPath
+  const viewTimeouts = []
+  const publishTimeouts = []
   const runCommand = (command, args, options = {}) => {
     calls.push([command, ...args])
     assert.equal(options.env.NPM_TOKEN, undefined)
     assert.equal(options.env.NODE_AUTH_TOKEN, undefined)
+    assert.equal(options.env.NPM_ID_TOKEN, undefined)
+    assert.equal(
+      options.env.ACTIONS_ID_TOKEN_REQUEST_URL,
+      'https://oidc.example/token'
+    )
+    assert.equal(
+      options.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+      'oidc-request-token'
+    )
     npmrcPath = options.env.NPM_CONFIG_USERCONFIG
+    globalNpmrcPath = options.env.NPM_CONFIG_GLOBALCONFIG
     assert.match(readFileSync(npmrcPath, 'utf8'), /bootstrap-token/)
+    assert.doesNotMatch(readFileSync(globalNpmrcPath, 'utf8'), /token|auth/i)
+    assert.match(options.env.HOME, /figmavars-publish-/)
+    assert.match(options.env.NPM_CONFIG_CACHE, /npm-cache$/)
+    assert.match(options.cwd, /figmavars-publish-.*\/work$/)
+    const configResult = registryConfigResult(args, options)
+    if (configResult !== undefined) return configResult
     if (args[0] === '--version') {
       return { status: 0, stdout: '11.18.0\n', stderr: '' }
     }
     if (args[0] === 'view') {
+      viewTimeouts.push(options.timeoutMs)
       const name = args[1].slice(0, args[1].lastIndexOf('@'))
       const state = states.get(name)
       if (!state.present || delays.get(name) > 0) {
@@ -341,6 +389,7 @@ test('publishes in dependency order, resumes partial publication, and polls dela
       }
     }
     if (args[0] === 'publish') {
+      publishTimeouts.push(options.timeoutMs)
       const artifact = fixture.artifacts.find(item =>
         args[1].endsWith(item.file)
       )
@@ -357,6 +406,10 @@ test('publishes in dependency order, resumes partial publication, and polls dela
         ...process.env,
         NPM_TOKEN: 'bootstrap-token',
         NODE_AUTH_TOKEN: 'must-not-leak',
+        NPM_ID_TOKEN: 'must-not-leak',
+        NPM_CONFIG_REGISTRY: 'https://evil.example/',
+        ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example/token',
+        ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'oidc-request-token',
       },
       githubRef: TAG_REF,
       githubSha: SHA,
@@ -379,13 +432,16 @@ test('publishes in dependency order, resumes partial publication, and polls dela
         .slice(1)
         .map(item => path.join(fixture.directory, item.file))
     )
+    assert.ok(viewTimeouts.every(timeout => timeout === 15_000))
+    assert.ok(publishTimeouts.every(timeout => timeout === 5 * 60_000))
     assert.equal(existsSync(npmrcPath), false)
+    assert.equal(existsSync(globalNpmrcPath), false)
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
   }
 })
 
-test('OIDC mode supplies no token environment or token-bearing npm config', async () => {
+test('OIDC publish uses only controlled npm config and GitHub request identity', async () => {
   const fixture = fixtureArtifacts()
   const attestationByUrl = new Map()
   const metadataByName = new Map()
@@ -398,6 +454,8 @@ test('OIDC mode supplies no token environment or token-bearing npm config', asyn
     )
   }
   let npmrcPath
+  let globalNpmrcPath
+  const calls = []
   try {
     const result = await runReleasePublish({
       artifactDirectory: fixture.directory,
@@ -406,21 +464,57 @@ test('OIDC mode supplies no token environment or token-bearing npm config', asyn
         NPM_TOKEN: '',
         NODE_AUTH_TOKEN: 'must-not-leak',
         NPM_CONFIG_TOKEN: 'must-not-leak',
+        NPM_CONFIG_USERCONFIG: '/tmp/attacker-user-npmrc',
+        npm_config_globalconfig: '/tmp/attacker-global-npmrc',
+        NPM_CONFIG_REGISTRY: 'https://evil.example/',
+        NPM_CONFIG__FIGMAVARS_REGISTRY: 'https://evil.example/',
+        NPM_CONFIG_PROVENANCE: 'true',
+        NPM_ID_TOKEN: 'must-not-leak',
+        YARN_NPM_AUTH_TOKEN: 'must-not-leak',
         ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example/token',
         ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'oidc-request-token',
       },
       githubRef: TAG_REF,
       githubSha: SHA,
       runCommand(command, args, options = {}) {
+        calls.push([command, ...args])
         npmrcPath = options.env.NPM_CONFIG_USERCONFIG
-        assert.equal(readFileSync(npmrcPath, 'utf8'), '')
+        globalNpmrcPath = options.env.NPM_CONFIG_GLOBALCONFIG
+        const controlledConfig = `${readFileSync(
+          globalNpmrcPath,
+          'utf8'
+        )}\n${readFileSync(npmrcPath, 'utf8')}`
+        assert.match(
+          controlledConfig,
+          /^registry=https:\/\/registry\.npmjs\.org\/$/m
+        )
+        assert.match(
+          controlledConfig,
+          /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+        )
+        assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
         assert.equal(options.env.NPM_TOKEN, undefined)
         assert.equal(options.env.NODE_AUTH_TOKEN, undefined)
         assert.equal(options.env.NPM_CONFIG_TOKEN, undefined)
+        assert.equal(options.env.NPM_CONFIG_REGISTRY, undefined)
+        assert.equal(options.env.NPM_CONFIG__FIGMAVARS_REGISTRY, undefined)
+        assert.equal(options.env.NPM_CONFIG_PROVENANCE, undefined)
+        assert.equal(options.env.NPM_ID_TOKEN, undefined)
+        assert.equal(options.env.YARN_NPM_AUTH_TOKEN, undefined)
         assert.equal(
           options.env.ACTIONS_ID_TOKEN_REQUEST_URL,
           'https://oidc.example/token'
         )
+        assert.equal(
+          options.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+          'oidc-request-token'
+        )
+        assert.match(options.env.HOME, /figmavars-publish-/)
+        assert.match(options.env.NPM_CONFIG_CACHE, /npm-cache$/)
+        assert.match(options.cwd, /figmavars-publish-.*\/work$/)
+        assert.notEqual(options.cwd, process.cwd())
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
         if (args[0] === '--version') {
           return { status: 0, stdout: '11.18.0\n', stderr: '' }
         }
@@ -440,7 +534,20 @@ test('OIDC mode supplies no token environment or token-bearing npm config', asyn
       }),
     })
     assert.equal(result.mode, 'oidc')
+    assert.deepEqual(
+      calls.filter(call => call[1] === 'config').map(call => call.slice(1)),
+      [
+        ['config', 'get', 'registry'],
+        ['config', 'get', '@figmavars:registry'],
+      ]
+    )
+    const firstView = calls.findIndex(call => call[1] === 'view')
+    const scopeCheck = calls.findIndex(
+      call => call[1] === 'config' && call[3] === '@figmavars:registry'
+    )
+    assert.ok(scopeCheck < firstView)
     assert.equal(existsSync(npmrcPath), false)
+    assert.equal(existsSync(globalNpmrcPath), false)
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
   }
@@ -458,7 +565,9 @@ test('fails closed on malformed registry state and finite polling exhaustion', a
           githubSha: SHA,
           maxPollAttempts: 2,
           retryDelayMs: 0,
-          runCommand(command, args) {
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
             if (args[0] === '--version') {
               return { status: 0, stdout: '11.18.0\n', stderr: '' }
             }
@@ -489,7 +598,9 @@ test('fails closed on malformed registry state and finite polling exhaustion', a
           environment: { ...process.env, NPM_TOKEN: '' },
           githubRef: TAG_REF,
           githubSha: SHA,
-          runCommand(command, args) {
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
             if (args[0] === '--version') {
               return { status: 0, stdout: '11.18.0\n', stderr: '' }
             }
@@ -517,7 +628,9 @@ test('reports a timed-out attestation request with package context', async () =>
           environment: { ...process.env, NPM_TOKEN: '' },
           githubRef: TAG_REF,
           githubSha: SHA,
-          runCommand(command, args) {
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
             if (args[0] === '--version') {
               return { status: 0, stdout: '11.18.0\n', stderr: '' }
             }
@@ -541,10 +654,334 @@ test('reports a timed-out attestation request with package context', async () =>
   }
 })
 
+test('accepts each dependency package before publishing its consumer', async () => {
+  const fixture = fixtureArtifacts()
+  const publishedByName = new Map()
+  const attestationByUrl = new Map()
+  const available = new Set()
+  const publishOrder = []
+  const viewCounts = new Map()
+  let coreAttestationRequests = 0
+  let coreAccepted = false
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const published = fakePublishedPackage(fixture.directory, config.name)
+    publishedByName.set(config.name, published)
+    attestationByUrl.set(
+      published.metadata.dist.attestations.url,
+      published.attestation
+    )
+  }
+
+  try {
+    const result = await runReleasePublish({
+      artifactDirectory: fixture.directory,
+      environment: { ...process.env, NPM_TOKEN: 'bootstrap-token' },
+      githubRef: TAG_REF,
+      githubSha: SHA,
+      maxPollAttempts: 4,
+      retryDelayMs: 0,
+      runCommand(command, args, options = {}) {
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
+        if (args[0] === '--version') {
+          return { status: 0, stdout: '11.18.0\n', stderr: '' }
+        }
+        if (args[0] === 'view') {
+          const name = args[1].slice(0, args[1].lastIndexOf('@'))
+          viewCounts.set(name, (viewCounts.get(name) ?? 0) + 1)
+          if (!available.has(name)) {
+            return {
+              status: 1,
+              stdout: '',
+              stderr: 'npm error code E404\n',
+            }
+          }
+          return {
+            status: 0,
+            stdout: JSON.stringify(publishedByName.get(name).metadata),
+            stderr: '',
+          }
+        }
+        if (args[0] === 'publish') {
+          const artifact = fixture.artifacts.find(item =>
+            args[1].endsWith(item.file)
+          )
+          assert.ok(artifact)
+          if (artifact.name === '@figmavars/dtcg' && coreAccepted === false) {
+            throw new Error('DTCG published before core was accepted')
+          }
+          publishOrder.push(artifact.name)
+          available.add(artifact.name)
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        throw new Error(`unexpected command ${command} ${args.join(' ')}`)
+      },
+      sleep: async () => {},
+      fetchJson: async url => {
+        if (url.includes('%2fcore@')) {
+          coreAttestationRequests += 1
+          if (coreAttestationRequests <= 2) {
+            return { status: 404, value: { error: 'not found' } }
+          }
+          coreAccepted = true
+        }
+        return { status: 200, value: attestationByUrl.get(url) }
+      },
+    })
+
+    assert.equal(result.mode, 'bootstrap')
+    assert.deepEqual(
+      publishOrder,
+      PUBLIC_RELEASE_PACKAGES.map(config => config.name)
+    )
+    for (const config of PUBLIC_RELEASE_PACKAGES) {
+      assert.ok(
+        (viewCounts.get(config.name) ?? 0) >= 2,
+        `${config.name} needs dependency acceptance plus the final pass`
+      )
+    }
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('accepts metadata that becomes complete on the final propagation attempt', async () => {
+  const fixture = fixtureArtifacts()
+  const publishedByName = new Map()
+  const attestationByUrl = new Map()
+  const viewCounts = new Map()
+  let attestationFetches = 0
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const published = fakePublishedPackage(fixture.directory, config.name)
+    publishedByName.set(config.name, published)
+    attestationByUrl.set(
+      published.metadata.dist.attestations.url,
+      published.attestation
+    )
+  }
+
+  try {
+    await runReleasePublish({
+      artifactDirectory: fixture.directory,
+      environment: { ...process.env, NPM_TOKEN: '' },
+      githubRef: TAG_REF,
+      githubSha: SHA,
+      maxPollAttempts: 3,
+      retryDelayMs: 0,
+      runCommand(command, args, options = {}) {
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
+        if (args[0] === '--version') {
+          return { status: 0, stdout: '11.18.0\n', stderr: '' }
+        }
+        if (args[0] === 'view') {
+          const name = args[1].slice(0, args[1].lastIndexOf('@'))
+          const count = (viewCounts.get(name) ?? 0) + 1
+          viewCounts.set(name, count)
+          const metadata = structuredClone(publishedByName.get(name).metadata)
+          if (name === '@figmavars/core' && count < 3) {
+            delete metadata.dist.attestations.url
+          }
+          return {
+            status: 0,
+            stdout: JSON.stringify(metadata),
+            stderr: '',
+          }
+        }
+        throw new Error(`unexpected command ${command} ${args.join(' ')}`)
+      },
+      sleep: async () => {},
+      fetchJson: async url => {
+        attestationFetches += 1
+        return { status: 200, value: attestationByUrl.get(url) }
+      },
+    })
+
+    assert.equal(viewCounts.get('@figmavars/core'), 4)
+    assert.equal(attestationFetches, PUBLIC_RELEASE_PACKAGES.length * 2)
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('exhausts one package propagation budget before downstream writes', async () => {
+  const fixture = fixtureArtifacts()
+  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  const views = []
+  let publishes = 0
+  try {
+    await assert.rejects(
+      () =>
+        runReleasePublish({
+          artifactDirectory: fixture.directory,
+          environment: { ...process.env, NPM_TOKEN: '' },
+          githubRef: TAG_REF,
+          githubSha: SHA,
+          maxPollAttempts: 2,
+          retryDelayMs: 0,
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
+            if (args[0] === '--version') {
+              return { status: 0, stdout: '11.18.0\n', stderr: '' }
+            }
+            if (args[0] === 'view') {
+              const name = args[1].slice(0, args[1].lastIndexOf('@'))
+              views.push(name)
+              const metadata = structuredClone(core.metadata)
+              delete metadata.dist.attestations.url
+              return {
+                status: 0,
+                stdout: JSON.stringify(metadata),
+                stderr: '',
+              }
+            }
+            if (args[0] === 'publish') {
+              publishes += 1
+              return { status: 0, stdout: '', stderr: '' }
+            }
+            throw new Error(`unexpected command ${command}`)
+          },
+          sleep: async () => {},
+          fetchJson: async () => {
+            throw new Error('incomplete metadata must not be fetched')
+          },
+        }),
+      /@figmavars\/core.*after 2 attempts/
+    )
+    assert.deepEqual(views, ['@figmavars/core', '@figmavars/core'])
+    assert.equal(publishes, 0)
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('rejects contradictory registry metadata before attestation fetch or publish', async () => {
+  const fixture = fixtureArtifacts()
+  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  core.metadata.dist.integrity = 'sha512-incorrect'
+  let attestationFetches = 0
+  let publishes = 0
+  try {
+    await assert.rejects(
+      () =>
+        runReleasePublish({
+          artifactDirectory: fixture.directory,
+          environment: { ...process.env, NPM_TOKEN: '' },
+          githubRef: TAG_REF,
+          githubSha: SHA,
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
+            if (args[0] === '--version') {
+              return { status: 0, stdout: '11.18.0\n', stderr: '' }
+            }
+            if (args[0] === 'view') {
+              return {
+                status: 0,
+                stdout: JSON.stringify(core.metadata),
+                stderr: '',
+              }
+            }
+            if (args[0] === 'publish') {
+              publishes += 1
+              return { status: 0, stdout: '', stderr: '' }
+            }
+            throw new Error(`unexpected command ${command}`)
+          },
+          fetchJson: async () => {
+            attestationFetches += 1
+            return { status: 200, value: core.attestation }
+          },
+        }),
+      /tarball integrity mismatch/
+    )
+    assert.equal(attestationFetches, 0)
+    assert.equal(publishes, 0)
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('rejects hostile attestation URLs before network or registry mutation', async () => {
+  const fixture = fixtureArtifacts()
+  const core = fakePublishedPackage(fixture.directory, '@figmavars/core')
+  core.metadata.dist.attestations.url =
+    'https://registry.npmjs.org.evil.example/steal'
+  let attestationFetches = 0
+  let publishes = 0
+  try {
+    await assert.rejects(
+      () =>
+        runReleasePublish({
+          artifactDirectory: fixture.directory,
+          environment: { ...process.env, NPM_TOKEN: '' },
+          githubRef: TAG_REF,
+          githubSha: SHA,
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
+            if (args[0] === '--version') {
+              return { status: 0, stdout: '11.18.0\n', stderr: '' }
+            }
+            if (args[0] === 'view') {
+              return {
+                status: 0,
+                stdout: JSON.stringify(core.metadata),
+                stderr: '',
+              }
+            }
+            if (args[0] === 'publish') {
+              publishes += 1
+              return { status: 0, stdout: '', stderr: '' }
+            }
+            throw new Error(`unexpected command ${command}`)
+          },
+          fetchJson: async () => {
+            attestationFetches += 1
+            return { status: 200, value: core.attestation }
+          },
+        }),
+      /attestation URL mismatch/
+    )
+    assert.equal(attestationFetches, 0)
+    assert.equal(publishes, 0)
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('attestation fetches refuse redirects and stop after one response', async () => {
+  const module = await import('./release-publish.mjs')
+  assert.equal(typeof module.fetchAttestationJson, 'function')
+  let requests = 0
+  const result = await module.fetchAttestationJson(
+    'https://registry.npmjs.org/-/npm/v1/attestations/%40figmavars%2fcore@5.0.0',
+    {
+      fetchImpl: async (url, options) => {
+        requests += 1
+        assert.equal(url.startsWith(PUBLIC_NPM_REGISTRY), true)
+        assert.equal(options.redirect, 'error')
+        return {
+          status: 302,
+          async json() {
+            return { location: 'https://evil.example' }
+          },
+        }
+      },
+    }
+  )
+  assert.equal(result.status, 302)
+  assert.equal(requests, 1)
+})
+
 test('smoke-tests downloaded tarballs without workspace dependencies', () => {
   const fixture = fixtureArtifacts()
   const calls = []
   const seenEnvironments = []
+  const seenOptions = []
+  let npmrcPath
+  let globalNpmrcPath
   try {
     const result = runPackedTarballConsumer({
       artifactDirectory: fixture.directory,
@@ -552,6 +989,11 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         ...process.env,
         NPM_TOKEN: 'must-not-leak',
         NODE_AUTH_TOKEN: 'must-not-leak',
+        NPM_ID_TOKEN: 'must-not-leak',
+        NPM_CONFIG_GLOBALCONFIG: '/tmp/attacker-global-npmrc',
+        NPM_CONFIG_REGISTRY: 'https://evil.example/',
+        npm_config_cache: '/tmp/attacker-cache',
+        YARN_NPM_AUTH_TOKEN: 'must-not-leak',
         ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example',
         ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'must-not-leak',
         GITHUB_TOKEN: 'must-not-leak',
@@ -559,6 +1001,24 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
       runCommand(command, args, options = {}) {
         calls.push([command, ...args])
         seenEnvironments.push(options.env)
+        seenOptions.push(options)
+        npmrcPath = options.env.NPM_CONFIG_USERCONFIG
+        globalNpmrcPath = options.env.NPM_CONFIG_GLOBALCONFIG
+        const controlledConfig = `${readFileSync(
+          globalNpmrcPath,
+          'utf8'
+        )}\n${readFileSync(npmrcPath, 'utf8')}`
+        assert.match(
+          controlledConfig,
+          /^registry=https:\/\/registry\.npmjs\.org\/$/m
+        )
+        assert.match(
+          controlledConfig,
+          /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+        )
+        assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
         if (command === 'npm' && args[0] === 'install') {
           for (const config of PUBLIC_RELEASE_PACKAGES) {
             const packageDirectory = path.join(
@@ -595,18 +1055,46 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
     }
     assert.ok(install.includes('--package-lock=false'))
     assert.ok(install.includes('--no-save'))
+    const installIndex = calls.indexOf(install)
+    assert.equal(seenOptions[installIndex].timeoutMs, 5 * 60_000)
+    assert.ok(
+      calls
+        .map((call, index) => ({ call, options: seenOptions[index] }))
+        .filter(({ call }) => call[0] === 'node' || call[0].includes('/.bin/'))
+        .every(({ options }) => options.timeoutMs === 15_000)
+    )
+    const esmCalls = calls.filter(
+      call => call[0] === 'node' && call[1] === '--input-type=module'
+    )
+    const commonJsCalls = calls.filter(
+      call => call[0] === 'node' && call[1] === '--input-type=commonjs'
+    )
+    assert.equal(esmCalls.length, 1)
+    assert.equal(esmCalls[0][2], '--eval')
+    assert.match(esmCalls[0][3], /await import\('@figmavars\/core'\)/)
+    assert.equal(commonJsCalls.length, 1)
+    assert.equal(commonJsCalls[0][2], '--eval')
+    assert.match(commonJsCalls[0][3], /require\('@figmavars\/core'\)/)
+    const scopeCheck = calls.findIndex(
+      call => call[1] === 'config' && call[3] === '@figmavars:registry'
+    )
+    assert.ok(scopeCheck < installIndex)
     for (const environment of seenEnvironments) {
       for (const key of [
         'NPM_TOKEN',
         'NODE_AUTH_TOKEN',
+        'NPM_ID_TOKEN',
+        'NPM_CONFIG_REGISTRY',
         'ACTIONS_ID_TOKEN_REQUEST_URL',
         'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
         'GITHUB_TOKEN',
+        'YARN_NPM_AUTH_TOKEN',
       ]) {
         assert.equal(environment[key], undefined, `${key} must be cleared`)
       }
       assert.notEqual(environment.HOME, process.env.HOME)
       assert.match(environment.NPM_CONFIG_USERCONFIG, /npmrc$/)
+      assert.match(environment.NPM_CONFIG_GLOBALCONFIG, /global-npmrc$/)
       assert.match(environment.NPM_CONFIG_CACHE, /npm-cache$/)
     }
     for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
@@ -614,6 +1102,8 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
     }
+    assert.equal(existsSync(npmrcPath), false)
+    assert.equal(existsSync(globalNpmrcPath), false)
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
   }
@@ -622,22 +1112,49 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
 test('creates a hermetic public-registry consumer with exact installs and signature audit', async () => {
   const calls = []
   const seenEnvironments = []
+  const seenOptions = []
+  let npmrcPath
+  let globalNpmrcPath
   await runPublicRegistryConsumer({
     version: VERSION,
     environment: {
       ...process.env,
       NPM_TOKEN: 'must-not-leak',
       NODE_AUTH_TOKEN: 'must-not-leak',
+      NPM_ID_TOKEN: 'must-not-leak',
+      NPM_CONFIG_USERCONFIG: '/tmp/attacker-user-npmrc',
+      NPM_CONFIG_GLOBALCONFIG: '/tmp/attacker-global-npmrc',
+      NPM_CONFIG_REGISTRY: 'https://evil.example/',
+      NPM_CONFIG__FIGMAVARS_REGISTRY: 'https://evil.example/',
       NPM_CONFIG_PROVENANCE: 'true',
       ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example',
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'must-not-leak',
       SIGSTORE_ID_TOKEN: 'must-not-leak',
       GH_TOKEN: 'must-not-leak',
       GITHUB_TOKEN: 'must-not-leak',
+      YARN_NPM_AUTH_TOKEN: 'must-not-leak',
     },
     runCommand(command, args, options = {}) {
       calls.push([command, ...args])
       seenEnvironments.push(options.env)
+      seenOptions.push(options)
+      npmrcPath = options.env.NPM_CONFIG_USERCONFIG
+      globalNpmrcPath = options.env.NPM_CONFIG_GLOBALCONFIG
+      const controlledConfig = `${readFileSync(
+        globalNpmrcPath,
+        'utf8'
+      )}\n${readFileSync(npmrcPath, 'utf8')}`
+      assert.match(
+        controlledConfig,
+        /^registry=https:\/\/registry\.npmjs\.org\/$/m
+      )
+      assert.match(
+        controlledConfig,
+        /^@figmavars:registry=https:\/\/registry\.npmjs\.org\/$/m
+      )
+      assert.doesNotMatch(controlledConfig, /token|auth|evil/i)
+      const configResult = registryConfigResult(args, options)
+      if (configResult !== undefined) return configResult
       if (command === 'npm' && args[0] === '--version') {
         return { status: 0, stdout: '11.18.0\n', stderr: '' }
       }
@@ -664,25 +1181,40 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   for (const config of PUBLIC_RELEASE_PACKAGES) {
     assert.ok(install.includes(`${config.name}@${VERSION}`))
   }
+  const installIndex = calls.indexOf(install)
+  assert.equal(seenOptions[installIndex].timeoutMs, 5 * 60_000)
   assert.deepEqual(
     calls.filter(call => call[0] === 'npm' && call[1] === 'audit'),
     [['npm', 'audit', 'signatures', `--registry=${PUBLIC_NPM_REGISTRY}`]]
   )
+  const auditIndex = calls.findIndex(
+    call => call[0] === 'npm' && call[1] === 'audit'
+  )
+  assert.equal(seenOptions[auditIndex].timeoutMs, 3 * 60_000)
+  const scopeCheck = calls.findIndex(
+    call => call[1] === 'config' && call[3] === '@figmavars:registry'
+  )
+  assert.ok(scopeCheck < installIndex)
   for (const environment of seenEnvironments) {
     for (const key of [
       'NPM_TOKEN',
       'NODE_AUTH_TOKEN',
+      'NPM_ID_TOKEN',
+      'NPM_CONFIG_REGISTRY',
+      'NPM_CONFIG__FIGMAVARS_REGISTRY',
       'NPM_CONFIG_PROVENANCE',
       'ACTIONS_ID_TOKEN_REQUEST_URL',
       'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
       'SIGSTORE_ID_TOKEN',
       'GH_TOKEN',
       'GITHUB_TOKEN',
+      'YARN_NPM_AUTH_TOKEN',
     ]) {
       assert.equal(environment[key], undefined, `${key} must be cleared`)
     }
     assert.notEqual(environment.HOME, process.env.HOME)
     assert.match(environment.NPM_CONFIG_USERCONFIG, /npmrc$/)
+    assert.match(environment.NPM_CONFIG_GLOBALCONFIG, /global-npmrc$/)
     assert.match(environment.NPM_CONFIG_CACHE, /npm-cache$/)
   }
   for (const specifier of [
@@ -721,4 +1253,12 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   for (const bin of ['figma-vars', 'figma-vars-export', 'figma-vars-mcp']) {
     assert.ok(calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`)))
   }
+  assert.ok(
+    calls
+      .map((call, index) => ({ call, options: seenOptions[index] }))
+      .filter(({ call }) => call[0] === 'node' || call[0].includes('/.bin/'))
+      .every(({ options }) => options.timeoutMs === 15_000)
+  )
+  assert.equal(existsSync(npmrcPath), false)
+  assert.equal(existsSync(globalNpmrcPath), false)
 })

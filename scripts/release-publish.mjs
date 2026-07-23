@@ -18,7 +18,10 @@ import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org/'
 export const REQUIRED_NPM_VERSION = '11.18.0'
 
-const COMMAND_TIMEOUT_MS = 15_000
+const SHORT_COMMAND_TIMEOUT_MS = 15_000
+const PUBLISH_COMMAND_TIMEOUT_MS = 5 * 60_000
+const INSTALL_COMMAND_TIMEOUT_MS = 5 * 60_000
+const AUDIT_COMMAND_TIMEOUT_MS = 3 * 60_000
 const FETCH_TIMEOUT_MS = 10_000
 const DEFAULT_POLL_ATTEMPTS = 10
 const DEFAULT_POLL_DELAY_MS = 3_000
@@ -50,7 +53,7 @@ function defaultRunCommand(command, args, options = {}) {
     encoding: 'utf8',
     env: options.env,
     input: options.input,
-    timeout: options.timeoutMs ?? COMMAND_TIMEOUT_MS,
+    timeout: options.timeoutMs ?? SHORT_COMMAND_TIMEOUT_MS,
   })
   if (result.error) {
     throw new Error(`${command} failed: ${result.error.message}`)
@@ -120,8 +123,15 @@ export function verifyExactMain({
 
 function expectedAttestationUrl(registry, name, version) {
   const base = new URL(registry)
-  if (base.pathname !== '/') {
-    throw new Error('npm registry URL must end at the origin root')
+  if (
+    base.href !== PUBLIC_NPM_REGISTRY ||
+    base.protocol !== 'https:' ||
+    base.username !== '' ||
+    base.password !== '' ||
+    base.search !== '' ||
+    base.hash !== ''
+  ) {
+    throw new Error('npm registry must be exactly the public npm registry')
   }
   return new URL(
     `/-/npm/v1/attestations/${name.replace('/', '%2f')}@${version}`,
@@ -155,55 +165,96 @@ function decodeStatement(attestation) {
   return statement
 }
 
-export function validatePublishedPackage({
-  artifactPath,
-  attestation,
-  metadata,
-  expected,
-}) {
+function isMissingRegistryField(value) {
+  return value === undefined || value === null || value === ''
+}
+
+function validateAvailableField(value, expectedValue, mismatchMessage) {
+  if (isMissingRegistryField(value)) return false
+  if (value !== expectedValue) throw new Error(mismatchMessage)
+  return true
+}
+
+function optionalRegistryObject(value, mismatchMessage) {
+  if (value === undefined || value === null) return undefined
+  if (!isPlainObject(value)) throw new Error(mismatchMessage)
+  return value
+}
+
+function validateRegistryMetadata({ artifactPath, metadata, expected }) {
+  const label = `${expected.name}@${expected.version}`
   if (!isPlainObject(metadata)) {
-    throw new Error(`${expected.name}@${expected.version}: metadata is invalid`)
-  }
-  if (
-    metadata.name !== expected.name ||
-    metadata.version !== expected.version
-  ) {
-    throw new Error(
-      `${expected.name}@${expected.version}: registry identity mismatch`
-    )
-  }
-  if (metadata['dist-tags']?.latest !== expected.version) {
-    throw new Error(
-      `${expected.name}@${expected.version}: latest dist-tag mismatch`
-    )
+    throw new Error(`${label}: metadata is invalid`)
   }
 
   const artifactBytes = readFileSync(artifactPath)
   const sha512Hex = createHash('sha512').update(artifactBytes).digest('hex')
   const integrity = `sha512-${Buffer.from(sha512Hex, 'hex').toString('base64')}`
-  if (metadata.dist?.integrity !== integrity) {
-    throw new Error(
-      `${expected.name}@${expected.version}: tarball integrity mismatch`
-    )
-  }
-  const attestationUrl = metadata.dist?.attestations?.url
-  if (
-    attestationUrl !==
-    expectedAttestationUrl(expected.registry, expected.name, expected.version)
-  ) {
-    throw new Error(
-      `${expected.name}@${expected.version}: attestation URL mismatch`
-    )
-  }
-  if (
-    metadata.dist?.attestations?.provenance?.predicateType !==
-    PROVENANCE_PREDICATE
-  ) {
-    throw new Error(
-      `${expected.name}@${expected.version}: provenance predicate mismatch`
-    )
-  }
+  const expectedUrl = expectedAttestationUrl(
+    expected.registry,
+    expected.name,
+    expected.version
+  )
+  let complete = true
+  complete =
+    validateAvailableField(
+      metadata.name,
+      expected.name,
+      `${label}: registry identity mismatch`
+    ) && complete
+  complete =
+    validateAvailableField(
+      metadata.version,
+      expected.version,
+      `${label}: registry identity mismatch`
+    ) && complete
 
+  const distTags = optionalRegistryObject(
+    metadata['dist-tags'],
+    `${label}: dist-tags metadata is invalid`
+  )
+  const dist = optionalRegistryObject(
+    metadata.dist,
+    `${label}: dist metadata is invalid`
+  )
+  const attestations = optionalRegistryObject(
+    dist?.attestations,
+    `${label}: attestation metadata is invalid`
+  )
+  const provenance = optionalRegistryObject(
+    attestations?.provenance,
+    `${label}: provenance metadata is invalid`
+  )
+  complete =
+    validateAvailableField(
+      distTags?.latest,
+      expected.version,
+      `${label}: latest dist-tag mismatch`
+    ) && complete
+  complete =
+    validateAvailableField(
+      dist?.integrity,
+      integrity,
+      `${label}: tarball integrity mismatch`
+    ) && complete
+  complete =
+    validateAvailableField(
+      attestations?.url,
+      expectedUrl,
+      `${label}: attestation URL mismatch`
+    ) && complete
+  complete =
+    validateAvailableField(
+      provenance?.predicateType,
+      PROVENANCE_PREDICATE,
+      `${label}: provenance predicate mismatch`
+    ) && complete
+  return complete
+    ? { kind: 'ready', sha512Hex }
+    : { kind: 'pending', sha512Hex }
+}
+
+function validateAttestation({ attestation, expected, sha512Hex }) {
   const statement = decodeStatement(attestation)
   if (
     statement._type !== STATEMENT_TYPE ||
@@ -258,39 +309,145 @@ export function validatePublishedPackage({
   }
 }
 
+export function validatePublishedPackage({
+  artifactPath,
+  attestation,
+  metadata,
+  expected,
+}) {
+  const metadataState = validateRegistryMetadata({
+    artifactPath,
+    metadata,
+    expected,
+  })
+  if (metadataState.kind !== 'ready') {
+    throw new Error(
+      `${expected.name}@${expected.version}: registry metadata is incomplete`
+    )
+  }
+  validateAttestation({
+    attestation,
+    expected,
+    sha512Hex: metadataState.sha512Hex,
+  })
+}
+
 function sanitizedNpmEnvironment(
   environment,
-  { userConfigPath, cachePath, homePath, keepOidc }
+  { userConfigPath, globalConfigPath, cachePath, homePath, keepOidc }
 ) {
-  const result = { ...environment }
-  for (const key of Object.keys(result)) {
+  const result = {}
+  for (const [key, value] of Object.entries(environment)) {
     const upper = key.toUpperCase()
+    const oidcRequestVariable =
+      upper === 'ACTIONS_ID_TOKEN_REQUEST_URL' ||
+      upper === 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
+    const credentialVariable =
+      upper.includes('TOKEN') ||
+      upper.includes('AUTH') ||
+      upper.includes('CREDENTIAL') ||
+      upper.includes('PASSWORD') ||
+      upper.includes('SECRET') ||
+      upper.endsWith('_OTP')
     if (
-      upper === 'NPM_TOKEN' ||
-      upper === 'NODE_AUTH_TOKEN' ||
-      upper === 'SIGSTORE_ID_TOKEN' ||
-      upper === 'GH_TOKEN' ||
-      upper === 'GITHUB_TOKEN' ||
-      /^NPM_CONFIG_.*(?:AUTH|TOKEN|OTP)$/.test(upper) ||
-      (!keepOidc && upper.startsWith('ACTIONS_ID_TOKEN_REQUEST_')) ||
-      (!keepOidc && upper === 'NPM_CONFIG_PROVENANCE')
+      upper.startsWith('NPM_CONFIG_') ||
+      credentialVariable ||
+      upper.startsWith('ACTIONS_ID_TOKEN_REQUEST_')
     ) {
-      delete result[key]
+      if (keepOidc && oidcRequestVariable) result[key] = value
+      continue
     }
+    result[key] = value
   }
   result.NPM_CONFIG_USERCONFIG = userConfigPath
   result.npm_config_userconfig = userConfigPath
-  if (cachePath !== undefined) {
-    result.NPM_CONFIG_CACHE = cachePath
-    result.npm_config_cache = cachePath
-  }
-  if (homePath !== undefined) result.HOME = homePath
+  result.NPM_CONFIG_GLOBALCONFIG = globalConfigPath
+  result.npm_config_globalconfig = globalConfigPath
+  result.NPM_CONFIG_CACHE = cachePath
+  result.npm_config_cache = cachePath
+  result.HOME = homePath
   return result
 }
 
-async function defaultFetchJson(url, { timeoutMs = FETCH_TIMEOUT_MS } = {}) {
-  const response = await fetch(url, {
+function controlledRegistryConfig(registry) {
+  if (registry !== PUBLIC_NPM_REGISTRY) {
+    throw new Error('release commands require the public npm registry')
+  }
+  return `registry=${registry}\n@figmavars:registry=${registry}\n`
+}
+
+function createNpmExecutionContext({
+  environment,
+  keepOidc,
+  prefix,
+  registry,
+  token = '',
+}) {
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), prefix))
+  const homeDirectory = path.join(temporaryRoot, 'home')
+  const cacheDirectory = path.join(temporaryRoot, 'npm-cache')
+  const workingDirectory = path.join(temporaryRoot, 'work')
+  const userConfigPath = path.join(temporaryRoot, 'npmrc')
+  const globalConfigPath = path.join(temporaryRoot, 'global-npmrc')
+  mkdirSync(homeDirectory)
+  mkdirSync(cacheDirectory)
+  mkdirSync(workingDirectory)
+  const registryConfig = controlledRegistryConfig(registry)
+  writeFileSync(globalConfigPath, registryConfig, { mode: 0o600 })
+  const registryUrl = new URL(registry)
+  const tokenConfig =
+    token === ''
+      ? ''
+      : `//${registryUrl.host}${registryUrl.pathname}:_authToken=${token}\n`
+  writeFileSync(userConfigPath, tokenConfig, { mode: 0o600 })
+  const commandEnvironment = sanitizedNpmEnvironment(environment, {
+    userConfigPath,
+    globalConfigPath,
+    cachePath: cacheDirectory,
+    homePath: homeDirectory,
+    keepOidc,
+  })
+  return {
+    cleanup() {
+      rmSync(temporaryRoot, { recursive: true, force: true })
+    },
+    commandEnvironment,
+    globalConfigPath,
+    temporaryRoot,
+    userConfigPath,
+    workingDirectory,
+  }
+}
+
+function commandOptions(context, timeoutMs = SHORT_COMMAND_TIMEOUT_MS) {
+  return {
+    cwd: context.workingDirectory,
+    env: context.commandEnvironment,
+    timeoutMs,
+  }
+}
+
+function assertEffectiveRegistry(context, registry, runCommand) {
+  for (const key of ['registry', '@figmavars:registry']) {
+    const actual = commandOutput(
+      'npm',
+      ['config', 'get', key],
+      commandOptions(context),
+      runCommand
+    )
+    if (actual !== registry) {
+      throw new Error(`effective npm ${key} must be ${registry}`)
+    }
+  }
+}
+
+export async function fetchAttestationJson(
+  url,
+  { fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS } = {}
+) {
+  const response = await fetchImpl(url, {
     headers: { accept: 'application/json' },
+    redirect: 'error',
     signal: AbortSignal.timeout(timeoutMs),
   })
   let value
@@ -327,7 +484,7 @@ function parseRegistryMetadata(name, version, result) {
 
 async function inspectRegistryPackage({
   artifact,
-  commandEnvironment,
+  commandContext,
   commitSha,
   fetchJson,
   registry,
@@ -345,18 +502,29 @@ async function inspectRegistryPackage({
       '--fetch-retries=0',
       `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
     ],
-    {
-      env: commandEnvironment,
-      timeoutMs: COMMAND_TIMEOUT_MS,
-    }
+    commandOptions(commandContext)
   )
   const state = parseRegistryMetadata(artifact.name, version, result)
   if (state.kind === 'missing') return state
 
-  const url = state.metadata.dist?.attestations?.url
-  if (typeof url !== 'string') {
-    throw new Error(`${artifact.name}@${version}: attestation URL is missing`)
+  const expected = {
+    name: artifact.name,
+    version,
+    repository: REPOSITORY,
+    workflowPath: WORKFLOW_PATH,
+    tagRef,
+    commitSha,
+    registry,
   }
+  const metadataState = validateRegistryMetadata({
+    artifactPath: artifact.path,
+    metadata: state.metadata,
+    expected,
+  })
+  if (metadataState.kind === 'pending') {
+    return { kind: 'pending', metadata: state.metadata }
+  }
+  const url = state.metadata.dist.attestations.url
   let attestationResponse
   try {
     attestationResponse = await fetchJson(url, {
@@ -384,21 +552,12 @@ async function inspectRegistryPackage({
       }`
     )
   }
-  validatePublishedPackage({
-    artifactPath: artifact.path,
+  validateAttestation({
     attestation: attestationResponse.value,
-    metadata: state.metadata,
-    expected: {
-      name: artifact.name,
-      version,
-      repository: REPOSITORY,
-      workflowPath: WORKFLOW_PATH,
-      tagRef,
-      commitSha,
-      registry,
-    },
+    expected,
+    sha512Hex: metadataState.sha512Hex,
   })
-  return state
+  return { kind: 'present', metadata: state.metadata }
 }
 
 function requireReleaseContext(version, githubRef, githubSha) {
@@ -427,7 +586,7 @@ function publishArguments(artifactPath, registry) {
 export async function runReleasePublish({
   artifactDirectory,
   environment = process.env,
-  fetchJson = defaultFetchJson,
+  fetchJson = fetchAttestationJson,
   githubRef,
   githubSha,
   maxPollAttempts = DEFAULT_POLL_ATTEMPTS,
@@ -447,64 +606,36 @@ export async function runReleasePublish({
   }
   const verified = verifyReleaseArtifacts({ artifactDirectory })
   requireReleaseContext(verified.version, githubRef, githubSha)
-  const temporaryRoot = mkdtempSync(
-    path.join(tmpdir(), 'figmavars-publish-auth-')
-  )
-  const userConfigPath = path.join(temporaryRoot, 'npmrc')
   const token =
     typeof environment.NPM_TOKEN === 'string'
       ? environment.NPM_TOKEN.trim()
       : ''
   const mode = token === '' ? 'oidc' : 'bootstrap'
-  const registryUrl = new URL(registry)
-  const tokenConfig =
-    mode === 'bootstrap'
-      ? `//${registryUrl.host}${registryUrl.pathname}:_authToken=${token}\n`
-      : ''
-  writeFileSync(userConfigPath, tokenConfig, { mode: 0o600 })
-  const commandEnvironment = sanitizedNpmEnvironment(environment, {
-    userConfigPath,
+  const commandContext = createNpmExecutionContext({
+    environment,
     keepOidc: true,
+    prefix: 'figmavars-publish-',
+    registry,
+    token,
   })
 
   try {
     const npmVersion = commandOutput(
       'npm',
       ['--version'],
-      { env: commandEnvironment, timeoutMs: COMMAND_TIMEOUT_MS },
+      commandOptions(commandContext),
       runCommand
     )
     assertNpmVersion(npmVersion)
+    assertEffectiveRegistry(commandContext, registry, runCommand)
 
     for (const artifact of verified.artifacts) {
-      const state = await inspectRegistryPackage({
-        artifact,
-        commandEnvironment,
-        commitSha: githubSha,
-        fetchJson,
-        registry,
-        runCommand,
-        tagRef: githubRef,
-        version: verified.version,
-      })
-      if (state.kind === 'missing') {
-        requireCommandSuccess(
-          runCommand('npm', publishArguments(artifact.path, registry), {
-            env: commandEnvironment,
-            timeoutMs: COMMAND_TIMEOUT_MS,
-          }),
-          `npm publish ${artifact.name}@${verified.version}`
-        )
-      }
-    }
-
-    let pending = verified.artifacts
-    for (let attempt = 1; attempt <= maxPollAttempts; attempt += 1) {
-      const nextPending = []
-      for (const artifact of pending) {
+      let published = false
+      let accepted = false
+      for (let attempt = 1; attempt <= maxPollAttempts; attempt += 1) {
         const state = await inspectRegistryPackage({
           artifact,
-          commandEnvironment,
+          commandContext,
           commitSha: githubSha,
           fetchJson,
           registry,
@@ -512,24 +643,53 @@ export async function runReleasePublish({
           tagRef: githubRef,
           version: verified.version,
         })
-        if (state.kind !== 'present') nextPending.push(artifact)
-      }
-      if (nextPending.length === 0) {
-        return {
-          mode,
-          publishedPackages: verified.artifacts.map(artifact => artifact.name),
+        if (state.kind === 'present') {
+          accepted = true
+          break
         }
+        if (state.kind === 'missing' && published === false) {
+          requireCommandSuccess(
+            runCommand(
+              'npm',
+              publishArguments(artifact.path, registry),
+              commandOptions(commandContext, PUBLISH_COMMAND_TIMEOUT_MS)
+            ),
+            `npm publish ${artifact.name}@${verified.version}`
+          )
+          published = true
+        }
+        if (attempt < maxPollAttempts) await sleep(retryDelayMs)
       }
-      pending = nextPending
-      if (attempt < maxPollAttempts) await sleep(retryDelayMs)
+      if (!accepted) {
+        throw new Error(
+          `registry polling exhausted for ${artifact.name} after ${maxPollAttempts} attempts`
+        )
+      }
     }
-    throw new Error(
-      `registry polling exhausted after ${maxPollAttempts} attempts: ${pending
-        .map(artifact => artifact.name)
-        .join(', ')}`
-    )
+
+    for (const artifact of verified.artifacts) {
+      const state = await inspectRegistryPackage({
+        artifact,
+        commandContext,
+        commitSha: githubSha,
+        fetchJson,
+        registry,
+        runCommand,
+        tagRef: githubRef,
+        version: verified.version,
+      })
+      if (state.kind !== 'present') {
+        throw new Error(
+          `final registry verification failed for ${artifact.name}: ${state.kind}`
+        )
+      }
+    }
+    return {
+      mode,
+      publishedPackages: verified.artifacts.map(artifact => artifact.name),
+    }
   } finally {
-    rmSync(temporaryRoot, { recursive: true, force: true })
+    commandContext.cleanup()
   }
 }
 
@@ -623,17 +783,13 @@ export function runPackedTarballConsumer({
   runCommand = defaultRunCommand,
 }) {
   const verified = verifyReleaseArtifacts({ artifactDirectory })
-  const temporaryRoot = mkdtempSync(
-    path.join(tmpdir(), 'figmavars-packed-consumer-')
-  )
-  const homeDirectory = path.join(temporaryRoot, 'home')
-  const cacheDirectory = path.join(temporaryRoot, 'npm-cache')
-  const consumerDirectory = path.join(temporaryRoot, 'consumer')
-  const userConfigPath = path.join(temporaryRoot, 'npmrc')
-  mkdirSync(homeDirectory)
-  mkdirSync(cacheDirectory)
-  mkdirSync(consumerDirectory)
-  writeFileSync(userConfigPath, '', { mode: 0o600 })
+  const commandContext = createNpmExecutionContext({
+    environment,
+    keepOidc: false,
+    prefix: 'figmavars-packed-consumer-',
+    registry,
+  })
+  const consumerDirectory = commandContext.workingDirectory
   writeFileSync(
     path.join(consumerDirectory, 'package.json'),
     `${JSON.stringify(
@@ -647,19 +803,10 @@ export function runPackedTarballConsumer({
       2
     )}\n`
   )
-  const commandEnvironment = sanitizedNpmEnvironment(environment, {
-    userConfigPath,
-    cachePath: cacheDirectory,
-    homePath: homeDirectory,
-    keepOidc: false,
-  })
-  const options = {
-    cwd: consumerDirectory,
-    env: commandEnvironment,
-    timeoutMs: COMMAND_TIMEOUT_MS,
-  }
+  const options = commandOptions(commandContext)
 
   try {
+    assertEffectiveRegistry(commandContext, registry, runCommand)
     smokeCommand(
       runCommand,
       'npm',
@@ -676,7 +823,7 @@ export function runPackedTarballConsumer({
         `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
         ...verified.artifacts.map(artifact => artifact.path),
       ],
-      options
+      commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
     )
     assertInstalledVersions(consumerDirectory, verified.version)
     runInstalledPackageSmokeChecks({
@@ -689,7 +836,7 @@ export function runPackedTarballConsumer({
       version: verified.version,
     }
   } finally {
-    rmSync(temporaryRoot, { recursive: true, force: true })
+    commandContext.cleanup()
   }
 }
 
@@ -702,17 +849,13 @@ export async function runPublicRegistryConsumer({
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version ?? '')) {
     throw new Error('public consumer version must be stable MAJOR.MINOR.PATCH')
   }
-  const temporaryRoot = mkdtempSync(
-    path.join(tmpdir(), 'figmavars-public-consumer-')
-  )
-  const homeDirectory = path.join(temporaryRoot, 'home')
-  const cacheDirectory = path.join(temporaryRoot, 'npm-cache')
-  const consumerDirectory = path.join(temporaryRoot, 'consumer')
-  const userConfigPath = path.join(temporaryRoot, 'npmrc')
-  mkdirSync(homeDirectory)
-  mkdirSync(cacheDirectory)
-  mkdirSync(consumerDirectory)
-  writeFileSync(userConfigPath, '', { mode: 0o600 })
+  const commandContext = createNpmExecutionContext({
+    environment,
+    keepOidc: false,
+    prefix: 'figmavars-public-consumer-',
+    registry,
+  })
+  const consumerDirectory = commandContext.workingDirectory
   writeFileSync(
     path.join(consumerDirectory, 'package.json'),
     `${JSON.stringify(
@@ -726,20 +869,11 @@ export async function runPublicRegistryConsumer({
       2
     )}\n`
   )
-  const commandEnvironment = sanitizedNpmEnvironment(environment, {
-    userConfigPath,
-    cachePath: cacheDirectory,
-    homePath: homeDirectory,
-    keepOidc: false,
-  })
-  const options = {
-    cwd: consumerDirectory,
-    env: commandEnvironment,
-    timeoutMs: COMMAND_TIMEOUT_MS,
-  }
+  const options = commandOptions(commandContext)
 
   try {
     assertNpmVersion(commandOutput('npm', ['--version'], options, runCommand))
+    assertEffectiveRegistry(commandContext, registry, runCommand)
     smokeCommand(
       runCommand,
       'npm',
@@ -755,14 +889,14 @@ export async function runPublicRegistryConsumer({
         `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
         ...exactPackageSpecs(version),
       ],
-      options
+      commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
     )
     assertInstalledVersions(consumerDirectory, version)
     smokeCommand(
       runCommand,
       'npm',
       ['audit', 'signatures', `--registry=${registry}`],
-      options
+      commandOptions(commandContext, AUDIT_COMMAND_TIMEOUT_MS)
     )
 
     runInstalledPackageSmokeChecks({
@@ -772,7 +906,7 @@ export async function runPublicRegistryConsumer({
     })
     return { packages: exactPackageSpecs(version), version }
   } finally {
-    rmSync(temporaryRoot, { recursive: true, force: true })
+    commandContext.cleanup()
   }
 }
 

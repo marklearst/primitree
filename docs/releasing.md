@@ -101,10 +101,30 @@ seven assets, and publishes the draft after npm verification succeeds.
 - [ ] Bootstrap each package with a token-authenticated publish if npm requires it.
 - [ ] Configure trusted publishing for all five packages before removing token authentication.
 - [ ] Create protected npm and GitHub environments and rulesets, including the GitHub environment `npm`; store and authenticate `NPM_TOKEN` there until its trusted-publisher configuration is complete.
+- [ ] Require immutable releases to be enabled with the owner-authenticated check below.
+- [ ] Protect release tag updates and deletions with a repository ruleset.
 - [ ] Make the stale `v4.2.0` tag decision apart from the v5 release.
 - [ ] Recreate `v5.0.0` only at the final verified commit on `main`.
 - [ ] Push the single intended tag; never use a blanket tag push.
 - [ ] Verify GitHub release notes, npm provenance against the expected repository, workflow, tag, and commit, dist-tags, package pages, and install smoke tests for all five packages.
+
+Run the immutable-releases check with a maintainer credential that has
+repository `Administration` read permission. The job-scoped `GITHUB_TOKEN`
+cannot perform this administrative check, so it stays outside the release job.
+The explicit comparison makes a false result stop the pre-launch shell:
+
+```bash
+test "$(
+  gh api \
+    -H 'X-GitHub-Api-Version: 2026-03-10' \
+    /repos/marklearst/figmavars/immutable-releases \
+    --jq '.enabled == true'
+)" = true
+```
+
+The repository ruleset must block release tag updates and deletions before the
+tag is pushed. Immutable releases protect the associated tag only after
+publish, so the ruleset covers the draft and asset-upload window.
 
 The workflow now references the GitHub environment `npm`. If it does not exist,
 GitHub may create an unprotected environment record during a job. The workflow
@@ -216,7 +236,13 @@ those same verified bytes.
 
 If npm succeeds but the GitHub Release fails, choose **Re-run failed jobs** on
 the same run. The release job resumes the draft from the existing tag and
-saved files without moving the tag.
+saved files without moving the tag. Resume is non-destructive: the helper keeps
+only assets whose name, uploaded state, size, and SHA-256 digest exactly match
+the reviewed files, then uploads only missing assets. It stops on any
+unexpected, mismatched, duplicate, or `starter` asset and never deletes draft
+assets automatically. Inspect and remove a known failed `starter` upload
+manually before rerunning the failed job; do not replace an already verified
+asset.
 
 ### Replace a pushed wrong tag
 
