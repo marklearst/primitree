@@ -1,6 +1,7 @@
+// @vitest-environment node
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { TokensProvider, useToken } from '../src'
+import { TokensProvider, useToken } from '@figmavars/hooks'
 
 function TokenValue() {
   const token = useToken('brand')

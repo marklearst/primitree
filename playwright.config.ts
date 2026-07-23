@@ -19,8 +19,8 @@ function readPort(name: string, fallback: number) {
   return port
 }
 
-const docsPort = readPort('PLAYWRIGHT_DOCS_PORT', 3000)
-const playgroundPort = readPort('PLAYWRIGHT_PLAYGROUND_PORT', 4173)
+const docsPort = readPort('PLAYWRIGHT_DOCS_PORT', 3100)
+const playgroundPort = readPort('PLAYWRIGHT_PLAYGROUND_PORT', 4273)
 const docsBaseUrl = `http://127.0.0.1:${docsPort}`
 const playgroundBaseUrl = `http://127.0.0.1:${playgroundPort}`
 
