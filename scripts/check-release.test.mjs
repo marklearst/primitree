@@ -71,6 +71,10 @@ const workspaceConfig = readFileSync(
   new URL('../pnpm-workspace.yaml', import.meta.url),
   'utf8'
 )
+const mcpTsupConfig = readFileSync(
+  new URL('../packages/mcp/tsup.config.ts', import.meta.url),
+  'utf8'
+)
 const publicManifests = PUBLIC_RELEASE_PACKAGES.map(config =>
   JSON.parse(
     readFileSync(new URL(`../${config.manifestPath}`, import.meta.url), 'utf8')
@@ -1192,7 +1196,7 @@ test('a tag ref without a tag name fails closed', () => {
   assert.match(result.stderr, /release tag .* must use vMAJOR\.MINOR\.PATCH/)
 })
 
-test('requires Node 24 for the source workspace and every public package', () => {
+test('requires Node 24 for the source workspace, public packages, and MCP build', () => {
   assert.equal(rootManifest.engines.node, '>=24.0.0')
   assert.equal(rootManifest.engines.pnpm, '>=11.0.0')
   assert.equal(rootManifest.packageManager, 'pnpm@11.10.0')
@@ -1200,6 +1204,7 @@ test('requires Node 24 for the source workspace and every public package', () =>
     publicManifests.map(manifest => manifest.engines?.node),
     Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=24.0.0')
   )
+  assert.match(mcpTsupConfig, /target: 'node24'/)
 })
 
 test('requires the React 19 hooks peer without a React DOM peer', () => {
@@ -1362,7 +1367,7 @@ test('builds and uploads one exact release artifact in quality', () => {
   assert.match(quality, /fetch-depth: 0/)
   assert.match(quality, /persist-credentials: false/)
   assert.match(quality, /version: 11\.10\.0/)
-  assert.match(quality, /node-version: 22\.13\.0/)
+  assert.match(quality, /node-version: 24\.18\.0/)
   assert.match(quality, /cache: ['"]?pnpm['"]?/)
   assert.match(quality, /cache-dependency-path: pnpm-lock\.yaml/)
   assertInOrder(
@@ -1403,11 +1408,11 @@ test('builds and uploads one exact release artifact in quality', () => {
   assert.match(upload, /if-no-files-found: error/)
 })
 
-test('tests only downloaded tarballs at the Node 20 consumer floor', () => {
+test('tests only downloaded tarballs at the Node 24.18.0 consumer floor', () => {
   const consumer = extractWorkflowJobs(workflow).get('consumer-compatibility')
   assert.ok(consumer)
   assert.match(consumer, /needs: quality/)
-  assert.match(consumer, /node-version: 20\.0\.0/)
+  assert.match(consumer, /node-version: 24\.18\.0/)
   assert.doesNotMatch(consumer, /cache:/)
   assert.doesNotMatch(consumer, /\$\{\{\s*secrets\.|id-token:\s*write/)
   assert.doesNotMatch(
@@ -1495,7 +1500,7 @@ test('publishes only independently validated stable tarballs', () => {
   assert.equal(workflowDocument.jobs.publish.environment, 'npm')
   assert.match(publish, /needs: \[quality, consumer-compatibility\]/)
   assert.match(publish, /if: github\.ref_type == 'tag'/)
-  assert.match(publish, /node-version: 22\.13\.0/)
+  assert.match(publish, /node-version: 24\.18\.0/)
   assert.match(publish, /registry-url: ['"]https:\/\/registry\.npmjs\.org['"]/)
   assert.match(publish, /scope: ['"]@figmavars['"]/)
   assert.doesNotMatch(publish, /cache:|actions\/checkout@|pnpm\/action-setup@/)
