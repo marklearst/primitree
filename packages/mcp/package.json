@@ -38,7 +38,7 @@
   },
   "homepage": "https://github.com/marklearst/figmavars#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "build": "tsup",

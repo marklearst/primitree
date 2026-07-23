@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
+  "changelog": ["@changesets/cli/changelog", null],
+  "commit": false,
+  "fixed": [
+    ["@figmavars/core", "@figmavars/dtcg", "@figmavars/cli", "@figmavars/hooks", "@figmavars/mcp"]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [],
+  "snapshot": {
+    "useCalculatedVersion": false,
+    "prereleaseTemplate": "{tag}-{commit}-{datetime}"
+  },
+  "privatePackages": {
+    "version": false,
+    "tag": false
+  }
+}

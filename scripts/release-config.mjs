@@ -57,6 +57,7 @@ export const RELEASE_HOMEPAGE = 'https://github.com/marklearst/figmavars#readme'
 export const RELEASE_BUGS = 'https://github.com/marklearst/figmavars/issues'
 export const RELEASE_FUNDING_TYPE = 'github'
 export const RELEASE_FUNDING = 'https://github.com/sponsors/marklearst'
+export const RELEASE_NODE_ENGINE = '>=24.0.0'
 
 export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
   freezePackage({
