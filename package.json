@@ -12,8 +12,9 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "turbo run build",
-    "test": "node --test scripts/check-release.test.mjs && pnpm run test:release-artifacts && turbo run test",
+    "test": "node --test scripts/check-release.test.mjs && pnpm run test:release-artifacts && pnpm run test:release-workflow && turbo run test",
     "test:release-artifacts": "node --test scripts/release-artifacts.test.mjs",
+    "test:release-workflow": "node --test scripts/release-publish.test.mjs scripts/github-release.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
     "test:coverage": "turbo run test:coverage",

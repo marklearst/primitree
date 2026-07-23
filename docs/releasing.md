@@ -7,11 +7,10 @@ a tarball after the release checks pass.
 
 ## Local preflight
 
-Source development requires Node >=22.13.0 and pnpm 11.10.0. CI tests Node
-20.0.0, the published-package consumer floor, against the packed tarballs.
-Do not use Node 20 to build this source workspace. On a fresh machine, run
-`pnpm run test:e2e:install` once to install Chromium before the release
-preflight.
+Source development and release CI use Node 24.18.0 with pnpm 11.10.0. CI
+installs and asserts npm 11.18.0 before the publish job reads the release
+registry. On a fresh machine, run `pnpm run test:e2e:install` once to install
+Chromium before the release preflight.
 
 Run this exact sequence from the repository root. Stop at the first failure.
 
@@ -85,19 +84,18 @@ The required validation set includes the manifest schema, tag/version equality,
 canonical checksum file, and every tarball hash. Publication requires all of
 them to pass.
 
-The quality job uploads the directory as `npm-packages-${{ github.sha }}`. The
-Node 20 consumer job and the publish job download that same-run artifact; they
-do not check out the repository, install the source workspace, build, or
-repack. Only the real publish step creates npm provenance. That job alone
-receives `id-token: write` and the npm token. Record the GitHub run ID and
-commit SHA with the release notes before artifact retention expires.
+The quality job uploads the directory as `npm-packages-${{ github.sha }}`.
+The packed-consumer, publish, and GitHub Release jobs download that same-run
+artifact. None of those jobs rebuilds or repacks it. Only the publish job
+receives `id-token: write` or access to the optional npm bootstrap token.
+Record the GitHub run ID and commit SHA before artifact retention expires.
 
 ## External npm and GitHub steps
 
 Local checks never execute these steps. Keep every item unchecked until the
-maintainer performs and verifies it during a real release. The current
-workflow does not create a GitHub Release; release notes and assets remain a
-manual step.
+maintainer performs and verifies it during a real release. The workflow
+creates or resumes a draft GitHub Release, verifies its reviewed notes and
+seven assets, and publishes the draft after npm verification succeeds.
 
 - [ ] Verify @figmavars ownership, 2FA, and new-package rights.
 - [ ] Bootstrap each package with a token-authenticated publish if npm requires it.
@@ -216,9 +214,9 @@ GitHub configuration, and choose **Re-run failed jobs** on the same run. The
 idempotent publish step retries only missing packages confirmed by npm from
 those same verified bytes.
 
-If npm succeeds but the GitHub Release fails, recreate its metadata from the
-existing tag and saved files without moving the tag. The current workflow does
-not perform this manual step.
+If npm succeeds but the GitHub Release fails, choose **Re-run failed jobs** on
+the same run. The release job resumes the draft from the existing tag and
+saved files without moving the tag.
 
 ### Replace a pushed wrong tag
 
