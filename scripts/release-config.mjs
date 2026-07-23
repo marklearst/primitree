@@ -177,7 +177,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
       },
     },
     requiredBin: 'figma-vars-mcp',
-    requiredBinTarget: './dist/index.js',
+    requiredBinTarget: './dist/cli.js',
     requiredInternalRuntimeDependencies: ['@figmavars/core', '@figmavars/dtcg'],
   }),
 ])

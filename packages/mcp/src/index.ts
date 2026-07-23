@@ -1,9 +1,8 @@
-#!/usr/bin/env node
 import fs from 'node:fs/promises'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { loadTokenSource, type TokenSource } from './source'
+import packageManifest from '../package.json' with { type: 'json' }
+import type { TokenSource } from './source'
 import {
   diffTokens,
   getToken,
@@ -15,29 +14,6 @@ import {
 export { loadTokenSource } from './source'
 export type { TokenSource } from './source'
 export * from './tools'
-
-const HELP = `
-figma-vars-mcp — MCP server for your design tokens
-
-Usage:
-  figma-vars-mcp --tokens <path>
-
-  <path> is either a Figma variables export (variables.json) or the output
-  of 'figma-vars build' (a directory containing tokens/tokens.resolver.json).
-  The FIGMA_VARS_TOKENS environment variable is used when --tokens is omitted.
-
-Example MCP client config:
-  {
-    "mcpServers": {
-      "design-tokens": {
-        "command": "npx",
-        "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
-      }
-    }
-  }
-
-Tools: list_collections, get_token, resolve_context, search_tokens, diff_tokens
-`
 
 const contextsSchema = z
   .record(z.string(), z.string())
@@ -55,7 +31,7 @@ function jsonContent(value: unknown) {
 export async function createServer(source: TokenSource): Promise<McpServer> {
   const server = new McpServer({
     name: 'figma-vars',
-    version: '5.0.0',
+    version: packageManifest.version,
   })
 
   server.registerTool(
@@ -147,42 +123,4 @@ export async function createServer(source: TokenSource): Promise<McpServer> {
   )
 
   return server
-}
-
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2)
-  if (argv.includes('--help') || argv.includes('-h')) {
-    console.log(HELP)
-    return
-  }
-  const flagIndex = argv.indexOf('--tokens')
-  const sourcePath =
-    (flagIndex !== -1 ? argv[flagIndex + 1] : undefined) ??
-    process.env.FIGMA_VARS_TOKENS
-  if (!sourcePath) {
-    console.error('Missing --tokens <path> (or FIGMA_VARS_TOKENS env var)')
-    console.error(HELP)
-    process.exit(1)
-  }
-
-  const source = await loadTokenSource(sourcePath)
-  const server = await createServer(source)
-  await server.connect(new StdioServerTransport())
-  console.error(
-    `figma-vars-mcp serving tokens from ${source.origin} (stdio transport)`
-  )
-}
-
-// Only start the stdio server when executed as a binary, not when imported.
-const isDirectRun =
-  process.argv[1] !== undefined &&
-  (process.argv[1].endsWith('figma-vars-mcp') ||
-    process.argv[1].endsWith('dist/index.js') ||
-    process.argv[1].endsWith('src/index.ts'))
-
-if (isDirectRun) {
-  main().catch((err: unknown) => {
-    console.error(err instanceof Error ? err.message : err)
-    process.exit(1)
-  })
 }
