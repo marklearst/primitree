@@ -30,6 +30,7 @@ const ARTIFACT_PARENT = fileURLToPath(
 )
 const ARTIFACT_DIRECTORY = path.join(ARTIFACT_PARENT, 'npm')
 const SUBPROCESS_MAX_BUFFER = 32 * 1024 * 1024
+const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org/'
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -311,6 +312,26 @@ function ensureBuildInputs() {
   }
 }
 
+function requireNoProjectNpmConfig() {
+  const directories = [
+    REPOSITORY_ROOT,
+    ...PUBLIC_RELEASE_PACKAGES.map(config =>
+      path.resolve(REPOSITORY_ROOT, config.path)
+    ),
+  ]
+  for (const directory of directories) {
+    const configPath = path.join(directory, '.npmrc')
+    try {
+      lstatSync(configPath)
+    } catch (error) {
+      if (error.code === 'ENOENT') continue
+      throw new Error(`unable to inspect project npm config: ${error.message}`)
+    }
+    const relativePath = path.relative(REPOSITORY_ROOT, configPath) || '.npmrc'
+    throw new Error(`project npm config is not allowed: ${relativePath}`)
+  }
+}
+
 function repositoryReleaseVersion() {
   const versions = new Set()
   for (const config of PUBLIC_RELEASE_PACKAGES) {
@@ -469,16 +490,144 @@ function replaceArtifactDirectory(stagingDirectory) {
   }
 }
 
-function baseSubprocessEnvironment() {
+function sanitizedNpmEnvironment(
+  environment,
+  {
+    cachePath,
+    globalConfigPath,
+    homePath,
+    pnpmHomePath,
+    userConfigPath,
+    workingPath,
+    xdgCachePath,
+    xdgConfigPath,
+    xdgDataPath,
+    xdgStatePath,
+  }
+) {
+  const sanitized = {}
+  for (const [key, value] of Object.entries(environment)) {
+    const upper = key.toUpperCase()
+    const credentialVariable =
+      upper.includes('TOKEN') ||
+      upper.includes('AUTH') ||
+      upper.includes('CREDENTIAL') ||
+      upper.includes('PASSWORD') ||
+      upper.includes('SECRET') ||
+      upper.includes('USERNAME') ||
+      upper.endsWith('_OTP')
+    if (
+      upper.startsWith('NPM_CONFIG_') ||
+      upper.startsWith('PNPM_CONFIG_') ||
+      credentialVariable ||
+      upper.startsWith('ACTIONS_ID_TOKEN_REQUEST_') ||
+      upper === 'NODE_OPTIONS'
+    ) {
+      continue
+    }
+    sanitized[key] = value
+  }
+
+  sanitized.FORCE_COLOR = '0'
+  sanitized.NO_COLOR = '1'
+  sanitized.HOME = homePath
+  sanitized.INIT_CWD = workingPath
+  sanitized.NPM_CONFIG_CACHE = cachePath
+  sanitized.npm_config_cache = cachePath
+  sanitized.NPM_CONFIG_GLOBALCONFIG = globalConfigPath
+  sanitized.npm_config_globalconfig = globalConfigPath
+  sanitized.NPM_CONFIG_USERCONFIG = userConfigPath
+  sanitized.npm_config_userconfig = userConfigPath
+  sanitized.PNPM_HOME = pnpmHomePath
+  sanitized.PWD = workingPath
+  sanitized.XDG_CACHE_HOME = xdgCachePath
+  sanitized.XDG_CONFIG_HOME = xdgConfigPath
+  sanitized.XDG_DATA_HOME = xdgDataPath
+  sanitized.XDG_STATE_HOME = xdgStatePath
+  return sanitized
+}
+
+function createNpmExecutionContext(prefix) {
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), prefix))
+  try {
+    const homeDirectory = path.join(temporaryRoot, 'home')
+    const cacheDirectory = path.join(temporaryRoot, 'npm-cache')
+    const workingDirectory = path.join(temporaryRoot, 'work')
+    const userConfigPath = path.join(temporaryRoot, 'npmrc')
+    const globalConfigPath = path.join(temporaryRoot, 'global-npmrc')
+    const pnpmHomeDirectory = path.join(temporaryRoot, 'pnpm-home')
+    const xdgCacheDirectory = path.join(temporaryRoot, 'xdg-cache')
+    const xdgConfigDirectory = path.join(temporaryRoot, 'xdg-config')
+    const xdgDataDirectory = path.join(temporaryRoot, 'xdg-data')
+    const xdgStateDirectory = path.join(temporaryRoot, 'xdg-state')
+    mkdirSync(homeDirectory)
+    mkdirSync(cacheDirectory)
+    mkdirSync(workingDirectory)
+    mkdirSync(pnpmHomeDirectory)
+    mkdirSync(xdgCacheDirectory)
+    mkdirSync(xdgConfigDirectory)
+    mkdirSync(xdgDataDirectory)
+    mkdirSync(xdgStateDirectory)
+    writeFileSync(userConfigPath, '', { mode: 0o600 })
+    writeFileSync(
+      globalConfigPath,
+      `registry=${PUBLIC_NPM_REGISTRY}\n@figmavars:registry=${PUBLIC_NPM_REGISTRY}\n`,
+      { mode: 0o600 }
+    )
+
+    return {
+      cleanup() {
+        rmSync(temporaryRoot, { recursive: true, force: true })
+      },
+      environment: sanitizedNpmEnvironment(process.env, {
+        cachePath: cacheDirectory,
+        globalConfigPath,
+        homePath: homeDirectory,
+        pnpmHomePath: pnpmHomeDirectory,
+        userConfigPath,
+        workingPath: workingDirectory,
+        xdgCachePath: xdgCacheDirectory,
+        xdgConfigPath: xdgConfigDirectory,
+        xdgDataPath: xdgDataDirectory,
+        xdgStatePath: xdgStateDirectory,
+      }),
+      workingDirectory,
+    }
+  } catch (error) {
+    rmSync(temporaryRoot, { recursive: true, force: true })
+    throw error
+  }
+}
+
+function npmCommandOptions(context, cwd = context.workingDirectory) {
   return {
-    ...process.env,
-    FORCE_COLOR: '0',
-    NO_COLOR: '1',
-    npm_config_color: 'false',
+    cwd,
+    env: context.environment,
+  }
+}
+
+function pnpmRegistryArguments() {
+  return [
+    `--config.registry=${PUBLIC_NPM_REGISTRY}`,
+    `--config.@figmavars:registry=${PUBLIC_NPM_REGISTRY}`,
+  ]
+}
+
+function assertEffectiveRegistry(context) {
+  for (const key of ['registry', '@figmavars:registry']) {
+    const result = spawnChecked(
+      'npm',
+      ['config', 'get', key],
+      npmCommandOptions(context)
+    )
+    if (result.stdout.trim() !== PUBLIC_NPM_REGISTRY) {
+      throw new Error(`effective npm ${key} must be ${PUBLIC_NPM_REGISTRY}`)
+    }
   }
 }
 
 export function packReleaseArtifacts() {
+  requireNoProjectNpmConfig()
   ensureBuildInputs()
   ensureArtifactParent()
   const version = repositoryReleaseVersion()
@@ -487,8 +636,10 @@ export function packReleaseArtifacts() {
     path.join(ARTIFACT_PARENT, '.npm-staging-')
   )
   let stagingOwned = true
+  let commandContext
 
   try {
+    commandContext = createNpmExecutionContext('figmavars-release-pack-')
     const outputPattern = path.join(stagingDirectory, '%s-%v.tgz')
     const artifacts = []
     for (let index = 0; index < PUBLIC_RELEASE_PACKAGES.length; index += 1) {
@@ -497,18 +648,18 @@ export function packReleaseArtifacts() {
       const result = spawnChecked(
         'pnpm',
         [
-          '--filter',
-          config.name,
+          '--dir',
+          path.resolve(REPOSITORY_ROOT, config.path),
+          '--ignore-workspace',
           'pack',
           '--json',
           '--out',
           outputPattern,
           '--config.ignore-scripts=true',
+          '--config.offline=true',
+          ...pnpmRegistryArguments(),
         ],
-        {
-          cwd: REPOSITORY_ROOT,
-          env: baseSubprocessEnvironment(),
-        }
+        npmCommandOptions(commandContext)
       )
       parsePackResult(result.stdout, config, version, expectedPath)
       const bytes = readRegularFile(expectedPath, expected[index].file)
@@ -536,25 +687,8 @@ export function packReleaseArtifacts() {
     if (stagingOwned) {
       rmSync(stagingDirectory, { recursive: true, force: true })
     }
+    commandContext?.cleanup()
   }
-}
-
-function sanitizedNpmEnvironment(userConfigPath) {
-  const environment = baseSubprocessEnvironment()
-  for (const key of Object.keys(environment)) {
-    if (
-      key === 'NODE_AUTH_TOKEN' ||
-      key === 'NPM_TOKEN' ||
-      key === 'SIGSTORE_ID_TOKEN' ||
-      key.startsWith('ACTIONS_ID_TOKEN_REQUEST_') ||
-      /^NPM_CONFIG_.*(?:AUTH|TOKEN|OTP|PROVENANCE)$/i.test(key)
-    ) {
-      delete environment[key]
-    }
-  }
-  environment.NPM_CONFIG_USERCONFIG = userConfigPath
-  environment.npm_config_userconfig = userConfigPath
-  return environment
 }
 
 export function npmPublishDryRunArgs(artifactPath) {
@@ -601,37 +735,33 @@ function requireUnchangedSnapshot(before, after) {
 }
 
 function runExternalReleaseChecks(before) {
-  const temporaryRoot = mkdtempSync(
-    path.join(tmpdir(), 'figmavars-release-check-')
-  )
+  requireNoProjectNpmConfig()
+  const commandContext = createNpmExecutionContext('figmavars-release-check-')
   try {
-    const userConfigPath = path.join(temporaryRoot, 'npmrc')
-    writeFileSync(userConfigPath, '')
-    const environment = sanitizedNpmEnvironment(userConfigPath)
-    const commonOptions = {
-      cwd: REPOSITORY_ROOT,
-      env: environment,
-    }
+    const commonOptions = npmCommandOptions(commandContext)
 
     for (let index = 0; index < before.artifacts.length; index += 1) {
       const artifact = before.artifacts[index]
       const config = PUBLIC_RELEASE_PACKAGES[index]
       spawnChecked(
-        'pnpm',
-        ['exec', 'publint', artifact.path, '--strict'],
+        path.join(REPOSITORY_ROOT, 'node_modules', '.bin', 'publint'),
+        [artifact.path, '--strict'],
         commonOptions
       )
       if (config.attwProfile !== null) {
         spawnChecked(
-          'pnpm',
-          ['exec', 'attw', artifact.path, '--profile', config.attwProfile],
+          path.join(REPOSITORY_ROOT, 'node_modules', '.bin', 'attw'),
+          [artifact.path, '--profile', config.attwProfile],
           commonOptions
         )
       }
       spawnChecked('npm', npmPublishDryRunArgs(artifact.path), commonOptions)
     }
 
-    const consumerDirectory = path.join(temporaryRoot, 'consumer')
+    const consumerDirectory = path.join(
+      commandContext.workingDirectory,
+      'consumer'
+    )
     mkdirSync(consumerDirectory)
     writeFileSync(
       path.join(consumerDirectory, 'package.json'),
@@ -641,6 +771,7 @@ function runExternalReleaseChecks(before) {
         2
       )}\n`
     )
+    assertEffectiveRegistry(commandContext)
     spawnChecked(
       'npm',
       [
@@ -653,13 +784,10 @@ function runExternalReleaseChecks(before) {
         '--registry=https://registry.npmjs.org/',
         ...before.artifacts.map(artifact => artifact.path),
       ],
-      {
-        cwd: consumerDirectory,
-        env: environment,
-      }
+      npmCommandOptions(commandContext, consumerDirectory)
     )
   } finally {
-    rmSync(temporaryRoot, { recursive: true, force: true })
+    commandContext.cleanup()
   }
 }
 
@@ -674,18 +802,22 @@ export function checkReleaseArtifacts({
   const before = verifyReleaseArtifacts({ artifactDirectory: directory })
   const beforeSnapshot = snapshotReleaseArtifactBytes(directory, before)
 
-  const checkResult = runChecks(before)
-  if (
-    checkResult !== null &&
-    (typeof checkResult === 'object' || typeof checkResult === 'function') &&
-    typeof checkResult.then === 'function'
-  ) {
-    throw new Error('runChecks must be a synchronous function')
+  let after
+  try {
+    const checkResult = runChecks(before)
+    if (
+      checkResult !== null &&
+      (typeof checkResult === 'object' || typeof checkResult === 'function') &&
+      typeof checkResult.then === 'function'
+    ) {
+      throw new Error('runChecks must be a synchronous function')
+    }
+  } finally {
+    after = verifyReleaseArtifacts({ artifactDirectory: directory })
+    const afterSnapshot = snapshotReleaseArtifactBytes(directory, after)
+    requireUnchangedSnapshot(beforeSnapshot, afterSnapshot)
   }
 
-  const after = verifyReleaseArtifacts({ artifactDirectory: directory })
-  const afterSnapshot = snapshotReleaseArtifactBytes(directory, after)
-  requireUnchangedSnapshot(beforeSnapshot, afterSnapshot)
   return after
 }
 

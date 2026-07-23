@@ -211,7 +211,6 @@ function assertExactRelease(release, expected, expectedAssets, draft) {
   }
   if (
     release?.tag_name !== expected.tag ||
-    release?.target_commitish !== expected.commitSha ||
     release?.name !== expected.title ||
     release?.body !== expected.notes ||
     release?.draft !== draft ||
@@ -312,7 +311,6 @@ function assertDraftMetadata(release, expected) {
   }
   if (
     release?.tag_name !== expected.tag ||
-    release?.target_commitish !== expected.commitSha ||
     release?.name !== expected.title ||
     release?.body !== expected.notes ||
     release?.prerelease !== false
@@ -601,7 +599,7 @@ export async function createOrResumeGithubRelease({
   ) {
     assertExactRelease(
       releaseResponse.value,
-      { commitSha: githubSha, notes, tag, title },
+      { notes, tag, title },
       expectedAssets,
       false
     )
@@ -668,7 +666,7 @@ export async function createOrResumeGithubRelease({
     tag,
     token,
   })
-  const expectedMetadata = { commitSha: githubSha, notes, tag, title }
+  const expectedMetadata = { notes, tag, title }
   let assetSnapshot = draftAssetSnapshot(draftState.release)
   const release = (
     await apiRequest(draftState.releaseUrl, {

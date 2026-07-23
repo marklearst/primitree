@@ -79,7 +79,7 @@ function publishedRelease(fixture, overrides = {}) {
     body: NOTES,
     draft: false,
     immutable: true,
-    target_commitish: SHA,
+    target_commitish: 'main',
     assets: localAssets(fixture.directory),
     ...overrides,
   })
@@ -90,6 +90,7 @@ async function startGithubApi({
   initialReleases = [],
   listLink,
   listPages,
+  reportedTargetCommitish,
   tagSha = SHA,
   mutateMetadataResponse,
   mutateDraftSnapshot,
@@ -101,6 +102,13 @@ async function startGithubApi({
 }) {
   const requests = []
   let releases = structuredClone(initialReleases)
+  const applyReportedTargetCommitish = release => {
+    if (reportedTargetCommitish !== undefined) {
+      release.target_commitish = reportedTargetCommitish
+    }
+    return release
+  }
+  releases.forEach(applyReportedTargetCommitish)
   let nextReleaseId =
     Math.max(0, ...releases.map(release => release.id ?? 0)) + 1
   let nextAssetId = 100
@@ -191,6 +199,7 @@ async function startGithubApi({
                 read: draftSnapshots,
                 release: structuredClone(exact),
               })
+        applyReportedTargetCommitish(mutated)
         value[exactIndex] = mutated
         releases = releases.map(entry =>
           entry.id === mutated.id ? structuredClone(mutated) : entry
@@ -230,6 +239,7 @@ async function startGithubApi({
         assets: [],
         upload_url: releaseUploadUrl(nextReleaseId - 1),
       }
+      applyReportedTargetCommitish(release)
       releases.push(release)
       return json(201, release)
     }
@@ -248,10 +258,12 @@ async function startGithubApi({
       if (input.draft !== false && mutateMetadataResponse !== undefined) {
         Object.assign(release, mutateMetadataResponse(structuredClone(release)))
       }
+      applyReportedTargetCommitish(release)
       const value =
         input.draft === false && mutatePublishResponse !== undefined
           ? mutatePublishResponse(structuredClone(release))
           : release
+      applyReportedTargetCommitish(value)
       return json(200, value)
     }
     const assetDeleteMatch = new RegExp(
@@ -419,16 +431,18 @@ test('creates and publishes a first release after list confirms no draft', async
   })
 })
 
-test('resumes a partial draft without deleting exact uploaded assets', async () => {
+test('resumes a partial draft when the API reports the existing tag target as main', async () => {
   await withGithubApi(
     fixture => ({
       initialReleases: [
         draftRelease(fixture, {
+          target_commitish: 'main',
           assets: localAssets(fixture.directory)
             .slice(0, 2)
             .map((asset, index) => ({ ...asset, id: 41 + index })),
         }),
       ],
+      reportedTargetCommitish: 'main',
     }),
     async ({ api, fixture }) => {
       await createOrResumeGithubRelease(releaseInput(fixture, api))
@@ -437,6 +451,7 @@ test('resumes a partial draft without deleting exact uploaded assets', async () 
         0
       )
       assert.equal(api.releases[0].draft, false)
+      assert.equal(api.releases[0].target_commitish, 'main')
       assert.equal(api.releases[0].assets.length, 7)
       assert.deepEqual(
         api.releases[0].assets.slice(0, 2).map(asset => asset.id),
@@ -453,9 +468,15 @@ test('resumes a partial draft without deleting exact uploaded assets', async () 
       const patches = api.requests.filter(request => request.method === 'PATCH')
       assert.equal(patches.length, 2)
       assert.ok(
+        patches.every(
+          request => JSON.parse(request.body).target_commitish === SHA
+        )
+      )
+      assert.ok(
         patches.every(request => request.headers['if-match'] === undefined)
       )
       assertMutationsAreBracketedByReleaseReads(api.requests)
+      assert.equal(api.tagReads, 3)
     }
   )
 })
@@ -653,33 +674,6 @@ test('aborts before upload when metadata mutation reports concurrent publication
   )
 })
 
-test('aborts before upload when metadata response changes the target commit', async () => {
-  await withGithubApi(
-    {
-      initialReleases: [draftRelease({ directory: '' })],
-      mutateMetadataResponse: release => ({
-        ...release,
-        target_commitish: 'f'.repeat(40),
-      }),
-    },
-    async ({ api, fixture }) => {
-      await assert.rejects(
-        () => createOrResumeGithubRelease(releaseInput(fixture, api)),
-        /draft release does not match reviewed metadata/
-      )
-      assert.equal(
-        api.requests.filter(
-          request =>
-            request.method === 'POST' &&
-            /\/releases\/\d+\/assets$/.test(request.path)
-        ).length,
-        0
-      )
-      assert.equal(api.publishPatches, 0)
-    }
-  )
-})
-
 test('aborts before upload when an unexpected asset appears after metadata', async () => {
   await withGithubApi(
     {
@@ -740,7 +734,7 @@ test('aborts before publish when another actor publishes after uploads', async (
   )
 })
 
-test('matching published release is a by-tag no-op', async () => {
+test('matching published release with a main target is a by-tag no-op', async () => {
   await withGithubApi(
     fixture => ({
       initialReleases: [publishedRelease(fixture)],
@@ -751,6 +745,8 @@ test('matching published release is a by-tag no-op', async () => {
       )
       assert.equal(result.status, 'unchanged')
       assert.equal(api.mutationCount(), 0)
+      assert.equal(api.releases[0].target_commitish, 'main')
+      assert.equal(api.tagReads, 2)
       assert.equal(
         api.requests.some(
           request => request.path === `${REPOSITORY_PATH}/releases`
@@ -784,14 +780,6 @@ test('mismatched published release and moved tags fail without mutation', async 
       ],
       tagSha: SHA,
       pattern: /published release is not immutable/,
-    },
-    {
-      name: 'published release targets another commit',
-      initialReleases: fixture => [
-        publishedRelease(fixture, { target_commitish: 'f'.repeat(40) }),
-      ],
-      tagSha: SHA,
-      pattern: /published release does not match reviewed metadata/,
     },
   ]) {
     await t.test(testCase.name, async () => {
