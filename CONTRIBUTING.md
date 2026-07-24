@@ -21,9 +21,9 @@ This is a pnpm + Turborepo monorepo:
 
 ## Getting started
 
-Source development requires Node >=22.13.0 and pnpm 11.10.0 (`corepack enable`
-picks the pinned pnpm version). The packed public packages keep their separate
-consumer contract and are runtime-tested at the Node 20.0.0 floor.
+Source development uses Node 24.18.0 and pnpm 11.10.0 (`corepack enable` picks
+the pinned pnpm version). The public packages require Node >=24.0.0, matching
+the runtime floor enforced by their manifests and release tests.
 
 ```bash
 pnpm install
