@@ -8,6 +8,7 @@ node_modules/
 **/.turbo/
 **/.vercel/
 **/*.tsbuildinfo
+apps/docs/content/docs/api/
 
 # Generated files
 *.d.ts

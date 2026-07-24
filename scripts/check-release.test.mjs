@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 import {
   discoverWorkspaceManifestPaths,
+  validateReleaseCopy,
   validateReleaseManifests,
 } from './check-release.mjs'
 import {
@@ -67,23 +68,12 @@ const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
 const releaseRunbook = existsSync(releaseRunbookUrl)
   ? readFileSync(releaseRunbookUrl, 'utf8')
   : ''
-const releasePlan = readFileSync(
-  new URL(
-    '../docs/superpowers/plans/2026-07-13-release-hardening.md',
-    import.meta.url
-  ),
-  'utf8'
-)
-const qualitySpec = readFileSync(
-  new URL(
-    '../docs/superpowers/specs/2026-07-13-figmavars-v5-quality-run-design.md',
-    import.meta.url
-  ),
-  'utf8'
-)
 const workspaceConfig = readFileSync(
   new URL('../pnpm-workspace.yaml', import.meta.url),
   'utf8'
+)
+const turboConfig = JSON.parse(
+  readFileSync(new URL('../turbo.json', import.meta.url), 'utf8')
 )
 const mcpTsupConfig = readFileSync(
   new URL('../packages/mcp/tsup.config.ts', import.meta.url),
@@ -151,9 +141,6 @@ const TRUST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
 const TRUST_LIST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
   ({ name }) =>
     `npm trust list '${name}' --registry=https://registry.npmjs.org/`
-)
-const PACKAGE_MFA_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
-  ({ name }) => `npm access set mfa=publish ${name}`
 )
 const GITHUB_REPOSITORY = 'marklearst/figmavars'
 const GITHUB_SECRET_SET_COMMAND = `gh secret set NPM_TOKEN --env npm --repo ${GITHUB_REPOSITORY}`
@@ -587,6 +574,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       name: config.name,
       attwProfile: config.attwProfile,
       requiredFiles: config.requiredFiles,
+      requiredDeclarationFiles: config.requiredDeclarationFiles,
       requiredBin: config.requiredBin,
       requiredBinTarget: config.requiredBinTarget,
       exportSignatures: exportSignatures(config),
@@ -596,6 +584,12 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@figmavars/core',
         attwProfile: 'node16',
         requiredFiles: ['dist'],
+        requiredDeclarationFiles: [
+          'dist/index.d.ts',
+          'dist/index.d.cts',
+          'dist/types.d.ts',
+          'dist/types.d.cts',
+        ],
         requiredBin: undefined,
         requiredBinTarget: undefined,
         exportSignatures: [
@@ -615,6 +609,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@figmavars/dtcg',
         attwProfile: 'strict',
         requiredFiles: ['dist'],
+        requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
         requiredBin: undefined,
         requiredBinTarget: undefined,
         exportSignatures: [
@@ -629,6 +624,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@figmavars/cli',
         attwProfile: null,
         requiredFiles: ['dist'],
+        requiredDeclarationFiles: ['dist/index.d.ts'],
         requiredBin: 'figma-vars',
         requiredBinTarget: './dist/index.js',
         exportSignatures: [],
@@ -637,6 +633,12 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@figmavars/hooks',
         attwProfile: 'strict',
         requiredFiles: ['dist', 'scripts/export-variables.mjs'],
+        requiredDeclarationFiles: [
+          'dist/index.d.ts',
+          'dist/index.d.cts',
+          'dist/core.d.ts',
+          'dist/core.d.cts',
+        ],
         requiredBin: 'figma-vars-export',
         requiredBinTarget: './scripts/export-variables.mjs',
         exportSignatures: [
@@ -656,6 +658,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@figmavars/mcp',
         attwProfile: 'esm-only',
         requiredFiles: ['dist'],
+        requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
         requiredBin: 'figma-vars-mcp',
         requiredBinTarget: './dist/cli.js',
         exportSignatures: [
@@ -695,6 +698,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
   for (const config of PUBLIC_RELEASE_PACKAGES) {
     assert.equal(Object.isFrozen(config), true)
     assert.equal(Object.isFrozen(config.requiredFiles), true)
+    assert.equal(Object.isFrozen(config.requiredDeclarationFiles), true)
     assert.equal(Object.isFrozen(config.requiredExports), true)
     assert.equal(Object.isFrozen(config.exportTargets), true)
     for (const targets of Object.values(config.exportTargets)) {
@@ -1144,6 +1148,62 @@ test('allows private workspace version independence from the public release trai
   assert.doesNotThrow(() => validate({ privatePackages }))
 })
 
+test('requires dated release notes and changelogs for a tag', () => {
+  const version = '5.0.0'
+  const releaseDate = '2026-07-23'
+  const changelogs = PUBLIC_RELEASE_PACKAGES.map(config => ({
+    path: `${config.path}/CHANGELOG.md`,
+    content: `# Changelog\n\n## ${version} (${releaseDate})\n`,
+  }))
+
+  assert.doesNotThrow(() =>
+    validateReleaseCopy({
+      version,
+      tag: `v${version}`,
+      releaseNotes: `# FigmaVars ${version}\n\nStatus: Released ${releaseDate}.\n`,
+      changelogs,
+    })
+  )
+  assert.doesNotThrow(() =>
+    validateReleaseCopy({
+      version,
+      tag: undefined,
+      releaseNotes: 'Status: Unreleased.\n',
+      changelogs: changelogs.map(changelog => ({
+        ...changelog,
+        content: `## ${version} (Unreleased)\n`,
+      })),
+    })
+  )
+  assert.throws(
+    () =>
+      validateReleaseCopy({
+        version,
+        tag: `v${version}`,
+        releaseNotes: 'Status: Unreleased.\n',
+        changelogs,
+      }),
+    /release notes.*Released YYYY-MM-DD/is
+  )
+  assert.throws(
+    () =>
+      validateReleaseCopy({
+        version,
+        tag: `v${version}`,
+        releaseNotes: `Status: Released ${releaseDate}.\n`,
+        changelogs: changelogs.map((changelog, index) =>
+          index === 0
+            ? {
+                ...changelog,
+                content: `## ${version} (2026-07-24)\n`,
+              }
+            : changelog
+        ),
+      }),
+    /must use release date 2026-07-23/i
+  )
+})
+
 test('discovers workspace manifests without following symlink entries', t => {
   const root = mkdtempSync(join(tmpdir(), 'figmavars-release-discovery-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -1192,11 +1252,7 @@ test('repository validation is independent of the process cwd', () => {
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        GITHUB_REF_TYPE: 'tag',
-        GITHUB_REF_NAME: 'v5.0.0',
-      },
+      env: process.env,
     })
     assert.equal(result.status, 0, result.stderr)
     assert.match(
@@ -1229,6 +1285,10 @@ test('requires Node 24 for the source workspace, public packages, and Node build
     publicManifests.map(manifest => manifest.engines?.node),
     Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=24.0.0')
   )
+  assert.deepEqual(
+    publicManifests.map(manifest => manifest.devDependencies?.['@types/node']),
+    Array(PUBLIC_RELEASE_PACKAGES.length).fill('^24.13.3')
+  )
   assert.match(cliTsupConfig, /target: 'node24'/)
   assert.match(mcpTsupConfig, /target: 'node24'/)
 })
@@ -1240,6 +1300,31 @@ test('requires the React 19 hooks peer without a React DOM peer', () => {
   assert.ok(hooks)
   assert.equal(hooks.peerDependencies?.react, '^19.0.0')
   assert.equal(Object.hasOwn(hooks.peerDependencies ?? {}, 'react-dom'), false)
+})
+
+test('keeps the hooks typecheck free of a second build lifecycle', () => {
+  const hooks = publicManifests.find(
+    manifest => manifest.name === '@figmavars/hooks'
+  )
+  assert.ok(hooks)
+  assert.equal(hooks.scripts?.typecheck, 'tsc --noEmit')
+  assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretypecheck'), false)
+})
+
+test('serializes the hooks build before dist-backed test tasks', () => {
+  const hooks = publicManifests.find(
+    manifest => manifest.name === '@figmavars/hooks'
+  )
+  assert.ok(hooks)
+  assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretest'), false)
+  assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretest:coverage'), false)
+  assert.deepEqual(turboConfig.tasks['@figmavars/hooks#test']?.dependsOn, [
+    'build',
+  ])
+  assert.deepEqual(
+    turboConfig.tasks['@figmavars/hooks#test:coverage']?.dependsOn,
+    ['build']
+  )
 })
 
 test('configures Changesets for the fixed public release train', () => {
@@ -1791,6 +1876,31 @@ test('keeps reviewed v5 release notes project-focused', () => {
   assert.doesNotMatch(v5ReleaseNotes, /—/)
 })
 
+test('dates public release copy before creating a tag', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const tagPhase = extractMarkdownSection(
+    external,
+    '### 4. Tag, publish, and create the GitHub Release'
+  )
+
+  assert.match(tagPhase, /five package\s+changelogs/i)
+  assert.match(tagPhase, /`5\.0\.0 \(Unreleased\)`/)
+  assert.match(tagPhase, /`Status: Released YYYY-MM-DD\.`/)
+  assert.match(tagPhase, /tag-mode metadata check rejects[\s\S]*Unreleased/i)
+  assertInOrder(
+    tagPhase,
+    [
+      'Update the release copy before creating the tag.',
+      'GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata',
+      'git tag -a "v$VERSION"',
+    ],
+    'release copy and tag order'
+  )
+})
+
 test('links one release runbook from maintainer and launch documentation', () => {
   assert.notEqual(releaseRunbook, '', 'docs/releasing.md must exist')
   assert.match(contributing, /\[release runbook\]\(docs\/releasing\.md\)/i)
@@ -1834,13 +1944,20 @@ test('documents exact contributor and version pull request boundaries', () => {
   assert.match(versionPullRequests, /quality[\s\S]*packed-consumer/i)
   assert.match(versionPullRequests, /`github\.token`/)
   assert.match(versionPullRequests, /never publishes/i)
-  assert.match(versionPullRequests, /no npm token[\s\S]*OIDC identity token/i)
+  assert.match(
+    versionPullRequests,
+    /receives no\s+npm token[\s\S]*does not request[\s\S]*OIDC identity token/i
+  )
 })
 
 test('freezes the launch administration order and credential boundaries', () => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
+  )
+  const packageSecurity = extractMarkdownSubsection(
+    external,
+    '### 8. Require package MFA and disallow token publishing'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
@@ -1858,12 +1975,12 @@ test('freezes the launch administration order and credential boundaries', () => 
       '### 8. Require package MFA and disallow token publishing',
       '### 9. Promote one staged production deployment',
       '### 10. Verify replacements and migration',
-      '### 11. Deprecate only the legacy 4.0.0 package',
+      '### 11. Deprecate the sole legacy target: 4.0.0',
     ],
     'launch administration phases'
   )
 
-  assert.match(external, /one-day granular npm token/i)
+  assert.match(external, /granular npm token[\s\S]*expires after one day/i)
   assert.match(external, /protected GitHub `npm` environment/)
   assert.equal(occurrences(external, GITHUB_SECRET_SET_COMMAND), 1)
   assert.equal(occurrences(external, GITHUB_SECRET_DELETE_COMMAND), 1)
@@ -1885,7 +2002,7 @@ test('freezes the launch administration order and credential boundaries', () => 
       GITHUB_SECRET_DELETE_COMMAND,
       'npm token list --json',
       'npm token revoke "$BOOTSTRAP_TOKEN_ID"',
-      ...PACKAGE_MFA_COMMANDS,
+      'Require two-factor authentication and disallow tokens',
     ],
     'credential retirement'
   )
@@ -1899,8 +2016,21 @@ test('freezes the launch administration order and credential boundaries', () => 
   for (const command of [...TRUST_COMMANDS, ...TRUST_LIST_COMMANDS]) {
     assert.equal(occurrences(external, command), 1, `runbook needs ${command}`)
   }
-  for (const command of PACKAGE_MFA_COMMANDS) {
-    assert.equal(occurrences(external, command), 1, `runbook needs ${command}`)
+  assert.doesNotMatch(packageSecurity, /npm access set mfa=/)
+  assert.match(
+    packageSecurity,
+    /npm CLI does not expose[\s\S]*disallow-tokens setting/i
+  )
+  assert.match(
+    packageSecurity,
+    /refresh[\s\S]*Require two-factor authentication and disallow tokens/i
+  )
+  for (const { name } of RELEASE_PUBLISH_PACKAGES) {
+    assert.equal(
+      occurrences(packageSecurity, `\`${name}\``),
+      1,
+      `package security checklist needs ${name}`
+    )
   }
   assert.match(
     external,
@@ -2435,12 +2565,12 @@ test('requires immutable staged production promotion before legacy deprecation',
 
   for (const phrase of [
     VERCEL_PROJECT_ID,
-    '`rootDirectory` is exactly `apps/docs`',
+    '`rootDirectory` must equal `apps/docs`',
     '`sourceFilesOutsideRootDirectory` is `true`',
     '`apps/docs/vercel.json`',
     '`"github": { "autoAlias": false }`',
-    'required before merge',
-    'current production deployment is not a valid docs rollback',
+    'must commit `apps/docs/vercel.json` with',
+    'Do not use the production deployment in place before launch as a docs rollback or fallback',
     'known-good docs fallback',
     'fallback deployment ID and URL',
     'exact deployment ID and URL',
@@ -2631,8 +2761,16 @@ test('documents stable-only semantics and the exact seven-file artifact boundary
     releaseRunbook,
     '## Stable release semantics'
   )
-  assert.match(semantics, /stable releases only/i)
-  assert.match(semantics, /exact `vMAJOR\.MINOR\.PATCH`/)
+  assert.match(semantics, /sole release mode is stable/i)
+  assert.match(
+    semantics,
+    /five public packages\s+must share\s+the same strict `MAJOR\.MINOR\.PATCH` version/i
+  )
+  assert.doesNotMatch(semantics, /public and private workspaces/i)
+  assert.match(
+    semantics,
+    /accepted release\s+tag must\s+equal `vMAJOR\.MINOR\.PATCH`/
+  )
   assert.match(semantics, /dist-tag `latest`/)
   assert.match(semantics, /prerelease versions are not supported/i)
   assert.match(semantics, /future[\s\S]*separate design/i)
@@ -2653,7 +2791,7 @@ test('documents stable-only semantics and the exact seven-file artifact boundary
   assert.deepEqual(extractOrderedCodeList(artifactBoundary), expectedFiles)
   assert.match(
     artifactBoundary,
-    /exactly seven regular,[\s\S]*non-symlink files/i
+    /contains these seven regular,[\s\S]*non-symlink files and no others/i
   )
   assert.match(
     artifactBoundary,
@@ -2677,7 +2815,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     'protected npm and GitHub environments and rulesets',
     'GitHub environment `npm`',
     'stale `v4.2.0` tag',
-    '`v5.0.0` only at the final verified commit',
+    '`v5.0.0` at the final verified commit and no other commit',
     'single intended tag',
     'immutable releases',
     'release tag updates and deletions',
@@ -2706,7 +2844,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   assert.match(external, /job-scoped `GITHUB_TOKEN`[\s\S]*cannot perform/i)
   assert.match(
     external,
-    /ruleset[\s\S]*release tag updates and deletions[\s\S]*immutable releases[\s\S]*after\s+publish/i
+    /ruleset[\s\S]*release tag updates and deletions[\s\S]*immutable-release protection[\s\S]*after\s+publication/i
   )
   assert.match(
     external,
@@ -2736,15 +2874,21 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   for (const command of publishCommands) {
     assert.equal(occurrences(releaseRunbook, command), 1)
   }
-  assert.match(recovery, /Only npm `E404` means that a package is missing/)
+  assert.match(
+    recovery,
+    /treats npm `E404`, and no other response, as missing/i
+  )
   assert.match(recovery, /Any other error[\s\S]*stops[\s\S]*recovery/i)
   assert.match(recovery, /same verified bytes/i)
   assert.match(recovery, /Never rebuild/i)
   assert.match(recovery, /shasum -a 256 -c SHA256SUMS/)
   assert.match(recovery, /Linux[\s\S]*sha256sum --check SHA256SUMS/i)
   assert.match(recovery, /Re-run failed jobs/)
-  assert.match(recovery, /only supported\s+selective recovery path/i)
-  assert.match(recovery, /do not execute[\s\S]*npm publish[\s\S]*locally/i)
+  assert.match(recovery, /sole\s+supported selective recovery path/i)
+  assert.match(
+    recovery,
+    /do not\s+execute[\s\S]*npm publish[\s\S]*from a local machine/i
+  )
 })
 
 test('documents dist-tag, invalid-content, and immutable artifact recovery', () => {
@@ -2801,7 +2945,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
   )
   assert.match(
     recovery,
-    /credential[\s\S]*preserve[\s\S]*checksums[\s\S]*only missing[\s\S]*packages/i
+    /credentials[\s\S]*preserve the artifact and checksums[\s\S]*retries packages[\s\S]*missing[\s\S]*same verified bytes/i
   )
   const registryQueries = RELEASE_PUBLISH_PACKAGES.map(
     ({ name }) =>
@@ -2820,7 +2964,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
     ],
     'safe tag replacement'
   )
-  assert.match(recovery, /cancel[\s\S]*only if the old run is still active/i)
+  assert.match(recovery, /Use cancellation if the old run is still active/i)
 })
 
 test('rejects blanket tag pushes with or without an explicit remote', () => {
@@ -2831,17 +2975,5 @@ test('rejects blanket tag pushes with or without an explicit remote', () => {
     'git push upstream refs/tags/*',
   ]) {
     assert.throws(() => assertNoBlanketTagPush(`${releaseRunbook}\n${command}`))
-  }
-})
-
-test('keeps the release plan and specification on same-run resumable recovery', () => {
-  for (const document of [releasePlan, qualitySpec]) {
-    assert.match(document, /Re-run failed jobs/)
-    assert.match(document, /same-run artifact/i)
-    assert.match(document, /dist\.integrity/)
-    assert.match(document, /dist\.attestations/i)
-    assert.match(document, /GitHub environment `npm`/)
-    assert.match(document, /publish job never started/i)
-    assert.match(document, /all five[\s\S]*E404/i)
   }
 })

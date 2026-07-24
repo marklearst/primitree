@@ -55,5 +55,6 @@ docs-site
 /playwright-report/
 /test-results/
 /.playwright-cli/
+/apps/docs/content/docs/api/
 
 .env
