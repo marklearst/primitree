@@ -15,37 +15,31 @@ export interface FilterVariablesCriteria {
    */
   name?: string
   /**
-   * When true, name matching is case-insensitive.
+   * Set to `true` for case-insensitive name matching.
    * @defaultValue false
    */
   caseInsensitive?: boolean
 }
 
 /**
- * Utility function to filter Figma variables by type and/or substring name match.
+ * Filter Figma variables by resolved type and name substring.
  *
  * @remarks
- * Returns a new array of variables matching the provided criteria. Use for building type pickers, variable search, dashboard views, or bulk edit tools. By default, filtering is case-sensitive for `name`. Set `caseInsensitive: true` for case-insensitive matching. Pass no criteria to return all variables unfiltered.
+ * Name matching respects case unless `caseInsensitive` is `true`.
  *
- * @param variables - The array of FigmaVariable objects to filter.
- * @param criteria - Object specifying filter fields. Provide a `resolvedType` (e.g., 'COLOR', 'FLOAT') and/or a `name` substring to match variable names.
- * @returns Array of FigmaVariable objects that match all provided criteria. Returns an empty array if no matches found. Returns all variables if criteria is empty.
+ * @param variables - Variables to filter.
+ * @param criteria - Type and name filters.
+ * @returns Variables that match the supplied filters.
  *
  * @example
  * ```ts
- * import { filterVariables } from '@figmavars/hooks';
+ * import { filterVariables } from '@figmavars/core'
  *
- * // Example 1: Filter all color variables
- * const colorVars = filterVariables(allVars, { resolvedType: 'COLOR' });
- *
- * // Example 2: Filter variables containing 'brand' in their name (case-sensitive)
- * const brandVars = filterVariables(allVars, { name: 'brand' });
- *
- * // Example 3: Filter variables that are COLOR and include 'brand' in name
- * const filtered = filterVariables(allVars, { resolvedType: 'COLOR', name: 'brand' });
- *
- * // Example 4: Case-insensitive name search
- * const matches = filterVariables(allVars, { name: 'BRAND', caseInsensitive: true });
+ * const colors = filterVariables(variables, { resolvedType: 'COLOR' })
+ * const brand = filterVariables(variables, {
+ *   name: 'brand',
+ *   caseInsensitive: true,
+ * })
  * ```
  *
  * @public

@@ -7,7 +7,7 @@ import type {
 } from '@figmavars/dtcg'
 
 /**
- * Everything the local-token hooks derive from the provided documents.
+ * Token data and Resolver context controls.
  *
  * @public
  */
@@ -18,11 +18,11 @@ export interface TokensContextValue {
   flat: FlatToken[]
   /** Token lookup by dot path. */
   tokensByPath: Map<string, DTCGToken>
-  /** Fully reference-resolved values by dot path. */
+  /** Reference-resolved values by dot path. */
   valuesByPath: Map<string, DTCGTokenValue>
   /** Active context per modifier axis (e.g. `{ semantic: 'dark' }`). */
   contexts: Record<string, string>
-  /** All contexts declared by the resolver, per axis. */
+  /** Contexts declared by the Resolver, grouped by axis. */
   availableContexts: Record<string, string[]>
   /** Switch one axis to a different context. */
   setContext: (axis: string, context: string) => void

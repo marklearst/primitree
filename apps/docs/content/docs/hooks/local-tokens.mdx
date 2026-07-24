@@ -3,13 +3,11 @@ title: Local Token Hooks
 description: Use built DTCG artifacts in React without the Figma API.
 ---
 
-Generate artifacts once:
+Build the token files:
 
 ```bash
 npx @figmavars/cli build variables.json
 ```
-
-Then wire them into your app.
 
 ## Setup
 
@@ -48,11 +46,11 @@ function BrandButton() {
 }
 ```
 
-Paths use dot notation matching the flattened token tree.
+Paths use dot notation from the flattened token tree.
 
 ## useTheme
 
-Switch resolver contexts when the user changes theme or density:
+Use a Resolver context to change theme or density:
 
 ```tsx
 function ThemeToggle() {
@@ -69,12 +67,12 @@ function ThemeToggle() {
 }
 ```
 
-A Figma collection "Theme" with Light/Dark modes maps to `setContext('theme', 'dark')`.
+A Figma collection named `Theme` with `Light` and `Dark` modes maps to `setContext('theme', 'dark')`.
 
 ## useTokens
 
-Returns every flattened token with resolved values. Useful for debug panels or design system documentation inside your app.
+`useTokens` returns the merged document, flattened tokens, resolved values, active contexts, and context setters.
 
 ## SSR
 
-No network calls. Safe for SSR and static export as long as JSON imports are available at build time.
+These hooks make no network requests. Server rendering and static export work when the JSON imports resolve at build time.

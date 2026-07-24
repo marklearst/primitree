@@ -12,22 +12,20 @@ const INVALID_FALLBACK_WARNING =
 const FALLBACK_PARSE_ERROR = '[figmavars] Failed to parse fallbackFile JSON.'
 
 /**
- * React context provider that supplies the Figma Personal Access Token and file key to all descendant components.
+ * Provide a Figma file key, token, and fallback data to live API hooks.
  *
  * @remarks
- * Wrap your application or feature subtree with this provider to securely and type-safely provide the Figma Personal Access Token (PAT) and target Figma file key. This enables all child hooks and utilities to access the Figma Variables REST API with consistent authentication and scoping.
- *
- * This is the central source of truth for Figma authentication and file context within the app.
- *
- * Fallback JSON files are parsed once during provider initialization to avoid repeated parsing and provide early validation.
+ * Browser code and page scripts can read a token passed here. Do not expose a
+ * token to untrusted client code or include it in a public browser bundle.
+ * The provider parses and classifies fallback JSON during render.
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figmavars/hooks/contexts';
+ * import { FigmaVarsProvider } from '@figmavars/hooks'
  *
- * function App() {
+ * function App({ token }: { token: string }) {
  *   return (
- *     <FigmaVarsProvider token={process.env.FIGMA_PAT!} fileKey="AbC123">
+ *     <FigmaVarsProvider token={token} fileKey="AbC123">
  *       <MyDashboard />
  *     </FigmaVarsProvider>
  *   );

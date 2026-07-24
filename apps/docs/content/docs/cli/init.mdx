@@ -1,6 +1,6 @@
 ---
 title: figma-vars init
-description: Scaffold a new design tokens repository with sample data or your own export.
+description: Create a design tokens repository from sample data or an existing export.
 ---
 
 ```bash
@@ -14,21 +14,21 @@ figma-vars init my-design-tokens
 figma-vars init my-design-tokens --from ./exports/variables.json
 ```
 
-Creates:
+The command writes:
 
 - `variables.json` (sample or copied from `--from`)
-- the full generated token pipeline
+- generated token, CSS, Tailwind, and TypeScript files
 - a `package.json` with build, check, diff, and backup scripts
 - a GitHub Actions workflow in `.github/workflows/`
 
-The initial pipeline is always generated during `init`.
+`init` builds the first set of token files during the command.
 
 ## Options
 
-| Option          | Description                                                     |
-| --------------- | --------------------------------------------------------------- |
-| `--from <file>` | Seed with your export instead of sample data                    |
-| `--name <name>` | Set the project name (defaults to the destination directory)    |
-| `--force`       | Replace scaffold-owned files while preserving unrelated content |
+| Option          | Description                                                  |
+| --------------- | ------------------------------------------------------------ |
+| `--from <file>` | Seed with your export instead of sample data                 |
+| `--name <name>` | Set the project name (defaults to the destination directory) |
+| `--force`       | Replace scaffold-owned paths and keep unrelated paths        |
 
-Good starting point for a dedicated tokens repo or a `packages/tokens` workspace in a monorepo.
+Use a separate repository path or a workspace path such as `packages/tokens`.

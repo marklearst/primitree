@@ -18,13 +18,13 @@ import { TokensContext, type TokensContextValue } from './TokensContext'
 export interface TokensProviderProps {
   /**
    * DTCG token documents: a single document, an array (merged in order), or
-   * a map of file name to document as produced by `figma-vars build`
-   * (required when a `resolver` is provided so `$ref`s can be followed).
+   * a map of file name to document as produced by `figma-vars build`. A
+   * Resolver needs the map form so the provider can follow `$ref` paths.
    */
   tokens: DTCGDocument | DTCGDocument[] | Record<string, DTCGDocument>
   /**
-   * DTCG Resolver (2025.10) describing modes/contexts. When provided,
-   * `useTheme` can switch contexts (e.g. light/dark) at runtime.
+   * DTCG Resolver (2025.10) describing modes and contexts. Pass one to let
+   * `useTheme` switch contexts such as light and dark at runtime.
    */
   resolver?: ResolverDocument
   /** Initial context per modifier axis; falls back to resolver defaults. */
@@ -42,14 +42,12 @@ function isFileMap(
 }
 
 /**
- * Provide built design-token artifacts (DTCG files + optional resolver) to
+ * Provide DTCG token files and a Resolver to
  * the local-token hooks: {@link useToken}, {@link useTokens}, {@link useTheme}.
  *
  * @remarks
- * Works with the output of `figma-vars build` (or any DTCG documents). No
- * network, no Figma token, SSR-safe — tokens are plain data. This is the v5
- * path that works on every Figma plan; the live-API hooks remain available
- * behind {@link FigmaVarsProvider} for Enterprise workflows.
+ * The provider accepts output from `figma-vars build` or other DTCG documents.
+ * It reads local data and does not require a Figma token.
  *
  * @example
  * ```tsx

@@ -1,7 +1,7 @@
 {
   "name": "@figmavars/cli",
   "version": "5.0.0",
-  "description": "The FigmaVars CLI: export Figma variables, build a DTCG design token pipeline, diff token changes, and validate output.",
+  "description": "Build, compare, check, scaffold, and export Figma Variables token projects.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

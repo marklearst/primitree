@@ -62,11 +62,11 @@ Note: Requires Figma Enterprise account for live API access.
 async function main() {
   const { fileKey, out } = parseArgs()
   if (!FIGMA_TOKEN) {
-    console.error('FIGMA_TOKEN (or FIGMA_PAT) is required')
+    console.error('Set FIGMA_TOKEN or FIGMA_PAT')
     process.exit(1)
   }
   if (!fileKey) {
-    console.error('--file-key or FIGMA_FILE_KEY is required')
+    console.error('Pass --file-key or set FIGMA_FILE_KEY')
     process.exit(1)
   }
 

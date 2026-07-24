@@ -2,26 +2,30 @@ import { buildPipeline, type BuildPipelineOptions } from '@figmavars/dtcg'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile, writePipelineFiles } from '../io'
 
+function formatCount(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
+}
+
 export const buildHelp = `
-figma-vars build — turn a Figma variables JSON into a token pipeline
+figma-vars build: convert Figma variables JSON into token files and code
 
 Usage:
   figma-vars build <variables.json> [--out <dir>] [options]
 
 Output:
-  tokens/*.tokens.json          DTCG 2025.10 tokens (one file per collection + mode)
-  tokens/tokens.resolver.json   DTCG Resolver (modes -> contexts)
+  tokens/*.tokens.json          DTCG 2025.10 tokens plus the documented FigmaVars boolean extension
+  tokens/tokens.resolver.json   Resolver mapping Figma modes to contexts
   css/tokens.css                CSS custom properties with [data-*] theme blocks
   css/tokens.tailwind.css       Tailwind CSS v4 @theme mapping
-  ts/tokens.ts                  Typed token paths + values
-  style-dictionary.config.mjs   Prewired transformer config (or terrazzo.config.mjs)
+  ts/tokens.ts                  Typed token paths and values
+  style-dictionary.config.mjs   Style Dictionary config (or terrazzo.config.mjs)
   design-tokens.workflow.yml    GitHub Actions template
-  README.md                     Documentation for the generated pipeline
+  README.md                     Generated file reference and rebuild command
 
 Options:
   --out <dir>            Output directory (default: design-tokens)
-  --terrazzo             Scaffold a Terrazzo config instead of Style Dictionary
-  --style-dictionary     Scaffold a Style Dictionary config (default)
+  --terrazzo             Generate a Terrazzo config
+  --style-dictionary     Generate a Style Dictionary config (default)
   --no-transformer       Skip transformer config
   --no-css               Skip css/tokens.css
   --no-tailwind          Skip css/tokens.tailwind.css
@@ -86,7 +90,8 @@ export async function runBuild(args: ParsedArgs): Promise<void> {
 
   const { summary } = result
   console.log(
-    `Built ${summary.variables} tokens from ${summary.collections} collections ` +
+    `Built ${formatCount(summary.variables, 'token')} from ` +
+      `${formatCount(summary.collections, 'collection')} ` +
       `into ${outDir}/`
   )
   for (const file of summary.files) {

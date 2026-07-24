@@ -1,15 +1,21 @@
 ---
 title: Introduction
-description: FigmaVars turns a Figma variables export into a production design token pipeline.
+description: Convert a Figma variables export into token files and code with FigmaVars.
 ---
 
-FigmaVars is a local-first toolkit for design tokens. Export `variables.json` from Figma on any plan, run one CLI command, and commit a full pipeline: DTCG 2025.10 files, a Resolver for modes, CSS, Tailwind v4, TypeScript, CI, semantic diffs, React hooks, and an MCP server.
+FigmaVars converts a Figma variables export into DTCG token files, CSS, Tailwind v4, TypeScript, and a Resolver for modes. The monorepo also contains semantic diff tools, React hooks, and an MCP server.
 
-## Why this exists
+## Figma API access
 
-Figma's Variables REST API is Enterprise-only. Most teams still get tokens out through plugin exports or Dev Mode. Those JSON files are useful, but they are not what your app imports.
+Figma limits its Variables REST API to Enterprise organizations. The FigmaVars Export plugin reads local variables from the open file through the Plugin API, so the build can start from a checked-in JSON file without calling that REST endpoint.
 
-FigmaVars closes that gap without a hosted converter or a drag-and-drop-only workflow.
+The CLI turns that JSON into files a codebase can import and review.
+
+## Requirements
+
+- Node.js 24 or newer
+- pnpm 11 or newer when working in the FigmaVars monorepo
+- React `^19.0.0` for `@figmavars/hooks`
 
 ## Quick start
 
@@ -17,19 +23,19 @@ FigmaVars closes that gap without a hosted converter or a drag-and-drop-only wor
 npx @figmavars/cli build variables.json
 ```
 
-That writes a `design-tokens/` directory you can commit. See [Getting started](/docs/getting-started) for the full walkthrough.
+The command writes a `design-tokens/` directory. See [Getting started](/docs/getting-started) for the export and build steps.
 
 ## Packages
 
-| Package            | Purpose                                       |
-| ------------------ | --------------------------------------------- |
-| `@figmavars/cli`   | Build, diff, check, init, export              |
-| `@figmavars/dtcg`  | Figma JSON to DTCG + CSS/Tailwind/TS emitters |
-| `@figmavars/core`  | Normalizer, alias resolution, semantic diff   |
-| `@figmavars/hooks` | React hooks for built tokens or live API      |
-| `@figmavars/mcp`   | MCP server for editors and agents             |
+| Package            | Purpose                                          |
+| ------------------ | ------------------------------------------------ |
+| `@figmavars/core`  | Normalize exports, resolve aliases, compare data |
+| `@figmavars/dtcg`  | Emit DTCG, Resolver, CSS, Tailwind, and TS files |
+| `@figmavars/cli`   | Build, diff, check, initialize, and export       |
+| `@figmavars/hooks` | Read built tokens or use the Variables REST API  |
+| `@figmavars/mcp`   | Serve repo token data to MCP clients             |
 
-## What you get
+## Guides
 
 <Cards>
   <Card
@@ -40,20 +46,20 @@ That writes a `design-tokens/` directory you can commit. See [Getting started](/
   <Card
     title='CLI reference'
     href='/docs/cli'
-    description='Every command and flag'
+    description='Commands, flags, and exit codes'
   />
   <Card
     title='React hooks'
     href='/docs/hooks'
-    description='Local tokens on any plan'
+    description='Built tokens and live API hooks'
   />
   <Card
     title='MCP server'
     href='/docs/mcp'
-    description='Query tokens from your IDE'
+    description='Query repo tokens from an MCP client'
   />
 </Cards>
 
 ## Playground
 
-Want to preview output before installing anything? The [playground](/docs/playground) runs in the browser. Read the docs first. Use the playground when you want a zip without touching your terminal.
+The [playground](/docs/playground) processes a variables export in the browser and downloads the generated files as a zip.

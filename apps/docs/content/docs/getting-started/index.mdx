@@ -3,28 +3,28 @@ title: Overview
 description: Install FigmaVars, export variables.json, and build your first token pipeline.
 ---
 
-This guide gets you from zero to a committed `design-tokens/` folder in a few minutes.
+You need Node.js 24 or newer. Contributors working in this monorepo also need pnpm 11 or newer.
 
 ## 1. Install the CLI
 
 ```bash
-npm i -D @figmavars/cli
-# or run without installing
+pnpm add -D @figmavars/cli
+# One-off command
 npx @figmavars/cli --help
 ```
 
 ## 2. Export variables from Figma
 
-You need a `variables.json` file. On any Figma plan you can use a plugin export (TokensBrücke is a common choice), Dev Mode export, or copy from a teammate's backup.
+Use the [FigmaVars Export plugin](/docs/figma-plugin) to download the local variables from the open file. FigmaVars also accepts supported JSON from another variables exporter.
 
-Enterprise teams can also use:
+Figma Enterprise organizations can call the Variables REST API:
 
 ```bash
 export FIGMA_TOKEN=figd_...
 figma-vars export --file-key AbCdEf... --out variables.json
 ```
 
-See [Export variables](/docs/getting-started/export-variables) for every path.
+See [Export variables](/docs/getting-started/export-variables) for the accepted input shapes.
 
 ## 3. Build the pipeline
 
@@ -38,7 +38,7 @@ Default output directory: `design-tokens/`.
 figma-vars build variables.json --out tokens --terrazzo
 ```
 
-Use `--out` to change the folder. Use `--terrazzo` or `--style-dictionary` to pick a transformer config. Skip pieces with `--no-css`, `--no-tailwind`, `--no-ts`, and similar flags.
+Use `--out` to change the folder. Use `--terrazzo` or `--style-dictionary` to pick a transformer config. The build reference lists each `--no-*` output flag.
 
 ## 4. Commit the output
 
@@ -47,17 +47,19 @@ git add design-tokens variables.json
 git commit -m "Add design token pipeline"
 ```
 
-Keep the raw export in git if you want CI to diff against it on every PR.
+Keep the raw export in git when pull requests need a semantic diff.
 
 ## 5. Wire CI (optional)
 
-The build scaffolds `design-tokens.workflow.yml`. Drop it into `.github/workflows/` and adjust paths. On each new export:
+The build writes `design-tokens.workflow.yml`. Move the file into `.github/workflows/` and review its paths. The template rebuilds generated files after a push that changes `variables.json`.
+
+Add this command to a pull request workflow for a breaking-change check:
 
 ```bash
 figma-vars diff backup/variables.json variables.json --fail-on-breaking
 ```
 
-Exit code `2` means breaking changes. Good for PR gates.
+With `--fail-on-breaking`, exit code `2` marks a breaking change.
 
 ## Next steps
 
@@ -65,7 +67,7 @@ Exit code `2` means breaking changes. Good for PR gates.
   <Card
     title='Pipeline output'
     href='/docs/getting-started/pipeline-output'
-    description='Every file explained'
+    description='Generated files and their roles'
   />
   <Card
     title='React hooks'
@@ -75,6 +77,6 @@ Exit code `2` means breaking changes. Good for PR gates.
   <Card
     title='CLI build'
     href='/docs/cli/build'
-    description='All build flags'
+    description='Build flags and defaults'
   />
 </Cards>

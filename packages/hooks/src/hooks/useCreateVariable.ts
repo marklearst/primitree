@@ -9,21 +9,13 @@ import {
 } from '@figmavars/core'
 
 /**
- * React hook that creates a new Figma variable in the current file using the Figma Variables API.
+ * Create a Figma variable in the provider's file.
  *
  * @remarks
- * The hook returns a `mutate` function to trigger the creation along with state flags and data.
+ * `mutate` accepts a {@link CreateVariablePayload}. It returns the response or
+ * `undefined` after storing a request failure in `error`.
  *
- * ## Return Value
- *
- * The `mutate` function returns `Promise<TData | undefined>`:
- * - On success: Returns the API response data
- * - On error: Returns `undefined` (error stored in `error` state)
- *
- * Use `isSuccess`/`isError` flags or check the return value to handle results.
- *
- * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
- * `data` (API response), and `error` (if failed).
+ * @returns Mutation state and a `mutate` function.
  *
  * @example
  * ```tsx
@@ -39,7 +31,7 @@ import {
  *       resolvedType: 'COLOR'
  *     });
  *     if (result) {
- *       console.log('Created successfully:', result);
+ *       console.log('Created variable:', result);
  *     }
  *   };
  *

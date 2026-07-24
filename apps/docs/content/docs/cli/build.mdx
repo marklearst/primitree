@@ -1,6 +1,6 @@
 ---
 title: figma-vars build
-description: Build a DTCG token pipeline from a Figma variables JSON export.
+description: Write DTCG 2025.10 token files and code from a Figma variables export.
 ---
 
 ```bash
@@ -17,7 +17,7 @@ figma-vars build variables.json --terrazzo --no-github-action
 
 ## Output
 
-Writes a complete pipeline. See [Pipeline output](/docs/getting-started/pipeline-output) for the file tree.
+The default build writes token JSON, a Resolver, CSS, Tailwind v4, TypeScript, a transformer config, a workflow template, and a README. See [Pipeline output](/docs/getting-started/pipeline-output) for the file tree.
 
 ## Options
 
@@ -36,7 +36,7 @@ Writes a complete pipeline. See [Pipeline output](/docs/getting-started/pipeline
 
 ## Programmatic use
 
-The same logic lives in `@figmavars/dtcg`:
+`@figmavars/dtcg` exports the build function:
 
 ```ts
 import { buildPipeline, type BuildPipelineResult } from '@figmavars/dtcg'

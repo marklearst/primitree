@@ -52,6 +52,30 @@ describe('figma-vars global help', () => {
 })
 
 describe('figma-vars build', () => {
+  it('uses singular labels for one collection and token', async () => {
+    const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'))
+    const collectionId = 'VariableCollectionId:1:100'
+    const variableId = 'VariableID:1:101'
+    fixture.meta.variableCollections = {
+      [collectionId]: {
+        ...fixture.meta.variableCollections[collectionId],
+        variableIds: [variableId],
+      },
+    }
+    fixture.meta.variables = {
+      [variableId]: fixture.meta.variables[variableId],
+    }
+    const singleVariablePath = path.join(tmpDir, 'single-variable.json')
+    const out = path.join(tmpDir, 'single-variable-tokens')
+    await fs.writeFile(singleVariablePath, JSON.stringify(fixture))
+
+    await runBuild(parseArgs([singleVariablePath, '--out', out]))
+
+    expect(console.log).toHaveBeenCalledWith(
+      `Built 1 token from 1 collection into ${out}/`
+    )
+  })
+
   it('writes the full pipeline to the output directory', async () => {
     const out = path.join(tmpDir, 'design-tokens')
     await runBuild(parseArgs([fixturePath, '--out', out]))
@@ -131,6 +155,34 @@ describe('figma-vars diff', () => {
 })
 
 describe('figma-vars check', () => {
+  it('uses a singular warning label when one warning passes', async () => {
+    const emptyPath = path.join(tmpDir, 'empty.json')
+    await fs.writeFile(
+      emptyPath,
+      JSON.stringify({
+        meta: {
+          variableCollections: {},
+          variables: {},
+        },
+      })
+    )
+
+    await runCheck(parseArgs([emptyPath]))
+
+    expect(console.log).toHaveBeenCalledWith('Check passed with 1 warning.')
+  })
+
+  it('uses singular and plural count labels when one error fails', async () => {
+    const invalidPath = path.join(tmpDir, 'invalid.json')
+    await fs.writeFile(invalidPath, '{}')
+
+    await runCheck(parseArgs([invalidPath]))
+
+    expect(console.error).toHaveBeenCalledWith(
+      '\nCheck failed: 1 error, 0 warnings.'
+    )
+  })
+
   it('passes a valid variables export', async () => {
     await runCheck(parseArgs([fixturePath]))
     expect(process.exitCode).toBeUndefined()
@@ -198,7 +250,7 @@ describe('figma-vars export', () => {
 
     await expect(
       runExport(parseArgs(['--file-key', 'fixture-file']))
-    ).rejects.toThrow('FIGMA_TOKEN (or FIGMA_PAT) is required')
+    ).rejects.toThrow('Set FIGMA_TOKEN or FIGMA_PAT')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -207,7 +259,7 @@ describe('figma-vars export', () => {
     vi.stubEnv('FIGMA_FILE_KEY', '')
 
     await expect(runExport(parseArgs([]))).rejects.toThrow(
-      '--file-key or FIGMA_FILE_KEY is required'
+      'Pass --file-key or set FIGMA_FILE_KEY'
     )
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -238,7 +290,7 @@ describe('figma-vars init', () => {
       readOut('my-tokens', 'backup', 'variables.json')
     ).resolves.toContain('variableCollections')
     await expect(readOut('my-tokens', 'README.md')).resolves.toContain(
-      'Pushing a new `variables.json` to GitHub triggers the workflow'
+      'The GitHub Actions workflow rebuilds and commits the pipeline after a push'
     )
   })
 

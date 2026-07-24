@@ -3,9 +3,9 @@ title: Live API Hooks
 description: Enterprise Figma Variables REST API hooks with SWR caching.
 ---
 
-Requires a Full seat in an Enterprise org and a token with `file_variables:read` (plus `file_variables:write` for mutations).
+Figma limits the Variables REST API to Enterprise organizations. Reads need `file_variables:read` and access to the file. Mutations need a Full seat or administrator role, edit access, and `file_variables:write`.
 
-A PAT supplied to `FigmaVarsProvider` is visible to that browser session. Use the live hooks only in a trusted, access-controlled internal tool. Never commit a PAT or expose it through a public browser-bundled environment variable. Public applications should call the framework-agnostic `@figmavars/core` helpers from server-only code instead.
+Page scripts in that browser session can read a personal access token passed to `FigmaVarsProvider`. Use the live hooks in an access-controlled internal tool. Keep the token out of source control and public browser bundles. Public applications can call the `@figmavars/core` request helpers from server code.
 
 ## Provider
 
@@ -68,24 +68,24 @@ function VariablesDashboard() {
 
 ## Mutation hooks
 
-Each returns `{ mutate, data, error, isLoading, isSuccess, isError }`:
+Each mutation hook returns `{ mutate, data, error, isLoading, isSuccess, isError }`:
 
 - `useCreateVariable`
 - `useUpdateVariable`
 - `useDeleteVariable`
 - `useBulkUpdateVariables`
 
-Destructure `invalidate` or `revalidate` from `useInvalidateVariables()`. Invoke it only after the mutation returns a successful result, as in the provider example above.
+`useInvalidateVariables()` returns `invalidate` and `revalidate`. Call one after `mutate` returns a result.
 
 ## Offline fallback
 
-No Enterprise seat? Pass a JSON export:
+Pass a local variables response instead of a token and file key:
 
 ```tsx
 <FigmaVarsProvider token={null} fileKey={null} fallbackFile={variablesJson}>
 ```
 
-Every read hook works against the local file.
+`useVariables` and the local collection queries read local response data. `usePublishedVariables` needs a published variables response. Set `fallbackKind='local'` or `fallbackKind='published'` when empty maps prevent the provider from identifying the response type.
 
 ## Errors and retries
 

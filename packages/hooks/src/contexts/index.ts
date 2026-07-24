@@ -1,22 +1,9 @@
 /**
  * @packageDocumentation
- * Barrel file for React context providers and related hooks in @figmavars/hooks.
+ * Figma Variables context exports.
  *
  * @remarks
- * Re-exports the `FigmaVarsProvider` React context provider and the `useFigmaTokenContext` hook. Use this module to provide and access Figma API authentication and file scoping context throughout your app.
- *
- * @example
- * ```ts
- * import { FigmaVarsProvider, useFigmaTokenContext } from '@figmavars/hooks';
- *
- * function App() {
- *   return (
- *     <FigmaVarsProvider token={process.env.FIGMA_PAT!} fileKey="your-file-key">
- *       <App />
- *     </FigmaVarsProvider>
- *   );
- * }
- * ```
+ * Import these exports from the `@figmavars/hooks` package root.
  */
 export { FigmaVarsProvider } from './FigmaVarsProvider'
 export { useFigmaTokenContext } from './useFigmaTokenContext'

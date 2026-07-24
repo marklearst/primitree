@@ -4,13 +4,15 @@ description: Typed React hooks for built design tokens or live Figma Variables A
 ---
 
 ```bash
-npm i @figmavars/hooks swr react
+npm install @figmavars/hooks react@^19.0.0 swr@^2.3.7
 ```
 
-Two modes:
+`@figmavars/hooks` requires Node.js 24 or newer and React `^19.0.0`.
 
-1. **Local tokens (v5, any Figma plan)** consume artifacts from `figma-vars build`
-2. **Live API (Enterprise)** read and mutate variables through the REST API with SWR
+The package has two data paths:
+
+1. **Local tokens** read files from `figma-vars build`
+2. **Live API hooks** read or change variables through the Enterprise Variables REST API with SWR
 
 <Cards>
   <Card
@@ -26,10 +28,10 @@ Two modes:
   <Card
     title='Migration from 4.x'
     href='/docs/hooks/migration'
-    description='What changed in v5'
+    description='Package changes in v5'
   />
 </Cards>
 
 ## Non-React usage
 
-Framework-agnostic utilities live in `@figmavars/core` (normalizer, fetcher, diff). The `@figmavars/hooks/core` subpath re-exports them for backwards compatibility.
+Framework-agnostic utilities live in `@figmavars/core` (normalizer, fetcher, diff). The `@figmavars/hooks/core` subpath keeps the existing re-export path.

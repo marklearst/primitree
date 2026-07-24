@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test'
 import sampleVariables from '../../apps/docs/lib/playground/sample-variables.json' with { type: 'json' }
 
 const widths = [320, 375] as const
-const pageHeading = 'Drop your variables. Preview the pipeline.'
+const pageHeading = 'Preview a variables export before you install the CLI.'
 
 function warningVariablesBuffer() {
   const payload = structuredClone(sampleVariables) as unknown as {

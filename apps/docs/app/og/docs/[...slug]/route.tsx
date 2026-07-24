@@ -1,8 +1,12 @@
-import { getPageImage, source } from '@/lib/source'
-import { notFound } from 'next/navigation'
+import { source } from '@/lib/source'
 import { ImageResponse } from 'next/og'
 import { generate as DefaultImage } from 'fumadocs-ui/og'
-import { appName } from '@/lib/shared'
+import {
+  createDocsImageNotFoundResponse,
+  createDocsImageStaticParams,
+  getDocsPageSlugsFromImage,
+  siteName,
+} from '@/lib/discovery'
 
 export const revalidate = false
 
@@ -11,16 +15,21 @@ export async function GET(
   { params }: RouteContext<'/og/docs/[...slug]'>
 ) {
   const { slug } = await params
-  const page = source.getPage(slug.slice(0, -1))
+  const pageSlugs = getDocsPageSlugsFromImage(slug)
+  if (!pageSlugs) {
+    return createDocsImageNotFoundResponse()
+  }
+
+  const page = source.getPage(pageSlugs)
   if (!page) {
-    notFound()
+    return createDocsImageNotFoundResponse()
   }
 
   return new ImageResponse(
     <DefaultImage
       title={page.data.title}
       description={page.data.description}
-      site={appName}
+      site={siteName}
     />,
     {
       width: 1200,
@@ -30,8 +39,5 @@ export async function GET(
 }
 
 export function generateStaticParams() {
-  return source.getPages().map(page => ({
-    lang: page.locale,
-    slug: getPageImage(page).segments,
-  }))
+  return createDocsImageStaticParams(source.getPages())
 }

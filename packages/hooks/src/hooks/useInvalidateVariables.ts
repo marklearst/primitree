@@ -3,14 +3,11 @@ import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getInvalidationKeys } from '../utils/swrKeys'
 
 /**
- * Hook that provides cache invalidation utilities for Figma variables.
+ * Return functions that invalidate or revalidate Figma Variables SWR entries.
  *
  * @remarks
- * Returns functions to invalidate and revalidate SWR cache for variables hooks.
- * Use this after mutations to ensure fresh data is fetched.
- *
- * Supports both live API usage (with token and fileKey) and fallback-only usage
- * (with fallbackFile but no fileKey).
+ * Both functions target live API data and validated fallback data for the
+ * current provider.
  *
  * @returns Object with `invalidate` and `revalidate` functions.
  *
@@ -39,10 +36,8 @@ export const useInvalidateVariables = () => {
   const hasFallback = Boolean(parsedFallbackFile)
 
   /**
-   * Invalidates all variable-related SWR cache entries.
-   * This will cause all variable hooks to refetch on next access.
-   *
-   * Works for both live API usage (with token/fileKey) and fallback-only usage.
+   * Marks this provider's live and fallback cache keys stale. SWR refetches
+   * them on the next read.
    */
   const invalidate = () => {
     // Get all possible keys that should be invalidated
@@ -60,10 +55,7 @@ export const useInvalidateVariables = () => {
   }
 
   /**
-   * Revalidates all variable-related SWR cache entries immediately.
-   * This will trigger immediate refetch of all variable hooks.
-   *
-   * Works for both live API usage (with token/fileKey) and fallback-only usage.
+   * Requests a fresh value for each live and fallback cache key now.
    */
   const revalidate = () => {
     // Get all possible keys that should be revalidated

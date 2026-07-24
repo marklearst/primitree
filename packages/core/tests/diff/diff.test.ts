@@ -133,6 +133,27 @@ describe('formatValue', () => {
 })
 
 describe('formatDiffMarkdown', () => {
+  it('uses singular labels for one type or value change', () => {
+    const valueChanged = structuredClone(fixture)
+    valueChanged.meta.variables['VariableID:2:202'].valuesByMode['2:1'] = {
+      r: 1,
+      g: 1,
+      b: 1,
+      a: 1,
+    }
+
+    const typeChanged = structuredClone(fixture)
+    typeChanged.meta.variables['VariableID:1:103'].resolvedType = 'STRING'
+    typeChanged.meta.variables['VariableID:1:103'].valuesByMode['1:0'] = '4px'
+
+    expect(formatDiffMarkdown(diffVariables(fixture, valueChanged))).toContain(
+      'Variables: 1 value change.'
+    )
+    expect(formatDiffMarkdown(diffVariables(fixture, typeChanged))).toContain(
+      'Variables: 1 type change, 1 value change.'
+    )
+  })
+
   it('renders a full changelog with breaking section and value table', () => {
     const next = structuredClone(fixture)
     next.meta.variables['VariableID:2:201'].name = 'color/bg/primary'

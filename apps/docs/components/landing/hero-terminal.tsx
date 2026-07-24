@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 
 const LINES = [
   { kind: 'cmd' as const, text: 'npx @figmavars/cli build variables.json' },
-  { kind: 'ok' as const, text: 'Wrote design-tokens/' },
-  { kind: 'out' as const, text: '3 collections · 2 modes · 148 tokens' },
-  { kind: 'out' as const, text: 'css · tailwind · typescript · CI' },
+  { kind: 'ok' as const, text: 'Built tokens into design-tokens/' },
+  { kind: 'out' as const, text: 'tokens/ · css/ · ts/' },
+  { kind: 'out' as const, text: 'Resolver · Tailwind v4 · workflow' },
 ]
 
 export function HeroTerminal() {

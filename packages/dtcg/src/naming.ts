@@ -24,8 +24,8 @@ export function slugify(input: string): string {
 }
 
 /**
- * Sanitize one path segment of a token name per DTCG name restrictions:
- * `{`, `}`, and `.` are forbidden; names must not start with `$`.
+ * Sanitize one path segment according to DTCG name restrictions. Token names
+ * cannot contain `{`, `}`, or `.`, and cannot start with `$`.
  *
  * @public
  */

@@ -1,12 +1,12 @@
 import type { VariableMode, UpdateVariablePayload } from '@figmavars/core'
 
 /**
- * Arguments for updating a Figma variable via the useUpdateVariable hook.
+ * Arguments passed to `useUpdateVariable().mutate`.
  *
  * @remarks
- * Use with the useUpdateVariable hook to specify which Figma variable to update and the properties to set. This enables fine-grained updates for custom UIs, bulk editors, and automation tools.
+ * `variableId` identifies the record. `payload` contains the fields to change.
  *
- * @property variableId - The unique Figma variable ID to update. This can be found in variable metadata or Figma plugin dev tools.
+ * @property variableId - The unique Figma variable ID from variable metadata or Figma plugin developer tools.
  * @property payload - The payload object with one or more variable properties to update (e.g., name, description, valuesByMode).
  *
  * @example
@@ -17,7 +17,7 @@ import type { VariableMode, UpdateVariablePayload } from '@figmavars/core'
  *   variableId: 'VariableID:123:456',
  *   payload: { name: 'Updated Name', description: 'Updated description' }
  * };
- * // Pass to mutate(): mutate(args)
+ * mutate(args)
  * ```
  *
  * @public
@@ -30,10 +30,10 @@ export interface UpdateVariableArgs {
 }
 
 /**
- * Return value of the useVariableModes hook—provides all variable modes and lookup tables for the current Figma file context.
+ * Variable modes and ID-keyed lookup maps.
  *
  * @remarks
- * Returned by useVariableModes. Use this to quickly map modes by ID, by collection, or as a flat array for UI display, theming, and conditional logic.
+ * {@link useVariableModes} builds these values from local collection data.
  *
  * @property modes - Flat array of all VariableMode objects in the file.
  * @property modesByCollectionId - Lookup map of collection IDs to arrays of VariableMode objects (for grouping modes by collection).

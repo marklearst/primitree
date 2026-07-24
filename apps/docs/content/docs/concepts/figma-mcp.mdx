@@ -1,33 +1,45 @@
 ---
-title: Figma MCP vs FigmaVars
-description: Why Figma's MCP is selection-scoped and how the plugin + FigmaVars MCP complete the pipeline.
+title: Figma MCP and FigmaVars
+description: Choose a Figma or repository data source for each token task.
 ---
 
-Figma ships an official MCP server. FigmaVars ships `@figmavars/mcp`. They solve different problems. Together they cover design context **and** token authority.
+Figma's MCP servers read live Figma files. The FigmaVars plugin exports local variables from an open file, and `@figmavars/mcp` reads token data from a repository.
 
-## Figma MCP (official)
+## Figma remote MCP server
 
-**Good for:** "What tokens does _this selected frame_ use?"
+Figma [recommends the remote server](https://developers.figma.com/docs/figma-mcp-server/) and states that it has the broadest feature set. The remote server uses Figma links to identify files, frames, and layers.
 
-| Tool                 | Scope                                              |
-| -------------------- | -------------------------------------------------- |
-| `get_design_context` | Selected nodes → structure, styles, code hints     |
-| `get_variable_defs`  | Selected nodes → variables bound on that selection |
+Tools such as `get_design_context` and `get_variable_defs` return design context and variables used by the requested node. The remote server also provides:
 
-**Limits:**
+- `use_figma` for reading or changing objects through the Plugin API
+- `get_libraries` for libraries subscribed to a file and libraries available to add
+- `search_design_system` for components, variables, and styles in design libraries
 
-- **Selection-based.** Not a dump of your full variables table.
-- **Desktop MCP** required for `get_variable_defs` (Dev Mode, file open).
-- **Response caps** (~20KB). Large frames need smaller selections.
-- **Remote MCP** (`mcp.figma.com`) does not replace a full token export.
+See Figma's [tools and prompts](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/) page for the current tool list.
 
-Figma MCP answers: _what did the designer bind on this component?_
+## Figma desktop MCP server
 
-It does not answer: _what is every token in the design system, in every mode?_
+The desktop server runs through the Figma desktop app. It accepts a copied node link or the current selection in the open file. Selection-based prompting works on the desktop server; the remote server requires a link.
 
-## FigmaVars plugin + CLI
+Figma provides the desktop server for specific organization and enterprise use cases. Its [desktop setup guide](https://developers.figma.com/docs/figma-mcp-server/local-server-installation/) lists the supported clients and Dev Mode steps.
 
-**Good for:** "Give me the whole variables source file."
+## Access and rate limits
+
+Figma requires a supported MCP client and access to the requested file. Its current read-tool limits depend on plan and seat:
+
+| Access                        | Tool-call limit           |
+| ----------------------------- | ------------------------- |
+| Starter plan                  | Up to 6 per month         |
+| View or Collab seat           | Up to 6 per month         |
+| Professional Full or Dev seat | Up to 200 per day, 10/min |
+| Organization Full or Dev seat | Up to 200 per day, 15/min |
+| Enterprise Full or Dev seat   | Up to 600 per day, 20/min |
+
+Figma reserves the right to change these limits. Check its [rate limits and access](https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/) page before planning usage.
+
+## FigmaVars plugin and CLI
+
+The FigmaVars Export plugin calls the local variables Plugin API in the open file and writes `variables.json`.
 
 | Step   | Tool                                          |
 | ------ | --------------------------------------------- |
@@ -35,13 +47,11 @@ It does not answer: _what is every token in the design system, in every mode?_
 | Build  | `figma-vars build variables.json`             |
 | Commit | `design-tokens/` in your repo                 |
 
-The plugin uses `getLocalVariablesAsync()` on **any plan**. Full file. All collections. All modes. Aliases intact.
+The export contains local collections, their modes, variable values, aliases, scopes, and code syntax. The plugin does not fetch remote library collections.
 
 ## FigmaVars MCP (`@figmavars/mcp`)
 
-**Good for:** "Agent, use our real tokens when generating code."
-
-Point MCP at built output or raw export:
+Point the server at a raw local variables export or the output from `figma-vars build`:
 
 ```json
 {
@@ -54,40 +64,26 @@ Point MCP at built output or raw export:
 }
 ```
 
-| Tool               | What it does                         |
-| ------------------ | ------------------------------------ |
-| `list_collections` | All collections + mode axes          |
-| `get_token`        | One token by path, resolved          |
-| `resolve_context`  | Values under `light` / `dark` / etc. |
-| `search_tokens`    | Find by name fragment                |
-| `diff_tokens`      | Semantic diff between two exports    |
+The MCP client can list token groups, read a token by dot path, select Resolver contexts, or search paths and descriptions. `diff_tokens` takes paths to two variables JSON files and returns a Markdown comparison.
 
-FigmaVars MCP answers: _what should the codebase use?_
-
-It reads your **repo**, not your Figma selection.
-
-## Recommended stack
+## Data flow
 
 ```
 Figma file
-  → FigmaVars Export plugin     (full variables.json)
+  → FigmaVars Export plugin     (variables.json)
   → figma-vars build            (design-tokens/)
-  → @figmavars/mcp             (agents query repo tokens)
+  → @figmavars/mcp              (repo token queries)
 
-While designing:
-  → Figma desktop MCP           (context for selected frame)
-  → Your app imports tokens.css / useToken()
+Live Figma context
+  → Figma remote MCP            (file or node link)
+  → Figma desktop MCP           (file link or current selection)
 ```
-
-Do not try to make Figma MCP return all variables. That is not what it is for.
-
-Do not skip the export step and expect agents to invent hex codes. Point `@figmavars/mcp` at built tokens instead.
 
 ## Quick comparison
 
-|                     | Figma MCP          | FigmaVars plugin | FigmaVars MCP            |
-| ------------------- | ------------------ | ---------------- | ------------------------ |
-| Input               | Selection          | Open file        | JSON or built dir        |
-| Full variable table | No                 | Yes              | Yes (after export/build) |
-| Works on any plan   | Dev Mode + desktop | Yes              | Yes (local)              |
-| Best for            | Frame context      | Export source    | Agent codegen            |
+| Tool              | Data source                      | Input                                 |
+| ----------------- | -------------------------------- | ------------------------------------- |
+| Figma remote MCP  | Figma-hosted file                | File, frame, or layer link            |
+| Figma desktop MCP | File open in the desktop app     | Current selection or copied node link |
+| FigmaVars Export  | Local variables in the open file | Plugin command                        |
+| `@figmavars/mcp`  | Repository token files           | `variables.json` or `design-tokens/`  |

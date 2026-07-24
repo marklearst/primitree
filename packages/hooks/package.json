@@ -1,7 +1,7 @@
 {
   "name": "@figmavars/hooks",
   "version": "5.0.0",
-  "description": "Typed React hooks for Figma Variables and design tokens: consume built DTCG artifacts on any plan (useToken, useTheme), or manage variables live via the REST API.",
+  "description": "React 19 hooks for built FigmaVars tokens and the Figma Variables REST API.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",

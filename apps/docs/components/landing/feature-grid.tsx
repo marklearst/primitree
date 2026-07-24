@@ -34,9 +34,9 @@ export function FeatureGrid() {
     <section className='feature-section'>
       <div className='feature-inner'>
         <h2 className='feature-heading'>
-          The docs tell you what to run.
+          One repository for the
           <br />
-          The CLI runs it.
+          token workflow.
         </h2>
 
         <ul className='feature-list'>

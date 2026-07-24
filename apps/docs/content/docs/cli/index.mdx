@@ -3,10 +3,10 @@ title: Overview
 description: figma-vars CLI commands for building, diffing, checking, and exporting design tokens.
 ---
 
-Install globally or as a dev dependency:
+The CLI requires Node.js 24 or newer. Add it as a development dependency:
 
 ```bash
-npm i -D @figmavars/cli
+pnpm add -D @figmavars/cli
 ```
 
 Binary name: `figma-vars`.
@@ -15,10 +15,10 @@ Binary name: `figma-vars`.
 
 | Command  | Purpose                                            |
 | -------- | -------------------------------------------------- |
-| `build`  | Figma JSON → full token pipeline                   |
+| `build`  | Write token JSON, Resolver, CSS, Tailwind, and TS  |
 | `diff`   | Semantic changelog between two exports             |
 | `check`  | Validate export or built tokens directory          |
-| `init`   | Scaffold a tokens repo with sample data            |
+| `init`   | Create a token repository with sample data         |
 | `export` | Download variables via Figma REST API (Enterprise) |
 
 ```bash

@@ -1,8 +1,8 @@
 /**
- * Enum of supported variable value types in Figma.
+ * Figma variable resolved type.
  *
  * @remarks
- * Used as the `resolvedType` for Figma variables—defines if the value is a boolean, float, string, or color.
+ * Figma returns this value in a variable's `resolvedType` field.
  *
  * @example
  * ```ts
@@ -14,11 +14,10 @@
 export type ResolvedType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'COLOR'
 
 /**
- * Enum of all valid Figma variable scopes.
+ * Scope accepted by the Figma Variables API.
  *
  * @remarks
- * Scopes define where a variable can be referenced or applied (e.g., fills, text content, opacity, effects).
- * Use this to restrict variables to certain design properties in the Figma UI or API.
+ * A scope controls where Figma offers a variable in the editor.
  *
  * @example
  * ```ts
@@ -53,11 +52,10 @@ export type VariableScope =
   | 'EFFECT_COLOR'
 
 /**
- * RGBA color value used by Figma variables of type COLOR.
+ * RGBA value for a Figma `COLOR` variable.
  *
  * @remarks
- * Each component is a float between 0 and 1 (inclusive), matching the Figma API spec.
- * Used for color values in variable payloads and responses.
+ * Each component ranges from 0 through 1.
  *
  * @example
  * ```ts
@@ -78,10 +76,10 @@ export interface Color {
 }
 
 /**
- * Value representing a variable alias reference in Figma.
+ * Reference to another Figma variable.
  *
  * @remarks
- * Used when a variable references another variable via aliasing. Type should always be 'VARIABLE_ALIAS'.
+ * The `type` discriminator has the fixed value `VARIABLE_ALIAS`.
  *
  * @example
  * ```ts
@@ -91,28 +89,25 @@ export interface Color {
  * @public
  */
 export interface VariableAlias {
-  /** Type identifier for variable alias objects. Always 'VARIABLE_ALIAS'. */
+  /** Fixed `VARIABLE_ALIAS` discriminator. */
   type: 'VARIABLE_ALIAS'
   /** The referenced variable's Figma variable ID. */
   id: string
 }
 
 /**
- * Union of all supported Figma variable value types.
- *
- * - string, boolean, number, Color, or VariableAlias
- *
- * Used in payloads and responses for Figma variable APIs.
+ * Value accepted by Figma variable payloads and responses.
  *
  * @public
  */
 export type VariableValue = string | boolean | number | Color | VariableAlias
 
 /**
- * Model of a single Figma variable, including metadata, values by mode, and collection info.
+ * Figma local variable returned by the Variables REST API.
  *
  * @remarks
- * Core unit for all Figma variable APIs. Includes value definitions, metadata, type info, and publishing flags. Variables are always associated with a collection and may have different values per mode.
+ * `valuesByMode` maps each mode ID to its value. `variableCollectionId`
+ * identifies the owning collection.
  *
  * @property id - Unique Figma variable ID
  * @property name - Human-readable variable name
@@ -120,7 +115,7 @@ export type VariableValue = string | boolean | number | Color | VariableAlias
  * @property resolvedType - Data type for this variable (BOOLEAN, FLOAT, STRING, or COLOR)
  * @property valuesByMode - Map of mode IDs to variable values (by type)
  * @property description - Optional freeform description
- * @property hiddenFromPublishing - If true, this variable is hidden from publishing
+ * @property hiddenFromPublishing - Set to true to hide this variable from publishing
  * @property scopes - Array of allowed or assigned Figma variable scopes
  * @property codeSyntax - Map of language IDs to code sample strings for this variable
  * @property updatedAt - ISO8601 timestamp of last update
@@ -157,11 +152,10 @@ export interface FigmaVariable {
 }
 
 /**
- * Model of a Figma variable mode (e.g., Light, Dark, Custom).
+ * Mode declared by a Figma variable collection.
  *
  * @remarks
- * Modes are used to provide variable overrides for different states (themes, breakpoints, etc.).
- * Each collection may define its own set of modes.
+ * A collection maps variable values to its mode IDs.
  *
  * @example
  * ```ts
@@ -178,17 +172,17 @@ export interface VariableMode {
 }
 
 /**
- * Model of a Figma variable collection (grouping of related variables and modes).
+ * Figma variable collection with its modes and variable IDs.
  *
  * @remarks
- * Collections define shared settings, available modes, and membership of variables. Used as the organizing tier for all variable operations.
+ * The collection owns the listed variables and supplies their mode IDs.
  *
  * @property id - Unique Figma collection ID
  * @property name - Human-readable collection name
  * @property modes - List of VariableMode objects
  * @property defaultModeId - The default mode for this collection
  * @property variableIds - Array of IDs of variables in this collection
- * @property hiddenFromPublishing - If true, collection is hidden from publishing
+ * @property hiddenFromPublishing - Set to true to hide this collection from publishing
  * @property updatedAt - ISO8601 timestamp of last update
  *
  * @example
@@ -217,11 +211,10 @@ export interface FigmaCollection {
 }
 
 /**
- * API response shape for the Figma Variables API local variables endpoint.
+ * Response from the Figma local variables endpoint.
  *
  * @remarks
- * Contains all collections and variables available in the current Figma file context.
- * Use this as the source of truth for fetching and mapping Figma variable data.
+ * `meta` contains ID-keyed local collections and variables for one file.
  *
  * @property meta - Metadata object containing collections and variables.
  * @property meta.variableCollections - Map of collection IDs to FigmaCollection objects.
@@ -229,7 +222,7 @@ export interface FigmaCollection {
  *
  * @example
  * ```ts
- * import type { LocalVariablesResponse } from '@figmavars/hooks';
+ * import type { LocalVariablesResponse } from '@figmavars/core';
  *
  * function handleResponse(response: LocalVariablesResponse) {
  *   const collections = Object.values(response.meta.variableCollections);
@@ -248,6 +241,11 @@ export interface LocalVariablesResponse {
   }
 }
 
+/**
+ * Published Figma variable returned by the Variables REST API.
+ *
+ * @public
+ */
 export interface PublishedVariable {
   id: string
   subscribed_id: string
@@ -258,6 +256,11 @@ export interface PublishedVariable {
   updatedAt: string
 }
 
+/**
+ * Published Figma variable collection returned by the Variables REST API.
+ *
+ * @public
+ */
 export interface PublishedVariableCollection {
   id: string
   subscribed_id: string
@@ -266,6 +269,11 @@ export interface PublishedVariableCollection {
   updatedAt: string
 }
 
+/**
+ * Response from the Figma published variables endpoint.
+ *
+ * @public
+ */
 export interface PublishedVariablesResponse {
   meta: {
     variableCollections: Record<string, PublishedVariableCollection>
@@ -274,17 +282,17 @@ export interface PublishedVariablesResponse {
 }
 
 /**
- * Standard error response shape for Figma API error objects.
+ * Error data returned by the Figma REST API.
  *
  * @remarks
- * Returned by API calls when an error occurs (e.g., invalid token, not found, etc.).
+ * The response contains an HTTP status code and message.
  *
  * @property statusCode - HTTP status code returned by the Figma API.
  * @property message - Human-readable error message describing the failure.
  *
  * @example
  * ```ts
- * import type { FigmaError } from '@figmavars/hooks';
+ * import type { FigmaError } from '@figmavars/core';
  *
  * function handleError(error: FigmaError) {
  *   console.error(error.statusCode, error.message);
@@ -301,17 +309,15 @@ export interface FigmaError {
 }
 
 /**
- * Custom Error class for Figma API errors that preserves HTTP status codes.
+ * Figma REST helpers throw this error after an unsuccessful API response.
  *
  * @remarks
- * Extends the standard Error class to include HTTP status code information,
- * making it easier for consumers to handle different error types (401, 403, 404, 429, etc.).
- *
- * For rate limit errors (429), includes retry-after information parsed from response headers.
+ * The error keeps the HTTP status code. A 429 response can include the
+ * `Retry-After` value in seconds.
  *
  * @example
  * ```ts
- * import { FigmaApiError } from '@figmavars/hooks';
+ * import { FigmaApiError } from '@figmavars/core';
  *
  * try {
  *   await fetcher(url, token);

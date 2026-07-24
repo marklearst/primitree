@@ -4,15 +4,10 @@ import type { FigmaCollection, VariableMode } from '../types'
 import type { UseVariableModesResult } from '../types/hooks'
 
 /**
- * React hook that extracts and memoizes all variable modes from loaded Figma variables data.
+ * Read local variable modes as arrays and ID-keyed maps.
  *
  * @remarks
- * Returns an object with:
- * - `modes`: an array of all modes
- * - `modesByCollectionId`: a lookup table mapping collection IDs to arrays of modes
- * - `modesById`: a lookup table mapping mode IDs to VariableMode objects
- *
- * Useful for building UI pickers, mapping, advanced theme controls, or custom variable management tools. Call this hook anywhere you need fast, up-to-date access to modes for the current file context.
+ * The hook groups modes by collection ID and indexes them by mode ID.
  *
  * @example
  * ```tsx

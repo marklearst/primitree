@@ -17,8 +17,12 @@ import {
 import { type ParsedArgs } from '../args'
 import { fileExists, readJsonFile } from '../io'
 
+function formatCount(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
+}
+
 export const checkHelp = `
-figma-vars check — validate a variables export or a built tokens directory
+figma-vars check: validate an export or built token directory
 
 Usage:
   figma-vars check <variables.json>     Validate a Figma variables export:
@@ -26,8 +30,8 @@ Usage:
                                         targets), per-mode resolvability.
   figma-vars check <tokens-dir>         Validate a generated pipeline (a
                                         directory containing
-                                        tokens.resolver.json): every context
-                                        permutation must merge and every
+                                        tokens.resolver.json): each context
+                                        permutation must merge and each
                                         reference must resolve.
 
 Exit codes:
@@ -161,13 +165,17 @@ export async function runCheck(args: ParsedArgs): Promise<void> {
 
   if (report.errors.length > 0) {
     console.error(
-      `\nCheck failed: ${report.errors.length} error(s), ` +
-        `${report.warnings.length} warning(s).`
+      `\nCheck failed: ${formatCount(report.errors.length, 'error')}, ` +
+        `${formatCount(report.warnings.length, 'warning')}.`
     )
     process.exitCode = 1
   } else {
     console.log(
-      `Check passed${report.warnings.length > 0 ? ` with ${report.warnings.length} warning(s)` : ''}.`
+      `Check passed${
+        report.warnings.length > 0
+          ? ` with ${formatCount(report.warnings.length, 'warning')}`
+          : ''
+      }.`
     )
   }
 }

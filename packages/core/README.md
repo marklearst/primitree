@@ -1,55 +1,96 @@
 # @figmavars/core
 
-Framework-agnostic foundation for working with Figma Variables: normalize any variables JSON shape, resolve alias graphs, diff exports semantically, and talk to the REST API with types.
+`@figmavars/core` provides the shared Figma Variables types, normalization,
+alias resolution, comparison, and REST API functions used by FigmaVars.
 
 ```sh
-npm i @figmavars/core
+npm install @figmavars/core
 ```
 
-## Normalize any export shape
+## Requirements
+
+- Node.js 24 or newer
+
+## Normalize a variables export
 
 ```ts
 import { normalizeVariables } from '@figmavars/core'
 
-const normalized = normalizeVariables(json) // REST response, bare meta,
-// plugin-style { variables, collections }, or a raw JSON string
-normalized.collections // [{ id, name, modes, defaultModeId, variableIds }]
-normalized.variables // [{ id, name, resolvedType, valuesByMode, scopes, ... }]
-normalized.warnings // anything skipped, explained
+const normalized = normalizeVariables(json)
+
+normalized.collections
+normalized.variables
+normalized.collectionsById
+normalized.variablesById
+normalized.warnings
 ```
 
-## Resolve alias graphs
+`normalizeVariables` accepts:
+
+- a Figma REST local variables response
+- a bare `{ variables, variableCollections }` object
+- a plugin-style `{ variables, collections }` object
+- a JSON string containing one of those shapes
+
+It rejects published-variable responses because those records do not contain
+the mode values needed for conversion.
+
+## Resolve aliases
 
 ```ts
-import { resolveVariableValue, resolveAllVariableValues } from '@figmavars/core'
+import { resolveAllVariableValues, resolveVariableValue } from '@figmavars/core'
 
-const { value, aliasChain } = resolveVariableValue(normalized, 'VariableID:2:201', modeId)
-// follows aliases across collections with Figma-accurate mode fallback,
-// cycle detection, and dangling-target errors
+const result = resolveVariableValue(normalized, 'VariableID:2:201', '1:0')
+
+console.log(result.value, result.aliasChain)
+
+const resolved = resolveAllVariableValues(normalized)
+console.log(resolved.values, resolved.errors)
 ```
 
-## Diff exports like code
+The resolver follows variable aliases across collections. It reports cycles,
+missing targets, and values that cannot resolve for a requested mode.
+
+## Compare two exports
 
 ```ts
 import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
 
-const diff = diffVariables(oldJson, newJson) // matched by stable Figma IDs
-diff.variables.renamed // renames detected as renames
-diff.variables.valueChanged // per-mode value changes with mode names
-diff.breaking // removals/renames/moves/type changes
+const diff = diffVariables(previousExport, nextExport)
+
+console.log(diff.variables.renamed)
+console.log(diff.variables.valueChanged)
+console.log(diff.breaking)
 console.log(formatDiffMarkdown(diff))
 ```
 
-## Typed REST client (Enterprise)
+The comparison matches collections and variables by Figma ID. Its breaking
+flag covers removals, renames, moves, and type changes.
+
+## Call the Variables REST API
 
 ```ts
-import { fetcher, mutator, FIGMA_LOCAL_VARIABLES_ENDPOINT, withRetry } from '@figmavars/core'
+import { fetcher, FIGMA_LOCAL_VARIABLES_ENDPOINT, mutator, withRetry } from '@figmavars/core'
 
-const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
+const variables = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
 ```
 
-Plus: `FigmaApiError` with status/retry-after, rate-limit helpers, runtime type guards, `filterVariables`, `redactToken`, and every Figma domain type (also exported from the `@figmavars/core/types` subpath).
+The package exports endpoint builders, `FigmaApiError`, retry helpers, runtime
+type guards, mutation payload types, and Figma domain types. Import the domain
+types from the package root or `@figmavars/core/types`.
 
-Part of [FigmaVars](https://github.com/marklearst/figmavars) — see [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) for the batteries-included pipeline.
+`redactToken` returns a shortened display value. The result still exposes token
+characters, so do not treat it as safe for logs.
+
+## Related packages
+
+- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) converts normalized data into token files.
+- [`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) writes a token pipeline to disk.
+- [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) provides React hooks.
+
+Read the [FigmaVars documentation](https://figmavars.com) or review the
+[5.0.0 changelog](CHANGELOG.md).
+
+## License
 
 MIT © Mark Learst

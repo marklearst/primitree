@@ -8,14 +8,11 @@ import type {
 } from '@figmavars/core'
 
 /**
- * Central context shape for FigmaVars—provides authentication and file context to all hooks and consumers in the tree.
+ * Value supplied by {@link FigmaVarsProvider}.
  *
  * @remarks
- * - `token`: Figma Personal Access Token (PAT) for authenticating Figma REST API requests. You can generate a PAT in your Figma account settings (https://www.figma.com/developers/api#access-tokens).
- * - `fileKey`: Figma file key uniquely identifying the current Figma file context. You can find the file key in the Figma file URL—it is the string after `/file/` and before the next `/` (e.g., https://www.figma.com/file/<fileKey>/...).
- *
- * This type defines the single source of truth for authentication and file context, available via the FigmaVarsProvider context and typically accessed using `useFigmaTokenContext`.
- * All variable, collection, and mode hooks rely on this context to determine scope and authorization.
+ * Browser code and page scripts can read `token`. Do not pass a secret to
+ * untrusted client code.
  *
  * @example
  * ```tsx
@@ -25,7 +22,7 @@ import type {
  *   const { token, fileKey } = useFigmaTokenContext();
  *   if (!token) return <div>Figma API token missing.</div>;
  *   return <div>
- *     <div>Token: {token.slice(0, 4)}... (hidden)</div>
+ *     <div>Token configured: {String(Boolean(token))}</div>
  *     <div>File key: {fileKey}</div>
  *   </div>;
  * }
@@ -35,19 +32,17 @@ import type {
  */
 export interface FigmaTokenContextType {
   /**
-   * Figma Personal Access Token (PAT), or null if not set. Required for all authenticated Figma REST API operations.
-   * Generate a PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
+   * Figma Personal Access Token, or `null`. Page scripts can read this value.
    */
   token: string | null
   /**
-   * Figma file key for the current file context, or null if not set.
-   * The file key is the string after '/file/' in a Figma file URL (e.g., https://www.figma.com/file/<fileKey>/...).
+   * Figma file key, or `null`.
    */
   fileKey: string | null
   /**
-   * Optional fallback variable JSON file for offline or static use cases.
-   * Allows FigmaVars to function without a live API request.
-   * @deprecated Use parsedFallbackFile instead. This is kept for backward compatibility.
+   * Variables response data or JSON used without a live request.
+   * @deprecated Pass fallback data to {@link FigmaVarsProvider}. Read validated
+   * data with {@link useVariables} or {@link usePublishedVariables}.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
   /**
@@ -68,27 +63,22 @@ export interface FigmaTokenContextType {
    */
   providerId?: string
   /**
-   * Optional SWR configuration to customize caching, revalidation, and error handling behavior.
-   * Applied to all SWR hooks within this provider.
+   * SWR configuration used by hooks under this provider.
    */
   swrConfig?: SWRConfiguration | undefined
 }
 
 /**
- * Props for the FigmaVarsProvider component, which injects Figma API authentication and file scoping for all descendant hooks and utilities.
+ * Props for {@link FigmaVarsProvider}.
  *
  * @remarks
- * - `children`: React nodes to render within the provider—this wraps your app, feature, or test tree.
- * - `token`: Figma Personal Access Token (PAT) for authenticating API calls. Obtain one in your Figma account settings: https://www.figma.com/developers/api#access-tokens
- * - `fileKey`: Figma file key identifying the file to scope all variable/collection operations to. Extract the file key from your Figma file URL: https://www.figma.com/file/<fileKey>/...
- *
- * Use this to wrap your application, dashboard, or Storybook preview, ensuring all consumers have access to the proper Figma API context and authentication.
+ * Browser code and page scripts can read `token`. Do not include a token in a
+ * public client bundle.
  *
  * @example
  * ```tsx
  * import { FigmaVarsProvider } from '@figmavars/hooks';
  *
- * // At the root of your app:
  * <FigmaVarsProvider token={myToken} fileKey={myFileKey}>
  *   <App />
  * </FigmaVarsProvider>
@@ -102,27 +92,24 @@ export interface FigmaVarsProviderProps {
    */
   children: ReactNode
   /**
-   * Figma Personal Access Token (PAT) to inject into context. Required for all authenticated API operations.
-   * Generate your PAT in Figma account settings: https://www.figma.com/developers/api#access-tokens
+   * Figma Personal Access Token, or `null`. Page scripts can read this value.
    */
   token: string | null
   /**
-   * Figma file key (ID) to provide context for all variable and collection operations.
-   * The file key is found in the Figma file URL, after `/file/` and before the next `/` (e.g., https://www.figma.com/file/<fileKey>/...).
+   * Figma file key, or `null`.
    */
   fileKey: string | null
   /**
-   * Optional fallback variable JSON file used when the API is unavailable or skipped.
+   * Variables response data or JSON used without a live request.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
   /**
-   * Explicit response kind for fallback data that cannot be inferred, such as
-   * an API response containing empty collection and variable maps.
+   * Response kind for fallback data whose shape does not reveal the kind,
+   * such as a response with empty collection and variable maps.
    */
   fallbackKind?: FallbackDataKind
   /**
-   * Optional SWR configuration to customize caching, revalidation, and error handling.
-   * Common options: `revalidateOnFocus`, `dedupingInterval`, `errorRetryCount`, `onError`, etc.
+   * SWR configuration for caching, revalidation, and error handling.
    *
    * @example
    * ```tsx

@@ -1,26 +1,7 @@
 /**
- * Redact a Figma Personal Access Token for safe logging.
+ * Options for masking part of a Figma token.
  *
  * @remarks
- * This utility masks the middle portion of a token while preserving
- * the first and last few characters for identification. Useful for
- * debugging and logging without exposing sensitive credentials.
- *
- * @param token - The token to redact (can be null/undefined)
- * @param options - Optional configuration for redaction behavior
- * @returns The redacted token string, or a placeholder for empty/short tokens
- *
- * @example
- * ```ts
- * import { redactToken } from '@figmavars/hooks/utils';
- *
- * console.log(redactToken('figd_abc123xyz789def456'));
- * // Output: 'figd_***...***456'
- *
- * console.log(redactToken(null));
- * // Output: '[no token]'
- * ```
- *
  * @public
  */
 export interface RedactTokenOptions {
@@ -41,6 +22,27 @@ export interface RedactTokenOptions {
   emptyPlaceholder?: string
 }
 
+/**
+ * Mask the middle of a Figma token for display.
+ *
+ * @remarks
+ * The result still contains token characters. Do not treat it as safe for
+ * logs, analytics, error reports, or other data sinks.
+ *
+ * @param token - Token to mask.
+ * @param options - Visible character counts and empty placeholder.
+ * @returns Masked token or the configured placeholder.
+ *
+ * @example
+ * ```ts
+ * import { redactToken } from '@figmavars/core'
+ *
+ * redactToken('figd_abc123xyz789def456')
+ * // 'figd_***...***456'
+ * ```
+ *
+ * @public
+ */
 export function redactToken(
   token: string | null | undefined,
   options?: RedactTokenOptions

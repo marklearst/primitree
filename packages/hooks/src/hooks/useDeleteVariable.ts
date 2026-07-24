@@ -8,21 +8,13 @@ import {
 } from '@figmavars/core'
 
 /**
- * React hook that deletes a Figma variable by ID using the Figma Variables API.
+ * Delete a Figma variable from the provider's file.
  *
  * @remarks
- * This hook provides a `mutate` function to trigger the deletion and exposes loading and error states.
+ * `mutate` accepts a variable ID. It returns the response or `undefined`
+ * after storing a request failure in `error`.
  *
- * ## Return Value
- *
- * The `mutate` function returns `Promise<TData | undefined>`:
- * - On success: Returns the API response data
- * - On error: Returns `undefined` (error stored in `error` state)
- *
- * Use `isSuccess`/`isError` flags or check the return value to handle results.
- *
- * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
- * `data` (API response), and `error` (if failed).
+ * @returns Mutation state and a `mutate` function.
  *
  * @example
  * ```tsx
@@ -34,7 +26,7 @@ import {
  *   const onDelete = async () => {
  *     const result = await mutate(id);
  *     if (result) {
- *       console.log('Deleted successfully');
+ *       console.log('Deleted variable');
  *     }
  *   };
  *

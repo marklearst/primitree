@@ -2,7 +2,7 @@ import { useContext } from 'react'
 import { TokensContext, type TokensContextValue } from './TokensContext'
 
 /**
- * Access every token provided by the nearest {@link TokensProvider}: the
+ * Read token data from the nearest {@link TokensProvider}: the
  * merged document, flattened tokens, resolved values, and context controls.
  *
  * @throws Error when used outside a TokensProvider.

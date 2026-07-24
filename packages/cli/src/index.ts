@@ -7,17 +7,17 @@ import { runCheck, checkHelp } from './commands/check'
 import { runInit, initHelp } from './commands/init'
 
 const GLOBAL_HELP = `
-figma-vars — turn Figma variables into a production design token pipeline
+figma-vars: build design tokens from Figma variables
 
 Usage:
   figma-vars <command> [options]
 
 Commands:
-  build    Build a DTCG token pipeline from a variables JSON
-  diff     Semantic changelog between two variables exports
+  build    Convert variables JSON into token files and code
+  diff     Compare two variables exports by stable Figma ID
   check    Validate a variables export or a built tokens directory
-  init     Scaffold a tokens repo (sample data or --from your export)
-  export   Download variables JSON via the Figma REST API (Enterprise)
+  init     Create a token repository from sample data or an export
+  export   Download local variables through the Figma REST API
 
 Run 'figma-vars <command> --help' for command-specific options.
 

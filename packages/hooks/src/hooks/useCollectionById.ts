@@ -3,11 +3,10 @@ import { useVariableCollections } from './useVariableCollections'
 import type { FigmaCollection } from '../types'
 
 /**
- * React hook that selects a single variable collection by ID from loaded Figma variables data.
+ * Select a Figma variable collection by ID.
  *
  * @remarks
- * Returns the collection with the specified ID, or `undefined` if not found.
- * Useful for accessing a specific collection without manually mapping through all collections.
+ * The hook reads collection data from {@link useVariableCollections}.
  *
  * @param collectionId - The ID of the collection to retrieve.
  * @returns The collection object, or `undefined` if not found.

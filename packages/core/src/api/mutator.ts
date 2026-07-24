@@ -7,52 +7,49 @@ import type { VariableAction, BulkUpdatePayload } from '../types/mutations'
 import { FigmaApiError } from '../types/figma'
 
 /**
- * Options for configuring mutator behavior.
+ * Options for {@link mutator}.
  *
  * @public
  */
 export interface MutatorOptions {
   /**
-   * Optional AbortSignal to cancel the request.
+   * Signal that can cancel the request.
    */
   signal?: AbortSignal
   /**
-   * Optional timeout in milliseconds. Creates an AbortSignal internally if provided.
+   * Request timeout in milliseconds.
    */
   timeout?: number
   /**
-   * Optional fetch implementation override (useful for testing or custom fetch implementations).
+   * Fetch implementation. Defaults to `globalThis.fetch`.
    */
   fetch?: typeof fetch
   /**
-   * Optional base URL override. Defaults to 'https://api.figma.com'.
-   * Useful for testing with mocks or proxies.
+   * API base URL. Defaults to `https://api.figma.com`.
    */
   baseUrl?: string
 }
 
 /**
- * Low-level utility to send authenticated POST requests to the Figma Variables REST API.
+ * Send an authenticated POST request to the Figma Variables REST API.
  *
  * @remarks
- * This function performs authenticated mutations against the Figma Variables POST endpoint.
- * Entry-level `action` fields in the request body select create, update, and delete behavior.
- * It handles JSON serialization of the request body, parses JSON responses, and propagates detailed errors.
- * Intended primarily for internal use by mutation hooks, but also suitable for direct custom API mutations.
+ * Entry-level `action` fields select create, update, and delete operations.
+ * The function serializes the body and parses JSON responses. It returns an
+ * empty object for HTTP 204.
  *
- * Supports request cancellation via AbortSignal and timeout handling.
+ * @typeParam TResponse - Parsed response type.
+ * @param url - Absolute Figma URL or path relative to `baseUrl`.
+ * @param token - Figma Personal Access Token.
+ * @param _action - Compatibility parameter. Request entries select the action.
+ * @param body - Mutation request body.
+ * @param options - Request signal, timeout, fetch implementation, and base URL.
  *
- * @typeParam TResponse - The expected response type returned from the Figma API.
- * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
- * @param token - Figma Personal Access Token (PAT) used for authentication.
- * @param _action - Compatibility parameter for the mutation action. Entry-level request body actions select API behavior.
- * @param body - Optional request payload. For bulk operations, use BulkUpdatePayload. For individual operations, use objects with `variables` array.
- * @param options - Optional configuration for abort signal, timeout, or custom fetch implementation.
+ * @returns Parsed JSON response, or an empty object for HTTP 204.
  *
- * @returns A Promise resolving to the parsed JSON response from the Figma API.
- *
- * @throws Throws a FigmaApiError if the token is not provided or if the HTTP response is unsuccessful.
- * @throws Throws an AbortError if the request is aborted or times out.
+ * @throws Error when `token` is empty.
+ * @throws FigmaApiError when Figma returns an unsuccessful response.
+ * @throws AbortError when the signal aborts or the timeout expires.
  *
  * @example
  * ```ts

@@ -9,22 +9,13 @@ import {
 } from '@figmavars/core'
 
 /**
- * React hook that performs a bulk update of multiple Figma variables in a single request via the Figma Variables API.
+ * Create, update, or delete Figma collections, modes, and variables in one request.
  *
  * @remarks
- * This hook is designed to perform a batch operation for creating, updating, and deleting variables, collections, and modes.
- * It provides an ergonomic API with `mutate` and loading/error state for easy integration.
+ * `mutate` accepts a {@link BulkUpdatePayload}. It returns the response or
+ * `undefined` after storing a request failure in `error`.
  *
- * ## Return Value
- *
- * The `mutate` function returns `Promise<TData | undefined>`:
- * - On success: Returns the API response data
- * - On error: Returns `undefined` (error stored in `error` state)
- *
- * Use `isSuccess`/`isError` flags or check the return value to handle results.
- *
- * @returns MutationResult with `mutate`, status flags (`isLoading`, `isSuccess`, `isError`),
- * `data` (API response), and `error` (if failed).
+ * @returns Mutation state and a `mutate` function.
  *
  * @example
  * ```tsx

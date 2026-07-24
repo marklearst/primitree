@@ -1,36 +1,47 @@
 ---
 title: Resolver & Modes
-description: How Figma modes become DTCG Resolver contexts for theming.
+description: Figma modes become DTCG Resolver contexts for theming.
 ---
 
-Figma collections can have multiple modes (Light/Dark, Compact/Comfortable, etc.). DTCG Resolver expresses which token file applies under each context.
+A Figma collection with more than one mode becomes a Resolver modifier. FigmaVars writes the default mode into the collection's base token file and writes another file for each non-default mode.
 
 ## Generated file
 
-`tokens/tokens.resolver.json` lists modifier axes and defaults:
+`tokens/tokens.resolver.json` lists sets, modifiers, and their resolution order:
 
 ```json
 {
+  "$schema": "https://www.designtokens.org/schemas/2025.10/resolver.json",
   "name": "Figma Variables",
+  "version": "2025.10",
+  "sets": {
+    "semantic": {
+      "sources": [{ "$ref": "./semantic.tokens.json" }]
+    }
+  },
   "modifiers": {
     "semantic": {
+      "default": "light",
       "contexts": {
-        "light": { "groups": ["semantic"] },
-        "dark": { "groups": ["semantic.dark"] }
-      },
-      "default": "light"
+        "light": [],
+        "dark": [{ "$ref": "./semantic.dark.tokens.json" }]
+      }
     }
-  }
+  },
+  "resolutionOrder": [
+    { "$ref": "#/sets/semantic" },
+    { "$ref": "#/modifiers/semantic" }
+  ]
 }
 ```
 
-Exact shape depends on your Figma file structure.
+The base set enters the merge first. The selected context then adds its override sources at the modifier's position in `resolutionOrder`. An omitted axis uses the modifier's `default`; a modifier without a default uses its first declared context.
 
 ## Runtime switching
 
-**CSS:** theme blocks use `[data-semantic="dark"]` (or similar) selectors generated in `tokens.css`.
+**CSS:** `tokens.css` uses selectors such as `[data-semantic='dark']`.
 
-**React:** `useTheme().setContext('semantic', 'dark')` updates active contexts and re-resolves `useToken` values.
+**React:** `useTheme().setContext('semantic', 'dark')` changes the active context and recalculates `useToken` values.
 
 **MCP:** pass contexts to `resolve_context`:
 
@@ -40,6 +51,6 @@ Exact shape depends on your Figma file structure.
 
 ## Naming
 
-Collection names are slugified to axis keys. Mode names become context ids (`Light` → `light`).
+FigmaVars converts collection names to lowercase slugs for set and modifier names. It converts mode names to context slugs, so `Light` becomes `light`.
 
-If something looks wrong after build, open `tokens.resolver.json` first. It is the source of truth for how modes connect.
+Inspect `tokens.resolver.json` to see the exact context names and merge order written by the build.

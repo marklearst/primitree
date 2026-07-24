@@ -1,9 +1,9 @@
 ---
 title: Pipeline Output
-description: Every file figma-vars build writes and how to use it in your repo.
+description: Files written by figma-vars build and their roles in a repository.
 ---
 
-Running `figma-vars build variables.json` scaffolds a directory ready to commit. Here is what each piece does.
+`figma-vars build variables.json` writes `design-tokens/` unless you pass `--out`.
 
 ## Directory layout
 
@@ -25,25 +25,25 @@ With `--terrazzo`, you get `terrazzo.config.mjs` instead of Style Dictionary.
 
 ## tokens/\*.tokens.json
 
-DTCG 2025.10 documents. One file per Figma collection. Extra Figma modes (e.g. Dark on a Semantic collection) become sibling files like `semantic.dark.tokens.json`.
+DTCG 2025.10 token documents, plus the documented FigmaVars boolean extension. The build writes one base file per Figma collection and one override file for each non-default mode.
 
-Aliases stay as `{references}`. Figma metadata (variable id, scopes, code syntax) lives under `$extensions`.
+Aliases remain `{dot.path}` references. Figma metadata lives under `$extensions['com.figma-vars']`.
 
 ## tokens.resolver.json
 
-Maps Figma mode names to resolver contexts. A collection called "Theme" with Light/Dark modes becomes contexts you switch at runtime:
+The Resolver lists the base token files, mode contexts, default context for each axis, and merge order. A collection named `Theme` with `Light` and `Dark` modes produces a `theme` axis with `light` as its default and `dark` as an override.
 
 ```json
 {
-  "semantic": "light"
+  "theme": "dark"
 }
 ```
 
-See [Resolver](/docs/concepts/resolver).
+Consumers pass that selection to `applyResolver`, `useTheme`, or the MCP `resolve_context` tool. See [Resolver](/docs/concepts/resolver).
 
 ## css/tokens.css
 
-CSS custom properties with optional `[data-theme="dark"]` (or similar) blocks per mode. Import once in your app entry:
+CSS custom properties with context blocks such as `[data-theme='dark']`. Import the file in your app entry:
 
 ```css
 @import './design-tokens/css/tokens.css';
@@ -51,13 +51,13 @@ CSS custom properties with optional `[data-theme="dark"]` (or similar) blocks pe
 
 ## css/tokens.tailwind.css
 
-Tailwind v4 `@theme` mappings generated from the same resolved values. Add to your CSS pipeline alongside `tokens.css`.
+Tailwind v4 `@theme` mappings use the default resolved context. Add the file to the CSS entry that loads the generated token styles.
 
 ## ts/tokens.ts
 
 TypeScript helpers:
 
-- `TokenPath` union of every token path
+- `TokenPath` union of generated token paths
 - `tokenVars` map of theme-aware CSS `var()` accessors
 - `tokenValues` map of resolved default-context values
 
@@ -75,21 +75,23 @@ console.log(tokenVars[path])
 
 ## Transformer config
 
-`style-dictionary.config.mjs` or `terrazzo.config.mjs` is prewired to read the DTCG files. Extend it for custom platforms (iOS, Android, etc.).
+The Style Dictionary config reads base token files. Generated CSS contains the mode overrides.
+
+The Terrazzo config reads `tokens.resolver.json` and passes mode choices through as Resolver contexts.
 
 ## design-tokens.workflow.yml
 
-GitHub Actions template: checkout, install the CLI, rebuild on `variables.json` changes, and commit generated output.
+A GitHub Actions template checks out the repository, installs pinned tools, rebuilds when `variables.json` changes, and commits the generated paths. Review the workflow and repository permissions before placing it in `.github/workflows/`.
 
 ## Skip outputs
 
-| Flag                 | Effect                                  |
-| -------------------- | --------------------------------------- |
-| `--no-css`           | Skip `css/tokens.css`                   |
-| `--no-tailwind`      | Skip Tailwind file                      |
-| `--no-ts`            | Skip TypeScript                         |
-| `--no-transformer`   | Skip Style Dictionary / Terrazzo config |
-| `--no-github-action` | Skip workflow template                  |
-| `--no-readme`        | Skip generated README                   |
+| Flag                 | Effect                                   |
+| -------------------- | ---------------------------------------- |
+| `--no-css`           | Skip `css/tokens.css`                    |
+| `--no-tailwind`      | Skip Tailwind file                       |
+| `--no-ts`            | Skip TypeScript                          |
+| `--no-transformer`   | Skip Style Dictionary or Terrazzo config |
+| `--no-github-action` | Skip workflow template                   |
+| `--no-readme`        | Skip generated README                    |
 
-Full flag list: [CLI build](/docs/cli/build).
+See [CLI build](/docs/cli/build) for flags and defaults.

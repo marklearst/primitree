@@ -10,49 +10,45 @@ import {
 import { FigmaApiError } from '../types/figma'
 
 /**
- * Options for configuring fetcher behavior.
+ * Options for {@link fetcher}.
  *
  * @public
  */
 export interface FetcherOptions {
   /**
-   * Optional AbortSignal to cancel the request.
+   * Signal that can cancel the request.
    */
   signal?: AbortSignal
   /**
-   * Optional timeout in milliseconds. Creates an AbortSignal internally if provided.
+   * Request timeout in milliseconds.
    */
   timeout?: number
   /**
-   * Optional fetch implementation override (useful for testing or custom fetch implementations).
+   * Fetch implementation. Defaults to `globalThis.fetch`.
    */
   fetch?: typeof fetch
   /**
-   * Optional base URL override. Defaults to 'https://api.figma.com'.
-   * Useful for testing with mocks or proxies.
+   * API base URL. Defaults to `https://api.figma.com`.
    */
   baseUrl?: string
 }
 
 /**
- * Low-level utility to fetch data from the Figma Variables REST API with authentication.
+ * Send an authenticated GET request to the Figma REST API.
  *
  * @remarks
- * Sends an authenticated HTTP GET request to the given Figma API endpoint using the provided Personal Access Token (PAT).
- * Parses JSON responses and throws detailed errors for failed requests.
- * Intended for internal use by hooks but can be used directly for custom API interactions.
+ * The function parses JSON responses. It throws {@link FigmaApiError} for an
+ * unsuccessful response and preserves `Retry-After` for HTTP 429 responses.
  *
- * Supports request cancellation via AbortSignal and timeout handling.
+ * @param url - Absolute Figma URL or path relative to `baseUrl`.
+ * @param token - Figma Personal Access Token.
+ * @param options - Request signal, timeout, fetch implementation, and base URL.
  *
- * @param url - The full Figma REST API endpoint URL (e.g., 'https://api.figma.com/v1/files/{file_key}/variables').
- * @param token - Figma Personal Access Token (PAT) for authentication.
- * @param options - Optional configuration for abort signal, timeout, or custom fetch implementation.
+ * @returns Parsed JSON response.
  *
- * @returns A Promise resolving to the parsed JSON response from the Figma API.
- *
- * @throws Throws an Error if the token is not provided.
- * @throws Throws an Error if the HTTP response is not ok, including the message returned by the Figma API or a default error message.
- * @throws Throws an AbortError if the request is aborted or times out.
+ * @throws Error when `token` is empty.
+ * @throws FigmaApiError when Figma returns an unsuccessful response.
+ * @throws AbortError when the signal aborts or the timeout expires.
  *
  * @example
  * ```ts

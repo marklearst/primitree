@@ -43,7 +43,7 @@ export interface DiffValueChange {
   to: VariableValue | undefined
 }
 
-/** A resolved type change (always breaking). @public */
+/** A resolved type change, classified as breaking. @public */
 export interface DiffTypeChange {
   id: string
   name: string
@@ -61,9 +61,8 @@ export interface DiffMove {
 }
 
 /**
- * Semantic difference between two Figma variables exports, matched by
- * stable Figma IDs so renames are detected instead of reported as
- * remove+add.
+ * Semantic difference between two Figma variables exports. The comparison
+ * uses stable Figma IDs and reports renames in the `renamed` lists.
  *
  * @public
  */
@@ -90,7 +89,7 @@ export interface VariablesDiff {
     valueChanged: DiffValueChange[]
     descriptionChanged: DiffVariableRef[]
   }
-  /** True when any change can break downstream consumers. */
+  /** True when the diff contains a breaking change. */
   breaking: boolean
   hasChanges: boolean
 }
@@ -110,10 +109,9 @@ function modeName(collection: NormalizedCollection, modeId: string): string {
  * Compute the semantic diff between two Figma variables exports.
  *
  * @remarks
- * Accepts any input shape `normalizeVariables` supports. Matching is by
- * Figma variable/collection/mode ID, which is stable across edits — so a
- * rename shows up as a rename, not a removal plus an addition. This is what
- * makes the diff safe to use for reviewing design-token changes in CI.
+ * Accepts the input shapes supported by `normalizeVariables`. It matches
+ * records across exports by Figma variable, collection, and mode ID. Renamed
+ * records appear as renames.
  *
  * @param oldInput - The earlier export (e.g. the committed backup).
  * @param newInput - The newer export.

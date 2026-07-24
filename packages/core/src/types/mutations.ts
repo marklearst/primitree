@@ -6,23 +6,22 @@ import type {
 } from './figma.js'
 
 /**
- * Payload for creating a new Figma variable in a specific collection.
+ * Fields for creating a Figma variable.
  *
  * @remarks
- * Use with the `useCreateVariable` hook to specify the properties of the new variable.
- * Optional fields allow customization of description, publishing visibility, scopes, and code syntax.
+ * Figma requires `name`, `variableCollectionId`, and `resolvedType`.
  *
  * @property name - The human-readable name of the variable.
  * @property variableCollectionId - The ID of the collection this variable belongs to.
  * @property resolvedType - The data type of the variable value (e.g., 'COLOR', 'FLOAT').
  * @property description - Optional description text for documentation or tooling.
  * @property hiddenFromPublishing - Optional flag to hide the variable from published styles.
- * @property scopes - Optional list of scopes restricting where the variable can be applied.
+ * @property scopes - Optional scopes that restrict use of the variable.
  * @property codeSyntax - Optional mapping of language identifiers to code snippets for this variable.
  *
  * @example
  * ```ts
- * import type { CreateVariablePayload } from '@figmavars/hooks';
+ * import type { CreateVariablePayload } from '@figmavars/core';
  *
  * const newVariable: CreateVariablePayload = {
  *   name: 'Primary Color',
@@ -48,11 +47,10 @@ export interface CreateVariablePayload {
 }
 
 /**
- * Payload for updating properties of an existing Figma variable.
+ * Fields that a Figma variable update can change.
  *
  * @remarks
- * Use with the `useUpdateVariable` hook to specify fields to update.
- * All fields are optional, allowing partial updates.
+ * The API accepts partial updates.
  *
  * @property name - New name for the variable.
  * @property description - New description text.
@@ -62,7 +60,7 @@ export interface CreateVariablePayload {
  *
  * @example
  * ```ts
- * import type { UpdateVariablePayload } from '@figmavars/hooks';
+ * import type { UpdateVariablePayload } from '@figmavars/core';
  *
  * const updatePayload: UpdateVariablePayload = {
  *   name: 'Updated Color Name',
@@ -81,10 +79,10 @@ export interface UpdateVariablePayload {
 }
 
 /**
- * Enum of possible mutation actions for variables, collections, or modes.
+ * Action accepted by a Figma Variables mutation.
  *
  * @remarks
- * Used internally and in bulk update payloads to indicate the type of change.
+ * Bulk payload entries use this discriminator.
  *
  * @public
  */
@@ -104,18 +102,16 @@ type ExtendedCollectionCreate = {
 }
 
 /**
- * Represents a change operation on a Figma variable collection.
+ * Create, update, or delete operation for a variable collection.
  *
  * @remarks
- * Use in bulk update payloads to create, update, or delete collections.
- *
  * Create actions require a name and may provide a temporary ID. Root collections
  * can provide an initial mode ID, while extended collections identify their parent
  * and may map parent mode IDs. Update and delete actions require an existing ID.
  *
  * @example
  * ```ts
- * import type { VariableCollectionChange } from '@figmavars/hooks';
+ * import type { VariableCollectionChange } from '@figmavars/core';
  *
  * const change: VariableCollectionChange = {
  *   action: 'CREATE',
@@ -140,17 +136,15 @@ export type VariableCollectionChange =
   | (ChangeId & { action: 'DELETE' })
 
 /**
- * Represents a change operation on a Figma variable mode.
+ * Create, update, or delete operation for a variable mode.
  *
  * @remarks
- * Use in bulk update payloads to create, update, or delete modes.
- *
  * Create actions require a name and collection ID and may provide a temporary ID.
  * Update and delete actions require an existing mode ID and collection ID.
  *
  * @example
  * ```ts
- * import type { VariableModeChange } from '@figmavars/hooks';
+ * import type { VariableModeChange } from '@figmavars/core';
  *
  * const modeChange: VariableModeChange = {
  *   action: 'CREATE',
@@ -183,18 +177,16 @@ type VariableMutableFields = {
 }
 
 /**
- * Represents a change operation on a Figma variable.
+ * Create, update, or delete operation for a Figma variable.
  *
  * @remarks
- * Use in bulk update payloads to create, update, or delete variables.
- *
  * Create actions require a name, collection ID, and resolved type and may provide
- * a temporary ID. Update and delete actions require an existing variable ID;
- * creation-only fields cannot be changed later.
+ * a temporary ID. Update and delete actions require an existing variable ID.
+ * Update actions cannot change fields that Figma accepts during creation.
  *
  * @example
  * ```ts
- * import type { VariableChange } from '@figmavars/hooks';
+ * import type { VariableChange } from '@figmavars/core';
  *
  * const varChange: VariableChange = {
  *   action: 'DELETE',
@@ -222,30 +214,29 @@ export type VariableChange =
  * Value accepted when assigning a Figma variable in a mutation request.
  *
  * @remarks
- * `null` removes an override only for an extended mode. Its `modeId` may be an
- * extended-mode ID or a mapped inherited-mode temporary ID. Figma rejects
- * `null` for root-mode values upstream.
+ * Figma accepts `null` to remove an extended-mode override. Its `modeId` may
+ * be an extended-mode ID or a mapped inherited-mode temporary ID. Figma
+ * rejects `null` for root-mode values upstream.
  *
  * @public
  */
 export type VariableMutationValue = VariableValue | Omit<Color, 'a'> | null
 
 /**
- * Value assignment for a specific Figma variable in a specific mode.
+ * Value assignment for one variable and mode.
  *
  * @remarks
- * Used to represent the value of a variable for a given mode in bulk updates and payloads.
- * When `value` is `null`, `modeId` must identify an extended-mode override; a
- * mapped inherited-mode temporary ID is also valid. Figma rejects root-mode
- * `null` assignments upstream.
+ * A `null` value requires `modeId` to identify an extended-mode override. The
+ * field also accepts a mapped inherited-mode temporary ID. Figma rejects
+ * root-mode `null` assignments upstream.
  *
- * @property variableId - The Figma variable ID being set.
+ * @property variableId - ID of the Figma variable that receives the value.
  * @property modeId - The mode ID (e.g., 'MODE:dark') this value applies to.
  * @property value - The variable value, including RGB/RGBA colors, aliases, or null to remove an extended-mode override.
  *
  * @example
  * ```ts
- * import type { VariableModeValue } from '@figmavars/hooks';
+ * import type { VariableModeValue } from '@figmavars/core';
  *
  * const modeValue: VariableModeValue = {
  *   variableId: 'VariableID:123:456',
@@ -263,10 +254,10 @@ export interface VariableModeValue {
 }
 
 /**
- * Payload for performing a bulk update of Figma variables, collections, modes, and values.
+ * Bulk mutation payload for collections, modes, variables, and values.
  *
  * @remarks
- * Use with the `useBulkUpdateVariables` hook to perform atomic multi-entity updates.
+ * Figma processes the included changes in one request.
  *
  * @property variableCollections - Optional array of collection changes.
  * @property variableModes - Optional array of mode changes.
@@ -275,7 +266,7 @@ export interface VariableModeValue {
  *
  * @example
  * ```ts
- * import type { BulkUpdatePayload } from '@figmavars/hooks';
+ * import type { BulkUpdatePayload } from '@figmavars/core';
  *
  * const payload: BulkUpdatePayload = {
  *   variableCollections: [{ action: 'UPDATE', id: 'VariableCollectionId:123', name: 'New Name' }],
@@ -295,10 +286,10 @@ export interface BulkUpdatePayload {
 }
 
 /**
- * Response from bulk update mutation API calls.
+ * Response from a Figma Variables bulk mutation.
  *
  * @remarks
- * Contains status, error indication, and optional mapping of temporary to real IDs.
+ * `meta.tempIdToRealId` maps client IDs to the IDs Figma created.
  *
  * @property error - Boolean indicating if an error occurred.
  * @property status - HTTP status code from the API response.
@@ -307,7 +298,7 @@ export interface BulkUpdatePayload {
  *
  * @example
  * ```ts
- * import type { BulkUpdateResponse } from '@figmavars/hooks';
+ * import type { BulkUpdateResponse } from '@figmavars/core';
  *
  * function handleResponse(response: BulkUpdateResponse) {
  *   if (response.error) {
@@ -330,10 +321,10 @@ export interface BulkUpdateResponse {
 }
 
 /**
- * Generic state shape for mutation hooks.
+ * State tracked by a mutation hook.
  *
  * @remarks
- * Tracks mutation lifecycle states (`idle`, `loading`, `success`, `error`), along with data and error info.
+ * The status, data, and error fields describe the latest mutation.
  *
  * @typeParam TData - The type of data returned by the mutation.
  *
@@ -352,15 +343,14 @@ export interface MutationState<TData> {
  */
 export interface MutationOptions {
   /**
-   * Controls error handling behavior for the mutation.
+   * Selects mutation error handling.
    *
-   * - **`false` (default)**: Errors are caught and stored in the `error` state.
-   *   The `mutate` function returns `undefined` on error.
-   *   Use the `isError` flag and `error` state to handle failures reactively.
+   * - **`false` (default)**: The hook stores errors in the `error` state.
+   *   `mutate` returns `undefined` on error.
+   *   Read the `isError` flag and `error` state to handle the failure.
    *
-   * - **`true`**: Errors are rethrown, allowing try/catch error handling.
+   * - **`true`**: The hook rethrows errors for `try`/`catch`.
    *   The `mutate` function throws on error.
-   *   Use this when you need imperative error handling.
    *
    * @default false
    */
@@ -371,8 +361,7 @@ export interface MutationOptions {
  * Return value of mutation hooks.
  *
  * @remarks
- * Combines mutation state with a `mutate` trigger function accepting a payload,
- * along with convenient booleans for status checking.
+ * Mutation state and the function that starts a mutation.
  *
  * ## Return Value Semantics
  *
@@ -382,10 +371,10 @@ export interface MutationOptions {
  * - **On error with `throwOnError: false` (default)**: Returns `undefined` and stores error in `error` state
  * - **On error with `throwOnError: true`**: Throws the error (use try/catch)
  *
- * ## Recommended Patterns
+ * ## Examples
  *
  * ```ts
- * // Pattern 1: Check return value (when throwOnError is false)
+ * // Check the return value when throwOnError is false.
  * const result = await mutate(payload);
  * if (result === undefined) {
  *   // Check error state
@@ -395,7 +384,7 @@ export interface MutationOptions {
  *   console.log('Created:', result);
  * }
  *
- * // Pattern 2: Use try/catch (when throwOnError is true)
+ * // Use try/catch when throwOnError is true.
  * try {
  *   const result = await mutate(payload);
  *   console.log('Created:', result);
@@ -403,7 +392,7 @@ export interface MutationOptions {
  *   console.error('Mutation failed:', err);
  * }
  *
- * // Pattern 3: Use status flags (reactive)
+ * // Read status flags while rendering.
  * if (isSuccess) {
  *   console.log('Created:', data);
  * }
@@ -421,8 +410,8 @@ export interface MutationResult<TData, TPayload> {
   /**
    * Trigger the mutation with the given payload.
    *
-   * @returns Promise resolving to the mutation result, or `undefined` if an error occurred
-   * and `throwOnError` is false. When `throwOnError` is true, errors are thrown instead.
+   * @returns The mutation result. With `throwOnError: false`, the function
+   * returns `undefined` after an error. With `throwOnError: true`, it throws.
    */
   mutate: (payload: TPayload) => Promise<TData | undefined>
   /** Current mutation status: 'idle' | 'loading' | 'success' | 'error' */

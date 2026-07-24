@@ -15,8 +15,8 @@ export type AliasResolutionErrorCode =
   'CYCLE' | 'MISSING_TARGET' | 'MISSING_VALUE'
 
 /**
- * Error thrown when a variable's alias chain cannot be resolved to a
- * concrete value.
+ * Alias resolution functions throw this error when a variable's alias chain
+ * does not reach a concrete value.
  *
  * @public
  */
@@ -84,19 +84,18 @@ function pickModeValue(
 }
 
 /**
- * Resolve a variable's value in a given mode, following alias chains across
- * collections until a concrete value is found.
+ * Resolve a variable's value in a given mode by following alias chains across
+ * collections.
  *
  * @remarks
  * Mode selection mirrors Figma's behavior for static resolution:
  *
- * - Within the variable's own collection, the requested `modeId` is used when
- *   the variable defines a value for it; otherwise the collection's default
- *   mode is used.
- * - When an alias crosses into another collection, the requested `modeId` is
- *   tried against that collection too (mode ids are unique per collection, so
- *   this only matches within the same collection); otherwise the target
- *   collection's default mode applies.
+ * - The resolver uses the requested `modeId` when the variable defines a
+ *   value for it. Otherwise, it uses the collection's default mode.
+ * - For aliases in another collection, the resolver checks the requested
+ *   `modeId` in that collection. Mode IDs are unique per collection, so this
+ *   check matches within the same collection. The target collection's
+ *   default mode applies when the check finds no match.
  *
  * Cycles and dangling alias targets throw {@link AliasResolutionError}.
  *
@@ -169,10 +168,10 @@ export function resolveVariableValue(
 }
 
 /**
- * Resolve every variable's value for every mode of its own collection.
+ * Resolve each variable for the modes in its collection.
  *
- * @returns Map of variable ID to mode ID to resolved value. Variables whose
- * alias chains fail to resolve are reported in `errors` instead of throwing.
+ * @returns Map of variable ID to mode ID to resolved value. The function
+ * catches alias failures and collects them in `errors`.
  *
  * @public
  */

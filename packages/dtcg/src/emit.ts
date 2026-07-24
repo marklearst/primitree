@@ -50,7 +50,10 @@ export interface ToDTCGResult {
   warnings: string[]
 }
 
+/** Key for Figma metadata in a token's `$extensions` object. @public */
 export const FIGMA_EXTENSION_KEY = 'com.figma-vars'
+
+/** DTCG 2025.10 Resolver JSON Schema URL. @public */
 export const RESOLVER_SCHEMA_URL =
   'https://www.designtokens.org/schemas/2025.10/resolver.json'
 
@@ -277,20 +280,21 @@ function insertToken(
 }
 
 /**
- * Convert any Figma variables JSON into DTCG 2025.10 token files plus a
- * Resolver document describing how Figma modes combine into contexts.
+ * Convert supported Figma variables JSON into DTCG 2025.10 token files and
+ * a Resolver document.
  *
  * @remarks
  * - Each collection becomes a base token file with its default-mode values,
  *   wrapped in a group named after the collection so cross-collection alias
  *   references (`{semantic.color.bg.brand}`) are unambiguous.
- * - Each non-default mode becomes an override file containing only the
- *   values that mode explicitly defines.
+ * - Each non-default mode becomes an override file containing the values
+ *   defined for that mode.
  * - Multi-mode collections become resolver modifiers whose contexts are the
  *   mode names; the default mode context applies no overrides.
- * - Figma aliases are preserved as DTCG references, not flattened.
+ * - Figma aliases remain DTCG references.
+ * - Boolean variables use the documented FigmaVars `boolean` extension.
  *
- * @param input - Figma variables JSON in any shape `normalizeVariables` accepts.
+ * @param input - Figma variables JSON accepted by `normalizeVariables`.
  * @param options - Emission options.
  *
  * @example

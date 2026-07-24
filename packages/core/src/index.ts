@@ -1,14 +1,10 @@
 /**
- * @packageDocumentation
- *
- * Entry point for **@figmavars/core** — the framework-agnostic foundation of the
- * FigmaVars toolchain.
+ * Framework-independent Figma Variables utilities.
  *
  * @remarks
- * Contains the typed Figma Variables REST client (`fetcher`, `mutator`), endpoint
- * constants, error helpers, retry utilities, runtime type guards, and every Figma
- * domain type. No React, no SWR — safe for Node scripts, CLIs, edge runtimes, and
- * any data-fetching layer (TanStack Query, Axios, plain fetch).
+ * The package exports Figma Variables REST clients, endpoint builders, data
+ * types, normalization, alias resolution, diffs, error helpers, and retry
+ * support. It has no React or SWR dependency.
  *
  * @example
  * ```ts
@@ -16,6 +12,8 @@
  *
  * const data = await fetcher(FIGMA_LOCAL_VARIABLES_ENDPOINT(fileKey), token)
  * ```
+ *
+ * @module core
  */
 export * from './normalize/index'
 export * from './diff/index'

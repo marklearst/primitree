@@ -15,7 +15,7 @@ import { useTokens } from './useTokens'
 export interface UseTokenResult {
   /** The raw token as authored (may hold a `{reference}` value). */
   token: DTCGToken | undefined
-  /** The fully resolved value under the active contexts. */
+  /** The resolved value under the active contexts. */
   value: DTCGTokenValue | undefined
   /** The resolved value formatted for CSS (`'#3366ff'`, `'8px'`, ...). */
   css: string | null
@@ -29,7 +29,7 @@ export interface UseTokenResult {
  * Read one design token by dot path from the nearest {@link TokensProvider}.
  *
  * @remarks
- * Values are resolved through DTCG references under the currently active
+ * Values resolve through DTCG references under the active
  * contexts, so switching a theme axis via {@link useTheme} re-renders
  * consumers with the new value.
  *

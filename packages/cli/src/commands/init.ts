@@ -6,12 +6,10 @@ import { readJsonFile, writePipelineFiles } from '../io'
 import { sampleVariables } from '../sample'
 
 export const initHelp = `
-figma-vars init — scaffold a design tokens repo
+figma-vars init: create a design tokens repository
 
-Creates a working tokens repository: a variables.json (sample data unless
---from is given), the full generated pipeline, a package.json with rebuild
-scripts, and a GitHub Actions workflow wired up at .github/workflows/.
-The initial pipeline is always generated during init.
+Creates variables.json, generated token files, package scripts, and a
+GitHub Actions workflow. Pass --from to use an existing variables export.
 
 Usage:
   figma-vars init [dir] [options]
@@ -141,7 +139,7 @@ function scaffoldError(findings: ScaffoldFinding[], canForce: boolean): Error {
       .map(({ relativePath, reason }) => `- ${relativePath}: ${reason}`)
       .join('\n')}\n${
       canForce
-        ? 'Re-run with --force to replace only generated file paths.'
+        ? 'Re-run with --force to replace generated file paths and leave other paths unchanged.'
         : 'Resolve unsafe path types before retrying; --force cannot bypass them.'
     }`
   )
@@ -150,19 +148,21 @@ function scaffoldError(findings: ScaffoldFinding[], canForce: boolean): Error {
 function repoReadme(name: string): string {
   return `# ${name}
 
-Design tokens pipeline generated with [\`@figmavars/cli\`](https://github.com/marklearst/figmavars).
+Built with [\`@figmavars/cli\`](https://github.com/marklearst/figmavars).
+
+The generated token files use DTCG 2025.10 plus a documented boolean extension.
 
 ## Workflow
 
 1. Export variables from Figma into \`variables.json\`
-   (\`figma-vars export\` on Enterprise, or a plugin like TokensBrücke on any plan).
-2. \`npm run diff\` — review what changed against \`backup/variables.json\`.
-3. \`npm run build\` — regenerate DTCG tokens, CSS, Tailwind theme, and types.
-4. \`npm run backup\` — snapshot the export you just shipped.
+   with \`figma-vars export\` or a supported variables plugin.
+2. Run \`npm run diff\` to compare it with \`backup/variables.json\`.
+3. Run \`npm run build\` to rebuild the token files.
+4. Run \`npm run backup\` after you ship the change.
 
-Pushing a new \`variables.json\` to GitHub triggers the workflow in
-\`.github/workflows/design-tokens.yml\`, which rebuilds and commits the
-pipeline automatically.
+The GitHub Actions workflow rebuilds and commits the pipeline after a push
+that changes \`variables.json\`. Its file is
+\`.github/workflows/design-tokens.yml\`.
 `
 }
 
@@ -363,7 +363,7 @@ export async function runInit(args: ParsedArgs): Promise<void> {
   console.log(
     from
       ? `Seeded from ${from}`
-      : 'Seeded with sample variables — replace variables.json with your export'
+      : 'Seeded with sample variables. Replace variables.json with your export.'
   )
   console.log('Next steps:')
   console.log(`  cd ${path.relative(process.cwd(), dir) || '.'}`)

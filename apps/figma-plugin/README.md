@@ -1,50 +1,62 @@
-# FigmaVars Export (Figma plugin)
+# FigmaVars Export
 
-Official export plugin for [FigmaVars](https://figmavars.com). Reads **all local variables** in the current file and downloads `variables.json` in the shape `figma-vars build` expects.
+FigmaVars Export is the Figma plugin in the
+[FigmaVars repository](https://github.com/marklearst/figmavars). It reads local
+variable collections and variables from the open file, then downloads a
+`variables.json` file for `figma-vars build`.
 
-Works on **any Figma plan** (no Enterprise REST API required).
+The plugin works on any Figma plan and does not call the Enterprise Variables
+REST API. Its manifest allows no network domains.
 
-## Develop
+This repository setup covers local development. The release checklist below
+covers Figma Community submission.
+
+## Build
 
 ```sh
 pnpm install
 pnpm --filter figmavars-plugin build
-pnpm --filter figmavars-plugin dev   # watch mode
+pnpm --filter figmavars-plugin dev
 ```
 
-## Load in Figma
+The `dev` command watches the plugin files.
 
-1. Open Figma desktop
-2. Plugins → Development → Import plugin from manifest
-3. Select `apps/figma-plugin/dist/manifest.json`
-4. Run **FigmaVars Export** on a file with variables
+## Load the development build
 
-## Output
+1. Open the Figma desktop app.
+2. Choose Plugins > Development > Import plugin from manifest.
+3. Select `apps/figma-plugin/dist/manifest.json`.
+4. Run FigmaVars Export in a file that contains local variables.
 
-REST-shaped JSON:
+The build command writes the plugin files under `apps/figma-plugin/dist`.
+
+## Export shape
 
 ```json
 {
   "status": 200,
   "error": false,
   "meta": {
-    "variableCollections": { ... },
-    "variables": { ... }
+    "variableCollections": {},
+    "variables": {}
   }
 }
 ```
 
-Then:
+Build the token files from the downloaded export:
 
 ```sh
-figma-vars build variables.json
+npx @figmavars/cli build variables.json
 ```
 
-## Monorepo packages
+## Shared serializer
 
-- `@figmavars/plugin-export` — serializer (tested, shared with plugin bundle)
-- Plugin UI — thin Figma sandbox shell
+The private `@figmavars/plugin-export` workspace package maps plugin data to
+the REST-shaped export. Its tests cover serialization outside the Figma
+sandbox.
 
-## Publish
+## Prepare a Figma Community release
 
-Before Community publish, generate a unique plugin id in `manifest.json` and add icons under `apps/figma-plugin/`.
+Replace the development plugin ID in `manifest.json` with the ID assigned by
+Figma. Add the required icon assets under `apps/figma-plugin` before
+submission.

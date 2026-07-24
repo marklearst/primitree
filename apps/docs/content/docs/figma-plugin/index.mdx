@@ -1,11 +1,9 @@
 ---
 title: Figma Plugin
-description: Official FigmaVars plugin to export all local variables on any Figma plan.
+description: Export local variables from an open Figma file as variables.json.
 ---
 
-The **FigmaVars Export** plugin reads every local variable collection in the current file and downloads `variables.json` in the format `figma-vars build` expects.
-
-Works on **any Figma plan**. No Enterprise REST API. No third-party exporter.
+The **FigmaVars Export** plugin calls Figma's local variables Plugin API in the open file. It writes `variables.json` in the REST response shape accepted by `figma-vars build`.
 
 ## Install (development)
 
@@ -21,16 +19,16 @@ In Figma desktop:
 2. Select `apps/figma-plugin/dist/manifest.json`
 3. Run **FigmaVars Export** on a file with variables
 
-## What it exports
+## Exported data
 
-Full local variables via the Plugin API:
+The plugin calls:
 
 ```ts
 figma.variables.getLocalVariableCollectionsAsync()
 figma.variables.getLocalVariablesAsync()
 ```
 
-Output matches the REST local variables response shape:
+The JSON has this top-level shape:
 
 ```json
 {
@@ -43,7 +41,7 @@ Output matches the REST local variables response shape:
 }
 ```
 
-Aliases stay as `{ "type": "VARIABLE_ALIAS", "id": "..." }`. Modes, scopes, and code syntax are preserved.
+Aliases retain `{ "type": "VARIABLE_ALIAS", "id": "..." }`. The export also keeps modes, scopes, code syntax, and extended collection fields returned by the Plugin API.
 
 ## After export
 
@@ -53,23 +51,23 @@ figma-vars check design-tokens
 git add variables.json design-tokens/
 ```
 
-Or use the [playground](/playground) to preview before installing the CLI.
+The [playground](/playground) builds and zips the same file in the browser.
 
 ## Options
 
-- **Skip variables hidden from publishing** — omits variables with Figma's "Hide from publishing" flag
+- **Skip variables hidden from publishing** omits hidden variables and visible variables whose aliases depend on an omitted variable
 
 ## Library variables
 
-v1 exports **local** variables in the open file. Team library collections must be enabled in the file UI; remote library-only tokens are not merged automatically. Local remotes (imported library variables used in-file) export with the rest.
+The plugin exports data returned by `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()`. It does not fetch remote library collections.
 
 ## Monorepo layout
 
-| Path                     | Role                                 |
-| ------------------------ | ------------------------------------ |
-| `apps/figma-plugin`      | Figma UI + sandbox code              |
-| `packages/plugin-export` | REST-shaped serializer (unit tested) |
+| Path                     | Role                           |
+| ------------------------ | ------------------------------ |
+| `apps/figma-plugin`      | Figma UI + sandbox code        |
+| `packages/plugin-export` | Private REST-shaped serializer |
 
 ## Figma MCP vs FigmaVars MCP
 
-See [Figma MCP vs FigmaVars](/docs/concepts/figma-mcp) for how this plugin fits with Figma's selection-based MCP and your repo-side `@figmavars/mcp` server.
+See [Figma MCP and FigmaVars](/docs/concepts/figma-mcp) for the live-file and repository data paths.

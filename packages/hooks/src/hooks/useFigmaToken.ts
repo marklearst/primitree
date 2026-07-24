@@ -1,10 +1,11 @@
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 
 /**
- * React hook that provides access to the Figma Personal Access Token (PAT) from context.
+ * Read the Figma Personal Access Token from context.
  *
  * @remarks
- * Returns the PAT provided to the FigmaVarsProvider, or `null` if no token is available. Use this hook to authenticate API requests, secure routes, or prompt users to enter their token if missing. Centralizes Figma authentication for all hooks and utilities.
+ * Browser code and page scripts can read the returned token. Do not expose it
+ * to untrusted client code or use its presence as route authorization.
  *
  * @example
  * ```tsx

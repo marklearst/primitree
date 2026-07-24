@@ -1,7 +1,7 @@
 /**
  * @module tokens
- * Local design-token hooks: consume built DTCG artifacts (from
- * `figma-vars build`) with no Figma API access, no PAT, on any plan.
+ * Hooks for DTCG files built by `figma-vars build`. These hooks do not call
+ * the Figma API or require a Personal Access Token.
  *
  * @public
  */

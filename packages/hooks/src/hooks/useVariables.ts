@@ -5,13 +5,11 @@ import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getVariablesKey } from '../utils/swrKeys'
 
 /**
- * Hook to fetch and manage Figma Variables, including collections and modes.
+ * Read local Figma variables for the provider's file.
  *
  * @remarks
- * This hook uses SWR for caching and revalidation. It fetches the variables for the
- * file key provided via the FigmaVarsProvider context. If a fallbackFile is provided,
- * it will use that instead of making an API request, which is useful for users without
- * Figma Enterprise accounts or for offline development.
+ * A validated local fallback skips the request. Otherwise SWR fetches the
+ * local variables endpoint with the provider's file key and token.
  *
  * @returns SWR response object with `data`, `error`, `isLoading`, and `isValidating`.
  *

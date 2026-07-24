@@ -1,30 +1,32 @@
 /**
  * @packageDocumentation
- * Constants and error messages used across the @figmavars/hooks library.
+ * Figma REST API constants and error messages.
  *
  * @remarks
- * Includes base URLs for the Figma API, endpoint builders, HTTP content types, header keys, and consistent error message strings for various failure scenarios.
- *
- * Use these constants to ensure consistent API interaction and error handling throughout the library.
+ * Import these values from `@figmavars/core`.
  *
  * @public
  */
 
+/** Base URL for the Figma REST API. */
 export const FIGMA_API_BASE_URL = 'https://api.figma.com'
 
+/** Base URL for Figma file endpoints. */
 export const FIGMA_FILES_ENDPOINT = `${FIGMA_API_BASE_URL}/v1/files`
 
+/** Build the published variables path for a Figma file. */
 export const FIGMA_PUBLISHED_VARIABLES_PATH = (fileKey: string) =>
   `/v1/files/${fileKey}/variables/published`
 
+/** Build the variables mutation path for a Figma file. */
 export const FIGMA_FILE_VARIABLES_PATH = (fileKey: string) =>
   `/v1/files/${fileKey}/variables`
 
 /**
- * Builds the URL to fetch local variables for a given Figma file.
+ * Build the local variables URL for a Figma file.
  *
- * @param fileKey - The unique key of the Figma file.
- * @returns The URL string to access local variables.
+ * @param fileKey - Figma file key.
+ * @returns Local variables endpoint URL.
  *
  * @example
  * ```ts
@@ -44,9 +46,7 @@ export const CONTENT_TYPE_JSON = 'application/json'
  */
 export const FIGMA_TOKEN_HEADER = 'X-FIGMA-TOKEN'
 
-/**
- * Error message when no Figma API token is provided.
- */
+/** Message for requests without a Figma API token. */
 export const ERROR_MSG_TOKEN_REQUIRED = 'A Figma API token is required.'
 
 /**
