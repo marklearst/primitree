@@ -299,6 +299,122 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic.message).toContain(`type "${type}"`)
   })
 
+  it('accepts a negative dimension value', () => {
+    const fragment = requireValue(
+      toGraphFragment(
+        {
+          space: {
+            offset: {
+              $type: 'dimension',
+              $value: { value: -0.5, unit: 'rem' },
+            },
+          },
+        },
+        { source: 'brand' }
+      )
+    )
+
+    expect(fragment.tokens[0]?.values[0]?.value).toEqual({
+      kind: 'literal',
+      value: { value: -0.5, unit: 'rem' },
+    })
+  })
+
+  it('rejects dimension fields hidden from object-key enumeration', () => {
+    const value = new Proxy(Object.create(null) as Record<string, unknown>, {
+      ownKeys() {
+        return []
+      },
+      getOwnPropertyDescriptor(_target, property) {
+        return property === 'value' || property === 'unit'
+          ? { configurable: true, enumerable: true }
+          : undefined
+      },
+      get(_target, property) {
+        return property === 'value' ? 8 : property === 'unit' ? 'px' : undefined
+      },
+    })
+
+    const diagnostic = requireFailure(
+      toGraphFragment(
+        {
+          space: {
+            base: { $type: 'dimension', $value: value },
+          },
+        },
+        { source: 'brand' }
+      )
+    )
+
+    expect(diagnostic).toMatchObject({
+      code: 'dtcg.invalid-document',
+      path: ['space', 'base', '$value'],
+    })
+  })
+
+  it.each([
+    ['a non-object value', 8, ['space', 'base', '$value']],
+    ['a missing value field', { unit: 'px' }, ['space', 'base', '$value']],
+    ['a missing unit field', { value: 8 }, ['space', 'base', '$value']],
+    [
+      'an extra field',
+      { value: 8, unit: 'px', note: 'base space' },
+      ['space', 'base', '$value'],
+    ],
+    [
+      'a non-finite value field',
+      { value: Number.POSITIVE_INFINITY, unit: 'px' },
+      ['space', 'base', '$value', 'value'],
+    ],
+    [
+      'an unsupported unit field',
+      { value: 8, unit: 'em' },
+      ['space', 'base', '$value', 'unit'],
+    ],
+  ])(
+    'rejects a dimension with %s and reports the closest invalid path',
+    (_label, value, path) => {
+      const diagnostic = requireFailure(
+        toGraphFragment(
+          {
+            space: {
+              base: { $type: 'dimension', $value: value },
+            },
+          },
+          { source: 'brand' }
+        )
+      )
+
+      expect(diagnostic).toMatchObject({
+        code: 'dtcg.invalid-document',
+        path,
+      })
+    }
+  )
+
+  it('reports the dimension $value path when validation exceeds the work limit', () => {
+    const diagnostic = requireFailure(
+      toGraphFragment(
+        {
+          space: {
+            base: {
+              $type: 'dimension',
+              $value: new Array(100_001),
+            },
+          },
+        },
+        { source: 'brand' }
+      )
+    )
+
+    expect(diagnostic).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      path: ['space', 'base', '$value'],
+    })
+  })
+
   it('validates metadata that the Core graph result does not store', () => {
     const fragment = requireValue(
       toGraphFragment(
