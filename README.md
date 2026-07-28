@@ -44,14 +44,14 @@ REST API.
 
 ## Packages
 
-| Package                                  | Purpose                                                                 |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
-| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API |
-| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript   |
-| [`@primitree/cli`](packages/cli)         | Build, compare, check, scaffold, and export token projects              |
-| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR       |
-| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                  |
-| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                        |
+| Package                                  | Purpose                                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API                                      |
+| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                                        |
+| [`@primitree/cli`](packages/cli)         | Download local Figma variables JSON; build token files, compare exports, check inputs, and scaffold projects |
+| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                                            |
+| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                                                       |
+| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                                             |
 
 ## Review token changes
 
