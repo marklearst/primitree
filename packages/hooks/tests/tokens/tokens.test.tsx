@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import type { ReactNode } from 'react'
-import { toDTCG, type DTCGColorValue } from '@figmavars/dtcg'
+import { toDTCG, type DTCGColorValue } from '@primitree/dtcg'
 import { TokensProvider } from '../../src/tokens/TokensProvider'
 import { useToken } from '../../src/tokens/useToken'
 import { useTokens } from '../../src/tokens/useTokens'
@@ -9,7 +9,7 @@ import { useTheme } from '../../src/tokens/useTheme'
 import { mockLocalVariablesResponse } from '../mocks/variables'
 
 // Build real DTCG artifacts from a Figma-shaped fixture, exactly like
-// `figma-vars build` would.
+// `primitree build` would.
 const fixture = {
   meta: {
     variableCollections: {
@@ -160,7 +160,7 @@ describe('useTokens', () => {
 
   it('throws outside a provider', () => {
     expect(() => renderHook(() => useTokens())).toThrow(
-      /within a <TokensProvider>/
+      'Call useTokens inside a <TokensProvider>.'
     )
   })
 

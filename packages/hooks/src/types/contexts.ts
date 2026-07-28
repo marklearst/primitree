@@ -5,10 +5,10 @@ import type {
   FallbackDataKind,
   LocalVariablesResponse,
   PublishedVariablesResponse,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 /**
- * Value supplied by {@link FigmaVarsProvider}.
+ * FigmaVariablesProvider value.
  *
  * @remarks
  * Browser code and page scripts can read `token`. Do not pass a secret to
@@ -16,7 +16,7 @@ import type {
  *
  * @example
  * ```tsx
- * import { useFigmaTokenContext } from '@figmavars/hooks';
+ * import { useFigmaTokenContext } from '@primitree/hooks';
  *
  * function TokenStatus() {
  *   const { token, fileKey } = useFigmaTokenContext();
@@ -41,13 +41,13 @@ export interface FigmaTokenContextType {
   fileKey: string | null
   /**
    * Variables response data or JSON used without a live request.
-   * @deprecated Pass fallback data to {@link FigmaVarsProvider}. Read validated
+   * @deprecated Pass fallback data to {@link FigmaVariablesProvider}. Read validated
    * data with {@link useVariables} or {@link usePublishedVariables}.
    */
   fallbackFile?: LocalVariablesResponse | PublishedVariablesResponse | string
   /**
-   * Pre-parsed fallback variable data. Set automatically by FigmaVarsProvider
-   * when fallbackFile is provided. Hooks should prefer this over fallbackFile.
+   * FigmaVariablesProvider parses fallback variable data from fallbackFile. Hooks
+   * should read this field instead of fallbackFile.
    * @internal
    */
   parsedFallbackFile?:
@@ -63,13 +63,13 @@ export interface FigmaTokenContextType {
    */
   providerId?: string
   /**
-   * SWR configuration used by hooks under this provider.
+   * SWR configuration for hooks under this provider.
    */
   swrConfig?: SWRConfiguration | undefined
 }
 
 /**
- * Props for {@link FigmaVarsProvider}.
+ * Props for {@link FigmaVariablesProvider}.
  *
  * @remarks
  * Browser code and page scripts can read `token`. Do not include a token in a
@@ -77,16 +77,16 @@ export interface FigmaTokenContextType {
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figmavars/hooks';
+ * import { FigmaVariablesProvider } from '@primitree/hooks';
  *
- * <FigmaVarsProvider token={myToken} fileKey={myFileKey}>
+ * <FigmaVariablesProvider token={myToken} fileKey={myFileKey}>
  *   <App />
- * </FigmaVarsProvider>
+ * </FigmaVariablesProvider>
  * ```
  *
  * @public
  */
-export interface FigmaVarsProviderProps {
+export interface FigmaVariablesProviderProps {
   /**
    * The React nodes to render inside the provider.
    */
@@ -113,7 +113,7 @@ export interface FigmaVarsProviderProps {
    *
    * @example
    * ```tsx
-   * <FigmaVarsProvider
+   * <FigmaVariablesProvider
    *   token={token}
    *   fileKey={fileKey}
    *   swrConfig={{
@@ -123,7 +123,7 @@ export interface FigmaVarsProviderProps {
    *   }}
    * >
    *   <App />
-   * </FigmaVarsProvider>
+   * </FigmaVariablesProvider>
    * ```
    */
   swrConfig?: SWRConfiguration
