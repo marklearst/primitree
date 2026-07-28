@@ -19,13 +19,9 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: {
-        index: resolve(__dirname, 'src/index.ts'),
-        core: resolve(__dirname, 'src/core/index.ts'),
-      },
-      name: '@figmavars/hooks',
-      fileName: (format, entryName) =>
-        `${entryName}.${format === 'es' ? 'mjs' : 'cjs'}`,
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: '@primitree/hooks',
+      fileName: format => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
@@ -34,8 +30,8 @@ export default defineConfig({
         'react-dom',
         'react/jsx-runtime',
         'swr',
-        /^@figmavars\/core/,
-        /^@figmavars\/dtcg/,
+        /^@primitree\/core/,
+        /^@primitree\/dtcg/,
       ],
       output: {
         globals: {

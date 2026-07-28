@@ -4,17 +4,17 @@ import {
   toDTCG,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 
-/** Token files, Resolver, and origin used by the MCP tools. @public */
+/** Token source for the MCP tools. @public */
 export interface TokenSource {
-  /** DTCG token documents keyed by file name. */
+  /** File-name map of DTCG token documents. */
   files: Record<string, DTCGDocument>
   /** The resolver describing contexts. */
   resolver: ResolverDocument
-  /** File or directory used to load the source. */
+  /** Source file or directory path. */
   origin: string
-  /** Source variables JSON, present when loaded from an export. */
+  /** Variables JSON from a Figma export. */
   variablesJson?: unknown
 }
 
@@ -24,12 +24,11 @@ async function readJson(filePath: string): Promise<unknown> {
 }
 
 /**
- * Load a token source from a Figma variables file or built token directory.
+ * Load a Figma variables file or built token directory.
  *
- * - A Figma variables export (`variables.json`), converted in memory.
- * - a directory containing `tokens.resolver.json` + `*.tokens.json`
- *   (the `tokens/` output of `figma-vars build`), or a directory whose
- *   `tokens/` subdirectory contains them.
+ * The loader converts a Figma variables export (`variables.json`) in memory.
+ * It reads `tokens.resolver.json` and `*.tokens.json` from a directory or its
+ * `tokens/` subdirectory.
  *
  * @public
  */
@@ -61,8 +60,8 @@ export async function loadTokenSource(
       dir = nested
     } else {
       throw new Error(
-        `No tokens.resolver.json found in ${resolved} (or its tokens/ subdirectory). ` +
-          'Point --tokens at a Figma variables export or a figma-vars build output.'
+        `${resolved} contains no tokens.resolver.json in its root or tokens/ directory. ` +
+          'Point --tokens at a Figma variables export or a primitree build output.'
       )
     }
   }

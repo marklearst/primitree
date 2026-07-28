@@ -1,16 +1,16 @@
 <div align="center">
 
-# @figmavars/hooks
+# @primitree/hooks
 
 React hooks for built design tokens and the Figma Variables REST API.
 
-[![CI](https://github.com/marklearst/figmavars/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/figmavars/actions/workflows/ci.yml)
+[![CI](https://github.com/marklearst/primitree/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/primitree/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](../../LICENSE)
 
 </div>
 
 ```sh
-npm install @figmavars/hooks react swr
+npm install @primitree/hooks react swr
 ```
 
 ## Requirements
@@ -21,11 +21,11 @@ npm install @figmavars/hooks react swr
 
 ## Read built tokens
 
-Run `npx @figmavars/cli build variables.json`, then pass the generated token
+Run `npx @primitree/cli build variables.json`. Pass the generated token
 documents and Resolver to `TokensProvider`.
 
 ```tsx
-import { TokensProvider, useTheme, useToken } from '@figmavars/hooks'
+import { TokensProvider, useTheme, useToken } from '@primitree/hooks'
 import primitives from './design-tokens/tokens/primitives.tokens.json'
 import semantic from './design-tokens/tokens/semantic.tokens.json'
 import semanticDark from './design-tokens/tokens/semantic.dark.tokens.json'
@@ -63,7 +63,7 @@ function Toolbar() {
 
 - one DTCG document
 - an array of DTCG documents, merged in order
-- a file map and Resolver from `figma-vars build`
+- a file map and Resolver from `primitree build`
 
 The local-token API includes:
 
@@ -80,18 +80,18 @@ The live hooks require a Full seat in a Figma Enterprise organization. Use a
 token with `file_variables:read` for queries and `file_variables:write` for
 mutations.
 
-A token passed to `FigmaVarsProvider` is readable in that browser session. Use
-the live hooks in an access-controlled internal application. Keep tokens out of
-source control and public browser environment variables. For server work, use
-`@figmavars/core`.
+Browser scripts can read the token you pass to `FigmaVariablesProvider`. Use the live
+hooks in an access-controlled internal application. Keep tokens out of source
+control and public browser environment variables. For server work, use
+`@primitree/core`.
 
 ```tsx
 import {
-  FigmaVarsProvider,
+  FigmaVariablesProvider,
   useInvalidateVariables,
   useUpdateVariable,
   useVariables,
-} from '@figmavars/hooks'
+} from '@primitree/hooks'
 
 interface InternalVariablesAppProps {
   token: string
@@ -100,11 +100,11 @@ interface InternalVariablesAppProps {
 
 function InternalVariablesApp({ token, fileKey }: InternalVariablesAppProps) {
   return (
-    <FigmaVarsProvider
+    <FigmaVariablesProvider
       token={token}
       fileKey={fileKey}>
       <VariablesDashboard />
-    </FigmaVarsProvider>
+    </FigmaVariablesProvider>
   )
 }
 
@@ -161,45 +161,42 @@ Context hooks:
 - `useFigmaToken`
 - `useFigmaTokenContext`
 
-Pass `swrConfig` to `FigmaVarsProvider` to configure the shared SWR provider.
+Pass `swrConfig` to `FigmaVariablesProvider` to configure the shared SWR provider.
 
 ## Read an export through the live hooks
 
 Pass a local variables response as `fallbackFile`:
 
 ```tsx
-<FigmaVarsProvider
+<FigmaVariablesProvider
   token={null}
   fileKey={null}
   fallbackFile={variablesJson}>
   <VariablesDashboard />
-</FigmaVarsProvider>
+</FigmaVariablesProvider>
 ```
 
-Read hooks use the supplied export in this mode. Mutation hooks still require
-the REST API.
+Read hooks use the supplied export in this mode. Mutation hooks require the REST
+API.
 
 ## Non-React API
 
-Use [`@figmavars/core`](https://www.npmjs.com/package/@figmavars/core) for
+Use [`@primitree/core`](https://www.npmjs.com/package/@primitree/core) for
 normalization, comparison, REST calls, and shared types outside React.
 
-`@figmavars/hooks/core` re-exports that package for compatibility with earlier
-FigmaVars code.
+## Variables export
 
-## CLI export
-
-The package includes the `figma-vars-export` command for existing users.
-[`@figmavars/cli`](https://www.npmjs.com/package/@figmavars/cli) provides the
-current `figma-vars export` command with the rest of the token workflow.
+Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) and its
+`primitree export` command to download local Figma variables JSON. Pass that JSON
+to `primitree build` to create token output.
 
 ## Migrating from 4.x
 
-Replace `@figma-vars/hooks` with `@figmavars/hooks` in dependencies and imports.
+Replace `@figma-vars/hooks` with `@primitree/hooks` in dependencies and imports.
 The legacy npm package ends at version 4.0.0.
 
-Read the [migration guide](https://figmavars.com/docs/hooks/migration) and the
-[5.0.0 changelog](CHANGELOG.md).
+Read the [migration guide](https://primitree.com/docs/hooks/migration) and the
+[1.0.0 changelog](CHANGELOG.md).
 
 ## License
 

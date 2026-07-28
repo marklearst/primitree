@@ -47,13 +47,13 @@ export interface MutatorOptions {
  *
  * @returns Parsed JSON response, or an empty object for HTTP 204.
  *
- * @throws Error when `token` is empty.
- * @throws FigmaApiError when Figma returns an unsuccessful response.
- * @throws AbortError when the signal aborts or the timeout expires.
+ * @throws Error for an empty `token`.
+ * @throws FigmaApiError for a non-2xx response from Figma.
+ * @throws AbortError when the caller aborts the signal or the timeout expires.
  *
  * @example
  * ```ts
- * import { mutator } from '@figmavars/core';
+ * import { mutator } from '@primitree/core';
  *
  * async function updateVariable(fileKey: string, token: string, variableId: string) {
  *   const url = `https://api.figma.com/v1/files/${fileKey}/variables`;
@@ -128,7 +128,7 @@ export async function mutator<TResponse = unknown>(
 
     if (!response.ok) {
       const statusCode = response.status
-      let errorMessage = 'An API error occurred'
+      let errorMessage = `Figma API request failed with status ${statusCode}.`
 
       // Parse Retry-After header for rate limit errors
       let retryAfter: number | undefined

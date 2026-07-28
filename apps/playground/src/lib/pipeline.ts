@@ -11,7 +11,7 @@ import {
   type DTCGToken,
   type DTCGTokenValue,
   type ToDTCGResult,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 
 export interface PreviewToken {
   path: string
@@ -28,7 +28,7 @@ export interface Preview {
   fileName: string
 }
 
-/** Parse + convert a dropped variables JSON into everything the UI needs. */
+/** Parse a variables JSON file into DTCG data, pipeline files, contexts, and a file name. */
 export function analyze(jsonText: string, fileName: string): Preview {
   const parsed = JSON.parse(jsonText)
   const dtcg = toDTCG(parsed)
@@ -65,7 +65,7 @@ export function resolvePreview(
   })
 }
 
-/** Zip the generated pipeline files entirely client-side. */
+/** Create a browser zip from the generated pipeline files. */
 export function zipPipeline(pipeline: BuildPipelineResult): Blob {
   const entries: Record<string, Uint8Array> = {}
   for (const file of pipeline.files) {

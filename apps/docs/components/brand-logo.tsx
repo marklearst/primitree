@@ -1,13 +1,20 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import wordmark from '@/public/figmavars.svg'
+import mark from '@/public/primitree-icon.svg'
 import { cn } from '@/lib/cn'
 
-const sizes = {
-  sm: 'h-[22px]',
-  md: 'h-[28px]',
-  lg: 'h-[36px] sm:h-[40px]',
-  xl: 'h-[44px] sm:h-[52px] md:h-[56px]',
+const markSizes = {
+  sm: 'h-[20px] w-[22px]',
+  md: 'h-[24px] w-[27px]',
+  lg: 'h-[32px] w-[35px] sm:h-[36px] sm:w-[40px]',
+  xl: 'h-[40px] w-[44px] sm:h-[48px] sm:w-[53px] md:h-[52px] md:w-[57px]',
+} as const
+
+const textSizes = {
+  sm: 'text-base',
+  md: 'text-lg',
+  lg: 'text-2xl sm:text-[28px]',
+  xl: 'text-3xl sm:text-4xl md:text-[44px]',
 } as const
 
 export function BrandLogo({
@@ -15,28 +22,40 @@ export function BrandLogo({
   linked = false,
   className,
 }: {
-  size?: keyof typeof sizes
+  size?: keyof typeof markSizes
   linked?: boolean
   className?: string
 }) {
   const inner = (
-    <Image
-      src={wordmark}
-      alt='FigmaVars'
-      className={cn('w-auto', sizes[size], className)}
-      priority
-    />
+    <>
+      <Image
+        src={mark}
+        alt=''
+        className={cn('pointer-events-none shrink-0', markSizes[size])}
+        priority
+      />
+      <span className={cn('font-semibold tracking-tight', textSizes[size])}>
+        Primitree
+      </span>
+    </>
   )
 
   if (linked) {
     return (
       <Link
         href='/'
-        className='brand-logo-link inline-flex transition-opacity'>
+        className={cn(
+          'brand-logo-link inline-flex items-center gap-2 transition-opacity',
+          className
+        )}>
         {inner}
       </Link>
     )
   }
 
-  return inner
+  return (
+    <span className={cn('inline-flex items-center gap-2', className)}>
+      {inner}
+    </span>
+  )
 }

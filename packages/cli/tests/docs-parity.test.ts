@@ -67,7 +67,25 @@ function withoutHooksMigration(text: string): string {
   return `${text.slice(0, migrationHeading.index)}${text.slice(sectionEnd)}`
 }
 
+const formerHooksPackage = ['@figma', 'vars/hooks'].join('-')
+const formerHooksCore = `${formerHooksPackage}/core`
+const formerProvider = ['Figma', 'Vars', 'Provider'].join('')
+
 const docsRoot = resolve(root, 'apps/docs/content/docs')
+const cliOverview = readFileSync(resolve(docsRoot, 'cli/index.mdx'), 'utf8')
+const hooksMigration = readFileSync(
+  resolve(docsRoot, 'hooks/migration.mdx'),
+  'utf8'
+)
+const hooksChangelog = readFileSync(
+  resolve(root, 'packages/hooks/CHANGELOG.md'),
+  'utf8'
+)
+const legacyChangelogIndex = hooksChangelog.indexOf('\n## 4.0.0')
+const currentHooksChangelog =
+  legacyChangelogIndex === -1
+    ? hooksChangelog
+    : hooksChangelog.slice(0, legacyChangelogIndex)
 const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
   readmeFiles(resolve(root, directory)).map(file =>
     relative(root, file).split(sep).join('/')
@@ -83,25 +101,37 @@ const publicMarkdownPaths = [
 ]
 
 describe('parity guard regressions', () => {
+  it('separates the variables download from the token output build in CLI metadata', () => {
+    const description =
+      /^description:[ \t]*(?<description>.+)$/mu.exec(cliOverview)?.groups
+        ?.description ?? ''
+
+    expect(description).toMatch(/\bdownload(?:s|ing)? Figma variables JSON\b/iu)
+    expect(description).toMatch(/\bbuild(?:s|ing)? token outputs?\b/iu)
+    expect(description).not.toMatch(
+      /\bexport(?:s|ed|ing)? (?:design )?tokens?\b/iu
+    )
+  })
+
   it.each([
     {
       name: 'multiline direct init',
-      text: 'figma-vars init project \\\n  --build',
+      text: 'primitree init project \\\n  --build',
       option: '--build',
     },
     {
       name: 'single-line npx init',
-      text: 'npx @figmavars/cli init project --build',
+      text: 'npx @primitree/cli init project --build',
       option: '--build',
     },
     {
       name: 'multiline direct diff',
-      text: 'figma-vars diff old.json new.json \\\n  --markdown',
+      text: 'primitree diff old.json new.json \\\n  --markdown',
       option: '--markdown',
     },
     {
       name: 'single-line npx diff',
-      text: 'npx @figmavars/cli diff old.json new.json --markdown',
+      text: 'npx @primitree/cli diff old.json new.json --markdown',
       option: '--markdown',
     },
   ])('detects obsolete options in $name commands', ({ text, option }) => {
@@ -111,27 +141,27 @@ describe('parity guard regressions', () => {
   it.each([
     {
       name: 'obsolete build',
-      text: 'figma-vars init project --build=true',
+      text: 'primitree init project --build=true',
       option: '--build',
     },
     {
       name: 'obsolete markdown',
-      text: 'figma-vars diff old.json new.json --markdown=true',
+      text: 'primitree diff old.json new.json --markdown=true',
       option: '--markdown',
     },
     {
       name: 'value option',
-      text: 'figma-vars build variables.json --out=dist',
+      text: 'primitree build variables.json --out=dist',
       option: '--out',
     },
     {
       name: 'hyphenated alias',
-      text: 'figma-vars export --file-key=abc',
+      text: 'primitree export --file-key=abc',
       option: '--file-key',
     },
     {
       name: 'camel-case alias',
-      text: 'figma-vars export --fileKey=abc',
+      text: 'primitree export --fileKey=abc',
       option: '--fileKey',
     },
   ])('tokenizes $name in equals form', ({ text, option }) => {
@@ -165,20 +195,45 @@ Current documentation.
 
 ## Migrating from 4.x
 
-Replace @figma-vars/hooks with @figmavars/hooks.
+Replace ${formerHooksPackage} with @primitree/hooks.
 
 ## License
 
-Later text containing @figma-vars/hooks must still be scanned.
+Later text containing ${formerHooksPackage} must still be scanned.
 `
 
     const withoutMigration = withoutHooksMigration(readme)
     expect(withoutMigration).not.toContain(
-      'Replace @figma-vars/hooks with @figmavars/hooks.'
+      `Replace ${formerHooksPackage} with @primitree/hooks.`
     )
     expect(withoutMigration).toContain(
-      'Later text containing @figma-vars/hooks must still be scanned.'
+      `Later text containing ${formerHooksPackage} must still be scanned.`
     )
+  })
+
+  it('maps the hooks package, provider, and export command', () => {
+    const migration = hooksMigration.replace(/\s+/gu, ' ')
+
+    expect(migration).toContain(
+      `| \`${formerHooksPackage}\` | \`@primitree/hooks\` |`
+    )
+    expect(migration).toContain(
+      `| \`${formerHooksCore}\` | \`@primitree/core\` |`
+    )
+    expect(migration).toContain(
+      '| Hooks variables exporter | `primitree export` from `@primitree/cli` |'
+    )
+    expect(migration).toContain(
+      'run `primitree export` to download local Figma variables JSON.'
+    )
+    expect(migration).toContain(
+      'Pass that JSON to `primitree build` to create token output.'
+    )
+    expect(migration).toContain(
+      'Import `FigmaVariablesProvider` from `@primitree/hooks` and update both JSX tags.'
+    )
+    expect(migration).not.toContain('adds `Variables`')
+    expect(migration).not.toContain(formerProvider)
   })
 })
 
@@ -197,18 +252,42 @@ describe('maintained examples', () => {
     path,
     text: readFileSync(resolve(root, path), 'utf8'),
   }))
+  const currentPublicMarkdown = [
+    ...publicMarkdown,
+    {
+      path: 'packages/hooks/CHANGELOG.md (1.0.0)',
+      text: currentHooksChangelog,
+    },
+  ]
   const maintained = publicMarkdown.map(document => document.text).join('\n')
 
   it('contains no obsolete CLI switches', () => {
     expect(obsoleteCliOptions(maintained)).toEqual([])
   })
 
+  it('keeps variables download separate from token-project commands', () => {
+    const tokenExportClaim =
+      /\bprimitree export\b[\s\S]{0,120}\btoken exports?\b/iu
+    const tokenProjectExport =
+      /\b(?:export|exports|exported|exporting) token projects?\b/iu
+
+    expect(
+      currentPublicMarkdown
+        .filter(
+          document =>
+            tokenExportClaim.test(document.text) ||
+            tokenProjectExport.test(document.text)
+        )
+        .map(document => document.path)
+    ).toEqual([])
+  })
+
   it('uses old then new order for semantic diffs', () => {
-    expect(maintained).toContain(
-      'figma-vars diff backup/variables.json variables.json'
+    expect(maintained).toMatch(
+      /\b[a-z-]+ diff backup\/variables\.json variables\.json/
     )
-    expect(maintained).not.toContain(
-      'figma-vars diff variables.json backup/variables.json'
+    expect(maintained).not.toMatch(
+      /\b[a-z-]+ diff variables\.json backup\/variables\.json/
     )
   })
 
@@ -224,6 +303,6 @@ describe('maintained examples', () => {
           : document.text
       )
       .join('\n')
-    expect(namespaceCorpus).not.toContain('@figma-vars/')
+    expect(namespaceCorpus).not.toContain(['@figma', 'vars/'].join('-'))
   })
 })

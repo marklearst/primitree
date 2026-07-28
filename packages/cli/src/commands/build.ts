@@ -1,4 +1,4 @@
-import { buildPipeline, type BuildPipelineOptions } from '@figmavars/dtcg'
+import { buildPipeline, type BuildPipelineOptions } from '@primitree/dtcg'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile, writePipelineFiles } from '../io'
 
@@ -7,13 +7,13 @@ function formatCount(count: number, singular: string): string {
 }
 
 export const buildHelp = `
-figma-vars build: convert Figma variables JSON into token files and code
+primitree build: convert Figma variables JSON into token files and code
 
 Usage:
-  figma-vars build <variables.json> [--out <dir>] [options]
+  primitree build <variables.json> [--out <dir>] [options]
 
 Output:
-  tokens/*.tokens.json          DTCG 2025.10 tokens plus the documented FigmaVars boolean extension
+  tokens/*.tokens.json          DTCG 2025.10 tokens plus the documented Primitree boolean extension
   tokens/tokens.resolver.json   Resolver mapping Figma modes to contexts
   css/tokens.css                CSS custom properties with [data-*] theme blocks
   css/tokens.tailwind.css       Tailwind CSS v4 @theme mapping
@@ -32,7 +32,7 @@ Options:
   --no-ts                Skip ts/tokens.ts
   --no-github-action     Skip the workflow template
   --no-readme            Skip the generated README
-  --name <name>          Name written into the resolver document
+  --name <name>          Resolver document name
 `
 
 export interface BuildFlagsResult {
@@ -45,7 +45,7 @@ export function parseBuildFlags(args: ParsedArgs): BuildFlagsResult {
   const input = args.positionals[0]
   if (!input) {
     throw new Error(
-      'Missing input file. Usage: figma-vars build <variables.json>'
+      'Missing input file. Usage: primitree build <variables.json>'
     )
   }
   const outDir = getStringFlag(args.flags, 'out') ?? 'design-tokens'
@@ -90,9 +90,9 @@ export async function runBuild(args: ParsedArgs): Promise<void> {
 
   const { summary } = result
   console.log(
-    `Built ${formatCount(summary.variables, 'token')} from ` +
+    `Wrote ${formatCount(summary.variables, 'token')} from ` +
       `${formatCount(summary.collections, 'collection')} ` +
-      `into ${outDir}/`
+      `to ${outDir}/`
   )
   for (const file of summary.files) {
     console.log(`  ${file}`)

@@ -5,7 +5,7 @@ import {
   type NormalizedVariable,
   type NormalizedVariables,
   type VariableValue,
-} from '@figmavars/core'
+} from '@primitree/core'
 import { figmaColorToDTCG, isFigmaColor } from './color'
 import { createDictionary, hasOwn } from './dictionary'
 import { inferTokenType } from './inferType'
@@ -16,7 +16,7 @@ import type {
   DTCGToken,
   DTCGTokenType,
   DTCGTokenValue,
-  FigmaVarsExtension,
+  FigmaMetadataExtension,
   ResolverDocument,
   ResolverModifier,
   ResolverSet,
@@ -27,17 +27,17 @@ import { isToken } from './types'
 export interface ToDTCGOptions {
   /**
    * Attach Figma metadata (variable id, collection, scopes, codeSyntax) under
-   * `$extensions['com.figma-vars']`. Default: `true`.
+   * `$extensions['com.primitree']`. Default: `true`.
    */
   includeFigmaExtensions?: boolean
-  /** Human-readable name written into the resolver document. */
+  /** Resolver document name. */
   resolverName?: string
 }
 
 /** Result of {@link toDTCG}. @public */
 export interface ToDTCGResult {
   /**
-   * Token files keyed by file name. One base file per collection
+   * File-name map of token documents. One base file per collection
    * (`<collection>.tokens.json`) plus one override file per non-default mode
    * (`<collection>.<mode>.tokens.json`).
    */
@@ -46,12 +46,12 @@ export interface ToDTCGResult {
   resolver: ResolverDocument
   /** Suggested file name for the resolver document. */
   resolverFileName: string
-  /** Non-fatal issues encountered during conversion. */
+  /** Conversion warnings. The converter still returns token files when this array is non-empty. */
   warnings: string[]
 }
 
 /** Key for Figma metadata in a token's `$extensions` object. @public */
-export const FIGMA_EXTENSION_KEY = 'com.figma-vars'
+export const PRIMITREE_EXTENSION_KEY = 'com.primitree'
 
 /** DTCG 2025.10 Resolver JSON Schema URL. @public */
 export const RESOLVER_SCHEMA_URL =
@@ -84,7 +84,7 @@ function buildTokenPaths(
     if (claimed.has(key)) {
       warnings.push(
         `Token path collision for "${variable.name}" in collection ` +
-          `"${collection.name}"; appending suffix`
+          `"${collection.name}". Primitree appended a suffix.`
       )
       let n = 2
       while (claimed.has(`${key}-${n}`)) {
@@ -109,7 +109,8 @@ function buildTokenPaths(
     if (strictPrefixes.has(segments.join('.'))) {
       paths.set(id, [...segments, '$root'])
       warnings.push(
-        `Token path "${segments.join('.')}" is also a group; moved the token to "$root"`
+        `Token path "${segments.join('.')}" is a group. ` +
+          'Primitree moved the token to "$root".'
       )
     }
   }
@@ -125,8 +126,8 @@ function referenceFor(
   const path = ctx.tokenPaths.get(targetId)
   if (!path) {
     ctx.warnings.push(
-      `Variable "${fromVariable.name}" aliases missing variable "${targetId}"; ` +
-        'value omitted'
+      `Variable "${fromVariable.name}" aliases missing variable "${targetId}". ` +
+        'Primitree omitted its value.'
     )
     return null
   }
@@ -148,7 +149,8 @@ function convertValue(
         return figmaColorToDTCG(value)
       }
       ctx.warnings.push(
-        `Variable "${variable.name}" is COLOR but has a non-color value; omitted`
+        `Variable "${variable.name}" is COLOR but has a non-color value. ` +
+          'Primitree omitted its value.'
       )
       return null
     }
@@ -187,7 +189,7 @@ function convertValue(
   }
   ctx.warnings.push(
     `Variable "${variable.name}" has a value that does not match its ` +
-      `resolved type; omitted`
+      `resolved type. Primitree omitted its value.`
   )
   return null
 }
@@ -195,8 +197,8 @@ function convertValue(
 function buildExtension(
   variable: NormalizedVariable,
   collection: NormalizedCollection
-): FigmaVarsExtension {
-  const extension: FigmaVarsExtension = {
+): FigmaMetadataExtension {
+  const extension: FigmaMetadataExtension = {
     variableId: variable.id,
     collectionId: collection.id,
     collectionName: collection.name,
@@ -211,7 +213,7 @@ function buildExtension(
     extension.hiddenFromPublishing = true
   }
   if (variable.resolvedType === 'BOOLEAN') {
-    // `boolean` is a non-standard $type; preserve the source of truth.
+    // `boolean` is a non-standard $type; preserve the source type.
     extension.resolvedType = 'BOOLEAN'
   }
   return extension
@@ -238,7 +240,7 @@ function buildToken(
   }
   if (ctx.options.includeFigmaExtensions) {
     token.$extensions = {
-      [FIGMA_EXTENSION_KEY]: buildExtension(variable, collection),
+      [PRIMITREE_EXTENSION_KEY]: buildExtension(variable, collection),
     }
   }
   return token
@@ -264,7 +266,7 @@ function insertToken(
       throw new Error(
         `Internal token path collision at "${segments
           .slice(0, i + 1)
-          .join('.')}": token blocks a group after canonicalization`
+          .join('.')}": token blocks a group after path allocation`
       )
     }
     node = existing
@@ -273,7 +275,7 @@ function insertToken(
   if (hasOwn(node, leaf)) {
     throw new Error(
       `Internal token path collision at "${segments.join('.')}": ` +
-        'path remained occupied after canonicalization'
+        'path remained occupied after path allocation'
     )
   }
   node[leaf] = token
@@ -284,22 +286,21 @@ function insertToken(
  * a Resolver document.
  *
  * @remarks
- * - Each collection becomes a base token file with its default-mode values,
+ * - The emitter writes one base token file per collection with its default-mode values,
  *   wrapped in a group named after the collection so cross-collection alias
  *   references (`{semantic.color.bg.brand}`) are unambiguous.
- * - Each non-default mode becomes an override file containing the values
- *   defined for that mode.
- * - Multi-mode collections become resolver modifiers whose contexts are the
- *   mode names; the default mode context applies no overrides.
- * - Figma aliases remain DTCG references.
- * - Boolean variables use the documented FigmaVars `boolean` extension.
+ * - The emitter writes an override file for each non-default mode.
+ * - The Resolver records multi-mode collections as modifiers with mode-name
+ *   contexts. The default mode context applies no overrides.
+ * - The emitter keeps Figma aliases as DTCG references.
+ * - Boolean variables use the documented Primitree `boolean` extension.
  *
- * @param input - Figma variables JSON accepted by `normalizeVariables`.
+ * @param input - Figma variables JSON for `normalizeVariables`.
  * @param options - Emission options.
  *
  * @example
  * ```ts
- * import { toDTCG } from '@figmavars/dtcg'
+ * import { toDTCG } from '@primitree/dtcg'
  *
  * const { files, resolver } = toDTCG(variablesJson)
  * for (const [name, doc] of Object.entries(files)) {
@@ -436,7 +437,8 @@ export function toDTCG(
     $schema: RESOLVER_SCHEMA_URL,
     name: options.resolverName ?? 'Design Tokens',
     version: '2025.10',
-    description: 'Generated by @figmavars/dtcg from a Figma variables export.',
+    description:
+      'DTCG Resolver from a Figma variables export via @primitree/dtcg.',
     sets,
     ...(Object.keys(modifiers).length > 0 ? { modifiers } : {}),
     resolutionOrder,

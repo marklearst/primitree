@@ -18,6 +18,7 @@ import {
   discoverWorkspaceManifestPaths,
   validateReleaseCopy,
   validateReleaseManifests,
+  validateWorkspaceRootManifest,
 } from './check-release.mjs'
 import {
   PUBLIC_RELEASE_PACKAGES,
@@ -60,9 +61,9 @@ const announcement = readFileSync(
   new URL('../docs/launch/announcement.md', import.meta.url),
   'utf8'
 )
-const v5ReleaseNotesUrl = new URL('../docs/launch/v5.0.0.md', import.meta.url)
-const v5ReleaseNotes = existsSync(v5ReleaseNotesUrl)
-  ? readFileSync(v5ReleaseNotesUrl, 'utf8')
+const v1ReleaseNotesUrl = new URL('../docs/launch/v1.0.0.md', import.meta.url)
+const v1ReleaseNotes = existsSync(v1ReleaseNotesUrl)
+  ? readFileSync(v1ReleaseNotesUrl, 'utf8')
   : ''
 const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
 const releaseRunbook = existsSync(releaseRunbookUrl)
@@ -77,6 +78,10 @@ const turboConfig = JSON.parse(
 )
 const mcpTsupConfig = readFileSync(
   new URL('../packages/mcp/tsup.config.ts', import.meta.url),
+  'utf8'
+)
+const dtcgEmit = readFileSync(
+  new URL('../packages/dtcg/src/emit.ts', import.meta.url),
   'utf8'
 )
 const cliTsupConfig = readFileSync(
@@ -116,7 +121,6 @@ const EXPECTED_ACTION_REFS = [
   'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
 ]
 
-const CODECOV_SECRET_REFERENCE = '${{ secrets.CODECOV_TOKEN }}'
 const NPM_SECRET_REFERENCE = '${{ secrets.NPM_TOKEN }}'
 const VERSION_WORKFLOW_TOKEN_REFERENCE = '${{ github.token }}'
 const CHANGESETS_ACTION =
@@ -128,27 +132,27 @@ const VERSION_WORKFLOW_ACTIONS = [
   CHANGESETS_ACTION,
 ]
 const RELEASE_PUBLISH_PACKAGES = [
-  { name: '@figmavars/core', stem: 'core' },
-  { name: '@figmavars/dtcg', stem: 'dtcg' },
-  { name: '@figmavars/cli', stem: 'cli' },
-  { name: '@figmavars/hooks', stem: 'hooks' },
-  { name: '@figmavars/mcp', stem: 'mcp' },
+  { name: '@primitree/core', stem: 'core' },
+  { name: '@primitree/dtcg', stem: 'dtcg' },
+  { name: '@primitree/cli', stem: 'cli' },
+  { name: '@primitree/hooks', stem: 'hooks' },
+  { name: '@primitree/mcp', stem: 'mcp' },
 ]
 const TRUST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
   ({ name }) =>
-    `npm trust github '${name}' --repository marklearst/figmavars --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/`
+    `npm trust github '${name}' --repository marklearst/primitree --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/`
 )
 const TRUST_LIST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
   ({ name }) =>
     `npm trust list '${name}' --registry=https://registry.npmjs.org/`
 )
-const GITHUB_REPOSITORY = 'marklearst/figmavars'
+const GITHUB_REPOSITORY = 'marklearst/primitree'
 const GITHUB_SECRET_SET_COMMAND = `gh secret set NPM_TOKEN --env npm --repo ${GITHUB_REPOSITORY}`
 const GITHUB_SECRET_DELETE_COMMAND = `gh secret delete NPM_TOKEN --env npm --repo ${GITHUB_REPOSITORY}`
 const GITHUB_SECRET_LIST_COMMAND = `gh secret list --env npm --repo ${GITHUB_REPOSITORY}`
 const VERCEL_PROJECT_ID = 'prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd'
-const LEGACY_DEPRECATION_COMMAND =
-  'npm deprecate "@figma-vars/hooks@4.0.0" "Moved to @figmavars/hooks. See https://figmavars.com/docs/hooks/migration" --registry=https://registry.npmjs.org/'
+const LEGACY_HOOKS_PACKAGE = `@figma${'-vars'}/hooks`
+const LEGACY_DEPRECATION_COMMAND = `npm deprecate "${LEGACY_HOOKS_PACKAGE}@4.0.0" "Moved to @primitree/hooks. See https://primitree.com/docs/hooks/migration" --registry=https://registry.npmjs.org/`
 
 function isPlainRecord(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -229,11 +233,10 @@ function assertWorkflowTrustPolicy(source) {
   const consumer = document.jobs['packed-consumer']
   const publish = document.jobs.publish
   const githubRelease = document.jobs['github-release']
-  assert.equal(
-    Object.hasOwn(quality, 'permissions'),
-    false,
-    'quality must inherit the read-only workflow permissions'
-  )
+  assert.deepEqual(quality.permissions, {
+    contents: 'read',
+    'id-token': 'write',
+  })
   assert.equal(
     Object.hasOwn(consumer, 'permissions'),
     false,
@@ -250,11 +253,22 @@ function assertWorkflowTrustPolicy(source) {
     publish,
     'Publish and verify npm packages'
   )
-  assert.equal(codecovStep.with?.token, CODECOV_SECRET_REFERENCE)
+  assert.deepEqual(codecovStep.with, {
+    use_oidc: true,
+    files: [
+      './packages/core/coverage/lcov.info',
+      './packages/dtcg/coverage/lcov.info',
+      './packages/cli/coverage/lcov.info',
+      './packages/hooks/coverage/lcov.info',
+      './packages/mcp/coverage/lcov.info',
+    ].join(', '),
+    disable_search: true,
+    fail_ci_if_error: true,
+  })
   assert.equal(publishStep.env?.NPM_TOKEN, NPM_SECRET_REFERENCE)
   assert.deepEqual(
     collectSecretOccurrences(document),
-    [CODECOV_SECRET_REFERENCE, NPM_SECRET_REFERENCE],
+    [NPM_SECRET_REFERENCE],
     'workflow may contain only the reviewed secret references'
   )
 
@@ -467,7 +481,7 @@ function exportMap(config) {
 function canonicalManifest(config) {
   const manifest = {
     name: config.name,
-    version: '5.0.0',
+    version: '1.0.0',
     description: `Fixture for ${config.name}`,
     author: 'Mark Learst',
     license: 'MIT',
@@ -515,14 +529,14 @@ function makePublicPackages() {
 
 function makePrivatePackages() {
   return [
-    ['packages/plugin-export', '@figmavars/plugin-export'],
-    ['apps/docs', 'figmavars-docs'],
-    ['apps/figma-plugin', 'figmavars-plugin'],
-    ['apps/playground', 'figmavars-playground'],
+    ['packages/plugin-export', '@primitree/plugin-export'],
+    ['apps/docs', 'primitree-docs'],
+    ['apps/figma-plugin', 'primitree-plugin'],
+    ['apps/playground', 'primitree-playground'],
   ].map(([path, name]) => ({
     path,
     manifestPath: `${path}/package.json`,
-    manifest: { name, version: '5.0.0', private: true },
+    manifest: { name, private: true },
   }))
 }
 
@@ -530,7 +544,7 @@ function validate(overrides = {}) {
   return validateReleaseManifests({
     publicPackages: makePublicPackages(),
     privatePackages: makePrivatePackages(),
-    tag: 'v5.0.0',
+    tag: 'v1.0.0',
     ...overrides,
   })
 }
@@ -562,11 +576,11 @@ test('exports one immutable dependency-ordered release inventory', () => {
   assert.deepEqual(
     PUBLIC_RELEASE_PACKAGES.map(config => config.name),
     [
-      '@figmavars/core',
-      '@figmavars/dtcg',
-      '@figmavars/cli',
-      '@figmavars/hooks',
-      '@figmavars/mcp',
+      '@primitree/core',
+      '@primitree/dtcg',
+      '@primitree/cli',
+      '@primitree/hooks',
+      '@primitree/mcp',
     ]
   )
   assert.deepEqual(
@@ -581,7 +595,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
     })),
     [
       {
-        name: '@figmavars/core',
+        name: '@primitree/core',
         attwProfile: 'node16',
         requiredFiles: ['dist'],
         requiredDeclarationFiles: [
@@ -606,7 +620,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         ],
       },
       {
-        name: '@figmavars/dtcg',
+        name: '@primitree/dtcg',
         attwProfile: 'strict',
         requiredFiles: ['dist'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
@@ -621,45 +635,35 @@ test('exports one immutable dependency-ordered release inventory', () => {
         ],
       },
       {
-        name: '@figmavars/cli',
+        name: '@primitree/cli',
         attwProfile: null,
         requiredFiles: ['dist'],
         requiredDeclarationFiles: ['dist/index.d.ts'],
-        requiredBin: 'figma-vars',
+        requiredBin: 'primitree',
         requiredBinTarget: './dist/index.js',
         exportSignatures: [],
       },
       {
-        name: '@figmavars/hooks',
+        name: '@primitree/hooks',
         attwProfile: 'strict',
-        requiredFiles: ['dist', 'scripts/export-variables.mjs'],
-        requiredDeclarationFiles: [
-          'dist/index.d.ts',
-          'dist/index.d.cts',
-          'dist/core.d.ts',
-          'dist/core.d.cts',
-        ],
-        requiredBin: 'figma-vars-export',
-        requiredBinTarget: './scripts/export-variables.mjs',
+        requiredFiles: ['dist'],
+        requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
+        requiredBin: undefined,
+        requiredBinTarget: undefined,
         exportSignatures: [
           '.:import:types=./dist/index.d.ts',
           '.:import:default=./dist/index.mjs',
           '.:require:types=./dist/index.d.cts',
           '.:require:default=./dist/index.cjs',
           '.:default=./dist/index.mjs',
-          './core:import:types=./dist/core.d.ts',
-          './core:import:default=./dist/core.mjs',
-          './core:require:types=./dist/core.d.cts',
-          './core:require:default=./dist/core.cjs',
-          './core:default=./dist/core.mjs',
         ],
       },
       {
-        name: '@figmavars/mcp',
+        name: '@primitree/mcp',
         attwProfile: 'esm-only',
         requiredFiles: ['dist'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
-        requiredBin: 'figma-vars-mcp',
+        requiredBin: 'primitree-mcp',
         requiredBinTarget: './dist/cli.js',
         exportSignatures: [
           '.:import:types=./dist/index.d.ts',
@@ -676,21 +680,21 @@ test('exports one immutable dependency-ordered release inventory', () => {
     ]),
     [
       ['packages/core', 'packages/core/package.json', []],
-      ['packages/dtcg', 'packages/dtcg/package.json', ['@figmavars/core']],
+      ['packages/dtcg', 'packages/dtcg/package.json', ['@primitree/core']],
       [
         'packages/cli',
         'packages/cli/package.json',
-        ['@figmavars/core', '@figmavars/dtcg'],
+        ['@primitree/core', '@primitree/dtcg'],
       ],
       [
         'packages/hooks',
         'packages/hooks/package.json',
-        ['@figmavars/core', '@figmavars/dtcg'],
+        ['@primitree/core', '@primitree/dtcg'],
       ],
       [
         'packages/mcp',
         'packages/mcp/package.json',
-        ['@figmavars/core', '@figmavars/dtcg'],
+        ['@primitree/core', '@primitree/dtcg'],
       ],
     ]
   )
@@ -721,9 +725,15 @@ test('exports one immutable dependency-ordered release inventory', () => {
   }
 })
 
+test('keeps the Primitree extension and release route identifiers', () => {
+  assert.match(dtcgEmit, /PRIMITREE_EXTENSION_KEY = 'com\.primitree'/)
+  assert.match(releaseRunbook, /https:\/\/primitree\.com/)
+  assert.match(v1ReleaseNotes, /^# Primitree 1\.0\.0$/m)
+})
+
 test('accepts complete public metadata and private internal workspaces', () => {
   const result = validate()
-  assert.equal(result.version, '5.0.0')
+  assert.equal(result.version, '1.0.0')
   assert.deepEqual(
     result.publicNames,
     PUBLIC_RELEASE_PACKAGES.map(config => config.name)
@@ -738,12 +748,12 @@ const metadataCases = [
   [
     'repository type',
     pkg => (pkg.manifest.repository.type = 'svn'),
-    /repository type/,
+    /repository\.type/,
   ],
   [
     'repository URL',
     pkg => (pkg.manifest.repository.url = 'https://example.test/repo'),
-    /repository URL/,
+    /repository\.url/,
   ],
   [
     'repository directory',
@@ -758,17 +768,17 @@ const metadataCases = [
   [
     'bugs URL',
     pkg => (pkg.manifest.bugs.url = 'https://example.test/issues'),
-    /bugs URL/,
+    /bugs\.url/,
   ],
   [
     'funding type',
     pkg => (pkg.manifest.funding.type = 'individual'),
-    /funding type/,
+    /funding\.type/,
   ],
   [
     'funding URL',
     pkg => (pkg.manifest.funding.url = 'https://example.test/fund'),
-    /funding URL/,
+    /funding\.url/,
   ],
   [
     'consumer engine',
@@ -862,10 +872,10 @@ test('rejects changed conditional export semantics even when targets are reused'
 
 test('rejects missing, extra, malformed, and redirected bin targets', () => {
   const mutations = [
-    pkg => delete pkg.manifest.bin['figma-vars'],
+    pkg => delete pkg.manifest.bin.primitree,
     pkg => (pkg.manifest.bin.extra = './dist/extra.js'),
     pkg => (pkg.manifest.bin = new Map()),
-    pkg => (pkg.manifest.bin['figma-vars'] = '../outside.js'),
+    pkg => (pkg.manifest.bin.primitree = '../outside.js'),
   ]
   for (const mutation of mutations) {
     assert.throws(
@@ -877,22 +887,22 @@ test('rejects missing, extra, malformed, and redirected bin targets', () => {
 
 test('rejects a missing, unexpected, misplaced, or non-workspace internal edge', () => {
   const mutations = [
-    pkg => delete pkg.manifest.dependencies['@figmavars/core'],
-    pkg => (pkg.manifest.dependencies['@figmavars/hooks'] = 'workspace:*'),
-    pkg => (pkg.manifest.dependencies['@figmavars/core'] = '^5.0.0'),
+    pkg => delete pkg.manifest.dependencies['@primitree/core'],
+    pkg => (pkg.manifest.dependencies['@primitree/hooks'] = 'workspace:*'),
+    pkg => (pkg.manifest.dependencies['@primitree/core'] = '^1.0.0'),
     pkg => {
-      delete pkg.manifest.dependencies['@figmavars/core']
-      pkg.manifest.devDependencies = { '@figmavars/core': 'workspace:*' }
+      delete pkg.manifest.dependencies['@primitree/core']
+      pkg.manifest.devDependencies = { '@primitree/core': 'workspace:*' }
     },
     pkg => {
-      delete pkg.manifest.dependencies['@figmavars/core']
+      delete pkg.manifest.dependencies['@primitree/core']
       pkg.manifest.optionalDependencies = {
-        '@figmavars/core': 'workspace:*',
+        '@primitree/core': 'workspace:*',
       }
     },
     pkg => {
-      delete pkg.manifest.dependencies['@figmavars/core']
-      pkg.manifest.peerDependencies = { '@figmavars/core': 'workspace:*' }
+      delete pkg.manifest.dependencies['@primitree/core']
+      pkg.manifest.peerDependencies = { '@primitree/core': 'workspace:*' }
     },
     pkg => (pkg.manifest.dependencies = new Map()),
   ]
@@ -904,16 +914,40 @@ test('rejects a missing, unexpected, misplaced, or non-workspace internal edge',
   }
 })
 
-test('rejects the legacy namespace anywhere in a public manifest', () => {
+test('rejects former package scopes anywhere in a public manifest', () => {
+  for (const scope of ['@figma-vars/', '@figmavars/']) {
+    assert.throws(
+      () =>
+        validate({
+          publicPackages: mutatePublic(
+            0,
+            pkg => (pkg.manifest.keywords = [`${scope}legacy`])
+          ),
+        }),
+      /former package scope/
+    )
+  }
+})
+
+test('requires private workspaces and the workspace root to omit versions', () => {
+  const privatePackages = makePrivatePackages()
+  privatePackages[0].manifest.version = '1.0.0'
+  assert.throws(
+    () => validate({ privatePackages }),
+    /private package must not declare a version/
+  )
+
+  assert.doesNotThrow(() =>
+    validateWorkspaceRootManifest({ name: 'primitree', private: true })
+  )
   assert.throws(
     () =>
-      validate({
-        publicPackages: mutatePublic(
-          0,
-          pkg => (pkg.manifest.keywords = ['@figma-vars/legacy'])
-        ),
+      validateWorkspaceRootManifest({
+        name: 'primitree',
+        private: true,
+        version: '1.0.0',
       }),
-    /legacy namespace/
+    /must not declare a version/
   )
 })
 
@@ -974,7 +1008,7 @@ test('rejects accessor properties without invoking them', () => {
   let optionGetterInvoked = false
   const options = {
     privatePackages: makePrivatePackages(),
-    tag: 'v5.0.0',
+    tag: 'v1.0.0',
   }
   Object.defineProperty(options, 'publicPackages', {
     enumerable: true,
@@ -1060,8 +1094,8 @@ test('rejects missing, duplicate, and sixth public workspaces', () => {
     path: 'packages/experimental',
     manifestPath: 'packages/experimental/package.json',
     manifest: {
-      name: '@figmavars/experimental',
-      version: '5.0.0',
+      name: '@primitree/experimental',
+      version: '1.0.0',
       private: false,
     },
     licenseText,
@@ -1102,10 +1136,10 @@ test('rejects wrong names, license copies, versions, and tags', () => {
       validate({
         publicPackages: mutatePublic(
           0,
-          pkg => (pkg.manifest.name = '@figmavars/not-core')
+          pkg => (pkg.manifest.name = '@primitree/not-core')
         ),
       }),
-    /must be named @figmavars\/core/
+    /must be named @primitree\/core/
   )
   assert.throws(
     () =>
@@ -1129,27 +1163,21 @@ test('rejects wrong names, license copies, versions, and tags', () => {
       validate({
         publicPackages: makePublicPackages().map(pkg => ({
           ...pkg,
-          manifest: { ...pkg.manifest, version: '5.0.0-rc.1' },
+          manifest: { ...pkg.manifest, version: '1.0.0-rc.1' },
         })),
         tag: undefined,
       }),
     /must use MAJOR\.MINOR\.PATCH/
   )
   assert.throws(
-    () => validate({ tag: 'release-5.0.0' }),
+    () => validate({ tag: 'release-1.0.0' }),
     /vMAJOR\.MINOR\.PATCH/
   )
   assert.throws(() => validate({ tag: 'v5.0.1' }), /does not match/)
 })
 
-test('allows private workspace version independence from the public release train', () => {
-  const privatePackages = makePrivatePackages()
-  privatePackages[0].manifest.version = '4.0.0'
-  assert.doesNotThrow(() => validate({ privatePackages }))
-})
-
 test('requires dated release notes and changelogs for a tag', () => {
-  const version = '5.0.0'
+  const version = '1.0.0'
   const releaseDate = '2026-07-23'
   const changelogs = PUBLIC_RELEASE_PACKAGES.map(config => ({
     path: `${config.path}/CHANGELOG.md`,
@@ -1160,7 +1188,7 @@ test('requires dated release notes and changelogs for a tag', () => {
     validateReleaseCopy({
       version,
       tag: `v${version}`,
-      releaseNotes: `# FigmaVars ${version}\n\nStatus: Released ${releaseDate}.\n`,
+      releaseNotes: `# Primitree ${version}\n\nStatus: Released ${releaseDate}.\n`,
       changelogs,
     })
   )
@@ -1205,7 +1233,7 @@ test('requires dated release notes and changelogs for a tag', () => {
 })
 
 test('discovers workspace manifests without following symlink entries', t => {
-  const root = mkdtempSync(join(tmpdir(), 'figmavars-release-discovery-'))
+  const root = mkdtempSync(join(tmpdir(), 'primitree-release-discovery-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'packages', 'real'), { recursive: true })
   mkdirSync(join(root, 'apps'), { recursive: true })
@@ -1247,7 +1275,7 @@ test('discovers workspace manifests without following symlink entries', t => {
 })
 
 test('repository validation is independent of the process cwd', () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'figmavars-release-cwd-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'primitree-release-cwd-'))
   try {
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd,
@@ -1257,7 +1285,7 @@ test('repository validation is independent of the process cwd', () => {
     assert.equal(result.status, 0, result.stderr)
     assert.match(
       result.stdout,
-      /Release metadata valid for 5 public packages at 5\.0\.0/
+      /Release metadata valid for 5 public packages at 1\.0\.0/
     )
   } finally {
     rmSync(cwd, { recursive: true, force: true })
@@ -1295,7 +1323,7 @@ test('requires Node 24 for the source workspace, public packages, and Node build
 
 test('requires the React 19 hooks peer without a React DOM peer', () => {
   const hooks = publicManifests.find(
-    manifest => manifest.name === '@figmavars/hooks'
+    manifest => manifest.name === '@primitree/hooks'
   )
   assert.ok(hooks)
   assert.equal(hooks.peerDependencies?.react, '^19.0.0')
@@ -1304,27 +1332,30 @@ test('requires the React 19 hooks peer without a React DOM peer', () => {
 
 test('keeps the hooks typecheck free of a second build lifecycle', () => {
   const hooks = publicManifests.find(
-    manifest => manifest.name === '@figmavars/hooks'
+    manifest => manifest.name === '@primitree/hooks'
   )
   assert.ok(hooks)
   assert.equal(hooks.scripts?.typecheck, 'tsc --noEmit')
   assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretypecheck'), false)
 })
 
-test('serializes the hooks build before dist-backed test tasks', () => {
+test('serializes the hooks build before dist-backed verification tasks', () => {
   const hooks = publicManifests.find(
-    manifest => manifest.name === '@figmavars/hooks'
+    manifest => manifest.name === '@primitree/hooks'
   )
   assert.ok(hooks)
   assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretest'), false)
   assert.equal(Object.hasOwn(hooks.scripts ?? {}, 'pretest:coverage'), false)
-  assert.deepEqual(turboConfig.tasks['@figmavars/hooks#test']?.dependsOn, [
+  assert.deepEqual(turboConfig.tasks['@primitree/hooks#test']?.dependsOn, [
     'build',
   ])
   assert.deepEqual(
-    turboConfig.tasks['@figmavars/hooks#test:coverage']?.dependsOn,
+    turboConfig.tasks['@primitree/hooks#test:coverage']?.dependsOn,
     ['build']
   )
+  assert.deepEqual(turboConfig.tasks['@primitree/hooks#typecheck']?.dependsOn, [
+    'build',
+  ])
 })
 
 test('configures Changesets for the fixed public release train', () => {
@@ -1339,6 +1370,10 @@ test('configures Changesets for the fixed public release train', () => {
   ])
   assert.equal(changesetConfig.access, 'public')
   assert.equal(changesetConfig.baseBranch, 'main')
+  assert.deepEqual(changesetConfig.snapshot, {
+    useCalculatedVersion: false,
+    prereleaseTemplate: '{tag}-{commit}',
+  })
   assert.equal(changesetConfig.privatePackages.version, false)
 })
 
@@ -1437,7 +1472,7 @@ test('rejects version workflow trust-boundary drift', () => {
 })
 
 test('exercises the version command in a temporary fixed release group', t => {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'figmavars-version-packages-'))
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'primitree-version-packages-'))
   t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }))
 
   mkdirSync(join(fixtureRoot, '.changeset'), { recursive: true })
@@ -1446,7 +1481,7 @@ test('exercises the version command in a temporary fixed release group', t => {
   const writeJson = (file, value) =>
     writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`)
   writeJson(join(fixtureRoot, 'package.json'), {
-    name: 'figmavars-version-fixture',
+    name: 'primitree-version-fixture',
     private: true,
     packageManager: 'pnpm@11.10.0',
     scripts: {
@@ -1462,7 +1497,7 @@ test('exercises the version command in a temporary fixed release group', t => {
   writeJson(join(fixtureRoot, '.changeset', 'config.json'), {
     changelog: ['@changesets/cli/changelog', null],
     commit: false,
-    fixed: [['@figmavars/core', '@figmavars/dtcg']],
+    fixed: [['@primitree/core', '@primitree/dtcg']],
     linked: [],
     access: 'public',
     baseBranch: 'main',
@@ -1477,7 +1512,7 @@ test('exercises the version command in a temporary fixed release group', t => {
     join(fixtureRoot, '.changeset', 'fixed-group.md'),
     [
       '---',
-      '"@figmavars/core": minor',
+      '"@primitree/core": minor',
       '---',
       '',
       'Exercise the fixed release group.',
@@ -1485,14 +1520,14 @@ test('exercises the version command in a temporary fixed release group', t => {
     ].join('\n')
   )
   writeJson(join(fixtureRoot, 'packages', 'core', 'package.json'), {
-    name: '@figmavars/core',
+    name: '@primitree/core',
     version: '1.0.0',
   })
   writeJson(join(fixtureRoot, 'packages', 'dtcg', 'package.json'), {
-    name: '@figmavars/dtcg',
+    name: '@primitree/dtcg',
     version: '1.0.0',
     dependencies: {
-      '@figmavars/core': 'workspace:*',
+      '@primitree/core': 'workspace:*',
     },
   })
 
@@ -1631,12 +1666,12 @@ test('rejects YAML forms that bypass workflow trust-boundary checks', () => {
   )
 
   const elevatedQuality = workflow.replace(
-    '  quality:\n',
-    '  quality:\n    permissions:\n      contents: write\n'
+    '    permissions:\n      contents: read\n      id-token: write\n',
+    '    permissions:\n      contents: write\n'
   )
   assert.throws(
     () => assertWorkflowTrustPolicy(elevatedQuality),
-    /quality must inherit the read-only workflow permissions/
+    /Expected values to be strictly deep-equal/
   )
 
   const bracketSecret = workflow.replace(
@@ -1674,22 +1709,36 @@ test('freezes workflow triggers permissions concurrency and secret boundaries', 
     /^concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: \$\{\{ github\.ref_type != 'tag' \}\}$/m
   )
   assert.doesNotMatch(workflow, /VITE_FIGMA_TOKEN|VITE_FIGMA_FILE_KEY/)
+  assert.match(
+    quality,
+    /permissions:\n      contents: read\n      id-token: write/
+  )
   assert.doesNotMatch(
     quality,
-    /id-token:\s*write|NODE_AUTH_TOKEN|NPM_CONFIG_PROVENANCE|secrets\.NPM_TOKEN/
+    /NODE_AUTH_TOKEN|NPM_CONFIG_PROVENANCE|secrets\.NPM_TOKEN/
   )
   assert.doesNotMatch(consumer, /id-token:\s*write|\$\{\{\s*secrets\./)
   assert.match(
     publish,
     /permissions:\n      contents: read\n      id-token: write/
   )
-  assert.equal(occurrences(workflow, 'id-token: write'), 1)
+  assert.equal(occurrences(workflow, 'id-token: write'), 2)
   assert.equal(occurrences(workflow, 'NPM_TOKEN:'), 1)
   assert.equal(occurrences(workflow, 'secrets.NPM_TOKEN'), 1)
   assert.match(githubRelease, /permissions:\n      contents: write/)
   assert.doesNotMatch(
     githubRelease,
     /environment:\s*npm|id-token:|NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.NPM_TOKEN/
+  )
+})
+
+test('disables dependency lifecycle scripts in the OIDC-enabled quality job', () => {
+  const quality = parseYaml(workflow).jobs.quality
+
+  assert.equal(quality.permissions['id-token'], 'write')
+  assert.equal(
+    findWorkflowStep(quality, 'Install dependencies').run,
+    'pnpm install --frozen-lockfile --ignore-scripts'
   )
 })
 
@@ -1845,7 +1894,7 @@ test('creates an immutable-safe GitHub Release in a separate least-privilege job
   )
   assert.match(releaseStep, /node scripts\/github-release\.mjs/)
   assert.match(releaseStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/)
-  assert.doesNotMatch(source, /RELEASE_NOTES_PATH|docs\/launch\/v5\.0\.0\.md/)
+  assert.doesNotMatch(source, /RELEASE_NOTES_PATH|docs\/launch\/v1\.0\.0\.md/)
   assert.match(
     githubReleaseScript,
     /`docs\/launch\/v\$\{verified\.version\}\.md`/
@@ -1853,27 +1902,27 @@ test('creates an immutable-safe GitHub Release in a separate least-privilege job
   assert.match(source, /name: npm-packages-\$\{\{ github\.sha \}\}/)
 })
 
-test('keeps reviewed v5 release notes project-focused', () => {
-  assert.match(v5ReleaseNotes, /^# FigmaVars 5\.0\.0$/m)
+test('keeps reviewed v1 release notes project-focused', () => {
+  assert.match(v1ReleaseNotes, /^# Primitree 1\.0\.0$/m)
   for (const phrase of [
     'DTCG 2025.10',
-    '`figma-vars diff`',
-    '`@figmavars/hooks`',
-    '`@figmavars/mcp`',
+    '`primitree diff`',
+    '`@primitree/hooks`',
+    '`@primitree/mcp`',
     'Node.js 24',
   ]) {
-    assert.ok(v5ReleaseNotes.includes(phrase), `release notes need ${phrase}`)
+    assert.ok(v1ReleaseNotes.includes(phrase), `release notes need ${phrase}`)
   }
   assert.doesNotMatch(
-    v5ReleaseNotes,
+    v1ReleaseNotes,
     /NPM_TOKEN|OIDC|GitHub Actions|workflow|provenance|publish job|bootstrap/i
   )
   assert.match(
-    v5ReleaseNotes,
-    /\[README\]\(https:\/\/github\.com\/marklearst\/figmavars\/blob\/v5\.0\.0\/README\.md\)/
+    v1ReleaseNotes,
+    /\[README\]\(https:\/\/github\.com\/marklearst\/primitree\/blob\/v1\.0\.0\/README\.md\)/
   )
-  assert.doesNotMatch(v5ReleaseNotes, /\[README\]\(\.\.\/\.\.\/README\.md\)/)
-  assert.doesNotMatch(v5ReleaseNotes, /—/)
+  assert.doesNotMatch(v1ReleaseNotes, /\[README\]\(\.\.\/\.\.\/README\.md\)/)
+  assert.doesNotMatch(v1ReleaseNotes, /—/)
 })
 
 test('dates public release copy before creating a tag', () => {
@@ -1887,9 +1936,13 @@ test('dates public release copy before creating a tag', () => {
   )
 
   assert.match(tagPhase, /five package\s+changelogs/i)
-  assert.match(tagPhase, /`5\.0\.0 \(Unreleased\)`/)
+  assert.match(tagPhase, /`1\.0\.0 \(Unreleased\)`/)
   assert.match(tagPhase, /`Status: Released YYYY-MM-DD\.`/)
   assert.match(tagPhase, /tag-mode metadata check rejects[\s\S]*Unreleased/i)
+  assert.match(
+    tagPhase,
+    /git tag -a "v\$VERSION" "\$FINAL_COMMIT" -m "Primitree \$VERSION"/
+  )
   assertInOrder(
     tagPhase,
     [
@@ -1921,7 +1974,7 @@ test('documents exact contributor and version pull request boundaries', () => {
   )
   assert.match(
     versionPullRequests,
-    /initial 5\.0\.0[\s\S]*already carry 5\.0\.0[\s\S]*no pending changeset/i
+    /initial 1\.0\.0[\s\S]*already carry 1\.0\.0[\s\S]*no pending changeset/i
   )
   assert.match(
     versionPullRequests,
@@ -1935,7 +1988,7 @@ test('documents exact contributor and version pull request boundaries', () => {
   assert.match(versionPullRequests, /can_approve_pull_request_reviews == true/)
   assert.match(
     versionPullRequests,
-    /`github\.token`[\s\S]*does not trigger[\s\S]*`pull_request` workflow/i
+    /GitHub does not run[\s\S]*`pull_request` workflow[\s\S]*`github\.token` creates/i
   )
   assert.match(
     versionPullRequests,
@@ -1987,7 +2040,7 @@ test('freezes the launch administration order and credential boundaries', () => 
   assert.equal(occurrences(external, GITHUB_SECRET_LIST_COMMAND), 2)
   assert.doesNotMatch(
     external,
-    /^gh secret (?:set|delete|list)[^\n]*--env npm(?![^\n]*--repo marklearst\/figmavars)[^\n]*$/gm
+    /^gh secret (?:set|delete|list)[^\n]*--env npm(?![^\n]*--repo marklearst\/primitree)[^\n]*$/gm
   )
   assert.doesNotMatch(
     external,
@@ -2038,7 +2091,7 @@ test('freezes the launch administration order and credential boundaries', () => 
   )
   assert.match(
     external,
-    /next token-free release[\s\S]*end-to-end trust proof/i
+    /next token-free release[\s\S]*proves[\s\S]*GitHub OIDC/i
   )
   assert.match(external, /trusted OIDC[\s\S]*remains\s+available/i)
 })
@@ -2062,21 +2115,21 @@ route_body() {
     /)
       [[ "$OMIT_MARKER" == "Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a" ]] ||
         printf '%s\n' 'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a'
-      [[ "$OMIT_MARKER" == "<title>FigmaVars" ]] || printf '%s\n' '<title>FigmaVars'
+      [[ "$OMIT_MARKER" == "<title>Primitree" ]] || printf '%s\n' '<title>Primitree'
       [[ "$OMIT_MARKER" == 'name="description"' ]] || printf '%s\n' 'name="description"'
       [[ "$OMIT_MARKER" == 'property="og:title"' ]] || printf '%s\n' 'property="og:title"'
       ;;
     /docs)
-      [[ "$OMIT_MARKER" == "FigmaVars converts a Figma variables export into DTCG token files" ]] ||
-        printf '%s\n' 'FigmaVars converts a Figma variables export into DTCG token files'
+      [[ "$OMIT_MARKER" == "Primitree converts a Figma variables export into DTCG token files" ]] ||
+        printf '%s\n' 'Primitree converts a Figma variables export into DTCG token files'
       ;;
     /playground)
       [[ "$OMIT_MARKER" == "This page calls the same build function as" ]] ||
         printf '%s\n' 'This page calls the same build function as'
       ;;
     /docs/hooks/migration)
-      [[ "$OMIT_MARKER" == "FigmaVars v5 moves the hooks package from" ]] ||
-        printf '%s\n' 'FigmaVars v5 moves the hooks package from'
+      [[ "$OMIT_MARKER" == "Primitree 1.0 moves the hooks package from" ]] ||
+        printf '%s\n' 'Primitree 1.0 moves the hooks package from'
       ;;
     '/api/search?query=figma')
       [[ "$OMIT_MARKER" == '"url":"/docs/concepts/figma-mcp"' ]] ||
@@ -2097,7 +2150,7 @@ curl() {
   local url=''
   local path=''
   for url in "$@"; do :; done
-  path="${'$'}{url#https://figmavars.com}"
+  path="${'$'}{url#https://primitree.com}"
   [[ -n "$path" ]] || path=/
   [[ "$path" == "$FAIL_PATH" ]] && return 66
   route_body "$path"
@@ -2105,12 +2158,12 @@ curl() {
 `
   const markers = [
     'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
-    '<title>FigmaVars',
+    '<title>Primitree',
     'name="description"',
     'property="og:title"',
-    'FigmaVars converts a Figma variables export into DTCG token files',
+    'Primitree converts a Figma variables export into DTCG token files',
     'This page calls the same build function as',
-    'FigmaVars v5 moves the hooks package from',
+    'Primitree 1.0 moves the hooks package from',
     '"url":"/docs/concepts/figma-mcp"',
   ]
   const paths = [
@@ -2123,7 +2176,7 @@ curl() {
 
   for (const verifier of [
     ['verify_protected_deployment', 'https://candidate.vercel.app'],
-    ['verify_public_site', 'https://figmavars.com'],
+    ['verify_public_site', 'https://primitree.com'],
   ]) {
     const [name, target] = verifier
     const baseline = runBash(
@@ -2168,7 +2221,7 @@ test('Vercel promotion phase stops on failed identity and route gates', t => {
     'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
     'candidate deployment'
   )
-  const temp = mkdtempSync(join(tmpdir(), 'figmavars-vercel-gates-'))
+  const temp = mkdtempSync(join(tmpdir(), 'primitree-vercel-gates-'))
   const callLog = join(temp, 'calls.log')
   t.after(() => rmSync(temp, { recursive: true, force: true }))
 
@@ -2177,7 +2230,7 @@ FINAL_COMMIT=0123456789abcdef0123456789abcdef01234567
 PROJECT_ID=prj_test
 
 mktemp() {
-  printf '%s\n' /tmp/figmavars-vercel-gate
+  printf '%s\n' /tmp/primitree-vercel-gate
 }
 
 git() {
@@ -2202,7 +2255,7 @@ vercel() {
       printf '%s\n' '{"kind":"deploy"}'
       ;;
     inspect)
-      if [[ "$2" == "figmavars.com" ]]; then
+      if [[ "$2" == "primitree.com" ]]; then
         printf '%s\n' '{"kind":"production"}'
       else
         printf '%s\n' '{"kind":"candidate"}'
@@ -2240,7 +2293,7 @@ jq() {
       fi
       ;;
     '.name')
-      printf '%s\n' figmavars
+      printf '%s\n' primitree
       ;;
     '.url')
       printf '%s\n' candidate.vercel.app
@@ -2401,7 +2454,7 @@ fi
     /if cleanup_vercel_probe; then\s+trap - EXIT\s+else[\s\S]*bypass[\s\S]*(?:return|exit) 1/
   )
 
-  const retryRoot = mkdtempSync(join(tmpdir(), 'figmavars-exit-cleanup-'))
+  const retryRoot = mkdtempSync(join(tmpdir(), 'primitree-exit-cleanup-'))
   const retryLog = join(retryRoot, 'cleanup.log')
   t.after(() => rmSync(retryRoot, { recursive: true, force: true }))
   const earlyAbort = runBash(String.raw`
@@ -2482,7 +2535,7 @@ gh() {
     "BOOTSTRAP_TOKEN_ID='token-id-123'"
   )
   const tokenState = join(
-    mkdtempSync(join(tmpdir(), 'figmavars-token-retirement-')),
+    mkdtempSync(join(tmpdir(), 'primitree-token-retirement-')),
     'revoked'
   )
   t.after(() =>
@@ -2571,7 +2624,7 @@ test('requires immutable staged production promotion before legacy deprecation',
     '`"github": { "autoAlias": false }`',
     'must commit `apps/docs/vercel.json` with',
     'Do not use the production deployment in place before launch as a docs rollback or fallback',
-    'known-good docs fallback',
+    'Use that deployment as the docs fallback',
     'fallback deployment ID and URL',
     'exact deployment ID and URL',
     'exact commit',
@@ -2579,7 +2632,7 @@ test('requires immutable staged production promotion before legacy deprecation',
     '--meta gitCommitSha="$FALLBACK_COMMIT"',
     '--meta gitCommitSha="$FINAL_COMMIT"',
     'vercel promote "$DEPLOYMENT_ID"',
-    'vercel domains inspect figmavars.com',
+    'vercel domains inspect primitree.com',
   ]) {
     assert.ok(
       normalizedExternal.includes(phrase),
@@ -2592,7 +2645,7 @@ test('requires immutable staged production promotion before legacy deprecation',
       `PROJECT_ID=${VERCEL_PROJECT_ID}`,
       'vercel api "/v9/projects/$PROJECT_ID"',
       "jq -r '.github.autoAlias' apps/docs/vercel.json",
-      'vercel list figmavars --environment production',
+      'vercel list primitree --environment production',
       'VERCEL_PROBE_DIR=',
       'vercel link --cwd "$VERCEL_PROBE_DIR"',
       'VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)',
@@ -2608,10 +2661,10 @@ test('requires immutable staged production promotion before legacy deprecation',
       'vercel inspect "$DEPLOYMENT_ID"',
       'verify_protected_deployment "$DEPLOYMENT_URL"',
       'vercel promote "$DEPLOYMENT_ID"',
-      'vercel domains inspect figmavars.com',
-      'verify_public_site https://figmavars.com',
+      'vercel domains inspect primitree.com',
+      'verify_public_site https://primitree.com',
       'if cleanup_vercel_probe; then',
-      'npm view "@figmavars/core@5.0.0"',
+      'npm view "@primitree/core@1.0.0"',
       LEGACY_DEPRECATION_COMMAND,
     ],
     'staged production and deprecation'
@@ -2649,9 +2702,9 @@ test('requires immutable staged production promotion before legacy deprecation',
   assert.doesNotMatch(publicVerifier, /vercel curl/)
   for (const meaningfulContent of [
     'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
-    'FigmaVars converts a Figma variables export into DTCG token files',
+    'Primitree converts a Figma variables export into DTCG token files',
     'This page calls the same build function as',
-    'FigmaVars v5 moves the hooks package from',
+    'Primitree 1.0 moves the hooks package from',
     '"url":"/docs/concepts/figma-mcp"',
   ]) {
     assert.ok(
@@ -2672,7 +2725,10 @@ test('requires immutable staged production promotion before legacy deprecation',
   assert.equal(occurrences(external, LEGACY_DEPRECATION_COMMAND), 1)
   assert.match(
     external,
-    /`@figma-vars\/hooks@4\.0\.0` receives no new version/i
+    new RegExp(
+      `\\\`${LEGACY_HOOKS_PACKAGE}@4\\.0\\.0\\\` receives no new version`,
+      'i'
+    )
   )
   assert.match(
     external,
@@ -2706,7 +2762,7 @@ test('binds staged deployments and the production alias to immutable identities'
       'CANDIDATE_JSON=$(vercel inspect "$DEPLOYMENT_ID"',
       `test "$(jq -r '.url' <<<"$CANDIDATE_JSON")" = "$DEPLOYMENT_HOST"`,
       'vercel promote "$DEPLOYMENT_ID"',
-      'PRODUCTION_JSON=$(vercel inspect figmavars.com',
+      'PRODUCTION_JSON=$(vercel inspect primitree.com',
       `test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$DEPLOYMENT_ID"`,
     ],
     'deployment identity'
@@ -2772,7 +2828,7 @@ test('documents stable-only semantics and the exact seven-file artifact boundary
     /accepted release\s+tag must\s+equal `vMAJOR\.MINOR\.PATCH`/
   )
   assert.match(semantics, /dist-tag `latest`/)
-  assert.match(semantics, /prerelease versions are not supported/i)
+  assert.match(semantics, /does not support prerelease versions/i)
   assert.match(semantics, /future[\s\S]*separate design/i)
 
   const artifactBoundary = extractMarkdownSection(
@@ -2780,11 +2836,11 @@ test('documents stable-only semantics and the exact seven-file artifact boundary
     '## Release artifact boundary'
   )
   const expectedFiles = [
-    'figmavars-core-$VERSION.tgz',
-    'figmavars-dtcg-$VERSION.tgz',
-    'figmavars-cli-$VERSION.tgz',
-    'figmavars-hooks-$VERSION.tgz',
-    'figmavars-mcp-$VERSION.tgz',
+    'primitree-core-$VERSION.tgz',
+    'primitree-dtcg-$VERSION.tgz',
+    'primitree-cli-$VERSION.tgz',
+    'primitree-hooks-$VERSION.tgz',
+    'primitree-mcp-$VERSION.tgz',
     'manifest.json',
     'SHA256SUMS',
   ]
@@ -2805,17 +2861,38 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     releaseRunbook,
     '## External npm and GitHub steps'
   )
+  const branchPreflight = extractMarkdownSubsection(
+    external,
+    '### 1. Branch preflight'
+  )
+  const tagPhase = extractMarkdownSubsection(
+    external,
+    '### 4. Tag, publish, and create the GitHub Release'
+  )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
   assert.ok(checklist.every(item => item[1] === ' '))
+  assert.doesNotMatch(external, /stale `v4\.2\.0` tag/i)
+  assert.match(
+    branchPreflight,
+    /REMOTE_TAG_REFS=\$\([\s\S]*git ls-remote --tags origin[\s\S]*\)[\s\S]*test -z "\$REMOTE_TAG_REFS"/
+  )
+  assert.match(
+    branchPreflight,
+    /GITHUB_RELEASES=\$\([\s\S]*gh release list --repo marklearst\/primitree --json tagName[\s\S]*\)[\s\S]*test "\$GITHUB_RELEASES" = '\[\]'/
+  )
+  assert.match(
+    tagPhase,
+    /^- \[ \] Create `v1\.0\.0` at the final verified commit and no other commit, push the single intended tag, and approve publication\.$/m
+  )
+  assert.doesNotMatch(tagPhase, /^- \[ \] Recreate `v1\.0\.0`/m)
   for (const phrase of [
-    '@figmavars ownership, 2FA, and new-package rights',
+    '@primitree ownership, 2FA, and new-package rights',
     'token-authenticated publish',
     'trusted publishing for all five packages',
     'protected npm and GitHub environments and rulesets',
     'GitHub environment `npm`',
-    'stale `v4.2.0` tag',
-    '`v5.0.0` at the final verified commit and no other commit',
+    '`v1.0.0` at the final verified commit and no other commit',
     'single intended tag',
     'immutable releases',
     'release tag updates and deletions',
@@ -2829,10 +2906,13 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     releaseRunbook,
     /npm publish --dry-run[\s\S]*does not publish or mutate the registry/i
   )
-  assert.match(releaseRunbook, /dry-run[\s\S]*can[\s\S]*read credentials/i)
   assert.match(
     releaseRunbook,
-    /dry-run[\s\S]*not proof of npm access[\s\S]*provenance/i
+    /isolation[\s\S]*blocks credential reads[\s\S]*OIDC discovery[\s\S]*registry requests/i
+  )
+  assert.match(
+    releaseRunbook,
+    /dry-run[\s\S]*cannot prove npm access[\s\S]*provenance/i
   )
   assert.match(
     releaseRunbook,
@@ -2848,7 +2928,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   assert.match(
     external,
-    /X-GitHub-Api-Version: 2026-03-10[\s\S]*\/repos\/marklearst\/figmavars\/immutable-releases[\s\S]*--jq '\.enabled == true'[\s\S]*= true/
+    /X-GitHub-Api-Version: 2026-03-10[\s\S]*\/repos\/marklearst\/primitree\/immutable-releases[\s\S]*--jq '\.enabled == true'[\s\S]*= true/
   )
 })
 
@@ -2859,11 +2939,11 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   )
   const viewCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
     packageName =>
-      `npm view "@figmavars/${packageName}@$VERSION" version --registry=https://registry.npmjs.org`
+      `npm view "@primitree/${packageName}@$VERSION" version --registry=https://registry.npmjs.org`
   )
   const publishCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
     packageName =>
-      `npm publish "$ARTIFACT_DIR/figmavars-${packageName}-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts`
+      `npm publish "$ARTIFACT_DIR/primitree-${packageName}-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts`
   )
 
   assertInOrder(recovery, viewCommands, 'partial publication queries')
@@ -2879,7 +2959,7 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
     /treats npm `E404`, and no other response, as missing/i
   )
   assert.match(recovery, /Any other error[\s\S]*stops[\s\S]*recovery/i)
-  assert.match(recovery, /same verified bytes/i)
+  assert.match(recovery, /verified tarballs/i)
   assert.match(recovery, /Never rebuild/i)
   assert.match(recovery, /shasum -a 256 -c SHA256SUMS/)
   assert.match(recovery, /Linux[\s\S]*sha256sum --check SHA256SUMS/i)
@@ -2887,7 +2967,7 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   assert.match(recovery, /sole\s+supported selective recovery path/i)
   assert.match(
     recovery,
-    /do not\s+execute[\s\S]*npm publish[\s\S]*from a local machine/i
+    /`npm publish` commands[\s\S]*do not execute[\s\S]*from a local machine/i
   )
 })
 
@@ -2897,10 +2977,10 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
     '## Partial publication recovery'
   )
   for (const command of [
-    'npm dist-tag ls "@figmavars/core" --registry=https://registry.npmjs.org',
-    'npm dist-tag add "@figmavars/core@$VERSION" latest --registry=https://registry.npmjs.org',
-    'npm dist-tag rm "@figmavars/core" next --registry=https://registry.npmjs.org',
-    'npm deprecate "@figmavars/core@$VERSION" "Use 5.0.1; this release contains invalid package contents" --registry=https://registry.npmjs.org',
+    'npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org',
+    'npm dist-tag add "@primitree/core@$VERSION" latest --registry=https://registry.npmjs.org',
+    'npm dist-tag rm "@primitree/core" next --registry=https://registry.npmjs.org',
+    'npm deprecate "@primitree/core@$VERSION" "Use 1.0.1; this release contains invalid package contents" --registry=https://registry.npmjs.org',
     'RUN_ID=123456789',
     'COMMIT_SHA=0123456789abcdef0123456789abcdef01234567',
     'RECOVERY_DIR=$(mktemp -d)',
@@ -2912,7 +2992,7 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
   }
   assert.match(recovery, /bad package contents[\s\S]*new patch version/i)
   assert.match(recovery, /do not[\s\S]*(?:overwrite|unpublish)/i)
-  assert.match(recovery, /immutable run ID and commit SHA/i)
+  assert.match(recovery, /run ID and commit SHA/i)
   assertInOrder(
     recovery,
     [
@@ -2937,7 +3017,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
     recovery,
     /pushed wrong tag[\s\S]*publish job never started[\s\S]*all five/i
   )
-  assert.match(recovery, /publish job ever started[\s\S]*never move the tag/i)
+  assert.match(recovery, /started publish job[\s\S]*blocks tag movement/i)
   assert.match(recovery, /preserve provenance/i)
   assert.match(
     recovery,
@@ -2945,7 +3025,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
   )
   assert.match(
     recovery,
-    /credentials[\s\S]*preserve the artifact and checksums[\s\S]*retries packages[\s\S]*missing[\s\S]*same verified bytes/i
+    /credential[\s\S]*preserve the artifact and checksums[\s\S]*retries packages[\s\S]*missing[\s\S]*verified tarballs/i
   )
   const registryQueries = RELEASE_PUBLISH_PACKAGES.map(
     ({ name }) =>
@@ -2964,7 +3044,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
     ],
     'safe tag replacement'
   )
-  assert.match(recovery, /Use cancellation if the old run is still active/i)
+  assert.match(recovery, /Cancel an active old run/i)
 })
 
 test('rejects blanket tag pushes with or without an explicit remote', () => {

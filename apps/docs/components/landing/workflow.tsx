@@ -4,10 +4,10 @@ import { links } from '@/lib/shared'
 
 const steps = [
   'Export variables.json',
-  'figma-vars build',
+  'primitree build',
   'Commit design-tokens/',
   'Import CSS or hooks',
-  'figma-vars diff on the next PR',
+  'primitree diff on the next PR',
 ]
 
 export function WorkflowStrip() {
@@ -15,7 +15,7 @@ export function WorkflowStrip() {
     <section className='workflow-section'>
       <div className='workflow-inner'>
         <h2 className='workflow-heading'>
-          From Figma export to reviewed change
+          Build and review tokens from a Figma export
         </h2>
         <ol className='workflow-steps'>
           {steps.map((step, i) => (
@@ -23,7 +23,10 @@ export function WorkflowStrip() {
               key={step}
               style={{ '--i': i } as React.CSSProperties}>
               <span className='workflow-n'>{i + 1}</span>
-              <span className={i === 1 || i === 4 ? 'text-fv-good' : undefined}>
+              <span
+                className={
+                  i === 1 || i === 4 ? 'text-primitree-good' : undefined
+                }>
                 {step}
               </span>
             </li>
@@ -47,7 +50,7 @@ export function CtaStrip() {
           size='lg'
           className='mx-auto'
         />
-        <p className='cta-copy'>MIT licensed · marklearst/figmavars</p>
+        <p className='cta-copy'>MIT licensed · marklearst/primitree</p>
         <div className='cta-actions'>
           <Link
             href='/docs'

@@ -1,14 +1,14 @@
 import type { Metadata, MetadataRoute } from 'next'
 
-export const siteUrl = 'https://figmavars.com'
-export const siteName = 'FigmaVars'
+export const siteUrl = 'https://primitree.com'
+export const siteName = 'Primitree'
 
 const siteDescription =
   'Convert a Figma variables export into DTCG files and the code your app imports.'
 
 export const homeSocialImage = {
   url: `${siteUrl}/opengraph-image`,
-  alt: 'FigmaVars design token pipeline',
+  alt: 'Primitree design token pipeline',
   title: siteName,
   description: siteDescription,
   size: {

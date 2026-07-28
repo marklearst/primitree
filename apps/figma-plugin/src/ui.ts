@@ -1,3 +1,5 @@
+import { formatCount } from './format'
+
 type ExportSummary = {
   collections: number
   variables: number
@@ -120,7 +122,7 @@ copyBtn.addEventListener('click', async () => {
     if (!canUpdateFeedback()) {
       return
     }
-    showError('Clipboard blocked. Use Download instead.')
+    showError('Clipboard access is unavailable. Use Download instead.')
   }
 })
 
@@ -146,10 +148,11 @@ window.onmessage = event => {
     clearExportResult()
     latestJson = msg.json
     latestFileName = msg.summary.fileName
-    statsEl.textContent =
-      `${msg.summary.collections} collections · ` +
-      `${msg.summary.variables} variables · ` +
-      `${msg.summary.modes} modes`
+    statsEl.textContent = [
+      formatCount(msg.summary.collections, 'collection'),
+      formatCount(msg.summary.variables, 'variable'),
+      formatCount(msg.summary.modes, 'mode'),
+    ].join(' · ')
     actionsEl.classList.remove('hidden')
     setExporting(false)
   }

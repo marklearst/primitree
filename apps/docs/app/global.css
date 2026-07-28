@@ -3,19 +3,19 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @theme {
-  --color-fv-bg: #030304;
-  --color-fv-surface: #08080a;
-  --color-fv-raised: #0f0f12;
-  --color-fv-elevated: #16161a;
-  --color-fv-border: rgba(255, 255, 255, 0.06);
-  --color-fv-border-strong: rgba(255, 255, 255, 0.1);
-  --color-fv-text: #fafafa;
-  --color-fv-muted: #9ca3af;
-  --color-fv-dim: #6b7280;
-  --color-fv-accent: #8b9cff;
-  --color-fv-accent-strong: #6d82ff;
-  --color-fv-good: #34d399;
-  --color-fv-warn: #fbbf24;
+  --color-primitree-bg: #030304;
+  --color-primitree-surface: #08080a;
+  --color-primitree-raised: #0f0f12;
+  --color-primitree-elevated: #16161a;
+  --color-primitree-border: rgba(255, 255, 255, 0.06);
+  --color-primitree-border-strong: rgba(255, 255, 255, 0.1);
+  --color-primitree-text: #fafafa;
+  --color-primitree-muted: #9ca3af;
+  --color-primitree-dim: #6b7280;
+  --color-primitree-accent: #8b9cff;
+  --color-primitree-accent-strong: #6d82ff;
+  --color-primitree-good: #34d399;
+  --color-primitree-warn: #fbbf24;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -33,7 +33,7 @@ html > body[data-scroll-locked] {
 }
 
 body {
-  background: var(--color-fv-bg);
+  background: var(--color-primitree-bg);
 }
 
 ::selection {
@@ -42,24 +42,24 @@ body {
 }
 
 :root {
-  --fd-background: var(--color-fv-bg);
-  --fd-foreground: var(--color-fv-text);
-  --fd-muted: var(--color-fv-muted);
-  --fd-accent: var(--color-fv-accent);
-  --fd-primary: var(--color-fv-accent);
-  --fd-card: var(--color-fv-raised);
-  --fd-border: var(--color-fv-border);
+  --fd-background: var(--color-primitree-bg);
+  --fd-foreground: var(--color-primitree-text);
+  --fd-muted: var(--color-primitree-muted);
+  --fd-accent: var(--color-primitree-accent);
+  --fd-primary: var(--color-primitree-accent);
+  --fd-card: var(--color-primitree-raised);
+  --fd-border: var(--color-primitree-border);
 }
 
 #nd-docs-layout,
 #nd-sidebar,
 #nd-nav {
-  --fd-background: var(--color-fv-bg);
-  --fd-card: var(--color-fv-surface);
+  --fd-background: var(--color-primitree-bg);
+  --fd-card: var(--color-primitree-surface);
 }
 
 #nd-sidebar {
-  border-color: var(--color-fv-border) !important;
+  border-color: var(--color-primitree-border) !important;
 }
 
 .brand-logo-link {
@@ -84,7 +84,7 @@ body {
 .btn-ghost:focus-visible,
 .feature-row:focus-visible,
 .workflow-link:focus-visible {
-  outline: 2px solid var(--color-fv-accent);
+  outline: 2px solid var(--color-primitree-accent);
   outline-offset: 3px;
 }
 
@@ -101,10 +101,10 @@ body {
   list-style: none;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-fv-border-strong);
+  border: 1px solid var(--color-primitree-border-strong);
   border-radius: 999px;
   padding: 0 14px;
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -120,9 +120,9 @@ body {
   display: grid;
   min-width: 184px;
   padding: 8px;
-  border: 1px solid var(--color-fv-border-strong);
+  border: 1px solid var(--color-primitree-border-strong);
   border-radius: 12px;
-  background: var(--color-fv-raised);
+  background: var(--color-primitree-raised);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -132,7 +132,7 @@ body {
   align-items: center;
   border-radius: 8px;
   padding: 0 12px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
@@ -140,7 +140,7 @@ body {
 
 .mobile-nav a[aria-current='page'] {
   background: rgba(255, 255, 255, 0.08);
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
 }
 
 /* ---------- background ---------- */
@@ -155,7 +155,7 @@ body {
 .landing-bg-base {
   position: absolute;
   inset: 0;
-  background: var(--color-fv-bg);
+  background: var(--color-primitree-bg);
 }
 
 .landing-bg-vignette {
@@ -199,9 +199,9 @@ body {
 }
 
 .btn-ghost {
-  border: 1px solid var(--color-fv-border-strong);
+  border: 1px solid var(--color-primitree-border-strong);
   background: transparent;
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
@@ -237,14 +237,14 @@ body {
   margin: 0 0 20px;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-fv-dim);
+  color: var(--color-primitree-dim);
 }
 
 .hero-eyebrow-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-fv-good);
+  background: var(--color-primitree-good);
   animation: blink 2s var(--ease-in-out) infinite;
 }
 
@@ -254,11 +254,11 @@ body {
   font-weight: 600;
   line-height: 1.02;
   letter-spacing: -0.04em;
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
 }
 
 .hero-title-accent {
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
 }
 
 .hero-lede {
@@ -266,13 +266,13 @@ body {
   max-width: 28rem;
   font-size: 16px;
   line-height: 1.65;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
 }
 
 .hero-lede code {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
 }
 
 .hero-actions {
@@ -306,6 +306,7 @@ body {
 
 /* ---------- animated mark ---------- */
 .mark-stage {
+  pointer-events: none;
   position: relative;
   aspect-ratio: 95 / 86;
   transition: transform 0.35s var(--ease-out-expo);
@@ -369,12 +370,12 @@ body {
 }
 
 .mark-node-dot {
-  fill: var(--color-fv-accent);
+  fill: var(--color-primitree-accent);
 }
 
 .mark-node-pulse {
   fill: none;
-  stroke: var(--color-fv-accent);
+  stroke: var(--color-primitree-accent);
   stroke-width: 0.5;
   opacity: 0;
   animation: node-pulse 2.8s var(--ease-out-expo) infinite;
@@ -396,7 +397,7 @@ body {
   font-size: 9px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-fv-dim);
+  color: var(--color-primitree-dim);
   opacity: 0;
   animation: label-in 2.8s var(--ease-out-expo) infinite;
   animation-delay: var(--d, 0s);
@@ -406,7 +407,7 @@ body {
 .hero-terminal {
   width: 100%;
   max-width: 400px;
-  border: 1px solid var(--color-fv-border-strong);
+  border: 1px solid var(--color-primitree-border-strong);
   border-radius: 12px;
   background: rgba(8, 8, 10, 0.9);
   overflow: hidden;
@@ -418,7 +419,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
 }
 
 .hero-terminal-body {
@@ -436,13 +437,13 @@ body {
   height: 14px;
   margin-left: 1px;
   vertical-align: -2px;
-  background: var(--color-fv-accent);
+  background: var(--color-primitree-accent);
   animation: cursor-blink 1s step-end infinite;
 }
 
 /* ---------- pipeline ---------- */
 .pipeline-section {
-  border-top: 1px solid var(--color-fv-border);
+  border-top: 1px solid var(--color-primitree-border);
   padding: 80px 0;
 }
 
@@ -475,29 +476,29 @@ body {
   max-width: 26rem;
   font-size: 15px;
   line-height: 1.65;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
 }
 
 .pipeline-lede code {
   font-family: var(--font-mono);
   font-size: 0.88em;
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
 }
 
 .pipeline-tree-wrap {
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
-  background: var(--color-fv-surface);
+  background: var(--color-primitree-surface);
   overflow: hidden;
 }
 
 .pipeline-tree-label {
   margin: 0;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-fv-dim);
+  color: var(--color-primitree-dim);
 }
 
 .pipeline-tree {
@@ -517,22 +518,22 @@ body {
 }
 
 .syntax-dir {
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
 }
 
 .syntax-file {
-  color: var(--color-fv-text);
+  color: var(--color-primitree-text);
 }
 
 .syntax-key {
-  color: var(--color-fv-good);
+  color: var(--color-primitree-good);
 }
 
 /* ---------- features ---------- */
 .feature-section {
-  border-top: 1px solid var(--color-fv-border);
+  border-top: 1px solid var(--color-primitree-border);
   padding: 80px 0;
-  background: var(--color-fv-surface);
+  background: var(--color-primitree-surface);
 }
 
 .feature-inner {
@@ -559,7 +560,7 @@ body {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--color-fv-border);
+  border-top: 1px solid var(--color-primitree-border);
 }
 
 .feature-row {
@@ -568,7 +569,7 @@ body {
   gap: 16px;
   align-items: center;
   padding: 20px 0;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
   text-decoration: none;
   color: inherit;
   opacity: 0;
@@ -584,11 +585,11 @@ body {
 .feature-row-detail {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
 }
 
 .feature-row-arrow {
-  color: var(--color-fv-dim);
+  color: var(--color-primitree-dim);
   transition:
     color 0.15s ease,
     transform 0.2s var(--ease-out-expo);
@@ -629,7 +630,7 @@ body {
   list-style: none;
   display: grid;
   gap: 0;
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -641,7 +642,7 @@ body {
   padding: 16px 20px;
   font-family: var(--font-mono);
   font-size: 14px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
   opacity: 0;
   animation: rise-in 0.45s var(--ease-out-expo) calc(var(--i) * 0.07s) both;
 }
@@ -657,9 +658,9 @@ body {
   height: 28px;
   flex-shrink: 0;
   border-radius: 6px;
-  background: var(--color-fv-elevated);
+  background: var(--color-primitree-elevated);
   font-size: 12px;
-  color: var(--color-fv-dim);
+  color: var(--color-primitree-dim);
 }
 
 .workflow-link {
@@ -668,7 +669,7 @@ body {
   align-items: center;
   margin-top: 24px;
   font-size: 14px;
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
   text-decoration: none;
 }
 
@@ -680,7 +681,7 @@ body {
   .site-nav-link:hover,
   .site-footer-link:hover,
   .mobile-nav a:hover {
-    color: var(--color-fv-text);
+    color: var(--color-primitree-text);
   }
 
   .mobile-nav summary:hover {
@@ -701,7 +702,7 @@ body {
   }
 
   .feature-row:hover .feature-row-arrow {
-    color: var(--color-fv-accent);
+    color: var(--color-primitree-accent);
     transform: translate(2px, -2px);
   }
 
@@ -711,7 +712,7 @@ body {
 }
 
 .cta-section {
-  border-top: 1px solid var(--color-fv-border);
+  border-top: 1px solid var(--color-primitree-border);
   padding: 80px 0 100px;
 }
 
@@ -724,7 +725,7 @@ body {
 
 .cta-copy {
   margin: 20px 0 0;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-size: 15px;
 }
 

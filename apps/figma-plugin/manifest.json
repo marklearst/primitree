@@ -1,6 +1,6 @@
 {
-  "name": "FigmaVars Export",
-  "id": "figmavars-export",
+  "name": "Primitree Export",
+  "id": "primitree-export",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
@@ -8,6 +8,6 @@
   "editorType": ["figma"],
   "networkAccess": {
     "allowedDomains": ["none"],
-    "reasoning": "v1 exports download locally. No network calls."
+    "reasoning": "v1 downloads the export to the user's device. It makes no network requests."
   }
 }

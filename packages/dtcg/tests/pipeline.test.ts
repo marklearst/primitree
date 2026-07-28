@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
@@ -109,7 +108,7 @@ describe('emitTypescript', () => {
   it('labels generated values by their default contexts', () => {
     expect(source).toContain(' * Each modifier axis uses its default context.')
     expect(source).toContain(
-      '/** CSS variable references keyed by token path. */'
+      '/** CSS variable references for each token path. */'
     )
     expect(source).not.toContain('every modifier axis')
   })
@@ -182,25 +181,16 @@ describe('emitTypescript', () => {
         resolutionOrder: [],
       }
     )
-    const directory = mkdtempSync(join(tmpdir(), 'figmavars-empty-types-'))
-    const file = join(directory, 'tokens.ts')
-
-    try {
-      writeFileSync(file, emptySource)
-      const program = ts.createProgram([file], {
+    const compiled = ts.transpileModule(emptySource, {
+      compilerOptions: {
         module: ts.ModuleKind.ESNext,
-        noEmit: true,
-        skipLibCheck: true,
         target: ts.ScriptTarget.ES2022,
-      })
-      const sourceFile = program.getSourceFile(file)
+      },
+      reportDiagnostics: true,
+    })
 
-      expect(sourceFile).toBeDefined()
-      expect(program.getSyntacticDiagnostics(sourceFile)).toEqual([])
-      expect(emptySource).toContain('export type TokenPath = never')
-    } finally {
-      rmSync(directory, { recursive: true, force: true })
-    }
+    expect(compiled.diagnostics ?? []).toEqual([])
+    expect(emptySource).toContain('export type TokenPath = never')
   })
 
   it('preserves an own __proto__ token in both generated maps at runtime', () => {
@@ -423,9 +413,12 @@ describe('buildPipeline', () => {
       )?.contents
 
       expect(workflow).toBeDefined()
-      expect(workflow).toContain(`@figmavars/cli@${cliPackageManifest.version}`)
+      expect(workflow).toContain(`@primitree/cli@${cliPackageManifest.version}`)
       expect(pipelineSource).toContain('cliPackageManifest.version')
-      expect(pipelineSource).not.toContain("'@figmavars/cli@5.0.0'")
+      expect(pipelineSource).not.toContain("'@primitree/cli@1.0.0'")
+      expect(workflow).toContain('./node_modules/.bin/primitree build')
+      expect(workflow).toContain('path: .primitree-generated')
+      expect(workflow).toContain('primitree-artifact-root.json')
       expect(workflow).toContain('node-version: 24.18.0')
       expect(workflow).not.toMatch(/\bnpx\b/)
       expect(workflow).not.toContain('git add -A')
@@ -515,10 +508,10 @@ describe('buildPipeline', () => {
       '--no-css --no-tailwind --no-ts --no-transformer'
     )
     expect(seal?.run).toContain(
-      `printf '%s\\n' '{"schema":1}' > figmavars-artifact-root.json`
+      `printf '%s\\n' '{"schema":1}' > primitree-artifact-root.json`
     )
     expect(upload?.with).toMatchObject({
-      path: 'figmavars-artifact-root.json\ntokens/\n',
+      path: 'primitree-artifact-root.json\ntokens/\n',
     })
     expect(install?.run).toContain(
       "readFileSync(artifactRootPath, 'utf8') !== artifactRootContents"

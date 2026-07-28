@@ -7,8 +7,8 @@ import type {
 } from './types'
 
 /**
- * {@link normalizeVariables} throws this error when an input document does
- * not match a supported Figma variables shape.
+ * {@link normalizeVariables} throws this error for documents outside the
+ * supported Figma variables shapes.
  *
  * @public
  */
@@ -107,7 +107,7 @@ function normalizeCollection(
     return null
   }
   if (typeof raw.id !== 'string' || typeof raw.name !== 'string') {
-    warnings.push('Skipped a collection without string id/name')
+    warnings.push('Primitree skipped a collection without string id/name')
     return null
   }
 
@@ -118,7 +118,9 @@ function normalizeCollection(
     : []
 
   if (modes.length === 0) {
-    warnings.push(`Collection "${raw.name}" has no modes; skipped`)
+    warnings.push(
+      `Collection "${raw.name}" has no modes. Primitree skipped it.`
+    )
     return null
   }
 
@@ -149,18 +151,20 @@ function normalizeVariable(
     return null
   }
   if (typeof raw.id !== 'string' || typeof raw.name !== 'string') {
-    warnings.push('Skipped a variable without string id/name')
+    warnings.push('Primitree skipped a variable without string id/name')
     return null
   }
   if (looksLikePublishedVariable(raw)) {
     throw new VariablesParseError(
-      'This looks like a published variables response, which contains no values. ' +
+      'The input matches a published variables response. Published responses contain no values. ' +
         'Export local variables instead (GET /v1/files/:key/variables/local).'
     )
   }
   const collectionId = raw.variableCollectionId ?? raw.collectionId
   if (typeof collectionId !== 'string') {
-    warnings.push(`Variable "${raw.name}" has no collection id; skipped`)
+    warnings.push(
+      `Variable "${raw.name}" has no collection id. Primitree skipped it.`
+    )
     return null
   }
   const resolvedType = raw.resolvedType ?? raw.type
@@ -171,7 +175,7 @@ function normalizeVariable(
     resolvedType !== 'COLOR'
   ) {
     warnings.push(
-      `Variable "${raw.name}" has unsupported type "${String(resolvedType)}"; skipped`
+      `Variable "${raw.name}" has unsupported type "${String(resolvedType)}". Primitree skipped it.`
     )
     return null
   }
@@ -214,7 +218,7 @@ function normalizeVariable(
  *
  * @remarks
  * Accepts the REST local variables response (the output of
- * `figma-vars export` and Dev Mode plugin exports), bare `meta`
+ * `primitree export` and Dev Mode plugin exports), bare `meta`
  * objects, and plugin-style `{ variables, collections }` documents,
  * as parsed objects or raw JSON strings.
  *
@@ -224,11 +228,11 @@ function normalizeVariable(
  *
  * @param input - A Figma variables document (object or JSON string).
  * @returns The normalized collections and variables, plus any warnings.
- * @throws VariablesParseError when the input is not a recognizable shape.
+ * @throws VariablesParseError for an unsupported input shape.
  *
  * @example
  * ```ts
- * import { normalizeVariables } from '@figmavars/core'
+ * import { normalizeVariables } from '@primitree/core'
  * import { readFileSync } from 'node:fs'
  *
  * const normalized = normalizeVariables(readFileSync('variables.json', 'utf8'))
@@ -267,7 +271,7 @@ export function normalizeVariables(
       if (!collectionExists) {
         warnings.push(
           `Variable "${variable.name}" references missing collection ` +
-            `"${variable.collectionId}"; skipped`
+            `"${variable.collectionId}". Primitree skipped it.`
         )
         return false
       }
@@ -298,7 +302,7 @@ export function normalizeVariables(
 
 /**
  * Convert a normalized model back into the REST `LocalVariablesResponse`
- * shape used across the FigmaVars packages.
+ * shape used across the Primitree packages.
  *
  * @public
  */

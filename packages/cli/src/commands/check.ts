@@ -4,7 +4,7 @@ import {
   normalizeVariables,
   resolveAllVariableValues,
   VariablesParseError,
-} from '@figmavars/core'
+} from '@primitree/core'
 import {
   applyResolver,
   flattenTokens,
@@ -13,7 +13,7 @@ import {
   isToken,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 import { type ParsedArgs } from '../args'
 import { fileExists, readJsonFile } from '../io'
 
@@ -22,13 +22,13 @@ function formatCount(count: number, singular: string): string {
 }
 
 export const checkHelp = `
-figma-vars check: validate an export or built token directory
+primitree check: validate an export or built token directory
 
 Usage:
-  figma-vars check <variables.json>     Validate a Figma variables export:
+  primitree check <variables.json>     Validate a Figma variables export:
                                         shape, alias graph (cycles, dangling
                                         targets), per-mode resolvability.
-  figma-vars check <tokens-dir>         Validate a generated pipeline (a
+  primitree check <tokens-dir>         Validate a generated pipeline (a
                                         directory containing
                                         tokens.resolver.json): each context
                                         permutation must merge and each
@@ -79,7 +79,7 @@ async function checkTokensDirectory(dir: string): Promise<CheckReport> {
   const resolver = (await readJsonFile(resolverPath)) as ResolverDocument
   if (resolver.version !== '2025.10') {
     report.errors.push(
-      `Resolver version must be "2025.10", found "${String(resolver.version)}"`
+      `Resolver version: expected "2025.10", received "${String(resolver.version)}"`
     )
     return report
   }
@@ -92,7 +92,7 @@ async function checkTokensDirectory(dir: string): Promise<CheckReport> {
     }
   }
   if (Object.keys(files).length === 0) {
-    report.errors.push(`No *.tokens.json files found in ${dir}`)
+    report.errors.push(`${dir} contains no *.tokens.json files`)
     return report
   }
 
@@ -129,7 +129,7 @@ async function checkTokensDirectory(dir: string): Promise<CheckReport> {
 export async function runCheck(args: ParsedArgs): Promise<void> {
   const target = args.positionals[0]
   if (!target) {
-    throw new Error('Usage: figma-vars check <variables.json | tokens-dir>')
+    throw new Error('Usage: primitree check <variables.json | tokens-dir>')
   }
 
   const resolved = path.resolve(target)

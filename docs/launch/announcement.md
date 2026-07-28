@@ -1,83 +1,81 @@
-# FigmaVars 5 launch copy
+# Primitree 1.0 launch copy
 
-Draft copy for the 5.0.0 release.
+Draft copy for the 1.0.0 release.
 
 ## Show HN
 
 ### Title options
 
 1. `Show HN: Commit design tokens from a Figma variables export`
-2. `Show HN: FigmaVars, from variables.json to DTCG, CSS, and types`
+2. `Show HN: Primitree, from variables.json to DTCG, CSS, and types`
 
 ### Post
 
-Hi HN. I built FigmaVars to turn an exported `variables.json` file into token
+Hi HN. I built Primitree to turn an exported `variables.json` file into token
 files that live in a repository.
 
 ```sh
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 git add design-tokens
 ```
 
 The command writes DTCG 2025.10 tokens plus a documented boolean extension, a
 Resolver document for Figma modes, CSS custom properties, a Tailwind CSS v4
 theme, TypeScript accessors, and a Style Dictionary or Terrazzo configuration.
-It can also write a GitHub Actions workflow for later exports.
+It writes a GitHub Actions workflow for later exports.
 
 The comparison command uses stable Figma IDs:
 
 ```sh
-figma-vars diff backup/variables.json variables.json --fail-on-breaking
+primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
-Because the IDs survive a name change, the report records a rename under the
-same variable. It also reports removals, moves, type changes, and per-mode value
-changes. `--fail-on-breaking` gives CI an exit code for the breaking cases.
+The diff matches variable records by stable Figma ID. It reports a changed name
+as a rename and lists removals, moves, type changes, and per-mode value changes.
+`--fail-on-breaking` gives CI an exit code for the breaking cases.
 
-You can get the source JSON from a variables plugin that exports local Figma
-variables. The repository includes FigmaVars Export as a development build.
-Teams with Enterprise access can use the REST API through `figma-vars export`.
+Get the source JSON from a variables plugin that exports local Figma variables.
+The repository includes the Primitree export plugin as a development build. Teams
+with Enterprise access can use the REST API through `primitree export`.
 
-The repository also contains React hooks for the built artifacts, an MCP server
-for token queries, and a browser playground. The playground builds the same
-files and downloads them as a zip.
+The repository contains React hooks for built artifacts and an MCP server for
+token queries. The browser playground builds the same files and downloads them
+as a zip.
 
-I would value review of the FLOAT type mapping and the way Figma modes map to
-Resolver modifiers.
+I'm looking for feedback on the FLOAT type mapping and the way Figma modes map
+to Resolver modifiers.
 
-Project: https://github.com/marklearst/figmavars
+Project: https://github.com/marklearst/primitree
 
-Docs: https://figmavars.com
+Docs: https://primitree.com
 
 ## X and Bluesky thread
 
 ### Post 1
 
-Export `variables.json` from Figma. Run one command. Commit the token files.
+Build commit-ready token files from a Figma `variables.json` export.
 
 ```sh
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
-FigmaVars 5 writes DTCG 2025.10 tokens plus a documented boolean extension,
+Primitree writes DTCG 2025.10 tokens plus a documented boolean extension,
 Resolver contexts, CSS, a Tailwind CSS v4 theme, TypeScript accessors, and
 transformer configuration.
 
-https://figmavars.com
+https://primitree.com
 
 ### Post 2
 
-`figma-vars diff` matches variables by stable Figma IDs.
-
-A renamed variable keeps its identity in the report. The command also shows
-per-mode value changes and marks removals, renames, moves, and type changes as
-breaking.
+`primitree diff` matches variable records by stable Figma ID and reports changed
+names as renames. It shows per-mode value changes and marks removals, moves, and
+type changes as breaking.
 
 Use `--fail-on-breaking` in CI.
 
 ### Post 3
 
-`@figmavars/hooks` reads the generated token files in React:
+`@primitree/hooks` reads the generated token files in React:
 
 ```tsx
 useToken('semantic.color.bg.brand')
@@ -88,26 +86,26 @@ The local-token hooks need no Figma token or network request.
 
 ### Post 4
 
-`@figmavars/mcp` gives MCP clients five token tools:
+`@primitree/mcp` gives MCP clients five token tools:
 
 `list_collections`, `get_token`, `resolve_context`, `search_tokens`, and
 `diff_tokens`.
 
 The server reads a variables export or a built token directory from disk.
 
-https://github.com/marklearst/figmavars
+https://github.com/marklearst/primitree
 
 ## Newsletter blurb
 
-**FigmaVars 5 turns a Figma variables export into committed token files.**
-The CLI writes DTCG 2025.10 tokens plus a documented boolean extension, a
-Resolver document for modes, CSS custom properties, a Tailwind CSS v4 theme,
-TypeScript accessors, and transformer configuration. Its diff command matches
-variables by stable Figma IDs, so renamed variables keep their identity in
-review. The release also includes React hooks for built artifacts, an MCP
-server, and a browser playground. FigmaVars uses the MIT license.
+Primitree turns a Figma variables export into commit-ready files for review.
+The CLI writes DTCG 2025.10 token files, Resolver contexts for modes, CSS custom
+properties, Tailwind v4 mappings, and typed token paths. The diff engine matches
+variable records by stable Figma ID and reports changed names as renames. The
+MIT-licensed repository includes React hooks for built artifacts and an MCP
+server for token queries. The browser playground builds the files without an
+install.
 
-https://figmavars.com
+https://primitree.com
 
 ## Demo outline
 
@@ -121,13 +119,13 @@ Set Width 1200
 Set Height 640
 Set Theme "Catppuccin Mocha"
 
-Type "npx @figmavars/cli build variables.json" Enter
+Type "npx @primitree/cli build variables.json" Enter
 Sleep 4s
 Type "find design-tokens -maxdepth 2 -type f | sort" Enter
 Sleep 4s
 Type "git add design-tokens && git status --short" Enter
 Sleep 4s
-Type "npx @figmavars/cli diff backup/variables.json variables.json" Enter
+Type "npx @primitree/cli diff backup/variables.json variables.json" Enter
 Sleep 5s
 ```
 
@@ -137,10 +135,10 @@ switch one Resolver context, and download the zip.
 ## Launch checklist
 
 - [ ] Finish the [release runbook](../releasing.md).
-- [ ] Publish the five `@figmavars` packages in dependency order.
-- [ ] Verify the documentation site at https://figmavars.com.
+- [ ] Publish the five `@primitree` packages in dependency order.
+- [ ] Verify the documentation site at https://primitree.com.
 - [ ] Verify the migration guide at
-      https://figmavars.com/docs/hooks/migration.
+      https://primitree.com/docs/hooks/migration.
 - [ ] Record the demo with the release tarballs installed.
 - [ ] Check each command and link in the launch copy.
 - [ ] Publish the Show HN post.

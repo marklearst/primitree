@@ -1,6 +1,6 @@
 import useSWR from 'swr'
-import { fetcher } from '@figmavars/core'
-import type { PublishedVariablesResponse } from '@figmavars/core'
+import { fetcher } from '@primitree/core'
+import type { PublishedVariablesResponse } from '@primitree/core'
 import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
 import { getPublishedVariablesKey } from '../utils/swrKeys'
 
@@ -8,8 +8,9 @@ import { getPublishedVariablesKey } from '../utils/swrKeys'
  * Read published Figma variables for the provider's file.
  *
  * @remarks
- * A validated published fallback skips the request. Otherwise SWR fetches the
- * published variables endpoint with the provider's file key and token.
+ * The hook reads validated published fallback data without a request. Without
+ * that fallback, SWR fetches the published variables endpoint when the
+ * provider has a file key and token.
  *
  * @returns SWR response object with `data`, `error`, `isLoading`, and `isValidating`.
  *
@@ -17,7 +18,7 @@ import { getPublishedVariablesKey } from '../utils/swrKeys'
  *
  * @example
  * ```tsx
- * import { usePublishedVariables } from '@figmavars/hooks';
+ * import { usePublishedVariables } from '@primitree/hooks';
  *
  * function LibraryTokens() {
  *   const { data, isLoading, error } = usePublishedVariables();

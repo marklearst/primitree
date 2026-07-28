@@ -61,7 +61,7 @@ export function formatDiffMarkdown(diff: VariablesDiff): string {
   const out: string[] = ['# Figma variables diff', '']
 
   if (!diff.hasChanges) {
-    out.push('No changes detected.', '')
+    out.push('The exports match.', '')
     return out.join('\n')
   }
 
@@ -90,7 +90,9 @@ export function formatDiffMarkdown(diff: VariablesDiff): string {
     `Variables: ${counts.length > 0 ? counts.join(', ') : 'no variable changes'}.`
   )
   out.push(
-    diff.breaking ? '**Breaking changes detected.**' : 'No breaking changes.'
+    diff.breaking
+      ? '**The diff contains breaking changes.**'
+      : 'No breaking changes.'
   )
 
   const breaking: string[] = []

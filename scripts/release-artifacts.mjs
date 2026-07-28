@@ -173,7 +173,7 @@ export function expectedArtifacts(version) {
   }
   return PUBLIC_RELEASE_PACKAGES.map(config => ({
     name: config.name,
-    file: `figmavars-${config.name.slice('@figmavars/'.length)}-${version}.tgz`,
+    file: `primitree-${config.name.slice('@primitree/'.length)}-${version}.tgz`,
   }))
 }
 
@@ -571,7 +571,7 @@ function createNpmExecutionContext(prefix) {
     writeFileSync(userConfigPath, '', { mode: 0o600 })
     writeFileSync(
       globalConfigPath,
-      `registry=${PUBLIC_NPM_REGISTRY}\n@figmavars:registry=${PUBLIC_NPM_REGISTRY}\n`,
+      `registry=${PUBLIC_NPM_REGISTRY}\n@primitree:registry=${PUBLIC_NPM_REGISTRY}\n`,
       { mode: 0o600 }
     )
 
@@ -609,12 +609,12 @@ function npmCommandOptions(context, cwd = context.workingDirectory) {
 function pnpmRegistryArguments() {
   return [
     `--config.registry=${PUBLIC_NPM_REGISTRY}`,
-    `--config.@figmavars:registry=${PUBLIC_NPM_REGISTRY}`,
+    `--config.@primitree:registry=${PUBLIC_NPM_REGISTRY}`,
   ]
 }
 
 function assertEffectiveRegistry(context) {
-  for (const key of ['registry', '@figmavars:registry']) {
+  for (const key of ['registry', '@primitree:registry']) {
     const result = spawnChecked(
       'npm',
       ['config', 'get', key],
@@ -639,7 +639,7 @@ export function packReleaseArtifacts() {
   let commandContext
 
   try {
-    commandContext = createNpmExecutionContext('figmavars-release-pack-')
+    commandContext = createNpmExecutionContext('primitree-release-pack-')
     const outputPattern = path.join(stagingDirectory, '%s-%v.tgz')
     const artifacts = []
     for (let index = 0; index < PUBLIC_RELEASE_PACKAGES.length; index += 1) {
@@ -736,7 +736,7 @@ function requireUnchangedSnapshot(before, after) {
 
 function runExternalReleaseChecks(before) {
   requireNoProjectNpmConfig()
-  const commandContext = createNpmExecutionContext('figmavars-release-check-')
+  const commandContext = createNpmExecutionContext('primitree-release-check-')
   try {
     const commonOptions = npmCommandOptions(commandContext)
 
@@ -766,7 +766,7 @@ function runExternalReleaseChecks(before) {
     writeFileSync(
       path.join(consumerDirectory, 'package.json'),
       `${JSON.stringify(
-        { name: 'figmavars-release-consumer', version: '0.0.0', private: true },
+        { name: 'primitree-release-consumer', version: '0.0.0', private: true },
         null,
         2
       )}\n`
@@ -857,7 +857,9 @@ export function verifyReleaseArtifacts({ artifactDirectory } = {}) {
   }
 
   if (checksumBytes.toString('utf8') !== canonicalChecksums(artifacts)) {
-    throw new Error('SHA256SUMS must use the canonical ordered byte format')
+    throw new Error(
+      'SHA256SUMS bytes do not match the required artifact order and format'
+    )
   }
 
   for (const { artifact, bytes } of artifactBytes) {

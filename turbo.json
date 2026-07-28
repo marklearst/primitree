@@ -13,13 +13,17 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
-    "@figmavars/hooks#test": {
+    "@primitree/hooks#test": {
       "dependsOn": ["build"],
       "outputs": []
     },
-    "@figmavars/hooks#test:coverage": {
+    "@primitree/hooks#test:coverage": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"]
+    },
+    "@primitree/hooks#typecheck": {
+      "dependsOn": ["build"],
+      "outputs": []
     },
     "typecheck": {
       "dependsOn": ["^build"],

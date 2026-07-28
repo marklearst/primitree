@@ -34,9 +34,9 @@ export function FeatureGrid() {
     <section className='feature-section'>
       <div className='feature-inner'>
         <h2 className='feature-heading'>
-          One repository for the
+          Build and import tokens
           <br />
-          token workflow.
+          from one repository.
         </h2>
 
         <ul className='feature-list'>

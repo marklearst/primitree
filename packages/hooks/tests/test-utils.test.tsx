@@ -8,7 +8,7 @@ import {
 } from './test-utils'
 
 describe('TestWrapper', () => {
-  it('provides deterministic credentials to consumers', () => {
+  it('provides fixed credentials to consumers', () => {
     const { result } = renderHook(() => useFigmaTokenContext(), {
       wrapper: TestWrapper,
     })

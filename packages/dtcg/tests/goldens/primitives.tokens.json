@@ -15,7 +15,7 @@
             "hex": "#8cb3ff"
           },
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:1:102",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
@@ -39,7 +39,7 @@
           },
           "$description": "Primary blue",
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:1:101",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
@@ -63,7 +63,7 @@
         },
         "$description": "Small corner radius",
         "$extensions": {
-          "com.figma-vars": {
+          "com.primitree": {
             "variableId": "VariableID:1:103",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
@@ -82,7 +82,7 @@
           "unit": "px"
         },
         "$extensions": {
-          "com.figma-vars": {
+          "com.primitree": {
             "variableId": "VariableID:1:104",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
@@ -100,7 +100,7 @@
           "$type": "fontFamily",
           "$value": "Inter",
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:1:105",
               "collectionId": "VariableCollectionId:1:100",
               "collectionName": "Primitives",
@@ -118,7 +118,7 @@
         "$value": true,
         "$description": "Toggle rounded corners",
         "$extensions": {
-          "com.figma-vars": {
+          "com.primitree": {
             "variableId": "VariableID:1:106",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",
@@ -133,7 +133,7 @@
         "$type": "number",
         "$value": 0.4,
         "$extensions": {
-          "com.figma-vars": {
+          "com.primitree": {
             "variableId": "VariableID:1:107",
             "collectionId": "VariableCollectionId:1:100",
             "collectionName": "Primitives",

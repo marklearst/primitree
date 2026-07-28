@@ -11,7 +11,7 @@ import type { UseVariableModesResult } from '../types/hooks'
  *
  * @example
  * ```tsx
- * import { useVariableModes } from '@figmavars/hooks';
+ * import { useVariableModes } from '@primitree/hooks';
  *
  * function ModeList() {
  *   const { modes } = useVariableModes();

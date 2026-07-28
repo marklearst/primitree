@@ -1,27 +1,27 @@
 ---
-title: Overview
-description: Install FigmaVars, export variables.json, and build your first token pipeline.
+title: Get started
+description: Install Primitree, export variables.json, and build your first token pipeline.
 ---
 
-You need Node.js 24 or newer. Contributors working in this monorepo also need pnpm 11 or newer.
+You need Node.js 24 or newer. Contributors working in this monorepo need pnpm 11 or newer.
 
 ## 1. Install the CLI
 
 ```bash
-pnpm add -D @figmavars/cli
+pnpm add -D @primitree/cli
 # One-off command
-npx @figmavars/cli --help
+npx @primitree/cli --help
 ```
 
 ## 2. Export variables from Figma
 
-Use the [FigmaVars Export plugin](/docs/figma-plugin) to download the local variables from the open file. FigmaVars also accepts supported JSON from another variables exporter.
+Use the [Primitree export plugin](/docs/figma-plugin) to download local variables from the open file. Primitree accepts the input shapes listed in [Export variables](/docs/getting-started/export-variables).
 
 Figma Enterprise organizations can call the Variables REST API:
 
 ```bash
 export FIGMA_TOKEN=figd_...
-figma-vars export --file-key AbCdEf... --out variables.json
+primitree export --file-key AbCdEf... --out variables.json
 ```
 
 See [Export variables](/docs/getting-started/export-variables) for the accepted input shapes.
@@ -29,13 +29,13 @@ See [Export variables](/docs/getting-started/export-variables) for the accepted 
 ## 3. Build the pipeline
 
 ```bash
-figma-vars build variables.json
+primitree build variables.json
 ```
 
 Default output directory: `design-tokens/`.
 
 ```bash
-figma-vars build variables.json --out tokens --terrazzo
+primitree build variables.json --out tokens --terrazzo
 ```
 
 Use `--out` to change the folder. Use `--terrazzo` or `--style-dictionary` to pick a transformer config. The build reference lists each `--no-*` output flag.
@@ -56,12 +56,12 @@ The build writes `design-tokens.workflow.yml`. Move the file into `.github/workf
 Add this command to a pull request workflow for a breaking-change check:
 
 ```bash
-figma-vars diff backup/variables.json variables.json --fail-on-breaking
+primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
 With `--fail-on-breaking`, exit code `2` marks a breaking change.
 
-## Next steps
+## Use the generated tokens
 
 <Cards>
   <Card

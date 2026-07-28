@@ -9,7 +9,7 @@ import { useFigmaTokenContext } from '../contexts/useFigmaTokenContext'
  *
  * @example
  * ```tsx
- * import { useFigmaToken } from '@figmavars/hooks';
+ * import { useFigmaToken } from '@primitree/hooks';
  *
  * function AuthStatus() {
  *   const token = useFigmaToken();

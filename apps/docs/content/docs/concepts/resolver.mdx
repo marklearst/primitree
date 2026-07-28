@@ -1,9 +1,9 @@
 ---
 title: Resolver & Modes
-description: Figma modes become DTCG Resolver contexts for theming.
+description: Map Figma modes to DTCG Resolver contexts for theming.
 ---
 
-A Figma collection with more than one mode becomes a Resolver modifier. FigmaVars writes the default mode into the collection's base token file and writes another file for each non-default mode.
+The converter maps each multi-mode collection to a Resolver modifier. It writes the default mode into the collection's base token file and another file for each non-default mode.
 
 ## Generated file
 
@@ -35,7 +35,7 @@ A Figma collection with more than one mode becomes a Resolver modifier. FigmaVar
 }
 ```
 
-The base set enters the merge first. The selected context then adds its override sources at the modifier's position in `resolutionOrder`. An omitted axis uses the modifier's `default`; a modifier without a default uses its first declared context.
+The resolver starts with the base set and applies the selected context's override sources at its `resolutionOrder` position. It uses a modifier's default context for any axis absent from the input. It selects the first declared context when the modifier has no default.
 
 ## Runtime switching
 
@@ -51,6 +51,6 @@ The base set enters the merge first. The selected context then adds its override
 
 ## Naming
 
-FigmaVars converts collection names to lowercase slugs for set and modifier names. It converts mode names to context slugs, so `Light` becomes `light`.
+The converter changes collection names into lowercase slugs for set and modifier names. It writes the `Light` mode as the `light` context slug.
 
-Inspect `tokens.resolver.json` to see the exact context names and merge order written by the build.
+Inspect `tokens.resolver.json` to see the exact context names and merge order that the build writes.

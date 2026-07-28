@@ -9,7 +9,7 @@
   padding-top: 32px;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
 }
 
 .pg-landing {
@@ -46,7 +46,7 @@
 }
 
 .pg-lede {
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-size: 16px;
   line-height: 1.65;
   max-width: 560px;
@@ -54,12 +54,12 @@
 }
 
 .pg-link {
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
   text-decoration: none;
 }
 
 .pg-dropzone {
-  border: 1.5px dashed var(--color-fv-border-strong);
+  border: 1.5px dashed var(--color-primitree-border-strong);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.02);
   padding: 48px 24px;
@@ -70,7 +70,7 @@
 }
 
 .pg-dropzone.dragging {
-  border-color: var(--color-fv-accent);
+  border-color: var(--color-primitree-accent);
   background: rgba(123, 140, 255, 0.06);
 }
 
@@ -81,7 +81,7 @@
 }
 
 .pg-dz-sub {
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   margin: 0 0 20px;
   font-size: 14px;
 }
@@ -89,7 +89,7 @@
 .pg-dz-sub code {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
 }
 
 .pg-dz-actions {
@@ -120,8 +120,8 @@
 
 .pg-button.ghost {
   background: transparent;
-  border-color: var(--color-fv-border-strong);
-  color: var(--color-fv-text);
+  border-color: var(--color-primitree-border-strong);
+  color: var(--color-primitree-text);
 }
 
 .pg-error {
@@ -157,7 +157,7 @@
 
 .pg-stats {
   margin: 0;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-size: 14px;
 }
 
@@ -174,7 +174,7 @@
   border-radius: 12px;
   padding: 10px 14px;
   font-size: 14px;
-  color: var(--color-fv-warn);
+  color: var(--color-primitree-warn);
 }
 
 .pg-warnings > summary {
@@ -186,7 +186,7 @@
 
 .pg-warnings ul {
   margin: 8px 0 4px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
 }
 
 .pg-contexts {
@@ -195,7 +195,7 @@
   flex-wrap: wrap;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   border-radius: 14px;
   margin-bottom: 20px;
 }
@@ -213,7 +213,7 @@
 
 .pg-axis-name {
   font-size: 13px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-family: var(--font-mono);
 }
 
@@ -230,9 +230,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   background: transparent;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   border-radius: 999px;
   padding: 0 12px;
   font-size: 13px;
@@ -254,15 +254,15 @@
 
 .pg-chip:has(input:checked) {
   background: rgba(123, 140, 255, 0.15);
-  border-color: var(--color-fv-accent);
-  color: var(--color-fv-accent);
+  border-color: var(--color-primitree-accent);
+  color: var(--color-primitree-accent);
   font-weight: 600;
 }
 
 .pg-tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
   margin-bottom: 20px;
 }
 
@@ -271,7 +271,7 @@
   min-height: 44px;
   background: none;
   border: none;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-size: 14px;
   font-weight: 600;
   padding: 8px 14px;
@@ -281,8 +281,8 @@
 }
 
 .pg-tab.active {
-  color: var(--color-fv-text);
-  border-bottom-color: var(--color-fv-accent);
+  color: var(--color-primitree-text);
+  border-bottom-color: var(--color-primitree-accent);
 }
 
 .pg-tab-panel[hidden] {
@@ -291,7 +291,7 @@
 
 .pg-report h3 {
   font-size: 13px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-family: var(--font-mono);
   margin: 24px 0 12px;
 }
@@ -304,7 +304,7 @@
 
 .pg-swatch {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
   padding: 12px;
   display: grid;
@@ -327,7 +327,7 @@
 }
 
 .pg-swatch-path {
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
 }
 
 .pg-token-table {
@@ -346,16 +346,16 @@
 
 .pg-token-table th {
   text-align: left;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-weight: 500;
   font-size: 12px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
 }
 
 .pg-token-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-fv-border);
+  border-bottom: 1px solid var(--color-primitree-border);
   font-family: var(--font-mono);
   font-size: 13px;
 }
@@ -365,7 +365,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(52, 211, 153, 0.1);
-  color: var(--color-fv-good);
+  color: var(--color-primitree-good);
   font-size: 12px;
   font-weight: 600;
 }
@@ -400,7 +400,7 @@
   background: none;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: var(--color-fv-muted);
+  color: var(--color-primitree-muted);
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 8px 10px;
@@ -411,14 +411,14 @@
 
 .pg-file.active {
   background: rgba(123, 140, 255, 0.1);
-  border-color: var(--color-fv-accent);
-  color: var(--color-fv-text);
+  border-color: var(--color-primitree-accent);
+  color: var(--color-primitree-text);
 }
 
 .pg-file-view {
   min-inline-size: 0;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--color-fv-border);
+  border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
   padding: 16px;
   margin: 0;
@@ -432,14 +432,14 @@
 .pg-footnote {
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid var(--color-fv-border);
-  color: var(--color-fv-dim);
+  border-top: 1px solid var(--color-primitree-border);
+  color: var(--color-primitree-dim);
   font-size: 13px;
   text-align: center;
 }
 
 .pg-footnote a {
-  color: var(--color-fv-accent);
+  color: var(--color-primitree-accent);
   text-decoration: none;
 }
 
@@ -460,7 +460,7 @@
 .pg-link:focus-visible,
 .pg-footnote a:focus-visible,
 .pg-chip:has(input:focus-visible) {
-  outline: 2px solid var(--color-fv-accent);
+  outline: 2px solid var(--color-primitree-accent);
   outline-offset: 3px;
 }
 

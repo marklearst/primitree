@@ -18,7 +18,7 @@ export interface DiffVariableRef {
   collectionName: string
 }
 
-/** A rename detected by stable Figma ID. @public */
+/** Rename record with a stable Figma ID. @public */
 export interface DiffRename {
   id: string
   from: string
@@ -109,7 +109,7 @@ function modeName(collection: NormalizedCollection, modeId: string): string {
  * Compute the semantic diff between two Figma variables exports.
  *
  * @remarks
- * Accepts the input shapes supported by `normalizeVariables`. It matches
+ * Accepts the same input shapes as `normalizeVariables`. It matches
  * records across exports by Figma variable, collection, and mode ID. Renamed
  * records appear as renames.
  *

@@ -1,4 +1,4 @@
-import type { Color } from '@figmavars/core'
+import type { Color } from '@primitree/core'
 import type { DTCGColorValue } from './types'
 
 function channelToHex(channel: number): string {
@@ -9,8 +9,8 @@ function channelToHex(channel: number): string {
 }
 
 /**
- * Convert a Figma RGBA color (0–1 channels) to a hex string (`#rrggbb` or
- * `#rrggbbaa` when alpha < 1).
+ * Convert a Figma RGBA color (0–1 channels) to `#rrggbb`.
+ * Alpha values below 1 use `#rrggbbaa`.
  *
  * @public
  */

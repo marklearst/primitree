@@ -5,7 +5,7 @@ import { TokensContext, type TokensContextValue } from './TokensContext'
  * Read token data from the nearest {@link TokensProvider}: the
  * merged document, flattened tokens, resolved values, and context controls.
  *
- * @throws Error when used outside a TokensProvider.
+ * @throws Error outside a TokensProvider.
  *
  * @example
  * ```tsx
@@ -18,7 +18,7 @@ import { TokensContext, type TokensContextValue } from './TokensContext'
 export function useTokens(): TokensContextValue {
   const context = useContext(TokensContext)
   if (!context) {
-    throw new Error('useTokens must be used within a <TokensProvider>')
+    throw new Error('Call useTokens inside a <TokensProvider>.')
   }
   return context
 }

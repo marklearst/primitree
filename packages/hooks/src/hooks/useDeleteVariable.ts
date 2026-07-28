@@ -5,7 +5,7 @@ import {
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
   mutator,
-} from '@figmavars/core'
+} from '@primitree/core'
 
 /**
  * Delete a Figma variable from the provider's file.
@@ -18,7 +18,7 @@ import {
  *
  * @example
  * ```tsx
- * import { useDeleteVariable } from '@figmavars/hooks';
+ * import { useDeleteVariable } from '@primitree/hooks';
  *
  * function DeleteVariableButton({ id }: { id: string }) {
  *   const { mutate, isLoading, isError, error } = useDeleteVariable();

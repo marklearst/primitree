@@ -1,6 +1,5 @@
 {
-  "name": "figmavars-plugin",
-  "version": "5.0.0",
+  "name": "primitree-plugin",
   "private": true,
   "description": "Export local Figma variables to variables.json.",
   "scripts": {
@@ -10,7 +9,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.ui.json"
   },
   "dependencies": {
-    "@figmavars/plugin-export": "workspace:*"
+    "@primitree/plugin-export": "workspace:*"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.119.0",

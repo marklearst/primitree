@@ -1,4 +1,4 @@
-import type { NormalizedVariable } from '@figmavars/core'
+import type { NormalizedVariable } from '@primitree/core'
 import type { DTCGTokenType } from './types'
 
 const DIMENSION_SCOPES = new Set([

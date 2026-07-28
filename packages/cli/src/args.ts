@@ -1,5 +1,5 @@
 /**
- * Minimal, dependency-free argument parsing for the figma-vars CLI.
+ * Minimal, dependency-free argument parsing for the Primitree CLI.
  *
  * Supports `--flag value`, `--flag=value`, boolean flags, and positional args.
  */

@@ -1,24 +1,24 @@
 ---
 title: Export Variables
-description: Create a variables.json file for the FigmaVars build.
+description: Create a variables.json file for the Primitree build.
 ---
 
-FigmaVars accepts a Variables REST API response, a bare `meta` object, or a plugin export with `variables` and `collections`.
+Primitree accepts a Variables REST API response, a bare `meta` object, or a plugin export with `variables` and `collections`.
 
-## FigmaVars Export plugin
+## Primitree export plugin
 
-During local development, load the [FigmaVars Export](/docs/figma-plugin) plugin from this repository:
+During local development, load the [Primitree export](/docs/figma-plugin) plugin from this repository:
 
-1. Build the plugin with `pnpm --filter figmavars-plugin build`
+1. Build the plugin with `pnpm --filter primitree-plugin build`
 2. In Figma, choose Plugins → Development → Import plugin from manifest
 3. Select `apps/figma-plugin/dist/manifest.json`
-4. Run **FigmaVars Export** and download `variables.json`
+4. Run **Primitree export** and download `variables.json`
 
-The plugin calls `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()` in the open file. Its output uses the REST local variables response shape expected by the CLI.
+The plugin calls `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()` in the open file. The CLI reads its output as a REST local variables response.
 
 ## Other plugin exports
 
-FigmaVars accepts these layouts:
+Primitree accepts these layouts:
 
 - `{ meta: { variables, variableCollections } }`
 - `{ variables, variableCollections }`
@@ -34,19 +34,13 @@ Figma limits the Variables REST API to Enterprise organizations. A local variabl
 export FIGMA_TOKEN=figd_...
 export FIGMA_FILE_KEY=AbCdEf...
 
-figma-vars export --out variables.json
-```
-
-The hooks package also includes the `figma-vars-export` compatibility bin:
-
-```bash
-npx --package @figmavars/hooks figma-vars-export --file-key "$FIGMA_FILE_KEY"
+primitree export --out variables.json
 ```
 
 Run a check before building:
 
 ```bash
-figma-vars check variables.json
+primitree check variables.json
 ```
 
 ## Keep exports in version control

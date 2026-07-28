@@ -1,15 +1,15 @@
 import { useMemo, useId } from 'react'
 import type {
   FigmaTokenContextType,
-  FigmaVarsProviderProps,
+  FigmaVariablesProviderProps,
 } from '../types/contexts'
 import { FigmaTokenContext } from './FigmaTokenContext'
-import { classifyFallbackData } from '@figmavars/core'
+import { classifyFallbackData } from '@primitree/core'
 
 const INVALID_FALLBACK_WARNING =
-  '[figmavars] fallbackFile could not be classified as local or published Figma Variables API response data. Provide fallbackKind for empty response data.'
+  '[primitree] fallbackFile does not match local or published Figma Variables API response data. Set fallbackKind for an empty response.'
 
-const FALLBACK_PARSE_ERROR = '[figmavars] Failed to parse fallbackFile JSON.'
+const FALLBACK_PARSE_ERROR = '[primitree] Failed to parse fallbackFile JSON.'
 
 /**
  * Provide a Figma file key, token, and fallback data to live API hooks.
@@ -21,32 +21,32 @@ const FALLBACK_PARSE_ERROR = '[figmavars] Failed to parse fallbackFile JSON.'
  *
  * @example
  * ```tsx
- * import { FigmaVarsProvider } from '@figmavars/hooks'
+ * import { FigmaVariablesProvider } from '@primitree/hooks'
  *
  * function App({ token }: { token: string }) {
  *   return (
- *     <FigmaVarsProvider token={token} fileKey="AbC123">
+ *     <FigmaVariablesProvider token={token} fileKey="AbC123">
  *       <MyDashboard />
- *     </FigmaVarsProvider>
+ *     </FigmaVariablesProvider>
  *   );
  * }
  * ```
  *
  * @public
  */
-export const FigmaVarsProvider = ({
+export const FigmaVariablesProvider = ({
   children,
   token,
   fileKey,
   fallbackFile,
   fallbackKind,
   swrConfig,
-}: FigmaVarsProviderProps) => {
+}: FigmaVariablesProviderProps) => {
   // Generate a unique provider ID for this instance to avoid SWR cache collisions
   // Use React's useId() for stable, SSR-safe IDs
   const reactId = useId()
   const providerId = useMemo(() => {
-    return `figma-vars-provider-${reactId}`
+    return `primitree-provider-${reactId}`
   }, [reactId])
 
   // Parse fallback JSON once and cache the result

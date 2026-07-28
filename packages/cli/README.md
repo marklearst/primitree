@@ -1,20 +1,19 @@
-# @figmavars/cli
+# @primitree/cli
 
-`@figmavars/cli` turns a Figma variables export into files you can keep in a
-repository.
+`@primitree/cli` turns a Figma variables export into files for version control.
 
 ```sh
-npx @figmavars/cli build variables.json
+npx @primitree/cli build variables.json
 ```
 
 ## Requirements
 
 - Node.js 24 or newer
 
-## `figma-vars build`
+## `primitree build`
 
 ```sh
-figma-vars build <variables.json> [--out <dir>]
+primitree build <variables.json> [--out <dir>]
 ```
 
 The default output directory is `design-tokens`. The command can write:
@@ -44,10 +43,10 @@ Build options:
 - `--no-readme`
 - `--name <name>`
 
-## `figma-vars diff`
+## `primitree diff`
 
 ```sh
-figma-vars diff <old.json> <new.json>
+primitree diff <old.json> <new.json>
 ```
 
 The command matches variables by stable Figma IDs and writes a Markdown report.
@@ -56,23 +55,24 @@ Use `--json` for JSON output, `--out <file>` to write a file, and
 change.
 
 ```sh
-figma-vars diff backup/variables.json variables.json --fail-on-breaking
+primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
-## `figma-vars check`
+## `primitree check`
 
 ```sh
-figma-vars check <variables.json | tokens-dir>
+primitree check <variables.json | tokens-dir>
 ```
 
 For a variables export, the command checks the input shape, alias graph, and
 mode resolution. For a built token directory, it checks each Resolver context
-combination and token reference. Problems produce exit code 1.
+combination and token reference. The command exits with code 1 when it finds a
+problem.
 
-## `figma-vars init`
+## `primitree init`
 
 ```sh
-figma-vars init [dir] [--from variables.json] [--name name] [--force]
+primitree init [dir] [--from variables.json] [--name name] [--force]
 ```
 
 The command creates a token repository with:
@@ -82,35 +82,35 @@ The command creates a token repository with:
 - package scripts for build, check, diff, and backup
 - `.github/workflows/design-tokens.yml`
 
-`--force` replaces paths owned by the scaffold and leaves unrelated paths in
-place. The command rejects unsafe path types, including symbolic links in
+`--force` replaces scaffold-owned paths and leaves unrelated paths in place. The
+command rejects unsafe path types, including symbolic links in
 scaffold-owned locations.
 
-## `figma-vars export`
+## `primitree export`
 
 ```sh
-figma-vars export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
+primitree export --file-key <FILE_KEY> [--out <OUTPUT_PATH>]
 ```
 
 The export command calls the Figma Variables REST API. It requires an
 Enterprise seat, `file_variables:read`, and a Personal Access Token in
 `FIGMA_TOKEN` or `FIGMA_PAT`.
 
-You can set `FIGMA_FILE_KEY` in place of `--file-key`. The default output path
-is `figma-variables.json`.
+Set `FIGMA_FILE_KEY` instead of passing `--file-key`. The default output path is
+`figma-variables.json`.
 
-Use the FigmaVars Export plugin when you need a local variables export without
+Use the Primitree export plugin when you need a local variables export without
 the REST API.
 
 ## Packages
 
-- [`@figmavars/core`](https://www.npmjs.com/package/@figmavars/core) provides normalization, comparison, API functions, and types.
-- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) provides conversion and emitters.
-- [`@figmavars/hooks`](https://www.npmjs.com/package/@figmavars/hooks) provides React hooks.
-- [`@figmavars/mcp`](https://www.npmjs.com/package/@figmavars/mcp) serves token data through MCP.
+- [`@primitree/core`](https://www.npmjs.com/package/@primitree/core) provides normalization, comparison, API functions, and types.
+- [`@primitree/dtcg`](https://www.npmjs.com/package/@primitree/dtcg) provides conversion and emitters.
+- [`@primitree/hooks`](https://www.npmjs.com/package/@primitree/hooks) provides React hooks.
+- [`@primitree/mcp`](https://www.npmjs.com/package/@primitree/mcp) serves token data through MCP.
 
-Read the [FigmaVars documentation](https://figmavars.com) or review the
-[5.0.0 changelog](CHANGELOG.md).
+Read the [Primitree documentation](https://primitree.com) or review the
+[1.0.0 changelog](CHANGELOG.md).
 
 ## License
 

@@ -1,9 +1,9 @@
 ---
 title: DTCG 2025.10
-description: FigmaVars maps Figma variables to Design Tokens Community Group format.
+description: Primitree maps Figma variables to Design Tokens Community Group format.
 ---
 
-FigmaVars emits DTCG 2025.10 plus a documented boolean extension. The output includes token documents and a [DTCG Resolver](https://www.designtokens.org) document for Figma modes.
+The converter emits DTCG 2025.10 plus a documented boolean extension. The output includes token documents and a [DTCG Resolver](https://www.designtokens.org) document for Figma modes.
 
 ## Mapping rules
 
@@ -14,13 +14,13 @@ FigmaVars emits DTCG 2025.10 plus a documented boolean extension. The output inc
 | Variable name    | Nested token path split on `/`                             |
 | Variable alias   | `{dot.path}` reference                                     |
 | `COLOR`          | `$type: color` with an sRGB value                          |
-| `FLOAT`          | Type inferred from scope, then name; fallback is `number`  |
+| `FLOAT`          | Infer type from scope and name; fall back to `number`      |
 | `STRING`         | `$type: fontFamily` for matching scope/name, else `string` |
-| `BOOLEAN`        | `$type: boolean`, the documented FigmaVars extension       |
+| `BOOLEAN`        | `$type: boolean`, the documented Primitree extension       |
 
 ## Figma metadata
 
-Each emitted token stores source metadata under `$extensions['com.figma-vars']`:
+Each emitted token stores source metadata under `$extensions['com.primitree']`:
 
 - `variableId`
 - `collectionId` and `collectionName`
@@ -35,7 +35,7 @@ For example:
   "$type": "boolean",
   "$value": true,
   "$extensions": {
-    "com.figma-vars": {
+    "com.primitree": {
       "variableId": "VariableID:12:34",
       "collectionId": "VariableCollectionId:12:1",
       "collectionName": "Features",
@@ -49,7 +49,7 @@ The DTCG 2025.10 type list excludes boolean. Configure strict validators to acce
 
 ## Multiple modes
 
-The base file contains values from the collection's default mode. Other modes become override files:
+The base file contains values from the collection's default mode. The converter writes an override file for each other mode:
 
 ```
 semantic.tokens.json       # Light (default)
@@ -61,4 +61,4 @@ The [Resolver](/docs/concepts/resolver) lists the base set, mode contexts, defau
 ## Further reading
 
 - [Pipeline output](/docs/getting-started/pipeline-output)
-- [`@figmavars/dtcg`](https://www.npmjs.com/package/@figmavars/dtcg) for programmatic conversion
+- [`@primitree/dtcg`](https://www.npmjs.com/package/@primitree/dtcg) for programmatic conversion
