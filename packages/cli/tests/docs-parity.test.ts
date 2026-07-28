@@ -86,22 +86,22 @@ describe('parity guard regressions', () => {
   it.each([
     {
       name: 'multiline direct init',
-      text: 'figma-vars init project \\\n  --build',
+      text: 'primitree init project \\\n  --build',
       option: '--build',
     },
     {
       name: 'single-line npx init',
-      text: 'npx @figmavars/cli init project --build',
+      text: 'npx @primitree/cli init project --build',
       option: '--build',
     },
     {
       name: 'multiline direct diff',
-      text: 'figma-vars diff old.json new.json \\\n  --markdown',
+      text: 'primitree diff old.json new.json \\\n  --markdown',
       option: '--markdown',
     },
     {
       name: 'single-line npx diff',
-      text: 'npx @figmavars/cli diff old.json new.json --markdown',
+      text: 'npx @primitree/cli diff old.json new.json --markdown',
       option: '--markdown',
     },
   ])('detects obsolete options in $name commands', ({ text, option }) => {
@@ -111,27 +111,27 @@ describe('parity guard regressions', () => {
   it.each([
     {
       name: 'obsolete build',
-      text: 'figma-vars init project --build=true',
+      text: 'primitree init project --build=true',
       option: '--build',
     },
     {
       name: 'obsolete markdown',
-      text: 'figma-vars diff old.json new.json --markdown=true',
+      text: 'primitree diff old.json new.json --markdown=true',
       option: '--markdown',
     },
     {
       name: 'value option',
-      text: 'figma-vars build variables.json --out=dist',
+      text: 'primitree build variables.json --out=dist',
       option: '--out',
     },
     {
       name: 'hyphenated alias',
-      text: 'figma-vars export --file-key=abc',
+      text: 'primitree export --file-key=abc',
       option: '--file-key',
     },
     {
       name: 'camel-case alias',
-      text: 'figma-vars export --fileKey=abc',
+      text: 'primitree export --fileKey=abc',
       option: '--fileKey',
     },
   ])('tokenizes $name in equals form', ({ text, option }) => {
@@ -165,7 +165,7 @@ Current documentation.
 
 ## Migrating from 4.x
 
-Replace @figma-vars/hooks with @figmavars/hooks.
+Replace @figma-vars/hooks with @primitree/hooks.
 
 ## License
 
@@ -174,7 +174,7 @@ Later text containing @figma-vars/hooks must still be scanned.
 
     const withoutMigration = withoutHooksMigration(readme)
     expect(withoutMigration).not.toContain(
-      'Replace @figma-vars/hooks with @figmavars/hooks.'
+      'Replace @figma-vars/hooks with @primitree/hooks.'
     )
     expect(withoutMigration).toContain(
       'Later text containing @figma-vars/hooks must still be scanned.'
@@ -204,11 +204,11 @@ describe('maintained examples', () => {
   })
 
   it('uses old then new order for semantic diffs', () => {
-    expect(maintained).toContain(
-      'figma-vars diff backup/variables.json variables.json'
+    expect(maintained).toMatch(
+      /\b[a-z-]+ diff backup\/variables\.json variables\.json/
     )
-    expect(maintained).not.toContain(
-      'figma-vars diff variables.json backup/variables.json'
+    expect(maintained).not.toMatch(
+      /\b[a-z-]+ diff variables\.json backup\/variables\.json/
     )
   })
 

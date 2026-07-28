@@ -1,12 +1,12 @@
 {
-  "name": "@figmavars/cli",
-  "version": "5.0.0",
+  "name": "@primitree/cli",
+  "version": "1.0.0",
   "description": "Build, compare, check, scaffold, and export Figma Variables token projects.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "figma-vars": "./dist/index.js"
+    "primitree": "./dist/index.js"
   },
   "files": [
     "dist"
@@ -22,13 +22,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marklearst/figmavars.git",
+    "url": "git+https://github.com/marklearst/primitree.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/marklearst/figmavars/issues"
+    "url": "https://github.com/marklearst/primitree/issues"
   },
-  "homepage": "https://github.com/marklearst/figmavars#readme",
+  "homepage": "https://github.com/marklearst/primitree#readme",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -48,8 +48,8 @@
     "url": "https://github.com/sponsors/marklearst"
   },
   "dependencies": {
-    "@figmavars/core": "workspace:*",
-    "@figmavars/dtcg": "workspace:*"
+    "@primitree/core": "workspace:*",
+    "@primitree/dtcg": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

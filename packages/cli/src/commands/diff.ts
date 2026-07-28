@@ -1,17 +1,17 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
+import { diffVariables, formatDiffMarkdown } from '@primitree/core'
 import { getBooleanFlag, getStringFlag, type ParsedArgs } from '../args'
 import { readJsonFile } from '../io'
 
 export const diffHelp = `
-figma-vars diff: compare two Figma variables exports
+primitree diff: compare two Figma variables exports
 
 The command matches stable Figma IDs. It reports renames, removals, moves,
 and type changes as breaking changes.
 
 Usage:
-  figma-vars diff <old.json> <new.json> [options]
+  primitree diff <old.json> <new.json> [options]
 
 Options:
   --json                 Output the raw diff as JSON instead of Markdown
@@ -19,14 +19,14 @@ Options:
   --fail-on-breaking     Exit with code 2 after finding breaking changes
 
 Examples:
-  figma-vars diff backup/variables.json variables.json
-  figma-vars diff old.json new.json --fail-on-breaking   # CI gate
+  primitree diff backup/variables.json variables.json
+  primitree diff old.json new.json --fail-on-breaking   # CI gate
 `
 
 export async function runDiff(args: ParsedArgs): Promise<void> {
   const [oldPath, newPath] = args.positionals
   if (!oldPath || !newPath) {
-    throw new Error('Usage: figma-vars diff <old.json> <new.json>')
+    throw new Error('Usage: primitree diff <old.json> <new.json>')
   }
 
   const [oldJson, newJson] = await Promise.all([
