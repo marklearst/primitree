@@ -63,11 +63,19 @@ body {
   gap: 10px;
 }
 
-.brand-logo {
+.brand-mark {
+  width: 24px;
   height: 22px;
-  max-width: 100%;
-  width: auto;
   display: block;
+  flex: none;
+  pointer-events: none;
+}
+
+.brand-wordmark {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .brand-sub {

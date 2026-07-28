@@ -163,7 +163,7 @@ export function PlaygroundApp() {
             <Link
               href='/docs/cli/build'
               className='pg-link'>
-              figma-vars build
+              primitree build
             </Link>
             . It processes the file in this browser tab. Read the{' '}
             <Link
@@ -190,7 +190,7 @@ export function PlaygroundApp() {
               Drag variables.json here
             </p>
             <p className='pg-dz-sub'>
-              from <code>figma-vars export</code> or another supported exporter
+              from <code>primitree export</code> or another supported exporter
             </p>
             <div className='pg-dz-actions'>
               <button

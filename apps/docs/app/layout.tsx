@@ -21,7 +21,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
       lang='en'
       className={`${inter.variable} ${geistMono.variable}`}
       suppressHydrationWarning>
-      <body className='flex min-h-screen flex-col bg-fv-bg font-sans text-fv-text antialiased'>
+      <body className='flex min-h-screen flex-col bg-primitree-bg font-sans text-primitree-text antialiased'>
         <RootProvider>{children}</RootProvider>
       </body>
     </html>
