@@ -8,10 +8,21 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import { findBrandViolations, readBrandRecords } from './brand-rules.mjs'
+import * as brandRules from './brand-rules.mjs'
 
 const legacy = (...parts) => parts.join('')
+const { findBrandViolations, readBrandRecords } = brandRules
+
+function getLichenValidator() {
+  assert.equal(
+    typeof brandRules.findLichenColorViolations,
+    'function',
+    'brand rules must expose the scoped Lichen color validator'
+  )
+  return brandRules.findLichenColorViolations
+}
 
 test('rejects legacy product names in public surfaces', () => {
   const records = [
@@ -150,6 +161,37 @@ test('skips execution scratch without exempting normal source files', t => {
   ])
 })
 
+test('skips Playwright output without exempting normal source files', t => {
+  const root = mkdtempSync(join(tmpdir(), 'primitree-brand-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+
+  mkdirSync(join(root, 'test-results', 'trace', 'resources'), {
+    recursive: true,
+  })
+  mkdirSync(join(root, 'playwright-report', 'data'), { recursive: true })
+  mkdirSync(join(root, 'packages', 'core', 'src'), { recursive: true })
+  writeFileSync(
+    join(root, 'test-results', 'trace', 'resources', 'snapshot.html'),
+    legacy('@figma', '-vars', '/hooks')
+  )
+  writeFileSync(
+    join(root, 'playwright-report', 'data', 'snapshot.html'),
+    legacy('@figma', '-vars', '/hooks')
+  )
+  writeFileSync(
+    join(root, 'packages', 'core', 'src', 'legacy.ts'),
+    legacy('figma', '-vars')
+  )
+
+  assert.deepEqual(findBrandViolations(readBrandRecords(root)), [
+    {
+      path: 'packages/core/src/legacy.ts',
+      line: 1,
+      match: legacy('figma', '-vars'),
+    },
+  ])
+})
+
 test('permits only migration references in approved files', () => {
   const hooksScope = legacy('@figma', '-vars', '/hooks')
   const formerScope = legacy('@figma', '-vars', '/')
@@ -229,4 +271,387 @@ test('rejects product copy and runtime identifiers in approved files', () => {
       match: legacy('figma', '-vars'),
     },
   ])
+})
+
+test('rejects former brand colors only in the approved UI targets', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const formerAccent = legacy('#8b', '9cff')
+  const formerSuccess = legacy('rgba(52, 211, 153', ', 0.1)')
+  const records = [
+    {
+      path: 'apps/docs/components/playground/playground.css',
+      content: [
+        `.pg-title { color: ${formerAccent}; }`,
+        `.pg-type-chip { background: ${formerSuccess}; }`,
+      ].join('\n'),
+    },
+    {
+      path: 'apps/docs/lib/playground/sample-variables.json',
+      content: `{"accent": "${formerAccent}", "success": "${formerSuccess}"}`,
+    },
+  ]
+
+  assert.deepEqual(findLichenColorViolations(records), [
+    {
+      path: 'apps/docs/components/playground/playground.css',
+      line: 1,
+      match: formerAccent,
+    },
+    {
+      path: 'apps/docs/components/playground/playground.css',
+      line: 2,
+      match: formerSuccess,
+    },
+  ])
+})
+
+test('rejects former brand colors in new UI source files', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const formerAccent = legacy('#8b', '9cff')
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/components/landing/new-panel.tsx',
+        content: `<section style={{ color: '${formerAccent}' }} />`,
+      },
+    ]),
+    [
+      {
+        path: 'apps/docs/components/landing/new-panel.tsx',
+        line: 1,
+        match: formerAccent,
+      },
+    ]
+  )
+})
+
+test('rejects former brand colors in production layout files', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const formerAccent = legacy('#8b', '9cff')
+  const records = [
+    {
+      path: 'apps/docs/lib/layout.shared.tsx',
+      content: `export const color = '${formerAccent}'`,
+    },
+    {
+      path: 'apps/playground/index.html',
+      content: `<meta name="theme-color" content="${formerAccent}">`,
+    },
+  ]
+
+  assert.deepEqual(findLichenColorViolations(records), [
+    {
+      path: 'apps/docs/lib/layout.shared.tsx',
+      line: 1,
+      match: formerAccent,
+    },
+    {
+      path: 'apps/playground/index.html',
+      line: 1,
+      match: formerAccent,
+    },
+  ])
+})
+
+test('rejects former brand colors with a hex alpha channel', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const formerAccent = legacy('#8b', '9cff40')
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/components/landing/new-panel.tsx',
+        content: `<section style={{ color: '${formerAccent}' }} />`,
+      },
+    ]),
+    [
+      {
+        path: 'apps/docs/components/landing/new-panel.tsx',
+        line: 1,
+        match: formerAccent,
+      },
+    ]
+  )
+})
+
+test('rejects a former brand color in a public badge URL', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const formerAccent = legacy('7b', '8cff')
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'README.md',
+        content: `[![DTCG](https://img.shields.io/badge/DTCG-2025.10-${formerAccent})](https://www.designtokens.org)`,
+      },
+    ]),
+    [
+      {
+        path: 'README.md',
+        line: 1,
+        match: `badge color: ${formerAccent}`,
+      },
+    ]
+  )
+})
+
+test('rejects a changed approved palette role', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const records = [
+    {
+      path: 'apps/docs/app/global.css',
+      content: [
+        '@theme {',
+        '  --color-primitree-bg: #030304;',
+        '  --color-primitree-surface: #08080a;',
+        '  --color-primitree-raised: #0f0f12;',
+        '  --color-primitree-elevated: #16161a;',
+        '  --color-primitree-text: #fafafa;',
+        '  --color-primitree-accent: #111111;',
+        '  --color-primitree-accent-strong: #5f7f2f;',
+        '  --color-primitree-good: #45c98b;',
+        '  --color-primitree-warn: #f2b84b;',
+        '  --color-primitree-error: #f27575;',
+        '}',
+        '',
+        '::selection {',
+        '  background: rgb(168 201 95 / 25%);',
+        '}',
+      ].join('\n'),
+    },
+  ]
+
+  assert.deepEqual(
+    findLichenColorViolations(records).filter(violation =>
+      violation.match.startsWith('--color-primitree-accent:')
+    ),
+    [
+      {
+        path: 'apps/docs/app/global.css',
+        line: 7,
+        match: '--color-primitree-accent: expected #a8c95f, found #111111',
+      },
+    ]
+  )
+})
+
+test('ignores CSS declarations in comments and rejects active overrides', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  )
+    .replace(
+      '--color-primitree-accent: #a8c95f;',
+      '--color-primitree-accent: #111111;'
+    )
+    .concat('\n/* --color-primitree-accent: #a8c95f; */\n')
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      { path: 'apps/docs/app/global.css', content: globalCss },
+    ]).filter(violation =>
+      violation.match.startsWith('--color-primitree-accent:')
+    ),
+    [
+      {
+        path: 'apps/docs/app/global.css',
+        line: 15,
+        match: '--color-primitree-accent: expected #a8c95f, found #111111',
+      },
+    ]
+  )
+})
+
+test('rejects a later text selection override', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  ).concat('\n::selection { background: #111111; }\n')
+
+  assert.equal(
+    findLichenColorViolations([
+      { path: 'apps/docs/app/global.css', content: globalCss },
+    ]).some(violation => violation.match.startsWith('text selection:')),
+    true
+  )
+})
+
+test('rejects final CSS declarations without semicolons', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  ).concat(
+    [
+      ':root { --color-primitree-accent: #111111 }',
+      '::selection { background: #111111 }',
+      '.mark-node-dot { fill: #ff0000 }',
+    ].join('\n')
+  )
+  const violations = findLichenColorViolations([
+    { path: 'apps/docs/app/global.css', content: globalCss },
+  ])
+
+  assert.equal(
+    violations.some(violation =>
+      violation.match.startsWith('--color-primitree-accent:')
+    ),
+    true
+  )
+  assert.equal(
+    violations.some(violation => violation.match.startsWith('text selection:')),
+    true
+  )
+  assert.equal(
+    violations.some(
+      violation => violation.match === 'homepage mark: missing Lichen node dots'
+    ),
+    true
+  )
+})
+
+test('rejects a changed homepage halo', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  ).replace(
+    'rgb(168 201 95 / 10%), transparent 70%',
+    'rgb(168 201 95 / 11%), transparent 70%'
+  )
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      { path: 'apps/docs/app/global.css', content: globalCss },
+    ]).filter(violation => violation.match.startsWith('homepage mark:')),
+    [
+      {
+        path: 'apps/docs/app/global.css',
+        line: null,
+        match: 'homepage mark: missing 10% Lichen halo',
+      },
+    ]
+  )
+})
+
+test('rejects a later homepage mark override', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  ).concat('\n.mark-node-dot { fill: #ff0000; }\n')
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      { path: 'apps/docs/app/global.css', content: globalCss },
+    ]).filter(violation => violation.match.startsWith('homepage mark:')),
+    [
+      {
+        path: 'apps/docs/app/global.css',
+        line: null,
+        match: 'homepage mark: missing Lichen node dots',
+      },
+    ]
+  )
+})
+
+test('rejects a qualified homepage mark override', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+  const globalCss = readFileSync(
+    join(repositoryRoot, 'apps/docs/app/global.css'),
+    'utf8'
+  ).concat('\n.mark-node-dot:first-child { fill: #ff0000; }\n')
+
+  assert.equal(
+    findLichenColorViolations([
+      { path: 'apps/docs/app/global.css', content: globalCss },
+    ]).some(
+      violation => violation.match === 'homepage mark: missing Lichen node dots'
+    ),
+    true
+  )
+})
+
+test('rejects a gradient in a static brand asset', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/public/favicon.svg',
+        content: '<svg><linearGradient id="fill"/><path fill="#5F7F2F"/></svg>',
+      },
+    ]),
+    [
+      {
+        path: 'apps/docs/public/favicon.svg',
+        line: 1,
+        match: 'static mark must use one solid fill',
+      },
+    ]
+  )
+})
+
+test('rejects an extra fill in a static brand asset', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/public/favicon.svg',
+        content:
+          '<svg fill="none"><path fill="#5F7F2F"/><path fill="#ff0000"/></svg>',
+      },
+    ]),
+    [
+      {
+        path: 'apps/docs/public/favicon.svg',
+        line: 1,
+        match: 'mark fill: expected #5f7f2f, found #ff0000',
+      },
+    ]
+  )
+})
+
+test('rejects style paint and strokes in a static brand asset', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const violations = findLichenColorViolations([
+    {
+      path: 'apps/docs/public/favicon.svg',
+      content:
+        '<svg fill="none"><path fill="#5F7F2F" stroke="#ff0000" style="fill:#ff0000"/></svg>',
+    },
+  ])
+
+  assert.deepEqual(violations, [
+    {
+      path: 'apps/docs/public/favicon.svg',
+      line: 1,
+      match: 'mark stroke: expected none, found #ff0000',
+    },
+    {
+      path: 'apps/docs/public/favicon.svg',
+      line: 1,
+      match: 'static mark must not override fill or stroke through CSS',
+    },
+  ])
+})
+
+test('the repository satisfies the approved Lichen color contract', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+
+  assert.deepEqual(
+    findLichenColorViolations(readBrandRecords(repositoryRoot)),
+    []
+  )
 })
