@@ -42,6 +42,78 @@ const TOKEN_PROPERTIES = new Set([
   '$extensions',
 ])
 
+type ColorComponent = number | 'none'
+
+type SupportedColorSpace =
+  | 'srgb'
+  | 'srgb-linear'
+  | 'hsl'
+  | 'hwb'
+  | 'lab'
+  | 'lch'
+  | 'oklab'
+  | 'oklch'
+  | 'display-p3'
+  | 'a98-rgb'
+  | 'prophoto-rgb'
+  | 'rec2020'
+  | 'xyz-d65'
+  | 'xyz-d50'
+
+type ComponentRange =
+  | { readonly kind: 'closed'; readonly min: number; readonly max: number }
+  | { readonly kind: 'open-max'; readonly min: number; readonly max: number }
+  | { readonly kind: 'min'; readonly min: number }
+  | { readonly kind: 'finite' }
+
+const CLOSED_UNIT_RANGE = {
+  kind: 'closed',
+  min: 0,
+  max: 1,
+} as const satisfies ComponentRange
+const CLOSED_PERCENT_RANGE = {
+  kind: 'closed',
+  min: 0,
+  max: 100,
+} as const satisfies ComponentRange
+const HUE_RANGE = {
+  kind: 'open-max',
+  min: 0,
+  max: 360,
+} as const satisfies ComponentRange
+const NON_NEGATIVE_RANGE = {
+  kind: 'min',
+  min: 0,
+} as const satisfies ComponentRange
+const FINITE_RANGE = { kind: 'finite' } as const satisfies ComponentRange
+
+const COLOR_VALUE_PROPERTIES = new Set([
+  'colorSpace',
+  'components',
+  'alpha',
+  'hex',
+])
+
+const COLOR_SPACE_RANGES = new Map<
+  SupportedColorSpace,
+  readonly [ComponentRange, ComponentRange, ComponentRange]
+>([
+  ['srgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['srgb-linear', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['hsl', [HUE_RANGE, CLOSED_PERCENT_RANGE, CLOSED_PERCENT_RANGE]],
+  ['hwb', [HUE_RANGE, CLOSED_PERCENT_RANGE, CLOSED_PERCENT_RANGE]],
+  ['lab', [CLOSED_PERCENT_RANGE, FINITE_RANGE, FINITE_RANGE]],
+  ['lch', [CLOSED_PERCENT_RANGE, NON_NEGATIVE_RANGE, HUE_RANGE]],
+  ['oklab', [CLOSED_UNIT_RANGE, FINITE_RANGE, FINITE_RANGE]],
+  ['oklch', [CLOSED_UNIT_RANGE, NON_NEGATIVE_RANGE, HUE_RANGE]],
+  ['display-p3', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['a98-rgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['prophoto-rgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['rec2020', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['xyz-d65', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['xyz-d50', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+])
+
 export interface DTCGGraphOptions {
   /** Name used to create the Core source ID. */
   readonly source: string
@@ -173,7 +245,7 @@ function unsupported(message: string): AdapterIssue {
 }
 
 function consumeWork(budget: WorkBudget, count = 1): boolean {
-  if (count > budget.remaining) {
+  if (!Number.isSafeInteger(count) || count < 0 || count > budget.remaining) {
     return false
   }
   budget.remaining -= count
@@ -372,10 +444,11 @@ function scanLiteralValue(
     seen.add(value)
 
     if (Array.isArray(value)) {
-      if (!consumeWork(budget, value.length)) {
+      const length = value.length
+      if (!consumeWork(budget, length)) {
         return workLimitIssue(workLimitPath)
       }
-      for (let index = value.length - 1; index >= 0; index -= 1) {
+      for (let index = length - 1; index >= 0; index -= 1) {
         stack.push({ value: Reflect.get(value, index), depth: entry.depth + 1 })
       }
       continue
@@ -414,38 +487,140 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isFiniteNumberTuple(value: unknown, length: number): boolean {
-  if (!Array.isArray(value) || value.length !== length) {
+function fieldPath(path: readonly string[], field: string): readonly string[] {
+  return Object.freeze([...path, field])
+}
+
+function componentMatchesRange(
+  component: number,
+  range: ComponentRange
+): boolean {
+  if (!Number.isFinite(component)) {
     return false
   }
-  for (let index = 0; index < value.length; index += 1) {
-    if (!hasOwn(value, index) || !isFiniteNumber(Reflect.get(value, index))) {
-      return false
+  switch (range.kind) {
+    case 'closed': {
+      return component >= range.min && component <= range.max
+    }
+    case 'open-max': {
+      return component >= range.min && component < range.max
+    }
+    case 'min': {
+      return component >= range.min
+    }
+    case 'finite': {
+      return true
     }
   }
-  return true
+}
+
+interface ColorLiteralValue {
+  readonly colorSpace: SupportedColorSpace
+  readonly components: readonly [ColorComponent, ColorComponent, ColorComponent]
+  readonly alpha?: number
+  readonly hex?: string
+}
+
+type ColorValueReadResult =
+  | { readonly ok: true; readonly value: ColorLiteralValue }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readColorValue(
+  value: unknown,
+  valuePath: readonly string[]
+): ColorValueReadResult {
+  const message = 'A DTCG token value does not match type "color".'
+  if (!isPlainRecord(value)) {
+    return { ok: false, issue: invalid(message, valuePath) }
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length < 2 ||
+    keys.length > 4 ||
+    !hasOwn(value, 'colorSpace') ||
+    !hasOwn(value, 'components') ||
+    !hasOnlyKeys(value, COLOR_VALUE_PROPERTIES)
+  ) {
+    return { ok: false, issue: invalid(message, valuePath) }
+  }
+
+  const colorSpaceValue = Reflect.get(value, 'colorSpace')
+  const ranges =
+    typeof colorSpaceValue === 'string'
+      ? COLOR_SPACE_RANGES.get(colorSpaceValue as SupportedColorSpace)
+      : undefined
+  if (ranges === undefined) {
+    return {
+      ok: false,
+      issue: invalid(message, fieldPath(valuePath, 'colorSpace')),
+    }
+  }
+  const colorSpace = colorSpaceValue as SupportedColorSpace
+
+  const componentsPath = fieldPath(valuePath, 'components')
+  const componentsValue = Reflect.get(value, 'components')
+  if (!Array.isArray(componentsValue) || componentsValue.length !== 3) {
+    return { ok: false, issue: invalid(message, componentsPath) }
+  }
+  const components: [ColorComponent, ColorComponent, ColorComponent] = [0, 0, 0]
+  for (const index of [0, 1, 2] as const) {
+    const componentPath = fieldPath(componentsPath, String(index))
+    if (!hasOwn(componentsValue, index)) {
+      return { ok: false, issue: invalid(message, componentPath) }
+    }
+    const component = Reflect.get(componentsValue, index)
+    if (component === 'none') {
+      components[index] = component
+      continue
+    }
+    if (
+      typeof component !== 'number' ||
+      !componentMatchesRange(component, ranges[index])
+    ) {
+      return { ok: false, issue: invalid(message, componentPath) }
+    }
+    components[index] = component
+  }
+
+  const hasAlpha = hasOwn(value, 'alpha')
+  let alpha: number | undefined
+  if (hasAlpha) {
+    const alphaValue = Reflect.get(value, 'alpha')
+    if (!isFiniteNumber(alphaValue) || alphaValue < 0 || alphaValue > 1) {
+      return {
+        ok: false,
+        issue: invalid(message, fieldPath(valuePath, 'alpha')),
+      }
+    }
+    alpha = alphaValue
+  }
+
+  const hasHex = hasOwn(value, 'hex')
+  let hex: string | undefined
+  if (hasHex) {
+    const hexValue = Reflect.get(value, 'hex')
+    if (typeof hexValue !== 'string' || !/^#[0-9a-fA-F]{6}$/u.test(hexValue)) {
+      return {
+        ok: false,
+        issue: invalid(message, fieldPath(valuePath, 'hex')),
+      }
+    }
+    hex = hexValue
+  }
+
+  return {
+    ok: true,
+    value: {
+      colorSpace,
+      components,
+      ...(alpha === undefined ? {} : { alpha }),
+      ...(hex === undefined ? {} : { hex }),
+    },
+  }
 }
 
 function isColorValue(value: unknown): boolean {
-  if (
-    !isPlainRecord(value) ||
-    !hasOnlyKeys(
-      value,
-      new Set(['colorSpace', 'components', 'alpha', 'hex'])
-    ) ||
-    value.colorSpace !== 'srgb' ||
-    !isFiniteNumberTuple(value.components, 3)
-  ) {
-    return false
-  }
-  return (
-    (value.alpha === undefined || isFiniteNumber(value.alpha)) &&
-    (value.hex === undefined || typeof value.hex === 'string')
-  )
-}
-
-function fieldPath(path: readonly string[], field: string): readonly string[] {
-  return Object.freeze([...path, field])
+  return readColorValue(value, []).ok
 }
 
 function dimensionValueIssue(
@@ -565,11 +740,13 @@ function prepareToken(
   sourceId: SourceId,
   budget: WorkBudget
 ): PreparedToken | GraphFailure {
-  const dimensionValuePath =
-    token.type === 'dimension' ? fieldPath(token.path, '$value') : undefined
+  const typedValuePath =
+    token.type === 'dimension' || token.type === 'color'
+      ? fieldPath(token.path, '$value')
+      : undefined
   const reference = readReference(token.value, budget)
   if (reference.kind === 'work-limit') {
-    return failureFor(workLimitIssue(dimensionValuePath))
+    return failureFor(workLimitIssue(typedValuePath))
   }
   if (reference.kind === 'invalid') {
     return failure('A DTCG reference path is invalid.')
@@ -590,7 +767,7 @@ function prepareToken(
     }
   }
 
-  const valueIssue = scanLiteralValue(token.value, budget, dimensionValuePath)
+  const valueIssue = scanLiteralValue(token.value, budget, typedValuePath)
   if (valueIssue !== undefined) {
     return failureFor(valueIssue)
   }
@@ -840,6 +1017,7 @@ export function toGraphFragment(
       if (!typeResult.ok) {
         return typeResult.failure
       }
+      let coreValue = token.coreValue
       if (
         token.coreValue.kind === 'literal' &&
         typeResult.value === 'dimension'
@@ -851,6 +1029,18 @@ export function toGraphFragment(
         if (issue !== undefined) {
           return failureFor(issue)
         }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'color'
+      ) {
+        const color = readColorValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!color.ok) {
+          return failureFor(color.issue)
+        }
+        coreValue = { kind: 'literal', value: color.value }
       } else if (
         token.coreValue.kind === 'literal' &&
         !matchesType(typeResult.value, token.value)
@@ -868,7 +1058,7 @@ export function toGraphFragment(
         type: typeResult.value,
         values: [
           {
-            value: token.coreValue,
+            value: coreValue,
             provenance: token.provenance,
           },
         ],
