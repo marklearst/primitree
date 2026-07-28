@@ -184,10 +184,11 @@ API.
 Use [`@primitree/core`](https://www.npmjs.com/package/@primitree/core) for
 normalization, comparison, REST calls, and shared types outside React.
 
-## CLI export
+## Variables export
 
 Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) and its
-`primitree export` command for token exports.
+`primitree export` command to download local Figma variables JSON. Pass that JSON
+to `primitree build` to create token output.
 
 ## Migrating from 4.x
 
