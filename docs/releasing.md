@@ -143,13 +143,23 @@ the previous phase.
 
 Run the complete local preflight, require the version pull request checks when
 one exists, and verify @primitree ownership, 2FA, and new-package rights. Confirm
-the protected npm and GitHub environments and rulesets are ready. Resolve the
-stale `v4.2.0` tag as its own task. Confirm that an administrator enabled
-immutable releases.
+the protected npm and GitHub environments and rulesets are ready. Confirm the
+repository has no remote tags or GitHub Releases:
 
-Run the immutable-releases check with a maintainer credential that has
-repository `Administration` read permission. The job-scoped `GITHUB_TOKEN`
-cannot perform this administrative check, so it stays outside the release job:
+```bash
+set -euo pipefail
+REMOTE_TAG_REFS=$(git ls-remote --tags origin)
+test -z "$REMOTE_TAG_REFS"
+GITHUB_RELEASES=$(
+  gh release list --repo marklearst/primitree --json tagName
+)
+test "$GITHUB_RELEASES" = '[]'
+```
+
+Confirm that an administrator enabled immutable releases. Run this check with a
+maintainer credential that has repository `Administration` read permission. The
+job-scoped `GITHUB_TOKEN` cannot perform this administrative check, so it stays
+outside the release job:
 
 ```bash
 test "$(
@@ -209,7 +219,7 @@ test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS")
 
 ### 4. Tag, publish, and create the GitHub Release
 
-- [ ] Recreate `v1.0.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
+- [ ] Create `v1.0.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
 
 For the initial release, create one annotated stable tag at the recorded
 commit. Never use a blanket tag push.
@@ -220,6 +230,9 @@ changelogs, replace `1.0.0 (Unreleased)` with `1.0.0 (YYYY-MM-DD)`. In
 `Status: Released YYYY-MM-DD.` Use the same UTC date in all six files. The
 tag-mode metadata check rejects a missing date, a mismatched date, or any
 remaining `Unreleased` marker.
+
+Run `git tag -d` to clear a local tag from an earlier failed launch attempt
+before creating the release tag.
 
 ```bash
 VERSION=1.0.0

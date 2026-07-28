@@ -2861,16 +2861,37 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     releaseRunbook,
     '## External npm and GitHub steps'
   )
+  const branchPreflight = extractMarkdownSubsection(
+    external,
+    '### 1. Branch preflight'
+  )
+  const tagPhase = extractMarkdownSubsection(
+    external,
+    '### 4. Tag, publish, and create the GitHub Release'
+  )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
   assert.ok(checklist.every(item => item[1] === ' '))
+  assert.doesNotMatch(external, /stale `v4\.2\.0` tag/i)
+  assert.match(
+    branchPreflight,
+    /REMOTE_TAG_REFS=\$\([\s\S]*git ls-remote --tags origin[\s\S]*\)[\s\S]*test -z "\$REMOTE_TAG_REFS"/
+  )
+  assert.match(
+    branchPreflight,
+    /GITHUB_RELEASES=\$\([\s\S]*gh release list --repo marklearst\/primitree --json tagName[\s\S]*\)[\s\S]*test "\$GITHUB_RELEASES" = '\[\]'/
+  )
+  assert.match(
+    tagPhase,
+    /^- \[ \] Create `v1\.0\.0` at the final verified commit and no other commit, push the single intended tag, and approve publication\.$/m
+  )
+  assert.doesNotMatch(tagPhase, /^- \[ \] Recreate `v1\.0\.0`/m)
   for (const phrase of [
     '@primitree ownership, 2FA, and new-package rights',
     'token-authenticated publish',
     'trusted publishing for all five packages',
     'protected npm and GitHub environments and rulesets',
     'GitHub environment `npm`',
-    'stale `v4.2.0` tag',
     '`v1.0.0` at the final verified commit and no other commit',
     'single intended tag',
     'immutable releases',
