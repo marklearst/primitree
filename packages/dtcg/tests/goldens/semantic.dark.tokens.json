@@ -7,7 +7,7 @@
           "$value": "{primitives.color.blue.300}",
           "$description": "Brand background",
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:2:201",
               "collectionId": "VariableCollectionId:2:200",
               "collectionName": "Semantic",
@@ -23,7 +23,7 @@
           "$value": "{semantic.color.bg.brand}",
           "$description": "Accent = brand for now",
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:2:203",
               "collectionId": "VariableCollectionId:2:200",
               "collectionName": "Semantic"
@@ -45,7 +45,7 @@
             "hex": "#f5f5fa"
           },
           "$extensions": {
-            "com.figma-vars": {
+            "com.primitree": {
               "variableId": "VariableID:2:202",
               "collectionId": "VariableCollectionId:2:200",
               "collectionName": "Semantic",

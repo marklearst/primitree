@@ -16,7 +16,7 @@ const fixturePath = path.join(
 )
 const packageManifest = JSON.parse(
   await fs.readFile(path.join(packageDirectory, 'package.json'), 'utf8')
-) as { version: string }
+) as { version: string; bin: Record<string, string> }
 
 describe('built package entrypoints', () => {
   const temporaryDirectories: string[] = []
@@ -31,7 +31,7 @@ describe('built package entrypoints', () => {
 
   it('imports safely from a consumer dist/index.js entrypoint', async () => {
     const consumerDirectory = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'figma-vars-mcp-consumer-')
+      path.join(os.tmpdir(), 'primitree-mcp-consumer-')
     )
     temporaryDirectories.push(consumerDirectory)
     const consumerEntry = path.join(consumerDirectory, 'dist/index.js')
@@ -58,14 +58,15 @@ describe('built package entrypoints', () => {
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
     expect(result.stdout).toContain(
-      'figma-vars-mcp: serve design tokens over MCP'
+      'primitree-mcp: serve design tokens over MCP'
     )
     expect(result.stdout).toMatch(
       /a directory containing\s+tokens\.resolver\.json and \*\.tokens\.json/u
     )
     expect(result.stdout).toMatch(
-      /a 'figma-vars build' directory\s+with those files under tokens\//u
+      /a 'primitree build' directory\s+with those files under tokens\//u
     )
+    expect(result.stdout).toContain('PRIMITREE_TOKENS')
     expect(result.stdout).not.toMatch(/[—]/)
   })
 
@@ -79,14 +80,14 @@ describe('built package entrypoints', () => {
         stderr: 'pipe',
       })
       const client = new Client({
-        name: 'figma-vars-mcp-integration-test',
+        name: 'primitree-mcp-integration-test',
         version: '1.0.0',
       })
 
       try {
         await client.connect(transport)
         expect(client.getServerVersion()).toEqual({
-          name: 'figma-vars',
+          name: 'primitree',
           version: packageManifest.version,
         })
 
@@ -106,7 +107,7 @@ describe('built package entrypoints', () => {
           diff_tokens:
             'Compare two Figma variables JSON files by stable IDs and return a Markdown report of collection, mode, variable, type, value, and description changes.',
           get_token:
-            'Return the DTCG token at a dot path, its resolved value, CSS value, CSS variable reference, and Figma extension data when present.',
+            'Return the DTCG token at a dot path with its resolved value, CSS value, and CSS variable reference. Include Figma extension data for tokens that define it.',
           list_collections:
             'Return top-level token group names, token counts, resolver contexts, and the source path.',
           resolve_context:
@@ -143,4 +144,10 @@ describe('built package entrypoints', () => {
       }
     }
   )
+
+  it('publishes the Primitree MCP bin', () => {
+    expect(packageManifest.bin).toEqual({
+      'primitree-mcp': './dist/cli.js',
+    })
+  })
 })

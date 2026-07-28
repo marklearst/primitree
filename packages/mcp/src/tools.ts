@@ -5,11 +5,11 @@ import {
   flattenTokens,
   listContexts,
   resolveTokenValuesSafe,
-  FIGMA_EXTENSION_KEY,
+  PRIMITREE_EXTENSION_KEY,
   type DTCGToken,
   type DTCGTokenValue,
-} from '@figmavars/dtcg'
-import { diffVariables, formatDiffMarkdown } from '@figmavars/core'
+} from '@primitree/dtcg'
+import { diffVariables, formatDiffMarkdown } from '@primitree/core'
 import type { TokenSource } from './source'
 
 function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {
@@ -87,7 +87,7 @@ export function getToken(
     value: described.value,
     css: described.css,
     cssVar: `var(${cssVarName(path)})`,
-    figma: entry.token.$extensions?.[FIGMA_EXTENSION_KEY],
+    figma: entry.token.$extensions?.[PRIMITREE_EXTENSION_KEY],
   }
 }
 

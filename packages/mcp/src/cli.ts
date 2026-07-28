@@ -3,22 +3,22 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createServer, loadTokenSource } from './index'
 
 const HELP = `
-figma-vars-mcp: serve design tokens over MCP
+primitree-mcp: serve design tokens over MCP
 
 Usage:
-  figma-vars-mcp --tokens <path>
+  primitree-mcp --tokens <path>
 
   <path> is a Figma variables JSON file, a directory containing
-  tokens.resolver.json and *.tokens.json, or a 'figma-vars build' directory
+  tokens.resolver.json and *.tokens.json, or a 'primitree build' directory
   with those files under tokens/.
-  The command reads FIGMA_VARS_TOKENS if you omit --tokens.
+  Omit --tokens to read the path from PRIMITREE_TOKENS.
 
 Example MCP client config:
   {
     "mcpServers": {
       "design-tokens": {
         "command": "npx",
-        "args": ["-y", "@figmavars/mcp", "--tokens", "./variables.json"]
+        "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
       }
     }
   }
@@ -35,9 +35,9 @@ async function main(): Promise<void> {
   const flagIndex = argv.indexOf('--tokens')
   const sourcePath =
     (flagIndex !== -1 ? argv[flagIndex + 1] : undefined) ??
-    process.env.FIGMA_VARS_TOKENS
+    process.env.PRIMITREE_TOKENS
   if (!sourcePath) {
-    console.error('Missing --tokens <path> (or FIGMA_VARS_TOKENS env var)')
+    console.error('Missing --tokens <path> (or PRIMITREE_TOKENS env var)')
     console.error(HELP)
     process.exitCode = 1
     return
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   const server = await createServer(source)
   await server.connect(new StdioServerTransport())
   console.error(
-    `figma-vars-mcp serving tokens from ${source.origin} (stdio transport)`
+    `primitree-mcp serving tokens from ${source.origin} (stdio transport)`
   )
 }
 
