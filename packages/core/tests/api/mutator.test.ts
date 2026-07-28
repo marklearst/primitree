@@ -250,7 +250,9 @@ describe('mutator', () => {
       (caught: unknown) => caught
     )
     expect(error).toBeInstanceOf(FigmaApiError)
-    expect((error as FigmaApiError).message).toBe('An API error occurred')
+    expect((error as FigmaApiError).message).toBe(
+      'Figma API request failed with status 400.'
+    )
     expect((error as FigmaApiError).statusCode).toBe(400)
   })
 
@@ -370,7 +372,7 @@ describe('mutator', () => {
       text: () => Promise.resolve(''),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 503.'
     )
   })
 
@@ -383,7 +385,7 @@ describe('mutator', () => {
       },
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 500.'
     )
   })
 
@@ -397,7 +399,7 @@ describe('mutator', () => {
       text: () => Promise.reject(new Error('Read error')),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 503.'
     )
   })
 
@@ -412,7 +414,7 @@ describe('mutator', () => {
       json: () => Promise.resolve({ err: null, message: null }),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 400.'
     )
   })
 
@@ -427,7 +429,7 @@ describe('mutator', () => {
       json: () => Promise.resolve({ err: '', message: '' }),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 400.'
     )
   })
 
@@ -441,7 +443,7 @@ describe('mutator', () => {
       json: () => Promise.reject(new Error('Invalid JSON')),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 500.'
     )
   })
 
@@ -455,7 +457,7 @@ describe('mutator', () => {
       json: () => Promise.resolve({ message: 'Error' }),
     })
     await expect(mutator(url, token, 'CREATE', body)).rejects.toThrow(
-      'An API error occurred'
+      'Figma API request failed with status 500.'
     )
   })
 

@@ -54,7 +54,7 @@ export interface NormalizedVariable {
 }
 
 /**
- * The normalized model produced by {@link normalizeVariables}.
+ * Normalized model from {@link normalizeVariables}.
  *
  * @remarks
  * Ordered arrays preserve source order. ID-keyed maps support direct lookup.

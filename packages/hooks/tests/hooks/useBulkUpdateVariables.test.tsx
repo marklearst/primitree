@@ -8,13 +8,13 @@ import {
   FIGMA_FILE_VARIABLES_PATH,
   ERROR_MSG_TOKEN_REQUIRED,
   ERROR_MSG_TOKEN_FILE_KEY_REQUIRED,
-} from '@figmavars/core'
-import type { BulkUpdatePayload } from '@figmavars/core'
+} from '@primitree/core'
+import type { BulkUpdatePayload } from '@primitree/core'
 
 // Mock dependencies
 vi.mock('../../src/contexts/useFigmaTokenContext')
-vi.mock('@figmavars/core', async importOriginal => ({
-  ...(await importOriginal<typeof import('@figmavars/core')>()),
+vi.mock('@primitree/core', async importOriginal => ({
+  ...(await importOriginal<typeof import('@primitree/core')>()),
   mutator: vi.fn(),
 }))
 

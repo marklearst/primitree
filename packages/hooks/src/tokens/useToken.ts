@@ -4,7 +4,7 @@ import {
   cssVarName,
   type DTCGToken,
   type DTCGTokenValue,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 import { useTokens } from './useTokens'
 
 /**
@@ -13,15 +13,15 @@ import { useTokens } from './useTokens'
  * @public
  */
 export interface UseTokenResult {
-  /** The raw token as authored (may hold a `{reference}` value). */
+  /** The token before reference resolution. Its `$value` can contain a `{reference}`. */
   token: DTCGToken | undefined
-  /** The resolved value under the active contexts. */
+  /** The value after reference resolution under the active contexts. */
   value: DTCGTokenValue | undefined
-  /** The resolved value formatted for CSS (`'#3366ff'`, `'8px'`, ...). */
+  /** The CSS form of that value (`'#3366ff'`, `'8px'`, ...). */
   css: string | null
   /** The CSS custom property accessor (`'var(--semantic-color-bg-brand)'`). */
   cssVar: string
-  /** Whether the token exists in the provided documents. */
+  /** True when the documents contain the token. */
   exists: boolean
 }
 

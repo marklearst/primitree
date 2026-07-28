@@ -11,10 +11,7 @@ import { exportHelp } from '../src/commands/export'
 import { initHelp, runInit } from '../src/commands/init'
 
 const cliManifest = JSON.parse(
-  await fs.readFile(
-    path.join(import.meta.dirname, '../package.json'),
-    'utf8'
-  )
+  await fs.readFile(path.join(import.meta.dirname, '../package.json'), 'utf8')
 )
 const hooksManifest = JSON.parse(
   await fs.readFile(

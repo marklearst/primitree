@@ -3,7 +3,7 @@ export const docsContentRoute = '/llms.mdx/docs'
 
 export const gitConfig = {
   user: 'marklearst',
-  repo: 'figmavars',
+  repo: 'primitree',
   branch: 'main',
 }
 
@@ -16,8 +16,8 @@ export function getDocsGithubUrl(pagePath: string) {
 }
 
 export const links = {
-  npmCli: 'https://www.npmjs.com/package/@figmavars/cli',
-  npmHooks: 'https://www.npmjs.com/package/@figmavars/hooks',
+  npmCli: 'https://www.npmjs.com/package/@primitree/cli',
+  npmHooks: 'https://www.npmjs.com/package/@primitree/hooks',
   playground: '/playground',
-  github: 'https://github.com/marklearst/figmavars',
+  github: 'https://github.com/marklearst/primitree',
 }

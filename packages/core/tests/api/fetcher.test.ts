@@ -105,13 +105,17 @@ describe('fetcher', () => {
 
   it('throws with fallback error if response is not ok and no message', async () => {
     mockFetch({ json: () => Promise.resolve({}) }, false)
-    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(/fetch/i)
+    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+      'The Figma API request failed.'
+    )
   })
 
   it('throws with fallback error if response is not ok and JSON parsing fails', async () => {
     // Mock a response that fails JSON parsing
     mockFetch({ json: () => Promise.reject(new Error('Invalid JSON')) }, false)
-    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(/fetch/i)
+    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+      'The Figma API request failed.'
+    )
   })
 
   it('throws with error.err if response is not ok and error.err exists', async () => {
@@ -139,7 +143,9 @@ describe('fetcher', () => {
       },
       false
     )
-    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(/fetch/i)
+    await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
+      'The Figma API request failed.'
+    )
   })
 
   describe('abort signal support', () => {
@@ -450,7 +456,7 @@ describe('fetcher', () => {
       )
 
       await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
-        'An error occurred while fetching data from the Figma API'
+        'The Figma API request failed.'
       )
     })
 
@@ -467,7 +473,7 @@ describe('fetcher', () => {
       )
 
       await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
-        'An error occurred while fetching data from the Figma API'
+        'The Figma API request failed.'
       )
     })
 
@@ -485,7 +491,7 @@ describe('fetcher', () => {
       )
 
       await expect(fetcher(DUMMY_URL, DUMMY_TOKEN)).rejects.toThrow(
-        'An error occurred while fetching data from the Figma API'
+        'The Figma API request failed.'
       )
     })
 

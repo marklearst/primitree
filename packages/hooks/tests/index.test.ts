@@ -6,7 +6,9 @@ describe('main index barrel file', () => {
 
     expect(indexModule.FigmaVariablesProvider).toBeDefined()
     expect(typeof indexModule.FigmaVariablesProvider).toBe('function')
-    expect(indexModule).not.toHaveProperty(['Figma', 'Vars', 'Provider'].join(''))
+    expect(indexModule).not.toHaveProperty(
+      ['Figma', 'Vars', 'Provider'].join('')
+    )
   })
 
   it('should export all hooks, utils, and types', async () => {

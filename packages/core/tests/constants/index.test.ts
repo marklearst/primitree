@@ -60,30 +60,30 @@ describe('constants', () => {
 
   describe('Error Messages', () => {
     it('should have correct auth error messages', () => {
-      expect(ERROR_MSG_TOKEN_REQUIRED).toBe('A Figma API token is required.')
+      expect(ERROR_MSG_TOKEN_REQUIRED).toBe('Provide a Figma API token.')
       expect(ERROR_MSG_TOKEN_FILE_KEY_REQUIRED).toBe(
-        'A Figma API token is required. and file key are required.'
+        'Provide a Figma API token and file key.'
       )
     })
 
     it('should have correct mutation error messages', () => {
       expect(ERROR_MSG_BULK_UPDATE_FAILED).toBe(
-        'Failed to perform bulk update.'
+        'The bulk update request failed.'
       )
       expect(ERROR_MSG_CREATE_VARIABLE_FAILED).toBe(
-        'Failed to create Figma variable.'
+        'The create-variable request failed.'
       )
       expect(ERROR_MSG_DELETE_VARIABLE_FAILED).toBe(
-        'Failed to delete Figma variable.'
+        'The delete-variable request failed.'
       )
       expect(ERROR_MSG_UPDATE_VARIABLE_FAILED).toBe(
-        'Failed to update Figma variable.'
+        'The update-variable request failed.'
       )
     })
 
     it('should have correct fetch error message', () => {
       expect(ERROR_MSG_FETCH_FIGMA_DATA_FAILED).toBe(
-        'An error occurred while fetching data from the Figma API.'
+        'The Figma API request failed.'
       )
     })
   })
