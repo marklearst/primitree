@@ -215,6 +215,25 @@ function pathKey(path: readonly string[]): string {
   return JSON.stringify(path)
 }
 
+function comparePaths(
+  left: readonly string[],
+  right: readonly string[]
+): number {
+  const length = Math.min(left.length, right.length)
+  for (let index = 0; index < length; index += 1) {
+    const leftSegment = left[index]
+    const rightSegment = right[index]
+    if (leftSegment === undefined || rightSegment === undefined) {
+      return left.length - right.length
+    }
+    if (leftSegment === rightSegment) {
+      continue
+    }
+    return leftSegment < rightSegment ? -1 : 1
+  }
+  return left.length - right.length
+}
+
 function failure(
   message: string,
   code = 'dtcg.invalid-document',
@@ -999,6 +1018,9 @@ export function toGraphFragment(
       }
     }
 
+    groups.sort((left, right) => comparePaths(left.path, right.path))
+    tokens.sort((left, right) => comparePaths(left.path, right.path))
+
     const preparedTokens: PreparedToken[] = []
     for (const token of tokens) {
       const prepared = prepareToken(token, sourceId, workBudget)
@@ -1016,6 +1038,26 @@ export function toGraphFragment(
       const typeResult = inferTokenType(token, tokensByPath, inferredTypes)
       if (!typeResult.ok) {
         return typeResult.failure
+      }
+      if (token.referencePath !== undefined) {
+        const target = tokensByPath.get(pathKey(token.referencePath))
+        if (target !== undefined) {
+          const targetTypeResult = inferTokenType(
+            target,
+            tokensByPath,
+            inferredTypes
+          )
+          if (!targetTypeResult.ok) {
+            return targetTypeResult.failure
+          }
+          if (typeResult.value !== targetTypeResult.value) {
+            return failure(
+              'A DTCG alias type does not match its reference target.',
+              'dtcg.invalid-document',
+              fieldPath(token.path, '$value')
+            )
+          }
+        }
       }
       let coreValue = token.coreValue
       if (

@@ -584,7 +584,7 @@ describe('DTCG graph adapter', () => {
       phase: 'source',
       code: 'dtcg.invalid-document',
       message: 'The DTCG adapter reached its 100,000-item work limit.',
-      path: ['color-14285', '$value'],
+      path: ['color-9999', '$value'],
     })
   })
 
