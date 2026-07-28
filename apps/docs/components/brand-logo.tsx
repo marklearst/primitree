@@ -34,12 +34,7 @@ export function BrandLogo({
         className={cn('pointer-events-none shrink-0', markSizes[size])}
         priority
       />
-      <span
-        className={cn(
-          'font-semibold tracking-tight',
-          textSizes[size],
-          className
-        )}>
+      <span className={cn('font-semibold tracking-tight', textSizes[size])}>
         Primitree
       </span>
     </>
@@ -49,11 +44,18 @@ export function BrandLogo({
     return (
       <Link
         href='/'
-        className='brand-logo-link inline-flex gap-2 transition-opacity'>
+        className={cn(
+          'brand-logo-link inline-flex items-center gap-2 transition-opacity',
+          className
+        )}>
         {inner}
       </Link>
     )
   }
 
-  return inner
+  return (
+    <span className={cn('inline-flex items-center gap-2', className)}>
+      {inner}
+    </span>
+  )
 }

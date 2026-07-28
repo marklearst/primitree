@@ -72,6 +72,7 @@ const formerHooksCore = `${formerHooksPackage}/core`
 const formerProvider = ['Figma', 'Vars', 'Provider'].join('')
 
 const docsRoot = resolve(root, 'apps/docs/content/docs')
+const cliOverview = readFileSync(resolve(docsRoot, 'cli/index.mdx'), 'utf8')
 const hooksMigration = readFileSync(
   resolve(docsRoot, 'hooks/migration.mdx'),
   'utf8'
@@ -100,6 +101,18 @@ const publicMarkdownPaths = [
 ]
 
 describe('parity guard regressions', () => {
+  it('separates the variables download from the token output build in CLI metadata', () => {
+    const description =
+      /^description:[ \t]*(?<description>.+)$/mu.exec(cliOverview)?.groups
+        ?.description ?? ''
+
+    expect(description).toMatch(/\bdownload(?:s|ing)? Figma variables JSON\b/iu)
+    expect(description).toMatch(/\bbuild(?:s|ing)? token outputs?\b/iu)
+    expect(description).not.toMatch(
+      /\bexport(?:s|ed|ing)? (?:design )?tokens?\b/iu
+    )
+  })
+
   it.each([
     {
       name: 'multiline direct init',
