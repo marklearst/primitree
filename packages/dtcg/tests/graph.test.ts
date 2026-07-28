@@ -4,7 +4,7 @@ import {
   resolveToken,
   type GraphFragment,
 } from '@primitree/core'
-import { toGraphFragment } from '../src/index'
+import { createDTCGGraphFragment } from '../src/index'
 
 function requireValue<Value>(result: {
   readonly ok: boolean
@@ -17,7 +17,7 @@ function requireValue<Value>(result: {
   return result.value
 }
 
-function requireFailure(result: ReturnType<typeof toGraphFragment>) {
+function requireFailure(result: ReturnType<typeof createDTCGGraphFragment>) {
   expect(result.ok).toBe(false)
   if (result.ok) {
     throw new Error('Expected a failed DTCG graph result.')
@@ -52,7 +52,7 @@ function nestedDocument(groupCount: number): Record<string, unknown> {
 describe('DTCG graph adapter', () => {
   it('converts token paths, groups, values, references, and provenance', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           scale: {
             $type: 'number',
@@ -96,7 +96,7 @@ describe('DTCG graph adapter', () => {
 
   it('lets Core report a reference to a missing token', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           semantic: {
             action: {
@@ -117,7 +117,7 @@ describe('DTCG graph adapter', () => {
 
   it('keeps $root as the final token path segment', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           $root: { $type: 'number', $value: 1 },
           color: {
@@ -166,7 +166,7 @@ describe('DTCG graph adapter', () => {
     ['scalar', { $root: 1 }],
   ])('rejects a %s used as $root instead of a token', (_label, document) => {
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic.code).toBe('dtcg.invalid-document')
@@ -175,7 +175,7 @@ describe('DTCG graph adapter', () => {
 
   it('returns the exact invalid-reference diagnostic', () => {
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           alias: { $type: 'number', $value: '{ scale.base}' },
         },
@@ -220,7 +220,7 @@ describe('DTCG graph adapter', () => {
     ],
   ])('rejects unsupported %s input', (_label, document) => {
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic.code).toBe('dtcg.unsupported-feature')
@@ -228,7 +228,7 @@ describe('DTCG graph adapter', () => {
 
   it('rejects a nested brace reference with the exact diagnostic', () => {
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           color: {
             $type: 'color',
@@ -269,7 +269,7 @@ describe('DTCG graph adapter', () => {
     ['boolean', true],
   ])('accepts emitted %s values', (type, value) => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         { token: { $type: type, $value: value } },
         { source: 'brand' }
       )
@@ -289,7 +289,7 @@ describe('DTCG graph adapter', () => {
     ['boolean', 1],
   ])('rejects a value that does not match %s', (type, value) => {
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         { token: { $type: type, $value: value } },
         { source: 'brand' }
       )
@@ -301,7 +301,7 @@ describe('DTCG graph adapter', () => {
 
   it('accepts a negative dimension value', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           space: {
             offset: {
@@ -336,7 +336,7 @@ describe('DTCG graph adapter', () => {
     })
 
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           space: {
             base: { $type: 'dimension', $value: value },
@@ -375,7 +375,7 @@ describe('DTCG graph adapter', () => {
     'rejects a dimension with %s and reports the closest invalid path',
     (_label, value, path) => {
       const diagnostic = requireFailure(
-        toGraphFragment(
+        createDTCGGraphFragment(
           {
             space: {
               base: { $type: 'dimension', $value: value },
@@ -394,7 +394,7 @@ describe('DTCG graph adapter', () => {
 
   it('reports the dimension $value path when validation exceeds the work limit', () => {
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           space: {
             base: {
@@ -417,7 +417,7 @@ describe('DTCG graph adapter', () => {
 
   it('validates metadata that the Core graph result does not store', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           scale: {
             $type: 'number',
@@ -472,7 +472,7 @@ describe('DTCG graph adapter', () => {
     ],
   ])('rejects %s', (_label, document) => {
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic.code).toBe('dtcg.invalid-document')
@@ -487,7 +487,7 @@ describe('DTCG graph adapter', () => {
 
     for (const document of [{ cyclic }, { first: shared, second: shared }]) {
       const diagnostic = requireFailure(
-        toGraphFragment(document, { source: 'brand' })
+        createDTCGGraphFragment(document, { source: 'brand' })
       )
       expect(diagnostic.code).toBe('dtcg.invalid-document')
       expect(diagnostic.message).toContain('group object')
@@ -495,12 +495,12 @@ describe('DTCG graph adapter', () => {
   })
 
   it('accepts 64 path segments and rejects 65', () => {
-    expect(toGraphFragment(nestedDocument(63), { source: 'brand' }).ok).toBe(
-      true
-    )
+    expect(
+      createDTCGGraphFragment(nestedDocument(63), { source: 'brand' }).ok
+    ).toBe(true)
 
     const diagnostic = requireFailure(
-      toGraphFragment(nestedDocument(64), { source: 'brand' })
+      createDTCGGraphFragment(nestedDocument(64), { source: 'brand' })
     )
     expect(diagnostic.code).toBe('dtcg.invalid-document')
     expect(diagnostic.message).toContain('64 path segments')
@@ -529,7 +529,7 @@ describe('DTCG graph adapter', () => {
 
     for (const { document, message } of cases) {
       expect(
-        requireFailure(toGraphFragment(document, { source: 'brand' }))
+        requireFailure(createDTCGGraphFragment(document, { source: 'brand' }))
       ).toEqual({
         phase: 'source',
         code: 'dtcg.invalid-document',
@@ -543,7 +543,7 @@ describe('DTCG graph adapter', () => {
     const second = 'b'.repeat(128)
 
     expect(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           [first]: {
             [second]: { $type: 'number', $value: 1 },
@@ -553,7 +553,7 @@ describe('DTCG graph adapter', () => {
       ).ok
     ).toBe(true)
     expect(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           [first]: {
             [second]: {},
@@ -577,7 +577,7 @@ describe('DTCG graph adapter', () => {
     }
 
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic).toEqual({
@@ -607,7 +607,7 @@ describe('DTCG graph adapter', () => {
     })
 
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic).toEqual({
@@ -623,7 +623,10 @@ describe('DTCG graph adapter', () => {
       '.'
     )}}`
     const diagnostic = requireFailure(
-      toGraphFragment({ alias: { $value: reference } }, { source: 'brand' })
+      createDTCGGraphFragment(
+        { alias: { $value: reference } },
+        { source: 'brand' }
+      )
     )
 
     expect(diagnostic).toEqual({
@@ -645,7 +648,7 @@ describe('DTCG graph adapter', () => {
     })
 
     const diagnostic = requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         { token: { $type: 'string', $value: sparse } },
         { source: 'brand' }
       )
@@ -676,7 +679,7 @@ describe('DTCG graph adapter', () => {
     })
 
     requireFailure(
-      toGraphFragment(
+      createDTCGGraphFragment(
         { token: { $type: 'string', $value: value } },
         { source: 'brand' }
       )
@@ -688,7 +691,7 @@ describe('DTCG graph adapter', () => {
 
   it('infers an alias type through forward references', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           scale: {
             alias: { $value: '{scale.middle}' },
@@ -727,7 +730,7 @@ describe('DTCG graph adapter', () => {
     ],
   ])('rejects an untyped alias with a %s', (_label, document, text) => {
     const diagnostic = requireFailure(
-      toGraphFragment(document, { source: 'brand' })
+      createDTCGGraphFragment(document, { source: 'brand' })
     )
 
     expect(diagnostic.code).toBe('dtcg.invalid-document')

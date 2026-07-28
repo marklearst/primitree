@@ -15,6 +15,68 @@ npm install @primitree/dtcg
 The conversion functions perform no file I/O, so browser applications can use
 them in a bundle.
 
+## Read DTCG tokens into Core
+
+`createDTCGGraphFragment` reads a parsed token document that uses Primitree's
+supported DTCG value subset. It returns a Core graph fragment or source
+diagnostics.
+
+```ts
+import { createDTCGGraphFragment } from '@primitree/dtcg'
+
+const result = createDTCGGraphFragment(
+  {
+    scale: {
+      $type: 'number',
+      base: { $value: 4 },
+      control: { $value: '{scale.base}' },
+    },
+  },
+  { source: 'brand', uri: 'tokens.json' }
+)
+
+if (!result.ok) {
+  throw new Error(result.diagnostics[0]?.message ?? 'DTCG input failed')
+}
+
+const fragment = result.value
+```
+
+The reader supports:
+
+- group `$type` inheritance and `$root`
+- `color` values in any of the 14 color spaces checked by the package
+- `dimension` values with `px` or `rem`, and `duration` values with `ms` or `s`
+- finite `number` and `fontWeight` values, plus single-string `fontFamily` and
+  `string` values
+- Primitree's documented `boolean` extension
+- whole-token brace references in the same document
+- alias type inference through a chain that reaches a typed token
+- `$description`, `$deprecated`, and `$extensions` shape checks
+
+The reader checks that `$description` is text, `$deprecated` is boolean or text,
+and `$extensions` is a plain object. It then omits those fields because Core
+graph records do not store them.
+
+The reader requires an alias and its immediate target to have the same effective
+type whenever that target exists. A typed alias may keep a missing target for
+Core `composeGraph` to report. A cycle whose aliases share one effective type
+remains in the fragment. Core `resolveToken` reports the cycle when it resolves
+that token. The reader rejects a cycle if it cannot infer the type.
+
+The reader rejects `$extends`, JSON Pointer references, references nested inside
+literal values, unknown reserved properties, and token types outside the list
+above.
+
+Limits for each call:
+
+- 64 path segments for a group or token
+- 256 characters for a dot-joined group or token path
+- 64 nested levels inside a token value
+- one shared 100,000-item work budget that counts document entries,
+  brace-reference segments, each literal value scan, token-value object keys,
+  and token-value array entries
+
 ## Convert an export
 
 ```ts

@@ -14,6 +14,7 @@ import test from 'node:test'
 import {
   PUBLIC_NPM_REGISTRY,
   REQUIRED_NPM_VERSION,
+  assertInstalledDTCGDocumentation,
   assertNpmVersion,
   runPackedCliTarballConsumer,
   runPackedTarballConsumer,
@@ -164,6 +165,59 @@ test('requires the exact npm release version', () => {
   assert.equal(REQUIRED_NPM_VERSION, '11.18.0')
   assert.doesNotThrow(() => assertNpmVersion('11.18.0\n'))
   assert.throws(() => assertNpmVersion('11.18.1\n'), /npm 11\.18\.0/)
+})
+
+test('requires installed DTCG package documentation', t => {
+  const consumerDirectory = mkdtempSync(
+    path.join(tmpdir(), 'primitree-dtcg-docs-')
+  )
+  t.after(() => rmSync(consumerDirectory, { recursive: true, force: true }))
+  const packageDirectory = path.join(
+    consumerDirectory,
+    'node_modules',
+    '@primitree',
+    'dtcg'
+  )
+  mkdirSync(packageDirectory, { recursive: true })
+
+  writeFileSync(
+    path.join(packageDirectory, 'README.md'),
+    'Read the [changelog](CHANGELOG.md).\n'
+  )
+  writeFileSync(path.join(packageDirectory, 'CHANGELOG.md'), '# Changelog\n')
+  assert.doesNotThrow(() => assertInstalledDTCGDocumentation(consumerDirectory))
+
+  rmSync(path.join(packageDirectory, 'README.md'))
+  assert.throws(
+    () => assertInstalledDTCGDocumentation(consumerDirectory),
+    error => {
+      assert.match(
+        error.message,
+        /Could not read installed @primitree\/dtcg\/README\.md/u
+      )
+      assert.equal(error.cause?.code, 'ENOENT')
+      return true
+    }
+  )
+
+  writeFileSync(
+    path.join(packageDirectory, 'README.md'),
+    'Read the [changelog](CHANGELOG.md).\n'
+  )
+  assert.throws(() => {
+    writeFileSync(path.join(packageDirectory, 'README.md'), '# DTCG\n')
+    assertInstalledDTCGDocumentation(consumerDirectory)
+  }, /README\.md must link to CHANGELOG\.md/u)
+
+  writeFileSync(
+    path.join(packageDirectory, 'README.md'),
+    'Read the [changelog](CHANGELOG.md).\n'
+  )
+  rmSync(path.join(packageDirectory, 'CHANGELOG.md'))
+  assert.throws(
+    () => assertInstalledDTCGDocumentation(consumerDirectory),
+    /Could not read installed @primitree\/dtcg\/CHANGELOG\.md/u
+  )
 })
 
 test('freshly fetches origin main and requires tag, main, and GITHUB_SHA equality', () => {
@@ -1086,6 +1140,16 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
               path.join(packageDirectory, 'package.json'),
               `${JSON.stringify({ name: config.name, version: VERSION })}\n`
             )
+            if (config.name === '@primitree/dtcg') {
+              writeFileSync(
+                path.join(packageDirectory, 'README.md'),
+                'Read the [changelog](CHANGELOG.md).\n'
+              )
+              writeFileSync(
+                path.join(packageDirectory, 'CHANGELOG.md'),
+                '# Changelog\n'
+              )
+            }
           }
         }
         if (command.endsWith('/node_modules/.bin/primitree')) {
@@ -1343,6 +1407,16 @@ test('creates a hermetic public-registry consumer with exact installs and signat
             path.join(packageDirectory, 'package.json'),
             `${JSON.stringify({ name: config.name, version: VERSION })}\n`
           )
+          if (config.name === '@primitree/dtcg') {
+            writeFileSync(
+              path.join(packageDirectory, 'README.md'),
+              'Read the [changelog](CHANGELOG.md).\n'
+            )
+            writeFileSync(
+              path.join(packageDirectory, 'CHANGELOG.md'),
+              '# Changelog\n'
+            )
+          }
         }
       }
       return { status: 0, stdout: '', stderr: '' }

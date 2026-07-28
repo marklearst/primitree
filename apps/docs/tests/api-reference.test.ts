@@ -127,6 +127,12 @@ test('API reference generation writes the four public modules and an index', asy
     )
     assert.match(hooks, /\]\(\.\/core#[^)]+\)/u)
     assert.match(hooks, /\]\(\.\/dtcg#[^)]+\)/u)
+
+    const dtcg = await readFile(path.join(outputDirectory, 'dtcg.mdx'), 'utf8')
+    assert.match(dtcg, /\bcreateDTCGGraphFragment\b/u)
+    assert.match(dtcg, /\bDTCGGraphFragmentOptions\b/u)
+    assert.doesNotMatch(dtcg, /\btoGraphFragment\b/u)
+    assert.doesNotMatch(dtcg, /\bDTCGGraphOptions\b/u)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }

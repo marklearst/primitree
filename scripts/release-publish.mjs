@@ -730,11 +730,45 @@ function smokeCommand(runCommand, command, args, options) {
   )
 }
 
+function readInstalledDTCGDocument(consumerDirectory, fileName) {
+  const documentPath = path.join(
+    consumerDirectory,
+    'node_modules',
+    '@primitree',
+    'dtcg',
+    fileName
+  )
+  try {
+    return readFileSync(documentPath, 'utf8')
+  } catch (error) {
+    throw new Error(`Could not read installed @primitree/dtcg/${fileName}`, {
+      cause: error,
+    })
+  }
+}
+
+export function assertInstalledDTCGDocumentation(consumerDirectory) {
+  const readme = readInstalledDTCGDocument(consumerDirectory, 'README.md')
+  const changelog = readInstalledDTCGDocument(consumerDirectory, 'CHANGELOG.md')
+  if (readme.trim() === '') {
+    throw new Error('installed @primitree/dtcg README.md is empty')
+  }
+  if (!readme.includes('](CHANGELOG.md)')) {
+    throw new Error(
+      'installed @primitree/dtcg README.md must link to CHANGELOG.md'
+    )
+  }
+  if (changelog.trim() === '') {
+    throw new Error('installed @primitree/dtcg CHANGELOG.md is empty')
+  }
+}
+
 function runInstalledPackageSmokeChecks({
   consumerDirectory,
   options,
   runCommand,
 }) {
+  assertInstalledDTCGDocumentation(consumerDirectory)
   const esmSpecifiers = [
     '@primitree/core',
     '@primitree/core/policy',

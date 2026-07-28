@@ -194,7 +194,7 @@ describe('primitree check with a project config', () => {
     )
 
     await expect(runCheck(parseArgs(['--config', configPath]))).rejects.toThrow(
-      'A token reference points to a token with a different type.'
+      'A DTCG alias type does not match its reference target.'
     )
   })
 

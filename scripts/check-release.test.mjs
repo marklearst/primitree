@@ -629,7 +629,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       {
         name: '@primitree/dtcg',
         attwProfile: 'strict',
-        requiredFiles: ['dist'],
+        requiredFiles: ['dist', 'CHANGELOG.md'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
         requiredBin: undefined,
         requiredBinTarget: undefined,
