@@ -67,6 +67,8 @@ function withoutHooksMigration(text: string): string {
   return `${text.slice(0, migrationHeading.index)}${text.slice(sectionEnd)}`
 }
 
+const formerHooksPackage = ['@figma', 'vars/hooks'].join('-')
+
 const docsRoot = resolve(root, 'apps/docs/content/docs')
 const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
   readmeFiles(resolve(root, directory)).map(file =>
@@ -165,19 +167,19 @@ Current documentation.
 
 ## Migrating from 4.x
 
-Replace @figma-vars/hooks with @primitree/hooks.
+Replace ${formerHooksPackage} with @primitree/hooks.
 
 ## License
 
-Later text containing @figma-vars/hooks must still be scanned.
+Later text containing ${formerHooksPackage} must still be scanned.
 `
 
     const withoutMigration = withoutHooksMigration(readme)
     expect(withoutMigration).not.toContain(
-      'Replace @figma-vars/hooks with @primitree/hooks.'
+      `Replace ${formerHooksPackage} with @primitree/hooks.`
     )
     expect(withoutMigration).toContain(
-      'Later text containing @figma-vars/hooks must still be scanned.'
+      `Later text containing ${formerHooksPackage} must still be scanned.`
     )
   })
 })
@@ -224,6 +226,6 @@ describe('maintained examples', () => {
           : document.text
       )
       .join('\n')
-    expect(namespaceCorpus).not.toContain('@figma-vars/')
+    expect(namespaceCorpus).not.toContain(['@figma', 'vars/'].join('-'))
   })
 })

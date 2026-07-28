@@ -366,7 +366,7 @@ test('touch contexts do not apply playground hover enhancements', async ({
       )
     ).toBe(false)
 
-    const playgroundLink = page.getByRole('link', { name: 'figma-vars build' })
+    const playgroundLink = page.getByRole('link', { name: 'primitree build' })
     const footnoteLink = page.getByRole('link', { name: 'See build docs' })
     const ghostButton = page.getByRole('button', { name: 'Try the sample' })
     const ghostBackground = await ghostButton.evaluate(

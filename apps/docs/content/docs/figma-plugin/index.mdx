@@ -3,21 +3,21 @@ title: Figma Plugin
 description: Export local variables from an open Figma file as variables.json.
 ---
 
-The **FigmaVars Export** plugin calls Figma's local variables Plugin API in the open file. It writes `variables.json` in the REST response shape accepted by `figma-vars build`.
+The **Primitree export** plugin calls Figma's local variables Plugin API in the open file. It writes `variables.json` in the REST response shape that `primitree build` reads.
 
 ## Install (development)
 
 From the monorepo:
 
 ```bash
-pnpm --filter figmavars-plugin build
+pnpm --filter primitree-plugin build
 ```
 
 In Figma desktop:
 
 1. Plugins → Development → **Import plugin from manifest**
 2. Select `apps/figma-plugin/dist/manifest.json`
-3. Run **FigmaVars Export** on a file with variables
+3. Run **Primitree export** on a file with variables
 
 ## Exported data
 
@@ -41,13 +41,13 @@ The JSON has this top-level shape:
 }
 ```
 
-Aliases retain `{ "type": "VARIABLE_ALIAS", "id": "..." }`. The export also keeps modes, scopes, code syntax, and extended collection fields returned by the Plugin API.
+Aliases retain `{ "type": "VARIABLE_ALIAS", "id": "..." }`. The export keeps modes, scopes, code syntax, and the extended collection fields that the Plugin API returns.
 
 ## After export
 
 ```bash
-figma-vars build variables.json
-figma-vars check design-tokens
+primitree build variables.json
+primitree check design-tokens
 git add variables.json design-tokens/
 ```
 
@@ -59,7 +59,7 @@ The [playground](/playground) builds and zips the same file in the browser.
 
 ## Library variables
 
-The plugin exports data returned by `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()`. It does not fetch remote library collections.
+The plugin exports data from `getLocalVariableCollectionsAsync()` and `getLocalVariablesAsync()`. It does not fetch remote library collections.
 
 ## Monorepo layout
 
@@ -68,6 +68,6 @@ The plugin exports data returned by `getLocalVariableCollectionsAsync()` and `ge
 | `apps/figma-plugin`      | Figma UI + sandbox code        |
 | `packages/plugin-export` | Private REST-shaped serializer |
 
-## Figma MCP vs FigmaVars MCP
+## Figma MCP vs Primitree MCP
 
-See [Figma MCP and FigmaVars](/docs/concepts/figma-mcp) for the live-file and repository data paths.
+See [Figma MCP and Primitree](/docs/concepts/figma-mcp) for the live-file and repository data paths.

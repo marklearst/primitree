@@ -1,10 +1,10 @@
 ---
-title: figma-vars export
+title: primitree export
 description: Download local variables JSON from the Figma Variables REST API.
 ---
 
 ```bash
-figma-vars export [options]
+primitree export [options]
 ```
 
 Figma limits the Variables REST API to Enterprise organizations. The request needs `file_variables:read` and access to the file.
@@ -15,14 +15,14 @@ Figma limits the Variables REST API to Enterprise organizations. The request nee
 export FIGMA_TOKEN=figd_...
 export FIGMA_FILE_KEY=your-file-key
 
-figma-vars export --out variables.json
+primitree export --out variables.json
 ```
 
-You can pass the file key while keeping the token in the environment:
+Pass the file key while keeping the token in the environment:
 
 ```bash
-figma-vars export --file-key "$FIGMA_FILE_KEY" --out variables.json
-figma-vars export --fileKey "$FIGMA_FILE_KEY" --out variables.json
+primitree export --file-key "$FIGMA_FILE_KEY" --out variables.json
+primitree export --fileKey "$FIGMA_FILE_KEY" --out variables.json
 ```
 
 Use `--file-key` in new scripts. `--fileKey` remains as a compatibility alias.
@@ -38,8 +38,8 @@ Use `--file-key` in new scripts. `--fileKey` remains as a compatibility alias.
 ## After export
 
 ```bash
-figma-vars build variables.json
-figma-vars diff previous.json variables.json
+primitree build variables.json
+primitree diff previous.json variables.json
 ```
 
-The [FigmaVars Export plugin](/docs/getting-started/export-variables) reads local variables from the open file without calling the Variables REST API.
+The [Primitree export plugin](/docs/getting-started/export-variables) reads local variables from the open file without calling the Variables REST API.

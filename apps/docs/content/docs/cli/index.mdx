@@ -1,15 +1,15 @@
 ---
-title: Overview
-description: figma-vars CLI commands for building, diffing, checking, and exporting design tokens.
+title: CLI commands
+description: Primitree CLI commands for building, diffing, checking, and exporting design tokens.
 ---
 
 The CLI requires Node.js 24 or newer. Add it as a development dependency:
 
 ```bash
-pnpm add -D @figmavars/cli
+pnpm add -D @primitree/cli
 ```
 
-Binary name: `figma-vars`.
+Binary name: `primitree`.
 
 ## Commands
 
@@ -22,13 +22,13 @@ Binary name: `figma-vars`.
 | `export` | Download variables via Figma REST API (Enterprise) |
 
 ```bash
-figma-vars <command> --help
+primitree <command> --help
 ```
 
 ## Typical workflow
 
 ```bash
-figma-vars init my-tokens
+primitree init my-tokens
 cd my-tokens
 # replace variables.json with your export
 npm install

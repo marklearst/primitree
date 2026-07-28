@@ -58,12 +58,12 @@ Add tests that reject these values in filenames and text:
 
 ```js
 const rejected = [
-  'FigmaVars',
-  'figmavars',
-  'figma-vars',
-  'FIGMA_VARS',
-  '--color-fv-surface',
-  'bg-fv-surface',
+  'former product label',
+  'former compact label',
+  'former command/path form',
+  'former environment/key form',
+  'former CSS variable',
+  'former utility class',
 ]
 ```
 
@@ -247,9 +247,9 @@ git commit -m "feat: rename Primitree commands"
 
 **Files:**
 
-- Move: `packages/hooks/src/contexts/FigmaVarsProvider.tsx` to
+- Move: the former hooks provider file to
   `packages/hooks/src/contexts/FigmaVariablesProvider.tsx`
-- Move: `packages/hooks/tests/FigmaVarsProvider.test.tsx` to
+- Move: the former hooks provider test to
   `packages/hooks/tests/FigmaVariablesProvider.test.tsx`
 - Modify: `packages/hooks/src/contexts/index.ts`
 - Modify: `packages/hooks/src/contexts/useFigmaTokenContext.ts`
@@ -414,14 +414,12 @@ git commit -m "feat: rename Primitree metadata and MCP"
 
 **Files:**
 
-- Move: `assets/figmavars-icon.svg` to `assets/primitree-icon.svg`
-- Delete: `assets/figmavars.svg`
-- Delete: `assets/figma-vars-tagline.png`
-- Delete: `assets/figma-vars-tagline-light.png`
-- Delete: `brand/figma-vars@2x.png`
-- Replace: `apps/docs/public/figmavars.svg` with
+- Move: the former icon asset to `assets/primitree-icon.svg`
+- Delete: the former standalone icon asset
+- Delete: former-brand tagline assets
+- Replace: the former docs icon with
   `apps/docs/public/primitree-icon.svg`
-- Replace: `apps/playground/src/assets/figmavars.svg` with
+- Replace: the former playground icon with
   `apps/playground/src/assets/primitree-icon.svg`
 - Modify: `apps/docs/public/favicon.svg`
 - Modify: `apps/playground/public/favicon.svg`

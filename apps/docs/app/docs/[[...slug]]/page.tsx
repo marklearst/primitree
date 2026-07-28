@@ -70,7 +70,7 @@ export async function generateMetadata(
   const image = getPageImage(page)
   const description =
     page.data.description ??
-    `Read the ${page.data.title} documentation for FigmaVars.`
+    `Read the ${page.data.title} documentation for Primitree.`
 
   return createPageMetadata({
     title: page.data.title,

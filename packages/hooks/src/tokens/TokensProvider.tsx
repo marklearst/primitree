@@ -7,7 +7,7 @@ import {
   resolveTokenValuesSafe,
   type DTCGDocument,
   type ResolverDocument,
-} from '@figmavars/dtcg'
+} from '@primitree/dtcg'
 import { TokensContext, type TokensContextValue } from './TokensContext'
 
 /**
@@ -18,8 +18,8 @@ import { TokensContext, type TokensContextValue } from './TokensContext'
 export interface TokensProviderProps {
   /**
    * DTCG token documents: a single document, an array (merged in order), or
-   * a map of file name to document as produced by `figma-vars build`. A
-   * Resolver needs the map form so the provider can follow `$ref` paths.
+   * a file-name map from `primitree build`. A Resolver needs the map form so
+   * the provider can follow `$ref` paths.
    */
   tokens: DTCGDocument | DTCGDocument[] | Record<string, DTCGDocument>
   /**
@@ -46,12 +46,12 @@ function isFileMap(
  * the local-token hooks: {@link useToken}, {@link useTokens}, {@link useTheme}.
  *
  * @remarks
- * The provider accepts output from `figma-vars build` or other DTCG documents.
+ * The provider accepts output from `primitree build` or other DTCG documents.
  * It reads local data and does not require a Figma token.
  *
  * @example
  * ```tsx
- * import { TokensProvider, useToken, useTheme } from '@figmavars/hooks'
+ * import { TokensProvider, useToken, useTheme } from '@primitree/hooks'
  * import primitives from './tokens/primitives.tokens.json'
  * import semantic from './tokens/semantic.tokens.json'
  * import semanticDark from './tokens/semantic.dark.tokens.json'
