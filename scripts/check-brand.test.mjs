@@ -130,10 +130,10 @@ test('skips execution scratch without exempting normal source files', t => {
   const root = mkdtempSync(join(tmpdir(), 'primitree-brand-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
 
-  mkdirSync(join(root, '.superpowers'), { recursive: true })
+  mkdirSync(join(root, '.review-state'), { recursive: true })
   mkdirSync(join(root, 'packages', 'core', 'src'), { recursive: true })
   writeFileSync(
-    join(root, '.superpowers', 'review.txt'),
+    join(root, '.review-state', 'review.txt'),
     legacy('figma', '-vars')
   )
   writeFileSync(
