@@ -30,9 +30,9 @@ The comparison command uses stable Figma IDs:
 primitree diff backup/variables.json variables.json --fail-on-breaking
 ```
 
-The diff matches the old and new names to one variable by stable ID. The report
-records the rename and lists removals, moves, type changes, and per-mode value
-changes. `--fail-on-breaking` gives CI an exit code for the breaking cases.
+The diff matches variable records by stable Figma ID. It reports a changed name
+as a rename and lists removals, moves, type changes, and per-mode value changes.
+`--fail-on-breaking` gives CI an exit code for the breaking cases.
 
 Get the source JSON from a variables plugin that exports local Figma variables.
 The repository includes the Primitree export plugin as a development build. Teams
@@ -67,9 +67,9 @@ https://primitree.com
 
 ### Post 2
 
-`primitree diff` matches variables by stable Figma IDs. The report matches the
-old and new names to one variable record. It shows per-mode value changes and
-marks removals, renames, moves, and type changes as breaking.
+`primitree diff` matches variable records by stable Figma ID and reports changed
+names as renames. It shows per-mode value changes and marks removals, moves, and
+type changes as breaking.
 
 Use `--fail-on-breaking` in CI.
 
@@ -99,8 +99,8 @@ https://github.com/marklearst/primitree
 
 Primitree turns a Figma variables export into commit-ready files for review.
 The CLI writes DTCG 2025.10 token files, Resolver contexts for modes, CSS custom
-properties, Tailwind v4 mappings, and typed token paths. The diff engine uses
-each stable Figma ID to match the old and new names to one variable record. The
+properties, Tailwind v4 mappings, and typed token paths. The diff engine matches
+variable records by stable Figma ID and reports changed names as renames. The
 MIT-licensed repository includes React hooks for built artifacts and an MCP
 server for token queries. The browser playground builds the files without an
 install.

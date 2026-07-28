@@ -68,8 +68,14 @@ function withoutHooksMigration(text: string): string {
 }
 
 const formerHooksPackage = ['@figma', 'vars/hooks'].join('-')
+const formerHooksCore = `${formerHooksPackage}/core`
+const formerProvider = ['Figma', 'Vars', 'Provider'].join('')
 
 const docsRoot = resolve(root, 'apps/docs/content/docs')
+const hooksMigration = readFileSync(
+  resolve(docsRoot, 'hooks/migration.mdx'),
+  'utf8'
+)
 const workspaceReadmePaths = ['apps', 'packages'].flatMap(directory =>
   readmeFiles(resolve(root, directory)).map(file =>
     relative(root, file).split(sep).join('/')
@@ -181,6 +187,22 @@ Later text containing ${formerHooksPackage} must still be scanned.
     expect(withoutMigration).toContain(
       `Later text containing ${formerHooksPackage} must still be scanned.`
     )
+  })
+
+  it('maps the hooks package, provider, and export command', () => {
+    expect(hooksMigration).toContain(
+      `| \`${formerHooksPackage}\` | \`@primitree/hooks\` |`
+    )
+    expect(hooksMigration).toContain(
+      `| \`${formerHooksCore}\` | \`@primitree/core\` |`
+    )
+    expect(hooksMigration).toContain(
+      '| Hooks export executable | `primitree export` from `@primitree/cli` |'
+    )
+    expect(hooksMigration).toContain(
+      'The live provider adds `Variables` to its name. Import `FigmaVariablesProvider`'
+    )
+    expect(hooksMigration).not.toContain(formerProvider)
   })
 })
 
