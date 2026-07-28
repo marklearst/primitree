@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
-import { findBrandViolations } from './brand-rules.mjs'
+import { findBrandViolations, readBrandRecords } from './brand-rules.mjs'
 
 const legacy = (...parts) => parts.join('')
 
@@ -116,6 +124,30 @@ test('does not flag its own rule syntax', () => {
     findBrandViolations([{ path: 'scripts/brand-rules.mjs', content }]),
     []
   )
+})
+
+test('skips execution scratch without exempting normal source files', t => {
+  const root = mkdtempSync(join(tmpdir(), 'primitree-brand-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+
+  mkdirSync(join(root, '.superpowers'), { recursive: true })
+  mkdirSync(join(root, 'packages', 'core', 'src'), { recursive: true })
+  writeFileSync(
+    join(root, '.superpowers', 'review.txt'),
+    legacy('figma', '-vars')
+  )
+  writeFileSync(
+    join(root, 'packages', 'core', 'src', 'legacy.ts'),
+    legacy('figma', '-vars')
+  )
+
+  assert.deepEqual(findBrandViolations(readBrandRecords(root)), [
+    {
+      path: 'packages/core/src/legacy.ts',
+      line: 1,
+      match: legacy('figma', '-vars'),
+    },
+  ])
 })
 
 test('permits only migration references in approved files', () => {

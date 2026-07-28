@@ -3,7 +3,8 @@ import type { Locator, Page } from '@playwright/test'
 import sampleVariables from '../../apps/playground/src/sample-variables.json' with { type: 'json' }
 
 const widths = [320, 375] as const
-const pageHeading = 'Drop your Figma variables. Leave with a token pipeline.'
+const pageHeading =
+  'Preview your Figma variables export. Download the generated token files.'
 const interactiveSelector =
   'a[href], button, summary, label:has(input[type="radio"])'
 
@@ -162,7 +163,7 @@ for (const width of widths) {
       '_blank'
     )
     await expect(
-      page.getByRole('link', { name: '@figmavars' })
+      page.getByRole('link', { name: '@primitree' })
     ).toHaveAttribute('target', '_blank')
     await expectInsideViewport(page.locator('.brand'), width)
     await expectInsideViewport(page.locator('.header-links'), width)
@@ -436,7 +437,7 @@ test('touch contexts do not apply standalone hover enhancements', async ({
 
     const targets = [
       page.getByRole('link', { name: 'GitHub' }),
-      page.getByRole('link', { name: '@figmavars' }),
+      page.getByRole('link', { name: '@primitree' }),
       page.getByRole('button', { name: 'Start over' }),
       page.getByRole('button', { name: 'Download pipeline (.zip)' }),
       page.locator('label.chip').first(),

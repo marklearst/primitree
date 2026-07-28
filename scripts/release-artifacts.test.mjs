@@ -21,20 +21,20 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const VERSION = '5.0.0'
+const VERSION = '1.0.0'
 const EXPECTED_NAMES = [
-  '@figmavars/core',
-  '@figmavars/dtcg',
-  '@figmavars/cli',
-  '@figmavars/hooks',
-  '@figmavars/mcp',
+  '@primitree/core',
+  '@primitree/dtcg',
+  '@primitree/cli',
+  '@primitree/hooks',
+  '@primitree/mcp',
 ]
 const EXPECTED_FILES = [
-  'figmavars-core-5.0.0.tgz',
-  'figmavars-dtcg-5.0.0.tgz',
-  'figmavars-cli-5.0.0.tgz',
-  'figmavars-hooks-5.0.0.tgz',
-  'figmavars-mcp-5.0.0.tgz',
+  'primitree-core-1.0.0.tgz',
+  'primitree-dtcg-1.0.0.tgz',
+  'primitree-cli-1.0.0.tgz',
+  'primitree-hooks-1.0.0.tgz',
+  'primitree-mcp-1.0.0.tgz',
 ]
 const SCRIPT_PATH = fileURLToPath(
   new URL('./release-artifacts.mjs', import.meta.url)
@@ -79,7 +79,7 @@ function writeChecksums(directory, value) {
 }
 
 function makeFixture(t) {
-  const directory = mkdtempSync(path.join(tmpdir(), 'figmavars-artifacts-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'primitree-artifacts-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
 
   const artifacts = EXPECTED_NAMES.map((name, index) => {
@@ -128,7 +128,7 @@ function makeHostileNpmProbe(
     wrongRegistry = false,
   } = {}
 ) {
-  const directory = mkdtempSync(path.join(tmpdir(), 'figmavars-npm-probe-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'primitree-npm-probe-'))
   const binDirectory = path.join(directory, 'bin')
   const hostileHome = path.join(directory, 'hostile-home')
   const hostileProject = path.join(directory, 'hostile-project')
@@ -143,7 +143,7 @@ function makeHostileNpmProbe(
   )
   writeFileSync(
     path.join(hostileProject, '.npmrc'),
-    'registry=https://project.invalid/\n@figmavars:registry=https://scope.invalid/\n'
+    'registry=https://project.invalid/\n@primitree:registry=https://scope.invalid/\n'
   )
   writeFileSync(
     path.join(directory, 'hostile-global-npmrc'),
@@ -240,7 +240,7 @@ if (process.env.PROBE_VALIDATE_ISOLATION === '1') {
   }
   if (
     readFileSync(globalConfig, 'utf8') !==
-    'registry=' + registry + '\\n@figmavars:registry=' + registry + '\\n'
+    'registry=' + registry + '\\n@primitree:registry=' + registry + '\\n'
   ) {
     fail('npm global config must contain only the public registries')
   }
@@ -271,7 +271,7 @@ if (process.env.PROBE_VALIDATE_ISOLATION === '1') {
   if (
     command === 'pnpm' &&
     (!args.includes('--config.registry=' + registry) ||
-      !args.includes('--config.@figmavars:registry=' + registry))
+      !args.includes('--config.@primitree:registry=' + registry))
   ) {
     fail('pnpm registry overrides are missing')
   }
@@ -327,7 +327,7 @@ if (command === 'pnpm' && args.includes('pack')) {
   )
   const outputPattern = args[args.indexOf('--out') + 1]
   const filename = outputPattern
-    .replace('%s', manifest.name.replace('@figmavars/', 'figmavars-'))
+    .replace('%s', manifest.name.replace('@primitree/', 'primitree-'))
     .replace('%v', manifest.version)
   mkdirSync(path.dirname(filename), { recursive: true })
   writeFileSync(filename, 'packed:' + manifest.name + '\\n')
@@ -395,7 +395,7 @@ if (command === 'pnpm' && args.includes('pack')) {
 }
 
 function makePackRepository(t) {
-  const directory = mkdtempSync(path.join(tmpdir(), 'figmavars-pack-repo-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'primitree-pack-repo-'))
   const scriptsDirectory = path.join(directory, 'scripts')
   mkdirSync(scriptsDirectory)
   copyFileSync(
@@ -408,14 +408,14 @@ function makePackRepository(t) {
   )
 
   for (const name of EXPECTED_NAMES) {
-    const packageName = name.slice('@figmavars/'.length)
+    const packageName = name.slice('@primitree/'.length)
     const packageDirectory = path.join(directory, 'packages', packageName)
     mkdirSync(path.join(packageDirectory, 'dist'), { recursive: true })
     writeFileSync(
       path.join(packageDirectory, 'package.json'),
       `${JSON.stringify({ name, version: VERSION })}\n`
     )
-    if (name === '@figmavars/hooks') {
+    if (name === '@primitree/hooks') {
       mkdirSync(path.join(packageDirectory, 'scripts'))
       writeFileSync(
         path.join(packageDirectory, 'scripts', 'export-variables.mjs'),
@@ -475,7 +475,7 @@ async function expectInvalid(t, mutate, pattern) {
   )
 }
 
-test('derives canonical artifacts in dependency order', async () => {
+test('derives the expected artifacts in dependency order', async () => {
   const { expectedArtifacts } = await releaseArtifactsModule()
   assert.deepEqual(
     expectedArtifacts(VERSION),
@@ -484,15 +484,15 @@ test('derives canonical artifacts in dependency order', async () => {
       file: EXPECTED_FILES[index],
     }))
   )
-  assert.throws(() => expectedArtifacts('v5.0.0'), /MAJOR\.MINOR\.PATCH/)
-  assert.throws(() => expectedArtifacts('5.0.0-beta.1'), /MAJOR\.MINOR\.PATCH/)
+  assert.throws(() => expectedArtifacts('v1.0.0'), /MAJOR\.MINOR\.PATCH/)
+  assert.throws(() => expectedArtifacts('1.0.0-beta.1'), /MAJOR\.MINOR\.PATCH/)
 })
 
 test('constructs stable public npm publish dry-run arguments', async () => {
   const { npmPublishDryRunArgs } = await releaseArtifactsModule()
   const artifactPath = path.join(
     tmpdir(),
-    'figmavars-artifacts',
+    'primitree-artifacts',
     EXPECTED_FILES[0]
   )
 
@@ -575,7 +575,7 @@ test('real offline packing isolates every pnpm subprocess from hostile npm state
     calls.every(call =>
       call.args.some(
         argument =>
-          argument === `--config.@figmavars:registry=${PUBLIC_NPM_REGISTRY}`
+          argument === `--config.@primitree:registry=${PUBLIC_NPM_REGISTRY}`
       )
     )
   )
@@ -614,7 +614,7 @@ test('real npm registry lookup ignores hostile artifact-check state', t => {
       .map(call => call.args.slice(0, 3)),
     [
       ['config', 'get', 'registry'],
-      ['config', 'get', '@figmavars:registry'],
+      ['config', 'get', '@primitree:registry'],
     ]
   )
 })
@@ -766,7 +766,7 @@ test('release checks reject asynchronous check injection', async t => {
 
 test('rejects an invalid artifact directory', async t => {
   await t.test('missing', async t => {
-    const parent = mkdtempSync(path.join(tmpdir(), 'figmavars-missing-'))
+    const parent = mkdtempSync(path.join(tmpdir(), 'primitree-missing-'))
     t.after(() => rmSync(parent, { recursive: true, force: true }))
     const { verifyReleaseArtifacts } = await releaseArtifactsModule()
     assert.throws(
@@ -779,7 +779,7 @@ test('rejects an invalid artifact directory', async t => {
   })
 
   await t.test('regular file', async t => {
-    const parent = mkdtempSync(path.join(tmpdir(), 'figmavars-file-'))
+    const parent = mkdtempSync(path.join(tmpdir(), 'primitree-file-'))
     t.after(() => rmSync(parent, { recursive: true, force: true }))
     const file = path.join(parent, 'artifacts')
     writeFileSync(file, 'not a directory')
@@ -791,8 +791,8 @@ test('rejects an invalid artifact directory', async t => {
   })
 
   await t.test('symlink', async t => {
-    const target = mkdtempSync(path.join(tmpdir(), 'figmavars-target-'))
-    const parent = mkdtempSync(path.join(tmpdir(), 'figmavars-link-'))
+    const target = mkdtempSync(path.join(tmpdir(), 'primitree-target-'))
+    const parent = mkdtempSync(path.join(tmpdir(), 'primitree-link-'))
     t.after(() => rmSync(target, { recursive: true, force: true }))
     t.after(() => rmSync(parent, { recursive: true, force: true }))
     const link = path.join(parent, 'artifacts')
@@ -807,9 +807,9 @@ test('rejects an invalid artifact directory', async t => {
   await t.test('symlinked parent', async t => {
     const fixture = makeFixture(t)
     const external = mkdtempSync(
-      path.join(tmpdir(), 'figmavars-parent-target-')
+      path.join(tmpdir(), 'primitree-parent-target-')
     )
-    const root = mkdtempSync(path.join(tmpdir(), 'figmavars-parent-link-'))
+    const root = mkdtempSync(path.join(tmpdir(), 'primitree-parent-link-'))
     t.after(() => rmSync(external, { recursive: true, force: true }))
     t.after(() => rmSync(root, { recursive: true, force: true }))
     renameSync(fixture.directory, path.join(external, 'npm'))
@@ -903,7 +903,7 @@ test('rejects malformed manifest metadata', async t => {
     [
       'prerelease version',
       f => {
-        f.manifest.version = '5.0.0-next.1'
+        f.manifest.version = '1.0.0-next.1'
         f.rewriteManifest()
       },
       /version.*MAJOR\.MINOR\.PATCH/i,
@@ -944,7 +944,7 @@ test('rejects malformed manifest metadata', async t => {
   await t.test('manifest path is a symlink', async t => {
     const external = path.join(
       tmpdir(),
-      `figmavars-manifest-${process.pid}.json`
+      `primitree-manifest-${process.pid}.json`
     )
     writeFileSync(external, '{}')
     t.after(() => rmSync(external, { force: true }))
@@ -1024,7 +1024,7 @@ test('rejects wrong package names and order', async t => {
     [
       'unknown name',
       f => {
-        f.manifest.artifacts[0].name = '@figmavars/unknown'
+        f.manifest.artifacts[0].name = '@primitree/unknown'
         f.rewriteManifest()
       },
     ],
@@ -1069,12 +1069,12 @@ test('rejects wrong package names and order', async t => {
 
 test('rejects wrong artifact filenames and order', async t => {
   const cases = [
-    ['unknown filename', 'figmavars-unknown-5.0.0.tgz'],
-    ['wrong version filename', 'figmavars-core-5.0.1.tgz'],
-    ['absolute filename', '/tmp/figmavars-core-5.0.0.tgz'],
-    ['traversal filename', '../figmavars-core-5.0.0.tgz'],
-    ['nested filename', 'nested/figmavars-core-5.0.0.tgz'],
-    ['backslash filename', '..\\figmavars-core-5.0.0.tgz'],
+    ['unknown filename', 'primitree-unknown-1.0.0.tgz'],
+    ['wrong version filename', 'primitree-core-5.0.1.tgz'],
+    ['absolute filename', '/tmp/primitree-core-1.0.0.tgz'],
+    ['traversal filename', '../primitree-core-1.0.0.tgz'],
+    ['nested filename', 'nested/primitree-core-1.0.0.tgz'],
+    ['backslash filename', '..\\primitree-core-1.0.0.tgz'],
     ['empty filename', ''],
     ['non-string filename', 5],
   ]
@@ -1141,14 +1141,14 @@ test('rejects missing, extra, and non-regular artifact files', async t => {
     expectInvalid(
       t,
       f => unlinkSync(path.join(f.directory, EXPECTED_FILES[0])),
-      /figmavars-core-5\.0\.0\.tgz.*regular file/i
+      /primitree-core-1\.0\.0\.tgz.*regular file/i
     )
   )
   await t.test('extra tarball', t =>
     expectInvalid(
       t,
       f =>
-        writeFileSync(path.join(f.directory, 'figmavars-extra-5.0.0.tgz'), ''),
+        writeFileSync(path.join(f.directory, 'primitree-extra-1.0.0.tgz'), ''),
       /artifact directory.*exactly|unexpected artifact directory entry/i
     )
   )
@@ -1159,7 +1159,7 @@ test('rejects missing, extra, and non-regular artifact files', async t => {
         unlinkSync(path.join(f.directory, EXPECTED_FILES[0]))
         mkdirSync(path.join(f.directory, EXPECTED_FILES[0]))
       },
-      /figmavars-core-5\.0\.0\.tgz.*regular file/i
+      /primitree-core-1\.0\.0\.tgz.*regular file/i
     )
   )
   await t.test('internal tarball symlink', t =>
@@ -1173,11 +1173,11 @@ test('rejects missing, extra, and non-regular artifact files', async t => {
           path.join(f.directory, EXPECTED_FILES[0])
         )
       },
-      /figmavars-core-5\.0\.0\.tgz.*regular file/i
+      /primitree-core-1\.0\.0\.tgz.*regular file/i
     )
   )
   await t.test('external tarball symlink', async t => {
-    const external = path.join(tmpdir(), `figmavars-tarball-${process.pid}.tgz`)
+    const external = path.join(tmpdir(), `primitree-tarball-${process.pid}.tgz`)
     writeFileSync(external, 'external')
     t.after(() => rmSync(external, { force: true }))
     await expectInvalid(
@@ -1190,7 +1190,7 @@ test('rejects missing, extra, and non-regular artifact files', async t => {
           path.join(f.directory, EXPECTED_FILES[0])
         )
       },
-      /figmavars-core-5\.0\.0\.tgz.*regular file/i
+      /primitree-core-1\.0\.0\.tgz.*regular file/i
     )
   })
 })
@@ -1200,7 +1200,7 @@ test('rejects artifact bytes that do not match both metadata files', async t => 
     expectInvalid(
       t,
       f => writeFileSync(path.join(f.directory, EXPECTED_FILES[0]), 'modified'),
-      /computed SHA-256.*figmavars-core/i
+      /computed SHA-256.*primitree-core/i
     )
   )
 
@@ -1211,7 +1211,7 @@ test('rejects artifact bytes that do not match both metadata files', async t => 
         f.manifest.artifacts[0].sha256 = 'a'.repeat(64)
         f.rewriteManifest()
       },
-      /SHA256SUMS.*canonical|computed SHA-256/i
+      /SHA256SUMS.*required artifact order|computed SHA-256/i
     )
   )
 
@@ -1223,7 +1223,7 @@ test('rejects artifact bytes that do not match both metadata files', async t => 
         changed[0].sha256 = 'a'.repeat(64)
         f.rewriteChecksums(checksumText(changed))
       },
-      /SHA256SUMS.*canonical/i
+      /SHA256SUMS.*required artifact order/i
     )
   )
 
@@ -1235,16 +1235,16 @@ test('rejects artifact bytes that do not match both metadata files', async t => 
         f.rewriteManifest()
         f.rewriteChecksums()
       },
-      /computed SHA-256.*figmavars-core/i
+      /computed SHA-256.*primitree-core/i
     )
   )
 })
 
-test('requires byte-for-byte canonical SHA256SUMS', async t => {
-  const canonicalLines = fixture =>
+test('requires the exact SHA256SUMS bytes', async t => {
+  const expectedLines = fixture =>
     checksumText(fixture.manifest.artifacts).trimEnd().split('\n')
   const cases = [
-    ['missing line', f => `${canonicalLines(f).slice(0, -1).join('\n')}\n`],
+    ['missing line', f => `${expectedLines(f).slice(0, -1).join('\n')}\n`],
     [
       'extra line',
       f =>
@@ -1252,12 +1252,12 @@ test('requires byte-for-byte canonical SHA256SUMS', async t => {
     ],
     [
       'duplicate line',
-      f => `${canonicalLines(f)[0]}\n${checksumText(f.manifest.artifacts)}`,
+      f => `${expectedLines(f)[0]}\n${checksumText(f.manifest.artifacts)}`,
     ],
     [
       'reordered lines',
       f => {
-        const lines = canonicalLines(f)
+        const lines = expectedLines(f)
         ;[lines[0], lines[1]] = [lines[1], lines[0]]
         return `${lines.join('\n')}\n`
       },
@@ -1334,7 +1334,7 @@ test('requires byte-for-byte canonical SHA256SUMS', async t => {
       expectInvalid(
         t,
         f => f.rewriteChecksums(build(f)),
-        /SHA256SUMS.*canonical/i
+        /SHA256SUMS.*required artifact order/i
       )
     )
   }
@@ -1357,7 +1357,7 @@ test('requires byte-for-byte canonical SHA256SUMS', async t => {
     )
   )
   await t.test('checksum path is a symlink', async t => {
-    const external = path.join(tmpdir(), `figmavars-checksums-${process.pid}`)
+    const external = path.join(tmpdir(), `primitree-checksums-${process.pid}`)
     writeFileSync(external, '')
     t.after(() => rmSync(external, { force: true }))
     await expectInvalid(
@@ -1402,7 +1402,7 @@ test('rejects every unexpected directory entry', async t => {
 
 test('verification is independent of the process working directory', t => {
   const fixture = makeFixture(t)
-  const cwd = mkdtempSync(path.join(tmpdir(), 'figmavars-cwd-'))
+  const cwd = mkdtempSync(path.join(tmpdir(), 'primitree-cwd-'))
   t.after(() => rmSync(cwd, { recursive: true, force: true }))
   const program = [
     `import { verifyReleaseArtifacts } from ${JSON.stringify(pathToFileURL(SCRIPT_PATH).href)}`,
@@ -1425,7 +1425,7 @@ test('verification is independent of the process working directory', t => {
 })
 
 test('CLI rejects missing, unknown, and extra commands without writing artifacts', async t => {
-  const cwd = mkdtempSync(path.join(tmpdir(), 'figmavars-cli-'))
+  const cwd = mkdtempSync(path.join(tmpdir(), 'primitree-cli-'))
   t.after(() => rmSync(cwd, { recursive: true, force: true }))
 
   for (const args of [[], ['unknown'], ['verify', 'extra']]) {
@@ -1449,8 +1449,8 @@ test('CLI rejects missing, unknown, and extra commands without writing artifacts
 })
 
 test('required path validation rejects a symlinked top-level packages parent', async t => {
-  const root = mkdtempSync(path.join(tmpdir(), 'figmavars-path-root-'))
-  const external = mkdtempSync(path.join(tmpdir(), 'figmavars-path-external-'))
+  const root = mkdtempSync(path.join(tmpdir(), 'primitree-path-root-'))
+  const external = mkdtempSync(path.join(tmpdir(), 'primitree-path-external-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   t.after(() => rmSync(external, { recursive: true, force: true }))
   mkdirSync(path.join(external, 'core'))
