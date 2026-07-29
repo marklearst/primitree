@@ -24,6 +24,14 @@ Initial release of `@primitree/dtcg`.
 - Figma metadata under `$extensions['com.primitree']`.
 - Reference resolution, context application, flattening, and context listing.
 - CSS custom properties, Tailwind CSS v4 themes, and TypeScript token accessors.
+- `buildDTCGOutputs` for checked token files and a Resolver, with bounded JSON
+  sorting and output-path collision checks.
+- CSS output for boolean values and font fallback lists. Tailwind names follow
+  inherited and alias token types, and name collisions receive number suffixes.
+- CSS output escapes strings and Resolver selectors. One work limit covers
+  every context, including token paths and text. CSS output also limits group
+  depth and returned text. CSS and TypeScript reject CSS custom property
+  collisions. Tailwind checks emitted values.
 - In-memory pipeline output with Style Dictionary or Terrazzo configuration.
 
 ### Requirements

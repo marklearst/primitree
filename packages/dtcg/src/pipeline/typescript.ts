@@ -1,6 +1,6 @@
 import type { DTCGDocument, ResolverDocument } from '../types'
 import { applyResolver, flattenTokens, resolveTokenValues } from '../resolve'
-import { cssVarName, cssValue } from './css'
+import { assertUniqueCssVarNames, cssVarName, cssValue } from './css'
 
 function stringLiteral(value: string): string {
   return JSON.stringify(value)
@@ -19,6 +19,7 @@ export function emitTypescript(
 ): string {
   const merged = applyResolver(files, resolver)
   const flat = flattenTokens(merged)
+  assertUniqueCssVarNames(flat)
   const resolved = resolveTokenValues(flat)
 
   const paths = flat.map(f => f.path).sort()
@@ -52,7 +53,10 @@ export function emitTypescript(
   lines.push('export const tokenValues = {')
   for (const path of paths) {
     const value = resolved.get(path)
-    const css = value === undefined ? null : cssValue(value)
+    const css =
+      value === undefined || typeof value === 'boolean' || Array.isArray(value)
+        ? null
+        : cssValue(value)
     const literal = css === null ? JSON.stringify(value) : stringLiteral(css)
     lines.push(`  [${stringLiteral(path)}]: ${literal},`)
   }

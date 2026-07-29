@@ -123,6 +123,41 @@ const values = resolveTokenValues(flat)
 
 ## Build in-memory pipeline files
 
+Use `buildDTCGOutputs` when token files and a Resolver have already passed
+their input checks.
+
+```ts
+import { buildDTCGOutputs } from '@primitree/dtcg'
+
+const result = buildDTCGOutputs({
+  files,
+  resolver,
+  resolverFileName: 'tokens.resolver.json',
+})
+
+for (const file of result.files) {
+  console.log(file.path, file.contents)
+}
+```
+
+The function returns token JSON, the Resolver, CSS custom properties, a
+Tailwind CSS v4 theme, and TypeScript token accessors. It does not read or write
+files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
+
+`buildDTCGOutputs` rejects file names with absolute paths or `..` segments. It
+requires a Resolver basename and rejects names that collide after lowercasing
+and Unicode normalization. Its JSON sorter accepts up to 1,000 token files, 64
+levels, 100,000 items, and 20 MiB of names and text values.
+
+CSS output reads up to 64 token-group levels and returns up to 20 MiB. Its
+1,000,000-unit work limit counts Resolver reads, token merges, value comparisons,
+declarations, token paths, and token text. CSS strings and selectors escape text
+that would break the file. CSS and TypeScript output reject token paths that map
+to the same CSS custom property name. Tailwind applies the same check to the
+values it emits.
+
+Use `buildPipeline` when the input is a Figma variables response:
+
 ```ts
 import { buildPipeline } from '@primitree/dtcg'
 
@@ -146,6 +181,10 @@ for (const file of result.files) {
 
 The CSS emitter writes default values in `:root`. Extra contexts use a selector
 based on the Resolver axis, such as `[data-semantic='dark']`.
+
+CSS custom properties keep boolean values and ordered font fallback lists.
+Tailwind output follows group type inheritance and alias type inference. It adds
+a number suffix to the later name when two paths produce the same Tailwind name.
 
 Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) when you
 want Primitree to write these files to disk.

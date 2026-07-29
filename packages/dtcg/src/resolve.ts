@@ -15,6 +15,34 @@ export interface FlatToken {
   token: DTCGToken
 }
 
+/** @internal */
+export interface ResolverWorkBudget {
+  remaining: number
+  readonly errorMessage: string
+  readonly maxDepth?: number
+  readonly depthErrorMessage?: string
+}
+
+/** @internal */
+export function chargeResolverWork(
+  budget: ResolverWorkBudget,
+  amount = 1
+): void {
+  if (amount > budget.remaining) {
+    throw new TypeError(budget.errorMessage)
+  }
+  budget.remaining -= amount
+}
+
+function assertResolverDepth(
+  budget: ResolverWorkBudget | undefined,
+  depth: number
+): void {
+  if (budget?.maxDepth !== undefined && depth > budget.maxDepth) {
+    throw new TypeError(budget.depthErrorMessage ?? budget.errorMessage)
+  }
+}
+
 /**
  * Deep-merge DTCG documents; later documents override earlier ones at the
  * token level (a token in a later document replaces the same path).
@@ -22,15 +50,36 @@ export interface FlatToken {
  * @public
  */
 export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
+  return mergeDocumentsWithBudget(documents)
+}
+
+/** @internal */
+export function mergeDocumentsWithBudget(
+  documents: DTCGDocument[],
+  budget?: ResolverWorkBudget
+): DTCGDocument {
   const result: DTCGGroup = createDictionary()
-  const validatedDocuments = ownArrayElements(documents, '#/documents')
+  const validatedDocuments = ownArrayElements(documents, '#/documents', budget)
 
   for (let index = 0; index < validatedDocuments.length; index += 1) {
-    validateTokenDocument(validatedDocuments[index], `#/documents/${index}`)
+    validateTokenDocument(
+      validatedDocuments[index],
+      `#/documents/${index}`,
+      budget
+    )
   }
 
-  function mergeInto(target: DTCGGroup, source: DTCGGroup): void {
-    for (const [key, value] of Object.entries(source)) {
+  function mergeInto(
+    target: DTCGGroup,
+    source: DTCGGroup,
+    depth: number
+  ): void {
+    assertResolverDepth(budget, depth)
+    const entries = Object.entries(source)
+    if (budget !== undefined) {
+      chargeResolverWork(budget, entries.length)
+    }
+    for (const [key, value] of entries) {
       if (isReservedGroupProperty(key)) {
         Reflect.set(target, key, value)
         continue
@@ -41,17 +90,17 @@ export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
       }
       const existing = hasOwn(target, key) ? target[key] : undefined
       if (existing !== undefined && !isToken(existing)) {
-        mergeInto(existing, value)
+        mergeInto(existing, value, depth + 1)
       } else {
         const next: DTCGGroup = createDictionary()
-        mergeInto(next, value)
+        mergeInto(next, value, depth + 1)
         target[key] = next
       }
     }
   }
 
   for (let index = 0; index < validatedDocuments.length; index += 1) {
-    mergeInto(result, validatedDocuments[index] as DTCGDocument)
+    mergeInto(result, validatedDocuments[index] as DTCGDocument, 0)
   }
   return result
 }
@@ -99,8 +148,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function ownArrayElements<T>(values: T[], path: string): T[] {
+function ownArrayElements<T>(
+  values: T[],
+  path: string,
+  budget?: ResolverWorkBudget
+): T[] {
   const ownValues: T[] = []
+  if (budget !== undefined) {
+    chargeResolverWork(budget, values.length)
+  }
   for (let index = 0; index < values.length; index += 1) {
     const entryPath = `${path}/${index}`
     if (!hasOwn(values, index)) {
@@ -118,10 +174,19 @@ function isReservedGroupProperty(key: string): boolean {
   return key.startsWith('$') && key !== '$root'
 }
 
-function validateTokenDocument(document: unknown, path: string): void {
+function validateTokenDocument(
+  document: unknown,
+  path: string,
+  budget?: ResolverWorkBudget
+): void {
   const activeGroups = new WeakSet<object>()
 
-  function validateGroup(group: unknown, groupPath: string): void {
+  function validateGroup(
+    group: unknown,
+    groupPath: string,
+    depth: number
+  ): void {
+    assertResolverDepth(budget, depth)
     if (!isRecord(group)) {
       throw new ReferenceResolutionError(
         `Token document group at "${groupPath}" must be an object`,
@@ -137,7 +202,11 @@ function validateTokenDocument(document: unknown, path: string): void {
 
     activeGroups.add(group)
     try {
-      for (const [key, child] of Object.entries(group)) {
+      const entries = Object.entries(group)
+      if (budget !== undefined) {
+        chargeResolverWork(budget, entries.length)
+      }
+      for (const [key, child] of entries) {
         if (isReservedGroupProperty(key) || isToken(child)) {
           continue
         }
@@ -149,14 +218,14 @@ function validateTokenDocument(document: unknown, path: string): void {
             childPath
           )
         }
-        validateGroup(child, childPath)
+        validateGroup(child, childPath, depth + 1)
       }
     } finally {
       activeGroups.delete(group)
     }
   }
 
-  validateGroup(document, path)
+  validateGroup(document, path, 0)
 }
 
 function resolverRecord(resolver: ResolverDocument): Record<string, unknown> {
@@ -169,7 +238,10 @@ function resolverRecord(resolver: ResolverDocument): Record<string, unknown> {
   return resolver as unknown as Record<string, unknown>
 }
 
-function resolutionOrderOf(resolver: Record<string, unknown>): unknown[] {
+function resolutionOrderOf(
+  resolver: Record<string, unknown>,
+  budget?: ResolverWorkBudget
+): unknown[] {
   if (!hasOwn(resolver, 'resolutionOrder')) {
     throw new ReferenceResolutionError(
       'Resolver resolutionOrder must be an own array',
@@ -183,7 +255,7 @@ function resolutionOrderOf(resolver: Record<string, unknown>): unknown[] {
       '#/resolutionOrder'
     )
   }
-  return ownArrayElements(resolutionOrder, '#/resolutionOrder')
+  return ownArrayElements(resolutionOrder, '#/resolutionOrder', budget)
 }
 
 function optionalResolverContainer(
@@ -205,7 +277,8 @@ function optionalResolverContainer(
 
 function setSources(
   value: unknown,
-  name: string
+  name: string,
+  budget?: ResolverWorkBudget
 ): Array<DTCGRef | DTCGDocument> {
   const path = `#/sets/${name}`
   if (!isRecord(value)) {
@@ -229,7 +302,8 @@ function setSources(
   }
   return ownArrayElements(
     sources as Array<DTCGRef | DTCGDocument>,
-    `${path}/sources`
+    `${path}/sources`,
+    budget
   )
 }
 
@@ -238,7 +312,11 @@ interface ValidatedModifier {
   defaultContext: string | undefined
 }
 
-function validateModifier(value: unknown, name: string): ValidatedModifier {
+function validateModifier(
+  value: unknown,
+  name: string,
+  budget?: ResolverWorkBudget
+): ValidatedModifier {
   const path = `#/modifiers/${name}`
   if (!isRecord(value)) {
     throw new ReferenceResolutionError(
@@ -262,7 +340,11 @@ function validateModifier(value: unknown, name: string): ValidatedModifier {
   }
 
   const contexts = createDictionary<Array<DTCGRef | DTCGDocument>>()
-  for (const [context, sources] of Object.entries(rawContexts)) {
+  const contextEntries = Object.entries(rawContexts)
+  if (budget !== undefined) {
+    chargeResolverWork(budget, contextEntries.length)
+  }
+  for (const [context, sources] of contextEntries) {
     if (!Array.isArray(sources)) {
       throw new ReferenceResolutionError(
         `Resolver context "${context}" for modifier "${name}" must have a sources array`,
@@ -271,7 +353,8 @@ function validateModifier(value: unknown, name: string): ValidatedModifier {
     }
     contexts[context] = ownArrayElements(
       sources as Array<DTCGRef | DTCGDocument>,
-      `${path}/contexts/${context}`
+      `${path}/contexts/${context}`,
+      budget
     )
   }
 
@@ -403,6 +486,14 @@ export function resolveTokenValuesSafe(flat: FlatToken[]): {
 export function listContexts(
   resolver: ResolverDocument
 ): Record<string, string[]> {
+  return listContextsWithBudget(resolver)
+}
+
+/** @internal */
+export function listContextsWithBudget(
+  resolver: ResolverDocument,
+  budget?: ResolverWorkBudget
+): Record<string, string[]> {
   const result = createDictionary<string[]>()
   const modifiers = optionalResolverContainer(
     resolverRecord(resolver),
@@ -411,8 +502,14 @@ export function listContexts(
   if (!modifiers) {
     return result
   }
-  for (const [name, modifier] of Object.entries(modifiers)) {
-    result[name] = Object.keys(validateModifier(modifier, name).contexts)
+  const modifierEntries = Object.entries(modifiers)
+  if (budget !== undefined) {
+    chargeResolverWork(budget, modifierEntries.length)
+  }
+  for (const [name, modifier] of modifierEntries) {
+    result[name] = Object.keys(
+      validateModifier(modifier, name, budget).contexts
+    )
   }
   return result
 }
@@ -453,9 +550,19 @@ export function applyResolver(
   resolver: ResolverDocument,
   input: Record<string, string> = {}
 ): DTCGDocument {
+  return applyResolverWithBudget(files, resolver, input)
+}
+
+/** @internal */
+export function applyResolverWithBudget(
+  files: Record<string, DTCGDocument>,
+  resolver: ResolverDocument,
+  input: Record<string, string>,
+  budget?: ResolverWorkBudget
+): DTCGDocument {
   const ordered: DTCGDocument[] = []
   const root = resolverRecord(resolver)
-  const resolutionOrder = resolutionOrderOf(root)
+  const resolutionOrder = resolutionOrderOf(root, budget)
   const sets = optionalResolverContainer(root, 'sets')
   const modifiers = optionalResolverContainer(root, 'modifiers')
 
@@ -464,6 +571,9 @@ export function applyResolver(
     sourcePath: string
   ): DTCGDocument[] {
     const documents: DTCGDocument[] = []
+    if (budget !== undefined) {
+      chargeResolverWork(budget, sources.length)
+    }
     for (let index = 0; index < sources.length; index += 1) {
       const source = sources[index]
       if (isRef(source)) {
@@ -481,7 +591,7 @@ export function applyResolver(
             source.$ref
           )
         }
-        validateTokenDocument(file, source.$ref)
+        validateTokenDocument(file, source.$ref, budget)
         documents.push(file as DTCGDocument)
         continue
       }
@@ -492,7 +602,7 @@ export function applyResolver(
           path
         )
       }
-      validateTokenDocument(source, `${sourcePath}/${index}`)
+      validateTokenDocument(source, `${sourcePath}/${index}`, budget)
       documents.push(source as DTCGDocument)
     }
     return documents
@@ -510,7 +620,7 @@ export function applyResolver(
       if (sets && hasOwn(sets, name)) {
         ordered.push(
           ...sourcesToDocuments(
-            setSources(sets[name], name),
+            setSources(sets[name], name, budget),
             `#/sets/${name}/sources`
           )
         )
@@ -523,7 +633,7 @@ export function applyResolver(
       if (!modifiers || !hasOwn(modifiers, name)) {
         continue
       }
-      const modifier = validateModifier(modifiers[name], name)
+      const modifier = validateModifier(modifiers[name], name, budget)
       const contextNames = Object.keys(modifier.contexts)
       const selected = hasOwn(input, name) ? input[name] : undefined
       const chosen =
@@ -546,7 +656,7 @@ export function applyResolver(
     }
   }
 
-  return mergeDocuments(ordered)
+  return mergeDocumentsWithBudget(ordered, budget)
 }
 
 /**

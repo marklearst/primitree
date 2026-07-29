@@ -1,6 +1,13 @@
-import type { DTCGDocument, ResolverDocument } from '../types'
-import { applyResolver, flattenTokens } from '../resolve'
-import { cssVarName } from './css'
+import type {
+  DTCGDocument,
+  DTCGGroup,
+  DTCGToken,
+  DTCGTokenType,
+  ResolverDocument,
+} from '../types'
+import { isReferenceValue, isToken } from '../types'
+import { applyResolver } from '../resolve'
+import { claimCssVarName } from './css'
 
 const NAMESPACE_NOISE: Record<string, Set<string>> = {
   color: new Set(['color', 'colors']),
@@ -8,6 +15,105 @@ const NAMESPACE_NOISE: Record<string, Set<string>> = {
   spacing: new Set(['space', 'spacing']),
   font: new Set(['font', 'fonts', 'family', 'typeface']),
   'font-weight': new Set(['font', 'weight']),
+}
+
+interface TypedFlatToken {
+  readonly path: string
+  readonly token: DTCGToken
+  readonly type: DTCGTokenType | undefined
+}
+
+const MAX_TAILWIND_GROUP_DEPTH = 64
+const MAX_TAILWIND_ITEMS = 100_000
+
+function flattenTypedTokens(document: DTCGDocument): TypedFlatToken[] {
+  const entries: Array<{
+    readonly path: string
+    readonly token: DTCGToken
+    readonly declaredType: DTCGTokenType | undefined
+  }> = []
+  let items = 0
+
+  function walk(
+    group: DTCGGroup,
+    prefix: readonly string[],
+    inheritedType: DTCGTokenType | undefined,
+    depth: number
+  ): void {
+    if (depth > MAX_TAILWIND_GROUP_DEPTH) {
+      throw new TypeError(
+        'Tailwind output can read at most 64 token-group levels.'
+      )
+    }
+    const groupType = Reflect.get(group, '$type')
+    const type =
+      typeof groupType === 'string'
+        ? (groupType as DTCGTokenType)
+        : inheritedType
+    for (const [key, value] of Object.entries(group)) {
+      items += 1
+      if (items > MAX_TAILWIND_ITEMS) {
+        throw new TypeError('Tailwind output can read at most 100,000 items.')
+      }
+      if (key.startsWith('$') && key !== '$root') {
+        continue
+      }
+      if (isToken(value)) {
+        entries.push({
+          path: [...prefix, key].join('.'),
+          token: value,
+          declaredType: value.$type ?? type,
+        })
+      } else {
+        walk(value, [...prefix, key], type, depth + 1)
+      }
+    }
+  }
+
+  walk(document, [], undefined, 0)
+  const byPath = new Map(entries.map(entry => [entry.path, entry]))
+  const resolved = new Map<string, DTCGTokenType | undefined>()
+
+  function resolveType(
+    start: (typeof entries)[number]
+  ): DTCGTokenType | undefined {
+    const active = new Set<string>()
+    const trail: string[] = []
+    let entry: (typeof entries)[number] | undefined = start
+    let type: DTCGTokenType | undefined
+
+    while (entry !== undefined) {
+      if (entry.declaredType !== undefined) {
+        type = entry.declaredType
+        break
+      }
+      if (resolved.has(entry.path)) {
+        type = resolved.get(entry.path)
+        break
+      }
+      if (active.has(entry.path) || !isReferenceValue(entry.token.$value)) {
+        break
+      }
+      active.add(entry.path)
+      trail.push(entry.path)
+      entry = byPath.get(entry.token.$value.slice(1, -1))
+    }
+
+    for (const path of trail) {
+      resolved.set(path, type)
+    }
+    return type
+  }
+
+  return entries
+    .map(entry => ({
+      path: entry.path,
+      token: entry.token,
+      type: resolveType(entry),
+    }))
+    .sort((left, right) =>
+      left.path === right.path ? 0 : left.path < right.path ? -1 : 1
+    )
 }
 
 function tailwindName(path: string, namespace: string): string {
@@ -49,7 +155,8 @@ export function emitTailwind(
   files: Record<string, DTCGDocument>,
   resolver: ResolverDocument
 ): string {
-  const flat = flattenTokens(applyResolver(files, resolver))
+  const flat = flattenTypedTokens(applyResolver(files, resolver))
+  const cssNames = new Map<string, string>()
   const used = new Set<string>()
   const lines: string[] = [
     '/* @primitree/dtcg output for Tailwind CSS v4.',
@@ -61,9 +168,9 @@ export function emitTailwind(
   ]
 
   const entries: string[] = []
-  for (const { path, token } of flat) {
+  for (const { path, type } of flat) {
     let namespace: string | null = null
-    switch (token.$type) {
+    switch (type) {
       case 'color':
         namespace = 'color'
         break
@@ -82,16 +189,22 @@ export function emitTailwind(
     if (namespace === null) {
       continue
     }
+    const cssName = claimCssVarName(cssNames, path)
     let name = `--${namespace}-${tailwindName(path, namespace)}`
     if (used.has(name)) {
       const collection = path.split('.')[0] ?? 'tokens'
       name = `--${namespace}-${collection}-${tailwindName(path, namespace)}`
     }
     if (used.has(name)) {
-      continue
+      const base = name
+      let suffix = 2
+      while (used.has(`${base}-${suffix}`)) {
+        suffix += 1
+      }
+      name = `${base}-${suffix}`
     }
     used.add(name)
-    entries.push(`  ${name}: var(${cssVarName(path)});`)
+    entries.push(`  ${name}: var(${cssName});`)
   }
 
   lines.push(...entries, '}', '')
