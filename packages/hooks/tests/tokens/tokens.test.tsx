@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import type { ReactNode } from 'react'
-import { toDTCG, type DTCGColorValue } from '@primitree/dtcg'
+import { toDTCG, type DTCGColorValue, type DTCGDocument } from '@primitree/dtcg'
 import { TokensProvider } from '../../src/tokens/TokensProvider'
 import { useToken } from '../../src/tokens/useToken'
 import { useTokens } from '../../src/tokens/useTokens'
@@ -76,6 +76,17 @@ const fixture = {
 
 const built = toDTCG(fixture)
 
+const plainTokens = {
+  brand: {
+    $type: 'color',
+    $value: {
+      colorSpace: 'srgb',
+      components: [1, 0, 0],
+      hex: '#ff0000',
+    },
+  },
+} satisfies DTCGDocument
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <TokensProvider
     tokens={built.files}
@@ -91,7 +102,7 @@ describe('TokensProvider + useToken', () => {
     })
     expect(result.current.exists).toBe(true)
     expect((result.current.value as DTCGColorValue).hex).toBe('#ffffff')
-    expect(result.current.css).toBe('#ffffff')
+    expect(result.current.css).toBe('color(srgb 1 1 1)')
     expect(result.current.cssVar).toBe('var(--theme-color-bg)')
   })
 
@@ -166,13 +177,10 @@ describe('useTokens', () => {
 
   it('works with a plain document and no resolver', () => {
     const plain = ({ children }: { children: ReactNode }) => (
-      <TokensProvider
-        tokens={{ brand: { $type: 'color', $value: '#ff0000' } as never }}>
-        {children}
-      </TokensProvider>
+      <TokensProvider tokens={plainTokens}>{children}</TokensProvider>
     )
     const { result } = renderHook(() => useToken('brand'), { wrapper: plain })
-    expect(result.current.css).toBe('#ff0000')
+    expect(result.current.css).toBe('color(srgb 1 0 0)')
   })
 
   it('merges an array of documents in order', () => {
