@@ -45,7 +45,8 @@ const fragment = result.value
 The reader supports:
 
 - group `$type` inheritance and `$root`
-- `color` values in any of the 14 color spaces checked by the package
+- `color` values in any of the 14 color spaces checked by the package, including
+  missing components marked with `none`
 - `dimension` values with `px` or `rem`, and finite `duration` values with `ms`
   or `s`
 - `fontFamily` values with one font name or an ordered list of names
@@ -183,6 +184,9 @@ The CSS emitter writes default values in `:root`. Extra contexts use a selector
 based on the Resolver axis, such as `[data-semantic='dark']`.
 
 CSS custom properties keep boolean values and ordered font fallback lists.
+Color values keep their DTCG color space, components, missing markers, and
+alpha. A `hex` fallback stays in token JSON and does not replace those
+coordinates in CSS.
 Tailwind output follows group type inheritance and alias type inference. It adds
 a number suffix to the later name when two paths produce the same Tailwind name.
 

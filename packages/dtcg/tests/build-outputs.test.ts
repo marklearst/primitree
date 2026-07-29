@@ -4,6 +4,7 @@ import {
   DTCGOutputCapabilityError,
   type DTCGOutputSet,
 } from '../src/pipeline/build'
+import { createDTCGGraphFragment } from '../src/index'
 import type { DTCGDocument } from '../src/types'
 
 const document = {
@@ -133,6 +134,50 @@ describe('buildDTCGOutputs', () => {
       '["type.family"]: ["Inter","sans-serif"],'
     )
     expect(byPath.get('ts/tokens.ts')).toContain('["feature.rounded"]: true,')
+  })
+
+  it('builds every first-party file for a reader-accepted wide-gamut color', () => {
+    const wideGamut = {
+      brand: {
+        color: {
+          accent: {
+            $type: 'color',
+            $value: {
+              colorSpace: 'display-p3',
+              components: [0.2, 0.4, 1],
+              alpha: 0.75,
+              hex: '#3366ff',
+            },
+          },
+        },
+      },
+    } satisfies DTCGDocument
+
+    expect(createDTCGGraphFragment(wideGamut, { source: 'brand' }).ok).toBe(
+      true
+    )
+
+    const result = buildDTCGOutputs({
+      ...input,
+      files: { 'brand.tokens.json': wideGamut },
+    })
+    const byPath = new Map(result.files.map(file => [file.path, file.contents]))
+
+    expect(JSON.parse(byPath.get('tokens/brand.tokens.json') ?? '')).toEqual(
+      wideGamut
+    )
+    expect(JSON.parse(byPath.get('tokens/tokens.resolver.json') ?? '')).toEqual(
+      input.resolver
+    )
+    expect(byPath.get('css/tokens.css')).toContain(
+      '--brand-color-accent: color(display-p3 0.2 0.4 1 / 0.75);'
+    )
+    expect(byPath.get('css/tokens.tailwind.css')).toContain(
+      '--color-accent: var(--brand-color-accent);'
+    )
+    expect(byPath.get('ts/tokens.ts')).toContain(
+      '["brand.color.accent"]: "color(display-p3 0.2 0.4 1 / 0.75)",'
+    )
   })
 
   it.each([

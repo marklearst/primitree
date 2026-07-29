@@ -1,4 +1,6 @@
 import type {
+  DTCGColorComponent,
+  DTCGColorValue,
   DTCGDocument,
   DTCGToken,
   DTCGTokenValue,
@@ -118,6 +120,45 @@ function chargeCssValueWork(
   }
 }
 
+function colorComponent(value: DTCGColorComponent): string {
+  return String(value)
+}
+
+function colorPercent(value: DTCGColorComponent): string {
+  return value === 'none' ? value : `${value}%`
+}
+
+function colorAlpha(value: DTCGColorValue): string {
+  const alpha = value.alpha ?? 1
+  return alpha < 1 ? ` / ${alpha}` : ''
+}
+
+function formatCssColor(value: DTCGColorValue): string {
+  const [first, second, third] = value.components
+  const alpha = colorAlpha(value)
+
+  switch (value.colorSpace) {
+    case 'hsl':
+    case 'hwb':
+      return `${value.colorSpace}(${colorComponent(first)} ${colorPercent(second)} ${colorPercent(third)}${alpha})`
+    case 'lab':
+    case 'lch':
+      return `${value.colorSpace}(${colorComponent(first)} ${colorComponent(second)} ${colorComponent(third)}${alpha})`
+    case 'oklab':
+    case 'oklch':
+      return `${value.colorSpace}(${colorComponent(first)} ${colorComponent(second)} ${colorComponent(third)}${alpha})`
+    case 'srgb':
+    case 'srgb-linear':
+    case 'display-p3':
+    case 'a98-rgb':
+    case 'prophoto-rgb':
+    case 'rec2020':
+    case 'xyz-d65':
+    case 'xyz-d50':
+      return `color(${value.colorSpace} ${colorComponent(first)} ${colorComponent(second)} ${colorComponent(third)}${alpha})`
+  }
+}
+
 function formatCssValue(
   value: DTCGTokenValue,
   budget?: ResolverWorkBudget
@@ -141,22 +182,7 @@ function formatCssValue(
     return value.length === 0 ? null : value.map(cssTextValue).join(', ')
   }
   if ('colorSpace' in value) {
-    if (
-      value.colorSpace !== 'srgb' ||
-      value.components.some(component => typeof component !== 'number')
-    ) {
-      return null
-    }
-    const alpha = value.alpha ?? 1
-    if (alpha < 1) {
-      const [r, g, b] = value.components
-      return `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)} / ${alpha})`
-    }
-    if (value.hex) {
-      return value.hex
-    }
-    const [r, g, b] = value.components
-    return `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)})`
+    return formatCssColor(value)
   }
   if ('unit' in value) {
     return `${value.value}${value.unit}`
@@ -165,9 +191,25 @@ function formatCssValue(
 }
 
 /**
- * Format a DTCG token value as CSS. The formatter converts references to
- * `var(--...)` and keeps the alias graph in the stylesheet. It returns
- * `null` for a value that CSS output cannot represent.
+ * Format a DTCG token value as CSS.
+ *
+ * @remarks
+ * References become `var(--...)`. Color values keep their DTCG color space,
+ * components, and alpha. A color's optional `hex` fallback stays in DTCG
+ * output and does not replace the authored components.
+ *
+ * @param value - Token value to format.
+ * @returns CSS text, or `null` when CSS output cannot represent the value.
+ *
+ * @example
+ * ```ts
+ * const value = cssValue({
+ *   colorSpace: 'display-p3',
+ *   components: [0.2, 0.4, 1],
+ *   alpha: 0.75,
+ * })
+ * // value is "color(display-p3 0.2 0.4 1 / 0.75)"
+ * ```
  *
  * @public
  */
@@ -346,11 +388,17 @@ export interface EmitCssOptions {
  * `:root` contains the default values. A `[data-<axis>='<context>']` block
  * contains values that change for a non-default context. The emitter escapes
  * string values, modifier axes, and context names before writing CSS.
+ * Color values keep their DTCG color space, components, and alpha.
  *
  * One call reads at most 64 token-group levels and returns at most 20 MiB.
  * Its 1,000,000-unit work limit counts Resolver reads, token merges, value
  * comparisons, declarations, token paths, and token text. The emitter rejects
  * token paths that map to the same CSS custom property name.
+ *
+ * @param files - Token files keyed by their path from the Resolver file.
+ * @param resolver - Resolver that selects files and default contexts.
+ * @param options - Optional stylesheet banner.
+ * @returns CSS custom properties for the selected token values.
  *
  * @throws `TypeError` - A call exceeds 1,000,000 work units, 64 token-group
  * levels, or 20 MiB of CSS.

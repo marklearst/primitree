@@ -6,10 +6,56 @@
  * the Resolver module, and the documented Primitree boolean extension.
  */
 
-/** DTCG color value (Color Module, 2025.10). @public */
+/**
+ * One of the 14 color spaces named by DTCG Color 2025.10.
+ *
+ * @see [DTCG supported color spaces](https://www.designtokens.org/tr/2025.10/color/#supported-color-spaces)
+ *
+ * @public
+ */
+export type DTCGColorSpace =
+  | 'srgb'
+  | 'srgb-linear'
+  | 'hsl'
+  | 'hwb'
+  | 'lab'
+  | 'lch'
+  | 'oklab'
+  | 'oklch'
+  | 'display-p3'
+  | 'a98-rgb'
+  | 'prophoto-rgb'
+  | 'rec2020'
+  | 'xyz-d65'
+  | 'xyz-d50'
+
+/**
+ * A numeric color component or the DTCG missing-component marker.
+ *
+ * @remarks
+ * `none` marks a component as missing. It has a different meaning from zero.
+ *
+ * @see [DTCG `none` keyword](https://www.designtokens.org/tr/2025.10/color/#the-none-keyword)
+ *
+ * @public
+ */
+export type DTCGColorComponent = number | 'none'
+
+/**
+ * A DTCG Color 2025.10 value.
+ *
+ * @remarks
+ * Each color has three components. The allowed numeric range depends on
+ * `colorSpace`. `alpha` ranges from 0 through 1. `hex` is an optional six-digit
+ * sRGB fallback.
+ *
+ * @see [DTCG color value format](https://www.designtokens.org/tr/2025.10/color/#format)
+ *
+ * @public
+ */
 export interface DTCGColorValue {
-  colorSpace: 'srgb'
-  components: [number, number, number]
+  colorSpace: DTCGColorSpace
+  components: [DTCGColorComponent, DTCGColorComponent, DTCGColorComponent]
   alpha?: number
   hex?: string
 }
