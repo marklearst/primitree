@@ -13,6 +13,38 @@ npx @primitree/cli build variables.json
 
 ## `primitree build`
 
+### Configured DTCG source
+
+```sh
+primitree build [--config <path>] [--source <name>]
+primitree build --check [--config <path>] [--source <name>]
+```
+
+The command reads `./primitree.config.ts` by default. It checks the selected
+source and its layer and owner rules before it writes files. Add an `outputs`
+object to that source:
+
+```ts
+outputs: {
+  directory: './generated',
+  formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+}
+```
+
+The format list is optional and defaults to all four values. Primitree writes
+the selected files and `.primitree-manifest.json` into the dedicated output
+directory. A later build reads that manifest. It refuses a listed file when
+its hash changed and refuses any unlisted path.
+
+The output directory must stay under the config file's directory and cannot
+contain the source token file. Use a separate directory for generated files.
+
+`--check` compares the files in the output directory with the files Primitree
+would write. It reports missing, changed, and unexpected paths without writing.
+Exit code 1 means the files differ.
+
+### Figma variables export
+
 ```sh
 primitree build <variables.json> [--out <dir>]
 ```
@@ -103,6 +135,10 @@ export default defineConfig({
         ],
       },
       ownership: { default: ['design-systems'] },
+      outputs: {
+        directory: './generated',
+        formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+      },
     },
   },
 })

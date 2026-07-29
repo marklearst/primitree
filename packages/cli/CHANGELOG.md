@@ -7,6 +7,7 @@ Initial release of `@primitree/cli`.
 ### Added
 
 - A typed `@primitree/cli/config` export for named local DTCG sources.
+- Config-backed builds that check layer and owner rules before writing DTCG, CSS, Tailwind CSS v4, and TypeScript files. The `--check` option reports output changes without writing.
 - Config-backed `primitree check` reports for token layer and owner rules.
 - `primitree inspect` reports for one token path from a configured DTCG source.
 - `primitree diff` reports changed and affected tokens plus new and resolved policy findings.

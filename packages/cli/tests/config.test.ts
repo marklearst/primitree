@@ -106,6 +106,129 @@ describe('defineConfig', () => {
 })
 
 describe('loadPrimitreeConfig', () => {
+  it('loads source output settings relative to the config file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: {
+            directory: './generated/tokens',
+            formats: ['tailwind', 'dtcg'],
+          },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs).toEqual({
+      directory: path.join(directory, 'generated', 'tokens'),
+      formats: ['dtcg', 'tailwind'],
+    })
+  })
+
+  it('uses all first-party formats when outputs omit the format list', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs?.formats).toEqual([
+      'dtcg',
+      'css',
+      'typescript',
+      'tailwind',
+    ])
+  })
+
+  it.each([
+    [
+      'empty format list',
+      { directory: './generated', formats: [] },
+      'Source "brand" outputs need at least one format.',
+    ],
+    [
+      'duplicate format',
+      { directory: './generated', formats: ['dtcg', 'dtcg'] },
+      'Source "brand" repeats output format "dtcg".',
+    ],
+    [
+      'unknown format',
+      { directory: './generated', formats: ['json'] },
+      'Source "brand" has an unsupported output format: json.',
+    ],
+    [
+      'absolute directory',
+      { directory: '/tmp/generated' },
+      'Source "brand" output directory must stay below the config directory.',
+    ],
+    [
+      'parent traversal',
+      { directory: '../generated' },
+      'Source "brand" output directory must stay below the config directory.',
+    ],
+    [
+      'config directory',
+      { directory: '.' },
+      'Source "brand" output directory cannot be the config directory.',
+    ],
+  ])('rejects output settings with $name', async (_name, outputs, message) => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, outputs } },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+  })
+
+  it('rejects an output directory that contains its source file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          file: './generated/tokens.json',
+          outputs: { directory: './generated' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" output directory cannot contain its token file.'
+    )
+  })
+
+  it('rejects a symbolic link in the output directory path', async () => {
+    const directory = await temporaryDirectory()
+    const outside = await temporaryDirectory()
+    await fs.symlink(outside, path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: './linked/generated' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" output directory cannot use a symbolic link.'
+    )
+  })
+
   it('loads the exact default file and resolves source paths from it', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {

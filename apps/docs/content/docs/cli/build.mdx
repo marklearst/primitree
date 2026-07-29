@@ -1,13 +1,54 @@
 ---
 title: primitree build
-description: Write DTCG 2025.10 token files and code from a Figma variables export.
+description: Check a local DTCG source and write token files, CSS, Tailwind CSS, and TypeScript.
 ---
 
 ```bash
-primitree build <variables.json> [options]
+primitree build [--config <file>] [--source <name>]
+primitree build --check [--config <file>] [--source <name>]
+primitree build <variables.json> [older options]
 ```
 
-## Usage
+## Configured DTCG source
+
+```bash
+primitree build
+primitree build --source brand
+primitree build --source brand --check
+```
+
+The configured form reads `./primitree.config.ts` unless `--config` names a
+file. Use `--source` when the config has several sources. The source needs
+output settings:
+
+```ts
+outputs: {
+  directory: './generated',
+  formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+}
+```
+
+The format list is optional and defaults to all four values. The command checks
+the source and its layer and owner rules before it writes. The output directory
+contains the selected files and `.primitree-manifest.json`.
+
+The output directory must stay under the config file's directory and cannot
+contain the source token file. Use a separate directory for generated files.
+Primitree accepts a missing or empty directory for the first build. Later
+builds refuse a missing, changed, or unlisted path in an owned directory.
+
+`--check` reports missing, changed, and unexpected paths without writing. Exit
+code 0 means the files match. Exit code 1 means the files differ.
+
+| Option            | Default               | Description                           |
+| ----------------- | --------------------- | ------------------------------------- |
+| `--config <file>` | `primitree.config.ts` | Read this config file                 |
+| `--source <name>` | the single source     | Select one source                     |
+| `--check`         | off                   | Report output changes without writing |
+
+## Figma variables export
+
+The older form converts a Figma variables export:
 
 ```bash
 primitree build variables.json
@@ -15,11 +56,9 @@ primitree build variables.json --out tokens --name "Acme DS"
 primitree build variables.json --terrazzo --no-github-action
 ```
 
-## Output
-
 The default build writes token JSON, a Resolver, CSS, Tailwind v4, TypeScript, a transformer config, a workflow template, and a README. See [Pipeline output](/docs/getting-started/pipeline-output) for the file tree.
 
-## Options
+### Figma options
 
 | Option               | Default         | Description                      |
 | -------------------- | --------------- | -------------------------------- |
