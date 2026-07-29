@@ -54,6 +54,7 @@ describe('DTCG graph reference chains', () => {
         alpha: 0.75,
       },
     ],
+    ['cubicBezier', [0.25, -1, 0.75, 2]],
     ['duration', { value: 1.5, unit: 's' }],
     ['fontFamily', ['Helvetica', 'Arial', 'sans-serif']],
     ['fontWeight', 'bold'],

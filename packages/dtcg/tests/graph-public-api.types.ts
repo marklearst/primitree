@@ -6,9 +6,12 @@ import {
   type DTCGColorComponent,
   type DTCGColorSpace,
   type DTCGColorValue,
+  type DTCGCubicBezierValue,
   type DTCGFontFamilyValue,
   type DTCGFontWeightValue,
   type DTCGGraphFragmentOptions,
+  type DTCGTokenType,
+  type DTCGTokenValue,
 } from '../src/index'
 
 const options: DTCGGraphFragmentOptions = {
@@ -48,8 +51,14 @@ void wideGamutColor
 
 const family: DTCGFontFamilyValue = ['Helvetica', 'Arial', 'sans-serif']
 const weight: DTCGFontWeightValue = 'bold'
+const curve: DTCGCubicBezierValue = [0.25, -1, 0.75, 2]
+const curveType: DTCGTokenType = 'cubicBezier'
+const curveValue: DTCGTokenValue = curve
 void family
 void weight
+void curve
+void curveType
+void curveValue
 
 declare const outputSet: DTCGOutputSet
 const output = buildDTCGOutputs(outputSet, {
@@ -77,6 +86,26 @@ void invalidColorComponents
 // @ts-expect-error A DTCG color component is a number or `none`.
 const invalidColorComponent: DTCGColorComponent = 'missing'
 void invalidColorComponent
+
+// @ts-expect-error A DTCG cubic Bezier value has exactly four entries.
+const shortCurve: DTCGCubicBezierValue = [0, 0, 1]
+void shortCurve
+
+const textCurve: DTCGCubicBezierValue = [
+  0,
+  0,
+  1,
+  // @ts-expect-error A DTCG cubic Bezier entry is a number.
+  '1',
+]
+void textCurve
+
+type FigmaInferredType = ReturnType<
+  typeof import('../src/index').inferTokenType
+>
+// @ts-expect-error Figma variables cannot contain DTCG cubic Bezier tuples.
+const inferredCurve: FigmaInferredType = 'cubicBezier'
+void inferredCurve
 
 declare const api: typeof import('../src/index')
 

@@ -133,6 +133,10 @@ function colorAlpha(value: DTCGColorValue): string {
   return alpha < 1 ? ` / ${alpha}` : ''
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 function formatCssColor(value: DTCGColorValue): string {
   const [first, second, third] = value.components
   const alpha = colorAlpha(value)
@@ -159,6 +163,25 @@ function formatCssColor(value: DTCGColorValue): string {
   }
 }
 
+function formatCssCubicBezier(value: readonly unknown[]): string | null {
+  if (value.length !== 4) {
+    return null
+  }
+  const [firstX, firstY, secondX, secondY] = value
+  if (
+    !isFiniteNumber(firstX) ||
+    !isFiniteNumber(firstY) ||
+    !isFiniteNumber(secondX) ||
+    !isFiniteNumber(secondY)
+  ) {
+    return null
+  }
+  if (firstX < 0 || firstX > 1 || secondX < 0 || secondX > 1) {
+    return null
+  }
+  return `cubic-bezier(${firstX}, ${firstY}, ${secondX}, ${secondY})`
+}
+
 function formatCssValue(
   value: DTCGTokenValue,
   budget?: ResolverWorkBudget
@@ -179,7 +202,13 @@ function formatCssValue(
     return cssTextValue(value)
   }
   if (Array.isArray(value)) {
-    return value.length === 0 ? null : value.map(cssTextValue).join(', ')
+    const curve = formatCssCubicBezier(value)
+    if (curve !== null) {
+      return curve
+    }
+    return value.length > 0 && value.every(item => typeof item === 'string')
+      ? value.map(cssTextValue).join(', ')
+      : null
   }
   if ('colorSpace' in value) {
     return formatCssColor(value)
@@ -196,7 +225,8 @@ function formatCssValue(
  * @remarks
  * References become `var(--...)`. Color values keep their DTCG color space,
  * components, and alpha. A color's optional `hex` fallback stays in DTCG
- * output and does not replace the authored components.
+ * output and does not replace the authored components. Cubic Bezier values
+ * become CSS `cubic-bezier()` timing functions.
  *
  * @param value - Token value to format.
  * @returns CSS text, or `null` when CSS output cannot represent the value.

@@ -180,6 +180,46 @@ describe('buildDTCGOutputs', () => {
     )
   })
 
+  it('builds every first-party file for a cubic Bezier value', () => {
+    const motion = {
+      motion: {
+        standard: {
+          $type: 'cubicBezier',
+          $value: [0.25, -1, 0.75, 2],
+        },
+      },
+    } satisfies DTCGDocument
+
+    expect(createDTCGGraphFragment(motion, { source: 'brand' }).ok).toBe(true)
+
+    const result = buildDTCGOutputs({
+      ...input,
+      files: { 'brand.tokens.json': motion },
+    })
+    const byPath = new Map(result.files.map(file => [file.path, file.contents]))
+
+    expect(JSON.parse(byPath.get('tokens/brand.tokens.json') ?? '')).toEqual({
+      motion: {
+        standard: {
+          $type: 'cubicBezier',
+          $value: [0.25, -1, 0.75, 2],
+        },
+      },
+    })
+    expect(JSON.parse(byPath.get('tokens/tokens.resolver.json') ?? '')).toEqual(
+      input.resolver
+    )
+    expect(byPath.get('css/tokens.css')).toContain(
+      '--motion-standard: cubic-bezier(0.25, -1, 0.75, 2);'
+    )
+    expect(byPath.get('css/tokens.tailwind.css')).toContain(
+      '--ease-standard: var(--motion-standard);'
+    )
+    expect(byPath.get('ts/tokens.ts')).toContain(
+      '["motion.standard"]: [0.25,-1,0.75,2],'
+    )
+  })
+
   it.each([
     '../outside.tokens.json',
     '/outside.tokens.json',

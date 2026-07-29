@@ -7,7 +7,11 @@ import { parse as parseCss } from 'postcss'
 import ts from 'typescript'
 import { parse as parseYaml } from 'yaml'
 import { toDTCG } from '../src/emit'
-import type { DTCGColorValue, DTCGDocument } from '../src/types'
+import type {
+  DTCGColorValue,
+  DTCGCubicBezierValue,
+  DTCGDocument,
+} from '../src/types'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
@@ -43,6 +47,11 @@ describe('cssVarName / cssValue', () => {
     expect(cssValue(['Inter Display', 'sans-serif'])).toBe(
       "'Inter Display', sans-serif"
     )
+    expect(cssValue([0.25, -1, 0.75, 2])).toBe(
+      'cubic-bezier(0.25, -1, 0.75, 2)'
+    )
+    expect(cssValue([-0.01, 0, 0.75, 1] as DTCGCubicBezierValue)).toBeNull()
+    expect(cssValue([0.25, 0, 0.75, Number.POSITIVE_INFINITY])).toBeNull()
     expect(cssValue('{primitives.color.blue.500}')).toBe(
       'var(--primitives-color-blue-500)'
     )
