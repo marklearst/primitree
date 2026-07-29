@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -902,6 +903,10 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
         ],
       },
       ownership: { default: ['design-systems'] },
+      outputs: {
+        directory: './generated',
+        formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+      },
     },
   },
 }
@@ -1063,6 +1068,78 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
     throw new Error(
       'packed primitree diff did not return three changed values, two affected aliases for each value, and no added or resolved findings'
     )
+  }
+
+  const buildArgs = [
+    'build',
+    '--config',
+    'primitree.config.ts',
+    '--source',
+    'brand',
+  ]
+  requireCommandSuccess(
+    runCommand(cli, buildArgs, options),
+    'packed primitree build'
+  )
+  const generatedDirectory = path.join(consumerDirectory, 'generated')
+  const expectedOutputPaths = [
+    '.primitree-manifest.json',
+    'css/tokens.css',
+    'css/tokens.tailwind.css',
+    'tokens/source.tokens.json',
+    'tokens/tokens.resolver.json',
+    'ts/tokens.ts',
+  ]
+  const listOutputPaths = directory => {
+    const paths = []
+    const visit = (currentDirectory, relativeDirectory) => {
+      for (const entry of readdirSync(currentDirectory, {
+        withFileTypes: true,
+      })) {
+        const relativePath = path.posix.join(relativeDirectory, entry.name)
+        const absolutePath = path.join(currentDirectory, entry.name)
+        if (entry.isDirectory()) {
+          visit(absolutePath, relativePath)
+        } else if (entry.isFile()) {
+          paths.push(relativePath)
+        } else {
+          throw new Error(
+            `packed primitree build wrote an unsupported output entry: ${relativePath}`
+          )
+        }
+      }
+    }
+    visit(directory, '')
+    return paths.sort()
+  }
+  const outputPaths = listOutputPaths(generatedDirectory)
+  if (JSON.stringify(outputPaths) !== JSON.stringify(expectedOutputPaths)) {
+    throw new Error('packed primitree build did not write the expected files')
+  }
+  const outputBytes = new Map(
+    outputPaths.map(relativePath => [
+      relativePath,
+      readFileSync(path.join(generatedDirectory, relativePath)),
+    ])
+  )
+  requireCommandSuccess(
+    runCommand(cli, ['build', '--check', ...buildArgs.slice(1)], options),
+    'packed primitree build --check'
+  )
+  const checkedOutputPaths = listOutputPaths(generatedDirectory)
+  if (
+    JSON.stringify(checkedOutputPaths) !== JSON.stringify(expectedOutputPaths)
+  ) {
+    throw new Error('packed primitree build --check changed the output files')
+  }
+  for (const relativePath of expectedOutputPaths) {
+    const before = outputBytes.get(relativePath)
+    const after = readFileSync(path.join(generatedDirectory, relativePath))
+    if (before === undefined || !before.equals(after)) {
+      throw new Error(
+        `packed primitree build --check changed output file: ${relativePath}`
+      )
+    }
   }
 }
 
