@@ -54,6 +54,9 @@ describe('DTCG graph reference chains', () => {
         alpha: 0.75,
       },
     ],
+    ['duration', { value: 1.5, unit: 's' }],
+    ['fontFamily', ['Helvetica', 'Arial', 'sans-serif']],
+    ['fontWeight', 'bold'],
   ] as const)('resolves a three-token %s chain', (type, value) => {
     const fragment = requireValue(
       createDTCGGraphFragment(

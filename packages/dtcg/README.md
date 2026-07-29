@@ -46,9 +46,12 @@ The reader supports:
 
 - group `$type` inheritance and `$root`
 - `color` values in any of the 14 color spaces checked by the package
-- `dimension` values with `px` or `rem`, and `duration` values with `ms` or `s`
-- finite `number` and `fontWeight` values, plus single-string `fontFamily` and
-  `string` values
+- `dimension` values with `px` or `rem`, and finite `duration` values with `ms`
+  or `s`
+- `fontFamily` values with one font name or an ordered list of names
+- `fontWeight` values from 1 through 1000 or one of the 18 names in DTCG
+  2025.10
+- finite `number` values and text `string` values
 - Primitree's documented `boolean` extension
 - whole-token brace references in the same document
 - alias type inference through a chain that reaches a typed token

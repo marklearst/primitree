@@ -1167,14 +1167,48 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
             }
           }
           if (args[0] === 'inspect') {
+            const reports = {
+              'semantic.motion.control': {
+                type: 'duration',
+                value: { value: 0.2, unit: 's' },
+                chain: [
+                  'semantic.motion.control',
+                  'semantic.motion.quick',
+                  'base.motion.quick',
+                ],
+              },
+              'semantic.type.body': {
+                type: 'fontFamily',
+                value: ['Atkinson Hyperlegible', 'sans-serif'],
+                chain: [
+                  'semantic.type.body',
+                  'semantic.type.family',
+                  'base.type.family',
+                ],
+              },
+              'semantic.type.emphasis': {
+                type: 'fontWeight',
+                value: 650.5,
+                chain: [
+                  'semantic.type.emphasis',
+                  'semantic.type.weight',
+                  'base.type.weight',
+                ],
+              },
+            }
+            const report = reports[args[1]]
+            assert.ok(report)
             return {
               status: 0,
               stdout: `${JSON.stringify({
                 schemaVersion: 1,
                 command: 'inspect',
                 source: 'brand',
-                token: { path: ['semantic', 'action'] },
-                resolvedValue: 8,
+                token: { path: args[1].split('.'), type: report.type },
+                resolvedValue: report.value,
+                aliasChain: report.chain.map(tokenPath => ({
+                  path: tokenPath.split('.'),
+                })),
               })}\n`,
               stderr: '',
             }
@@ -1189,8 +1223,27 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
                 changes: [
                   {
                     kind: 'changed',
-                    token: { path: ['size', 'base'] },
-                    impacted: [{ path: ['semantic', 'action'] }],
+                    token: { path: ['base', 'motion', 'quick'] },
+                    impacted: [
+                      { path: ['semantic', 'motion', 'quick'] },
+                      { path: ['semantic', 'motion', 'control'] },
+                    ],
+                  },
+                  {
+                    kind: 'changed',
+                    token: { path: ['base', 'type', 'family'] },
+                    impacted: [
+                      { path: ['semantic', 'type', 'family'] },
+                      { path: ['semantic', 'type', 'body'] },
+                    ],
+                  },
+                  {
+                    kind: 'changed',
+                    token: { path: ['base', 'type', 'weight'] },
+                    impacted: [
+                      { path: ['semantic', 'type', 'weight'] },
+                      { path: ['semantic', 'type', 'emphasis'] },
+                    ],
                   },
                 ],
                 findings: { added: [], resolved: [] },
@@ -1305,7 +1358,27 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         ],
         [
           'inspect',
-          'semantic.action',
+          'semantic.motion.control',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'inspect',
+          'semantic.type.body',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+          '--format',
+          'json',
+        ],
+        [
+          'inspect',
+          'semantic.type.emphasis',
           '--config',
           'primitree.config.ts',
           '--source',

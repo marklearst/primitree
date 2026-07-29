@@ -52,6 +52,8 @@ export type {
   DTCGColorValue,
   DTCGDimensionValue,
   DTCGDurationValue,
+  DTCGFontFamilyValue,
+  DTCGFontWeightValue,
   DTCGTokenType,
   DTCGTokenValue,
   DTCGToken,

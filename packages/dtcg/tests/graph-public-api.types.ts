@@ -1,6 +1,8 @@
 import type { GraphFragment, Result } from '@primitree/core'
 import {
   createDTCGGraphFragment,
+  type DTCGFontFamilyValue,
+  type DTCGFontWeightValue,
   type DTCGGraphFragmentOptions,
 } from '../src/index'
 
@@ -13,6 +15,15 @@ const result: Result<GraphFragment> = createDTCGGraphFragment(
   options
 )
 void result
+
+const family: DTCGFontFamilyValue = ['Helvetica', 'Arial', 'sans-serif']
+const weight: DTCGFontWeightValue = 'bold'
+void family
+void weight
+
+// @ts-expect-error DTCG font weight names use exact lowercase spellings.
+const invalidWeight: DTCGFontWeightValue = 'Bold'
+void invalidWeight
 
 declare const api: typeof import('../src/index')
 

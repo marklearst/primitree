@@ -94,6 +94,29 @@ const COLOR_VALUE_PROPERTIES = new Set([
   'hex',
 ])
 
+const VALUE_UNIT_PROPERTIES = new Set(['value', 'unit'])
+
+const FONT_WEIGHT_NAMES = new Set([
+  'thin',
+  'hairline',
+  'extra-light',
+  'ultra-light',
+  'light',
+  'normal',
+  'regular',
+  'book',
+  'medium',
+  'semi-bold',
+  'demi-bold',
+  'bold',
+  'extra-bold',
+  'ultra-bold',
+  'black',
+  'heavy',
+  'extra-black',
+  'ultra-black',
+])
+
 const COLOR_SPACE_RANGES = new Map<
   SupportedColorSpace,
   readonly [ComponentRange, ComponentRange, ComponentRange]
@@ -516,6 +539,13 @@ function fieldPath(path: readonly string[], field: string): readonly string[] {
   return Object.freeze([...path, field])
 }
 
+function valueTypeIssue(
+  type: DTCGTokenType,
+  path: readonly string[]
+): AdapterIssue {
+  return invalid(`A DTCG token value does not match type "${type}".`, path)
+}
+
 function componentMatchesRange(
   component: number,
   range: ComponentRange
@@ -661,7 +691,7 @@ function dimensionValueIssue(
     keys.length !== 2 ||
     !hasOwn(value, 'value') ||
     !hasOwn(value, 'unit') ||
-    !hasOnlyKeys(value, new Set(['value', 'unit']))
+    !hasOnlyKeys(value, VALUE_UNIT_PROPERTIES)
   ) {
     return invalid(message, valuePath)
   }
@@ -678,13 +708,84 @@ function isDimensionValue(value: unknown): boolean {
   return dimensionValueIssue(value, []) === undefined
 }
 
-function isDurationValue(value: unknown): boolean {
-  return (
-    isPlainRecord(value) &&
-    hasOnlyKeys(value, new Set(['value', 'unit'])) &&
-    isFiniteNumber(value.value) &&
-    (value.unit === 'ms' || value.unit === 's')
-  )
+function durationValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  if (!isPlainRecord(value)) {
+    return valueTypeIssue('duration', valuePath)
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length !== 2 ||
+    !hasOwn(value, 'value') ||
+    !hasOwn(value, 'unit') ||
+    !hasOnlyKeys(value, VALUE_UNIT_PROPERTIES)
+  ) {
+    return valueTypeIssue('duration', valuePath)
+  }
+  if (!isFiniteNumber(value.value)) {
+    return valueTypeIssue('duration', fieldPath(valuePath, 'value'))
+  }
+  if (value.unit !== 'ms' && value.unit !== 's') {
+    return valueTypeIssue('duration', fieldPath(valuePath, 'unit'))
+  }
+  return undefined
+}
+
+type FontFamilyValueReadResult =
+  | { readonly ok: true; readonly value: string | readonly string[] }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readFontFamilyValue(
+  value: unknown,
+  valuePath: readonly string[]
+): FontFamilyValueReadResult {
+  if (typeof value === 'string') {
+    return { ok: true, value }
+  }
+  if (!Array.isArray(value)) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('fontFamily', valuePath),
+    }
+  }
+  const length = value.length
+  if (!Number.isSafeInteger(length) || length < 0 || length > MAX_GRAPH_ITEMS) {
+    return { ok: false, issue: workLimitIssue(valuePath) }
+  }
+  const names: string[] = []
+  for (let index = 0; index < length; index += 1) {
+    const itemPath = fieldPath(valuePath, String(index))
+    if (!hasOwn(value, index)) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('fontFamily', itemPath),
+      }
+    }
+    const name = Reflect.get(value, index)
+    if (typeof name !== 'string') {
+      return {
+        ok: false,
+        issue: valueTypeIssue('fontFamily', itemPath),
+      }
+    }
+    names.push(name)
+  }
+  return { ok: true, value: Object.freeze(names) }
+}
+
+function fontWeightValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  if (
+    (isFiniteNumber(value) && value >= 1 && value <= 1000) ||
+    (typeof value === 'string' && FONT_WEIGHT_NAMES.has(value))
+  ) {
+    return undefined
+  }
+  return valueTypeIssue('fontWeight', valuePath)
 }
 
 function matchesType(type: DTCGTokenType, value: unknown): boolean {
@@ -696,13 +797,17 @@ function matchesType(type: DTCGTokenType, value: unknown): boolean {
       return isDimensionValue(value)
     }
     case 'duration': {
-      return isDurationValue(value)
+      return durationValueIssue(value, []) === undefined
     }
-    case 'number':
     case 'fontWeight': {
+      return fontWeightValueIssue(value, []) === undefined
+    }
+    case 'number': {
       return isFiniteNumber(value)
     }
-    case 'fontFamily':
+    case 'fontFamily': {
+      return readFontFamilyValue(value, []).ok
+    }
     case 'string': {
       return typeof value === 'string'
     }
@@ -766,7 +871,11 @@ function prepareToken(
   budget: WorkBudget
 ): PreparedToken | GraphFailure {
   const typedValuePath =
-    token.type === 'dimension' || token.type === 'color'
+    token.type === 'dimension' ||
+    token.type === 'color' ||
+    token.type === 'duration' ||
+    token.type === 'fontFamily' ||
+    token.type === 'fontWeight'
       ? fieldPath(token.path, '$value')
       : undefined
   const reference = readReference(token.value, budget)
@@ -874,8 +983,10 @@ function inferTokenType(
  * Each color has three components in the allowed range for its color space. A
  * component may be `none`. Alpha from 0 through 1 and six-digit hex text are
  * optional. Dimension values use a finite number with `px` or `rem`. Duration
- * values use a finite number with `ms` or `s`. Number and `fontWeight` values
- * must be finite numbers. `fontFamily` and `string` values must be text.
+ * values use a finite number with `ms` or `s`. Number values must be finite.
+ * Font weights use numbers from 1 through 1000 or the names listed by DTCG.
+ * Font families use one name or an ordered list of names. String values use
+ * text.
  *
  * The reader creates immediate edges for whole-token brace references in the
  * supplied document. An alias may omit `$type` when its reference chain reaches
@@ -1151,6 +1262,40 @@ export function createDTCGGraphFragment(
           return failureFor(color.issue)
         }
         coreValue = { kind: 'literal', value: color.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'duration'
+      ) {
+        const issue = durationValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'fontFamily'
+      ) {
+        const family = readFontFamilyValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!family.ok) {
+          return failureFor(family.issue)
+        }
+        coreValue = { kind: 'literal', value: family.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'fontWeight'
+      ) {
+        const issue = fontWeightValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
       } else if (
         token.coreValue.kind === 'literal' &&
         !matchesType(typeResult.value, token.value)
