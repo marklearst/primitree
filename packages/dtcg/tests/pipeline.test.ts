@@ -38,6 +38,52 @@ describe('cssVarName / cssValue', () => {
     expect(cssVarName('primitives.space.2')).toBe('--primitives-space-2')
   })
 
+  it.each([
+    ['accented Latin', 'Couleur.Arrière-plan', '--couleur-arrière-plan'],
+    ['Arabic', 'ألوان.خلفية', '--ألوان-خلفية'],
+    ['Chinese', '颜色.背景', '--颜色-背景'],
+    ['Cyrillic', 'Цвет.Фон', '--цвет-фон'],
+    ['Devanagari', 'रंग.पृष्ठभूमि', '--रंग-पृष्ठभूमि'],
+  ])('keeps %s text in custom property names', (_name, path, expected) => {
+    expect(cssVarName(path)).toBe(expected)
+  })
+
+  it('keeps non-ASCII token names distinct in generated web output', () => {
+    const documents = {
+      'brand.tokens.json': {
+        色: {
+          背景: {
+            $type: 'dimension' as const,
+            $value: { value: 1, unit: 'px' as const },
+          },
+          文字: {
+            $type: 'dimension' as const,
+            $value: { value: 2, unit: 'px' as const },
+          },
+        },
+      },
+    }
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        brand: { sources: [{ $ref: 'brand.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/brand' }],
+    }
+    const cssOutput = emitCss(documents, tokenResolver)
+    const tailwindOutput = emitTailwind(documents, tokenResolver)
+    const typescriptOutput = emitTypescript(documents, tokenResolver)
+
+    expect(cssOutput).toContain('--色-背景: 1px;')
+    expect(cssOutput).toContain('--色-文字: 2px;')
+    expect(tailwindOutput).toContain('--spacing-背景: var(--色-背景);')
+    expect(tailwindOutput).toContain('--spacing-文字: var(--色-文字);')
+    expect(typescriptOutput).toContain('["色.背景"]: "var(--色-背景)",')
+    expect(typescriptOutput).toContain('["色.文字"]: "var(--色-文字)",')
+    expect(() => parseCss(cssOutput)).not.toThrow()
+    expect(() => parseCss(tailwindOutput)).not.toThrow()
+  })
+
   it('formats values for CSS', () => {
     expect(cssValue({ value: 4, unit: 'px' })).toBe('4px')
     expect(cssValue(0.4)).toBe('0.4')
@@ -372,7 +418,7 @@ describe('emitCss', () => {
           source: {
             sources: [
               {
-                theme: {
+                'brand palette': {
                   color: {
                     brand: { $type: 'color', $value: '#3366ff' },
                     color: {
@@ -391,12 +437,14 @@ describe('emitCss', () => {
       }
     )
 
-    expect(collision).toContain('--color-brand: var(--theme-color-brand);')
     expect(collision).toContain(
-      '--color-theme-brand: var(--theme-color-color-brand);'
+      '--color-brand: var(--brand-palette-color-brand);'
     )
     expect(collision).toContain(
-      '--color-theme-brand-2: var(--theme-colors-brand);'
+      '--color-brand-palette-brand: var(--brand-palette-color-color-brand);'
+    )
+    expect(collision).toContain(
+      '--color-brand-palette-brand-2: var(--brand-palette-colors-brand);'
     )
   })
 
@@ -422,6 +470,32 @@ describe('emitCss', () => {
 })
 
 describe('emitTailwind', () => {
+  it('bounds Resolver work before reading the merged token tree', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        { 'shared.tokens.json': { shared } },
+        {
+          version: '2025.10',
+          sets: {
+            repeated: {
+              sources: Array.from({ length: 4_000 }, () => ({
+                $ref: 'shared.tokens.json',
+              })),
+            },
+          },
+          resolutionOrder: [{ $ref: '#/sets/repeated' }],
+        }
+      )
+    ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
+  })
+
   const tailwind = emitTailwind(files, resolver)
 
   it('maps tokens onto Tailwind v4 namespaces referencing css vars', () => {
