@@ -1,6 +1,6 @@
 ---
 title: CLI commands
-description: Use the Primitree CLI to download Figma variables JSON, build token outputs, check sources, and explain tokens.
+description: Check local DTCG sources, build output files, compare changes, and inspect tokens.
 ---
 
 The CLI requires Node.js 24 or newer. Add it as a development dependency:
@@ -13,36 +13,41 @@ Binary name: `primitree`.
 
 ## Commands
 
-| Command   | Purpose                                            |
-| --------- | -------------------------------------------------- |
-| `build`   | Write token JSON, Resolver, CSS, Tailwind, and TS  |
-| `diff`    | Compare DTCG files or Figma variables exports      |
-| `check`   | Check a DTCG source, Figma export, or token folder |
-| `inspect` | Explain one token from a configured source         |
-| `init`    | Create a token repository with sample data         |
-| `export`  | Download variables via Figma REST API (Enterprise) |
+| Command   | Purpose                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `build`   | Check a source and write DTCG, Resolver, CSS, Tailwind, and TS files |
+| `diff`    | Compare configured DTCG files or Figma exports                       |
+| `check`   | Check a configured DTCG source or an older input                     |
+| `inspect` | Explain one token from a configured source                           |
+| `init`    | Create a token repository with sample data                           |
+| `export`  | Download variables through the Figma REST API                        |
 
 ```bash
-primitree <command> --help
+pnpm exec primitree <command> --help
 ```
 
 ## Typical workflow
 
+Add a local DTCG file and `primitree.config.ts`. The config names the source,
+its layers, owners, and output files. This example uses the `brand` source from
+[Getting started](/docs/getting-started).
+
 ```bash
-primitree init my-tokens
-cd my-tokens
-# replace variables.json with your export
-npm install
-npm run check
-npm run diff
-npm run build
+pnpm exec primitree check --source brand
+pnpm exec primitree inspect semantic.motion.control --source brand
+pnpm exec primitree build --source brand
+pnpm exec primitree build --source brand --check
 ```
+
+`check` reports source findings. `inspect` shows one resolved token and its
+alias chain. `build` writes the configured files. `build --check` reports
+generated-file changes without writing.
 
 <Cards>
   <Card
     title='build'
     href='/docs/cli/build'
-    description='Generate the pipeline'
+    description='Generate the configured files'
   />
   <Card
     title='diff'
@@ -70,3 +75,13 @@ npm run build
     description='Enterprise REST download'
   />
 </Cards>
+
+## Figma variables export
+
+The older commands remain available for Figma variables exports. Build an
+export with `pnpm exec primitree build variables.json`. See
+[primitree build](/docs/cli/build) for its output options. Figma REST access
+requires access to the Figma file, a Figma Enterprise seat, and a Personal
+Access Token with `file_variables:read`. Set the token in `FIGMA_TOKEN` or
+`FIGMA_PAT`, and set the file key in `FIGMA_FILE_KEY`. Run
+`pnpm exec primitree export`.
