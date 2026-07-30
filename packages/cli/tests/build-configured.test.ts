@@ -239,7 +239,11 @@ describe('primitree build with a project config', () => {
       `${JSON.stringify(
         {
           size: {
-            family: { $type: 'fontFamily', $value: [] },
+            'foo bar': { $type: 'number', $value: 1 },
+            'foo@bar': { $type: 'number', $value: 2 },
+          },
+          semantic: {
+            space: { $type: 'number', $value: '{size.foo bar}' },
           },
         },
         null,

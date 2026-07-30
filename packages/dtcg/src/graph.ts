@@ -778,6 +778,12 @@ function readFontFamilyValue(
   if (!Number.isSafeInteger(length) || length < 0 || length > MAX_GRAPH_ITEMS) {
     return { ok: false, issue: workLimitIssue(valuePath) }
   }
+  if (length === 0) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('fontFamily', valuePath),
+    }
+  }
   const names: string[] = []
   for (let index = 0; index < length; index += 1) {
     const itemPath = fieldPath(valuePath, String(index))

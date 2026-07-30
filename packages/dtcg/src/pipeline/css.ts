@@ -60,7 +60,7 @@ function quoteCssString(value: string): string {
 
 function cssTextValue(value: string): string {
   return /^-?[a-zA-Z_][a-zA-Z0-9_-]*$/u.test(value) &&
-    !CSS_WIDE_KEYWORDS.has(value)
+    !CSS_WIDE_KEYWORDS.has(value.toLowerCase())
     ? value
     : quoteCssString(value)
 }
