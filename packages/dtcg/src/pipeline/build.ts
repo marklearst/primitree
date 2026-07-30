@@ -175,6 +175,9 @@ function serializeSorted(value: unknown, budget: JsonSortBudget): string {
 }
 
 const WINDOWS_DRIVE_PATH = /^[A-Za-z]:\//u
+const WINDOWS_INVALID_PATH_CHARACTER = /[<>:"|?*]/u
+const WINDOWS_RESERVED_FILE_NAME =
+  /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu
 
 function hasControlCharacter(value: string): boolean {
   for (let index = 0; index < value.length; index += 1) {
@@ -184,6 +187,15 @@ function hasControlCharacter(value: string): boolean {
     }
   }
   return false
+}
+
+function isWindowsIncompatiblePathSegment(value: string): boolean {
+  return (
+    WINDOWS_INVALID_PATH_CHARACTER.test(value) ||
+    WINDOWS_RESERVED_FILE_NAME.test(value) ||
+    value.endsWith('.') ||
+    value.endsWith(' ')
+  )
 }
 
 function validateRelativeOutputPath(value: string, label: string): void {
@@ -198,7 +210,8 @@ function validateRelativeOutputPath(value: string, label: string): void {
         segment.length === 0 ||
         segment === '.' ||
         segment === '..' ||
-        hasControlCharacter(segment)
+        hasControlCharacter(segment) ||
+        isWindowsIncompatiblePathSegment(segment)
     )
   ) {
     throw new Error(`Unsafe DTCG ${label} path: "${value}".`)
@@ -225,6 +238,16 @@ function validateDTCGOutputPaths(input: DTCGOutputSet): void {
       throw new Error(`DTCG output paths collide: "${existing}" and "${name}".`)
     }
     claimed.set(key, name)
+  }
+  for (const [key, name] of claimed) {
+    let separator = key.indexOf('/')
+    while (separator !== -1) {
+      const parent = claimed.get(key.slice(0, separator))
+      if (parent !== undefined) {
+        throw new Error(`DTCG output paths collide: "${parent}" and "${name}".`)
+      }
+      separator = key.indexOf('/', separator + 1)
+    }
   }
 }
 
