@@ -35,13 +35,22 @@ its layers, owners, and output files. This example uses the `brand` source from
 ```bash
 pnpm exec primitree check --source brand
 pnpm exec primitree inspect semantic.motion.control --source brand
+cp tokens.json before.tokens.json
+```
+
+Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
+Compare the files and build the output:
+
+```bash
+pnpm exec primitree diff before.tokens.json tokens.json --source brand
 pnpm exec primitree build --source brand
 pnpm exec primitree build --source brand --check
 ```
 
 `check` reports source findings. `inspect` shows one resolved token and its
-alias chain. `build` writes the configured files. `build --check` reports
-generated-file changes without writing.
+alias chain. `diff` compares the saved file with the edited file. `build`
+writes the configured files. `build --check` reports generated-file changes
+without writing.
 
 <Cards>
   <Card
