@@ -732,6 +732,16 @@ export async function installBuildOutput(
     cleanupErrors.push(error)
   }
   if (operationFailed) {
+    if (cleanupErrors.length > 0) {
+      const operationMessage =
+        operationFailure instanceof Error
+          ? operationFailure.message
+          : String(operationFailure)
+      const cleanupMessage = `Primitree could not release the output lock: ${lock}`
+      throw new Error(`${operationMessage}\n${cleanupMessage}`, {
+        cause: new AggregateError([operationFailure, ...cleanupErrors]),
+      })
+    }
     throw operationFailure
   }
   if (cleanupErrors.length > 0) {

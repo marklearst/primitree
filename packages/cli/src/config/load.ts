@@ -92,12 +92,12 @@ function portablePathComparisonKey(value: string): string {
   return value.normalize('NFC').toUpperCase().normalize('NFC')
 }
 
-function outputDirectoryLabel(
+function configuredPathLabel(
   configDirectory: string,
-  outputDirectory: string
+  configuredPath: string
 ): string {
   return path
-    .relative(configDirectory, outputDirectory)
+    .relative(configDirectory, configuredPath)
     .split(path.sep)
     .join('/')
 }
@@ -105,7 +105,126 @@ function outputDirectoryLabel(
 interface OutputDirectoryEntry {
   readonly sourceId: string
   readonly directory: string
+  readonly comparisonDirectory: string
   readonly order: number
+}
+
+interface SourceFileEntry {
+  readonly sourceId: string
+  readonly file: string
+  readonly comparisonFile: string
+  readonly followedLink: boolean
+  readonly order: number
+}
+
+interface ConfiguredPathEntry {
+  readonly sourceId: string
+  readonly configuredPath: string
+  readonly comparisonPath: string
+  readonly kind: 'output directory' | 'token file'
+  readonly order: number
+}
+
+interface OrderedConfiguredPath {
+  readonly entry: ConfiguredPathEntry
+  readonly key: string
+}
+
+function firstConfiguredPathAtOrAfter(
+  entries: readonly OrderedConfiguredPath[],
+  key: string
+): OrderedConfiguredPath | undefined {
+  let low = 0
+  let high = entries.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    const candidate = entries[middle]
+    if (candidate !== undefined && candidate.key < key) {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  return entries[low]
+}
+
+function rejectReservedOutputPaths(
+  configDirectory: string,
+  outputDirectories: readonly OutputDirectoryEntry[],
+  sourceFiles: readonly SourceFileEntry[]
+): void {
+  const configuredPaths: ConfiguredPathEntry[] = [
+    ...outputDirectories.map(entry => ({
+      sourceId: entry.sourceId,
+      configuredPath: entry.directory,
+      comparisonPath: entry.comparisonDirectory,
+      kind: 'output directory' as const,
+      order: entry.order,
+    })),
+    ...sourceFiles.map(entry => ({
+      sourceId: entry.sourceId,
+      configuredPath: entry.file,
+      comparisonPath: entry.comparisonFile,
+      kind: 'token file' as const,
+      order: outputDirectories.length + entry.order,
+    })),
+  ]
+  const ordered = configuredPaths
+    .map(entry => ({
+      entry,
+      key: portablePathComparisonKey(entry.comparisonPath),
+    }))
+    .sort((left, right) =>
+      left.key === right.key
+        ? left.entry.order - right.entry.order
+        : left.key < right.key
+          ? -1
+          : 1
+    )
+
+  for (const owner of outputDirectories) {
+    const parent = path.dirname(owner.comparisonDirectory)
+    const name = path.basename(owner.comparisonDirectory)
+    const lockKey = portablePathComparisonKey(
+      path.join(parent, `.${name}.primitree-lock`)
+    )
+    const lockCandidate = firstConfiguredPathAtOrAfter(ordered, lockKey)
+    let candidate = lockCandidate?.key === lockKey ? lockCandidate : undefined
+    if (candidate === undefined) {
+      const lockDescendantKey = `${lockKey}${path.sep}`
+      const lockDescendant = firstConfiguredPathAtOrAfter(
+        ordered,
+        lockDescendantKey
+      )
+      if (lockDescendant?.key.startsWith(lockDescendantKey) === true) {
+        candidate = lockDescendant
+      }
+    }
+    if (candidate === undefined) {
+      for (const reservedName of [
+        `.${name}.primitree-stage-`,
+        `.${name}.primitree-backup-`,
+      ]) {
+        const reservedKey = portablePathComparisonKey(
+          path.join(parent, reservedName)
+        )
+        const reservedCandidate = firstConfiguredPathAtOrAfter(
+          ordered,
+          reservedKey
+        )
+        if (reservedCandidate?.key.startsWith(reservedKey) === true) {
+          candidate = reservedCandidate
+          break
+        }
+      }
+    }
+
+    if (candidate !== undefined) {
+      throw new Error(
+        `Source "${candidate.entry.sourceId}" ${candidate.entry.kind} "${configuredPathLabel(configDirectory, candidate.entry.configuredPath)}" uses a path reserved for source "${owner.sourceId}" output directory "${configuredPathLabel(configDirectory, owner.directory)}".`
+      )
+    }
+  }
 }
 
 function rejectOverlappingOutputDirectories(
@@ -115,7 +234,7 @@ function rejectOverlappingOutputDirectories(
   const ordered = entries
     .map(entry => ({
       entry,
-      key: `${portablePathComparisonKey(entry.directory)}${path.sep}`,
+      key: `${portablePathComparisonKey(entry.comparisonDirectory)}${path.sep}`,
     }))
     .sort((left, right) =>
       left.key === right.key
@@ -141,8 +260,80 @@ function rejectOverlappingOutputDirectories(
         : previous.entry
     const earlier = later === current.entry ? previous.entry : current.entry
     throw new Error(
-      `Source "${later.sourceId}" output directory "${outputDirectoryLabel(configDirectory, later.directory)}" overlaps source "${earlier.sourceId}" output directory "${outputDirectoryLabel(configDirectory, earlier.directory)}".`
+      `Source "${later.sourceId}" output directory "${configuredPathLabel(configDirectory, later.directory)}" overlaps source "${earlier.sourceId}" output directory "${configuredPathLabel(configDirectory, earlier.directory)}".`
     )
+  }
+}
+
+function rejectOutputDirectoriesContainingSourceFiles(
+  configDirectory: string,
+  outputDirectories: readonly OutputDirectoryEntry[],
+  sourceFiles: readonly SourceFileEntry[]
+): void {
+  const sources = sourceFiles
+    .map(entry => ({
+      entry,
+      key: `${portablePathComparisonKey(entry.comparisonFile)}${path.sep}`,
+    }))
+    .sort((left, right) =>
+      left.key === right.key
+        ? left.entry.order - right.entry.order
+        : left.key < right.key
+          ? -1
+          : 1
+    )
+  const sourceByKey = new Map<string, SourceFileEntry>()
+  for (const source of sources) {
+    if (!sourceByKey.has(source.key)) {
+      sourceByKey.set(source.key, source.entry)
+    }
+  }
+
+  for (const output of outputDirectories) {
+    const outputKey = `${portablePathComparisonKey(output.comparisonDirectory)}${path.sep}`
+    let sourceAncestor: SourceFileEntry | undefined
+    for (
+      let end = outputKey.indexOf(path.sep);
+      end >= 0;
+      end = outputKey.indexOf(path.sep, end + 1)
+    ) {
+      sourceAncestor = sourceByKey.get(outputKey.slice(0, end + 1))
+      if (sourceAncestor !== undefined) {
+        break
+      }
+    }
+    if (sourceAncestor !== undefined) {
+      const samePath =
+        `${portablePathComparisonKey(sourceAncestor.comparisonFile)}${path.sep}` ===
+        outputKey
+      throw new Error(
+        sourceAncestor.followedLink
+          ? `Source "${sourceAncestor.sourceId}" token file "${configuredPathLabel(configDirectory, sourceAncestor.file)}" resolves to a path that contains source "${output.sourceId}" output directory "${configuredPathLabel(configDirectory, output.directory)}".`
+          : samePath
+            ? `Source "${output.sourceId}" output directory "${configuredPathLabel(configDirectory, output.directory)}" cannot contain source "${sourceAncestor.sourceId}" token file "${configuredPathLabel(configDirectory, sourceAncestor.file)}".`
+            : `Source "${sourceAncestor.sourceId}" token file path "${configuredPathLabel(configDirectory, sourceAncestor.file)}" cannot contain source "${output.sourceId}" output directory "${configuredPathLabel(configDirectory, output.directory)}".`
+      )
+    }
+
+    let low = 0
+    let high = sources.length
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      const candidate = sources[middle]
+      if (candidate !== undefined && candidate.key < outputKey) {
+        low = middle + 1
+      } else {
+        high = middle
+      }
+    }
+    const containedSource = sources[low]
+    if (containedSource?.key.startsWith(outputKey) === true) {
+      throw new Error(
+        containedSource.entry.followedLink
+          ? `Source "${containedSource.entry.sourceId}" token file "${configuredPathLabel(configDirectory, containedSource.entry.file)}" resolves inside source "${output.sourceId}" output directory "${configuredPathLabel(configDirectory, output.directory)}".`
+          : `Source "${output.sourceId}" output directory "${configuredPathLabel(configDirectory, output.directory)}" cannot contain source "${containedSource.entry.sourceId}" token file "${configuredPathLabel(configDirectory, containedSource.entry.file)}".`
+      )
+    }
   }
 }
 
@@ -170,6 +361,72 @@ async function rejectOutputSymlinks(
       )
     }
   }
+}
+
+const MAX_SOURCE_LINKS = 40
+
+async function resolveSourceComparisonPath(
+  sourceId: string,
+  configDirectory: string,
+  comparisonConfigDirectory: string,
+  sourceFile: string
+): Promise<{ readonly path: string; readonly followedLink: boolean }> {
+  let candidate = path.resolve(
+    comparisonConfigDirectory,
+    path.relative(configDirectory, sourceFile)
+  )
+  let followedAnyLink = false
+  for (let linkCount = 0; linkCount <= MAX_SOURCE_LINKS; linkCount += 1) {
+    const root = path.parse(candidate).root
+    const segments = candidate
+      .slice(root.length)
+      .split(path.sep)
+      .filter(segment => segment.length > 0)
+    let current = root
+    let followedLink = false
+
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index]
+      if (segment === undefined) {
+        continue
+      }
+      current = path.join(current, segment)
+      const stats = await fs.lstat(current).catch(error => {
+        if (isMissing(error)) {
+          return undefined
+        }
+        throw error
+      })
+      if (stats === undefined) {
+        return { path: candidate, followedLink: followedAnyLink }
+      }
+      if (!stats.isSymbolicLink()) {
+        continue
+      }
+      if (linkCount === MAX_SOURCE_LINKS) {
+        throw new Error(
+          `Source "${sourceId}" token file uses too many symbolic links.`
+        )
+      }
+      const target = await fs.readlink(current)
+      candidate = path.resolve(
+        path.dirname(current),
+        target,
+        ...segments.slice(index + 1)
+      )
+      followedAnyLink = true
+      followedLink = true
+      break
+    }
+
+    if (!followedLink) {
+      return { path: candidate, followedLink: followedAnyLink }
+    }
+  }
+
+  throw new Error(
+    `Source "${sourceId}" token file uses too many symbolic links.`
+  )
 }
 
 function resolveSourceFile(
@@ -423,7 +680,9 @@ export async function loadPrimitreeConfig(
 
   const sources: Record<string, LoadedDTCGSourceConfig> = Object.create(null)
   const configDirectory = path.dirname(configPath)
+  const comparisonConfigDirectory = await fs.realpath(configDirectory)
   const outputDirectories: OutputDirectoryEntry[] = []
+  const sourceFiles: SourceFileEntry[] = []
   for (const [sourceId, value] of Object.entries(config.sources)) {
     const source = normalizeSource(sourceId, value, configDirectory)
     if (source.outputs !== undefined) {
@@ -435,15 +694,54 @@ export async function loadPrimitreeConfig(
       outputDirectories.push({
         sourceId,
         directory: source.outputs.directory,
+        comparisonDirectory: path.resolve(
+          comparisonConfigDirectory,
+          path.relative(configDirectory, source.outputs.directory)
+        ),
         order: outputDirectories.length,
       })
     }
+    sourceFiles.push({
+      sourceId,
+      file: source.file,
+      comparisonFile: source.file,
+      followedLink: false,
+      order: sourceFiles.length,
+    })
     Object.defineProperty(sources, sourceId, {
       value: source,
       enumerable: true,
     })
   }
+  const comparedSourceFiles =
+    outputDirectories.length === 0
+      ? sourceFiles
+      : await Promise.all(
+          sourceFiles.map(async sourceFile => {
+            const resolved = await resolveSourceComparisonPath(
+              sourceFile.sourceId,
+              configDirectory,
+              comparisonConfigDirectory,
+              sourceFile.file
+            )
+            return {
+              ...sourceFile,
+              comparisonFile: resolved.path,
+              followedLink: resolved.followedLink,
+            }
+          })
+        )
   rejectOverlappingOutputDirectories(configDirectory, outputDirectories)
+  rejectReservedOutputPaths(
+    configDirectory,
+    outputDirectories,
+    comparedSourceFiles
+  )
+  rejectOutputDirectoriesContainingSourceFiles(
+    configDirectory,
+    outputDirectories,
+    comparedSourceFiles
+  )
   return Object.freeze({
     schemaVersion: 1,
     configPath,

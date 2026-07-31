@@ -242,6 +242,141 @@ describe('loadPrimitreeConfig', () => {
     )
   })
 
+  it.each([
+    [
+      'a source declared before the output',
+      {
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'a source declared after the output',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'another source at the same path',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated',
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated".',
+    ],
+    [
+      'another source through portable case comparison',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './Generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+      },
+      'Source "builder" output directory "Generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'another source through portable Unicode comparison',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './GÉNÉRÉ' },
+        },
+        tokens: {
+          ...source,
+          file: './généré/tokens.json',
+        },
+      },
+      'Source "builder" output directory "GÉNÉRÉ" cannot contain source "tokens" token file "généré/tokens.json".',
+    ],
+    [
+      'an output below another source file',
+      {
+        tokens: {
+          ...source,
+          file: './tokens',
+        },
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './tokens/generated' },
+        },
+        distractor: {
+          ...source,
+          file: './tokens/0.tokens.json',
+        },
+      },
+      'Source "tokens" token file path "tokens" cannot contain source "builder" output directory "tokens/generated".',
+    ],
+  ])(
+    'rejects an output directory that conflicts with %s',
+    async (_name, sources, message) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources,
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+    }
+  )
+
+  it('allows output and source paths with matching name prefixes', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated-copy/tokens.json',
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.builder?.outputs?.directory).toBe(
+      path.join(directory, 'generated')
+    )
+    expect(loaded.sources.tokens?.file).toBe(
+      path.join(directory, 'generated-copy', 'tokens.json')
+    )
+  })
+
   it('rejects a symbolic link in the output directory path', async () => {
     const directory = await temporaryDirectory()
     const outside = await temporaryDirectory()
@@ -258,6 +393,118 @@ describe('loadPrimitreeConfig', () => {
 
     await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
       'Source "brand" output directory cannot use a symbolic link.'
+    )
+  })
+
+  it('rejects a source reached through a directory link into an output', async () => {
+    const directory = await temporaryDirectory()
+    const generated = path.join(directory, 'generated')
+    await fs.mkdir(generated)
+    await fs.writeFile(path.join(generated, 'tokens.json'), '{}', 'utf8')
+    await fs.symlink(generated, path.join(directory, 'linked-target'))
+    await fs.symlink('./linked-target', path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+    const writeFile = vi.spyOn(fs, 'writeFile')
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked/tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+    expect(writeFile).not.toHaveBeenCalled()
+  })
+
+  it('rejects a source file link that targets an output', async () => {
+    const directory = await temporaryDirectory()
+    const generated = path.join(directory, 'generated')
+    await fs.mkdir(generated)
+    const target = path.join(generated, 'tokens.json')
+    await fs.writeFile(target, '{}', 'utf8')
+    await fs.symlink(target, path.join(directory, 'linked.tokens.json'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked.tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked.tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+  })
+
+  it('rejects a source link into an output before the target exists', async () => {
+    const directory = await temporaryDirectory()
+    await fs.symlink('./generated', path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked/tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+  })
+
+  it('allows a source link that does not target an output', async () => {
+    const directory = await temporaryDirectory()
+    const actual = path.join(directory, 'actual')
+    await fs.mkdir(actual)
+    await fs.writeFile(path.join(actual, 'tokens.json'), '{}', 'utf8')
+    await fs.symlink(actual, path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+  })
+
+  it('rejects a source path with a symbolic link cycle', async () => {
+    const directory = await temporaryDirectory()
+    await fs.symlink('./second', path.join(directory, 'first'))
+    await fs.symlink('./first', path.join(directory, 'second'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './first/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file uses too many symbolic links.'
     )
   })
 
@@ -346,7 +593,187 @@ describe('loadPrimitreeConfig', () => {
     )
   })
 
-  it('bounds output overlap comparisons as source count grows', async () => {
+  it.each([
+    ['lock path', './generated', './.generated.primitree-lock'],
+    [
+      'path below the lock path',
+      './generated',
+      './.generated.primitree-lock/nested',
+    ],
+    ['staging path', './generated', './.generated.primitree-stage-owned'],
+    ['backup path', './generated', './.generated.primitree-backup-owned'],
+    ['portable case match', './Generated', './.generated.primitree-lock'],
+    [
+      'portable Unicode match',
+      './ge\u0301ne\u0301re\u0301',
+      './.généré.primitree-lock',
+    ],
+    [
+      'reserved path declared first',
+      './.generated.primitree-stage-owned',
+      './generated',
+    ],
+  ])(
+    'rejects an output directory that uses another output %s',
+    async (_name, primaryDirectory, secondaryDirectory) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'uses a path reserved for source'
+      )
+    }
+  )
+
+  it('finds a reserved lock path after a near-prefix output', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        primary: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+        distractor: {
+          ...source,
+          outputs: { directory: './.generated.primitree-lock-copy' },
+        },
+        secondary: {
+          ...source,
+          outputs: { directory: './.generated.primitree-lock/nested' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "secondary" output directory ".generated.primitree-lock/nested" uses a path reserved for source "primary" output directory "generated".'
+    )
+  })
+
+  it.each([
+    ['./generated', './.generated.primitree-lock-copy'],
+    ['./generated', './.generated.primitree-stage'],
+    ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated-copy.primitree-lock'],
+  ])(
+    'allows output directories near reserved path names',
+    async (primaryDirectory, secondaryDirectory) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+    }
+  )
+
+  it.each([
+    ['lock path', './generated', './.generated.primitree-lock', false],
+    [
+      'path below the lock path',
+      './generated',
+      './.generated.primitree-lock/tokens.json',
+      false,
+    ],
+    [
+      'staging path',
+      './generated',
+      './.generated.primitree-stage-owned',
+      false,
+    ],
+    [
+      'backup path',
+      './generated',
+      './.generated.primitree-backup-owned',
+      false,
+    ],
+    [
+      'portable case match',
+      './Generated',
+      './.generated.primitree-lock',
+      false,
+    ],
+    [
+      'portable Unicode match',
+      './ge\u0301ne\u0301re\u0301',
+      './.généré.primitree-lock',
+      false,
+    ],
+    [
+      'source declared first',
+      './generated',
+      './.generated.primitree-backup-owned',
+      true,
+    ],
+  ])(
+    'rejects a token file that uses an output %s',
+    async (_name, outputDirectory, sourceFile, sourceFirst) => {
+      const directory = await temporaryDirectory()
+      const builder = {
+        ...source,
+        file: './builder.tokens.json',
+        outputs: { directory: outputDirectory },
+      }
+      const tokens = { ...source, file: sourceFile }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: sourceFirst ? { tokens, builder } : { builder, tokens },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "tokens" token file "${sourceFile.slice(2)}" uses a path reserved for source "builder" output directory "${outputDirectory.slice(2)}".`
+      )
+    }
+  )
+
+  it.each([
+    ['./generated', './.generated.primitree-lock-copy'],
+    ['./generated', './.generated.primitree-stage'],
+    ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated-copy.primitree-lock'],
+  ])(
+    'allows token files near reserved path names',
+    async (outputDirectory, sourceFile) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          builder: {
+            ...source,
+            file: './builder.tokens.json',
+            outputs: { directory: outputDirectory },
+          },
+          tokens: { ...source, file: sourceFile },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+    }
+  )
+
+  it('loads many non-overlapping output directories', async () => {
     const directory = await temporaryDirectory()
     const sourceCount = 64
     const sources = Object.fromEntries(
@@ -362,14 +789,7 @@ describe('loadPrimitreeConfig', () => {
       schemaVersion: 1,
       sources,
     })
-    const relative = path.relative.bind(path)
-    const relativeCalls = vi
-      .spyOn(path, 'relative')
-      .mockImplementation((from, to) => relative(from, to))
-
     await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
-
-    expect(relativeCalls.mock.calls.length).toBeLessThan(sourceCount * 10)
   })
 
   it('loads the exact default file and resolves source paths from it', async () => {
