@@ -547,6 +547,10 @@ export async function inspectBuildOutput(
       drift.push({ path: file.path, kind: 'missing' })
       continue
     }
+    if (fileStats.isDirectory()) {
+      drift.push({ path: file.path, kind: 'missing' })
+      continue
+    }
     if (!fileStats.isFile() || fileStats.isSymbolicLink()) {
       throw new Error(
         `Build output path must point to a file, not a symbolic link: ${file.path}`
