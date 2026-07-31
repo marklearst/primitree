@@ -88,6 +88,64 @@ function isMissing(error: unknown): boolean {
   )
 }
 
+function portablePathComparisonKey(value: string): string {
+  return value.normalize('NFC').toUpperCase().normalize('NFC')
+}
+
+function outputDirectoryLabel(
+  configDirectory: string,
+  outputDirectory: string
+): string {
+  return path
+    .relative(configDirectory, outputDirectory)
+    .split(path.sep)
+    .join('/')
+}
+
+interface OutputDirectoryEntry {
+  readonly sourceId: string
+  readonly directory: string
+  readonly order: number
+}
+
+function rejectOverlappingOutputDirectories(
+  configDirectory: string,
+  entries: readonly OutputDirectoryEntry[]
+): void {
+  const ordered = entries
+    .map(entry => ({
+      entry,
+      key: `${portablePathComparisonKey(entry.directory)}${path.sep}`,
+    }))
+    .sort((left, right) =>
+      left.key === right.key
+        ? left.entry.order - right.entry.order
+        : left.key < right.key
+          ? -1
+          : 1
+    )
+
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1]
+    const current = ordered[index]
+    if (
+      previous === undefined ||
+      current === undefined ||
+      (current.key !== previous.key && !current.key.startsWith(previous.key))
+    ) {
+      continue
+    }
+    const later =
+      current.entry.order > previous.entry.order
+        ? current.entry
+        : previous.entry
+    const earlier = later === current.entry ? previous.entry : current.entry
+    throw new Error(
+      `Source "${later.sourceId}" output directory "${outputDirectoryLabel(configDirectory, later.directory)}" overlaps source "${earlier.sourceId}" output directory "${outputDirectoryLabel(configDirectory, earlier.directory)}".`
+    )
+  }
+}
+
 async function rejectOutputSymlinks(
   sourceId: string,
   configDirectory: string,
@@ -364,20 +422,28 @@ export async function loadPrimitreeConfig(
   }
 
   const sources: Record<string, LoadedDTCGSourceConfig> = Object.create(null)
+  const configDirectory = path.dirname(configPath)
+  const outputDirectories: OutputDirectoryEntry[] = []
   for (const [sourceId, value] of Object.entries(config.sources)) {
-    const source = normalizeSource(sourceId, value, path.dirname(configPath))
+    const source = normalizeSource(sourceId, value, configDirectory)
     if (source.outputs !== undefined) {
       await rejectOutputSymlinks(
         sourceId,
-        path.dirname(configPath),
+        configDirectory,
         source.outputs.directory
       )
+      outputDirectories.push({
+        sourceId,
+        directory: source.outputs.directory,
+        order: outputDirectories.length,
+      })
     }
     Object.defineProperty(sources, sourceId, {
       value: source,
       enumerable: true,
     })
   }
+  rejectOverlappingOutputDirectories(configDirectory, outputDirectories)
   return Object.freeze({
     schemaVersion: 1,
     configPath,

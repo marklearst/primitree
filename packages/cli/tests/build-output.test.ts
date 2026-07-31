@@ -185,6 +185,48 @@ describe('configured build output paths', () => {
 })
 
 describe('configured build output replacement', () => {
+  it.skipIf(process.platform === 'win32')(
+    'matches new sibling directory permissions for new output',
+    async () => {
+      const output = path.join(directory, 'generated')
+      const control = path.join(directory, 'control')
+      await fs.mkdir(control)
+      const expectedMode = (await fs.stat(control)).mode & 0o777
+
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand'
+      )
+
+      expect((await fs.stat(output)).mode & 0o777).toBe(expectedMode)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'preserves output directory permissions during replacement',
+    async () => {
+      const output = path.join(directory, 'generated')
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+        'brand'
+      )
+      await fs.chmod(output, 0o750)
+
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+
+      expect((await fs.stat(output)).mode & 0o777).toBe(0o750)
+      await expect(
+        fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
+      ).resolves.toBe('new\n')
+    }
+  )
+
   it('reports a file that blocks an expected directory as output drift', async () => {
     const output = path.join(directory, 'generated')
     const files = buildFiles([
@@ -591,6 +633,70 @@ describe('configured build output replacement', () => {
 
     expect(injected).toBe(true)
     await expect(fs.readFile(tokenPath, 'utf8')).resolves.toBe('late edit\n')
+    expect(await fs.readdir(directory)).toEqual(['generated'])
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'preserves permissions changed immediately before the prior tree is moved',
+    async () => {
+      const output = path.join(directory, 'generated')
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+        'brand'
+      )
+      await fs.chmod(output, 0o750)
+      const rename = fs.rename.bind(fs)
+      let injected = false
+      vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+        if (
+          !injected &&
+          from === output &&
+          String(to).includes('.generated.primitree-backup-')
+        ) {
+          injected = true
+          await fs.chmod(output, 0o710)
+        }
+        await rename(from, to)
+      })
+
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+
+      expect(injected).toBe(true)
+      expect((await fs.stat(output)).mode & 0o777).toBe(0o710)
+    }
+  )
+
+  it('restores the prior tree when reading its moved permissions fails', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const lstat = fs.lstat.bind(fs)
+    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+      if (String(target).includes('.generated.primitree-backup-')) {
+        throw new Error('Injected permission read failure.')
+      }
+      return lstat(target)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow('Injected permission read failure.')
+
+    await expect(
+      fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
     expect(await fs.readdir(directory)).toEqual(['generated'])
   })
 
