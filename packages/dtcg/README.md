@@ -164,8 +164,9 @@ declarations, token paths, and token text. CSS strings and selectors escape text
 that would break the file. CSS names keep token case and non-ASCII code points. ASCII
 punctuation uses lowercase hex markers, such as `_3f_` for `?`. Tailwind and
 TypeScript references use the same CSS names. Tailwind reads at most 64
-token-group levels and 100,000 items. Its
-1,000,000-unit work limit counts Resolver reads and token merges.
+token-group levels and 100,000 items, and returns up to 20 MiB. Its
+1,000,000-unit work limit counts Resolver reads, token merges, token walking,
+alias type resolution, token paths, name allocation, and output text.
 
 For TypeScript, the limits are 64 token-group levels, 20 MiB of output, and
 1,000,000 work units. Work includes Resolver reads, token merges, token

@@ -741,13 +741,13 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
  * limit counts Resolver reads and token merges.
  *
- * CSS, Tailwind, and TypeScript read at most 64 token-group levels. Tailwind
- * reads at most 100,000 items. CSS and TypeScript return at most 20 MiB. Each
- * output has a 1,000,000-unit work limit. CSS counts Resolver reads, token
- * merges, value comparisons, declarations, token paths, and token text.
- * Tailwind counts Resolver reads and token merges. TypeScript also counts
- * flattening, reference resolution, token paths, sorting, and value
- * serialization.
+ * CSS, Tailwind, and TypeScript read at most 64 token-group levels and return
+ * at most 20 MiB. Tailwind reads at most 100,000 items. Each output has a
+ * 1,000,000-unit work limit. CSS counts Resolver reads, token merges, value
+ * comparisons, declarations, token paths, and token text. Tailwind counts
+ * Resolver reads, token merges, token walking, alias type resolution, token
+ * paths, name allocation, and output text. TypeScript also counts flattening,
+ * reference resolution, token paths, sorting, and value serialization.
  *
  * @param input - Checked token files and their Resolver.
  * @param options - CSS, Tailwind, and TypeScript files to include.
