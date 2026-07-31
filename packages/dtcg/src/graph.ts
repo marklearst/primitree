@@ -290,7 +290,7 @@ function consumeWork(budget: WorkBudget, count = 1): boolean {
 }
 
 function workLimitIssue(path?: readonly string[]): AdapterIssue {
-  return invalid('The DTCG adapter reached its 100,000-item work limit.', path)
+  return invalid('The DTCG adapter reached its 100,000-unit work limit.', path)
 }
 
 function failureFor(issue: AdapterIssue): GraphFailure {
@@ -422,13 +422,8 @@ function readReference(
   if (typeof value !== 'string' || !looksLikeCurlyReference(value)) {
     return { kind: 'literal' }
   }
-  if (!consumeWork(budget)) {
+  if (!consumeWork(budget, value.length)) {
     return { kind: 'work-limit' }
-  }
-  for (let index = 1; index < value.length - 1; index += 1) {
-    if (value.charCodeAt(index) === 0x2e && !consumeWork(budget)) {
-      return { kind: 'work-limit' }
-    }
   }
   const segments = value.slice(1, -1).split('.')
   const finalIndex = segments.length - 1
@@ -1043,9 +1038,9 @@ function inferTokenType(
  * may contain at most 256 characters. Token values may contain at most 64
  * nested levels.
  *
- * Each call has one 100,000-item work budget. It counts document entries,
- * brace-reference segments, each literal value scan, token-value object keys,
- * and token-value array entries.
+ * Each call has one 100,000-unit work limit. It counts document entries,
+ * characters in brace references, each literal value scan, token-value object
+ * key, and token-value array entry.
  *
  * The reader rejects `$extends`, JSON Pointer references, references nested
  * inside literal values, unknown reserved properties, and token types outside
@@ -1348,7 +1343,9 @@ export function createDTCGGraphFragment(
         !matchesType(typeResult.value, token.value)
       ) {
         return failure(
-          `A DTCG token value does not match type "${typeResult.value}".`
+          `A DTCG token value does not match type "${typeResult.value}".`,
+          'dtcg.invalid-document',
+          fieldPath(token.path, '$value')
         )
       }
       coreTokens.push({

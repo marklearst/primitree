@@ -9,6 +9,7 @@ import {
   listPermutations,
   mergeDocuments,
   resolveTokenValues,
+  resolveTokenValuesSafe,
   ReferenceResolutionError,
 } from '../src/resolve'
 import {
@@ -62,6 +63,16 @@ function expectResolutionFailure(
 }
 
 describe('mergeDocuments', () => {
+  function nestedDocument(groupLevels: number): DTCGDocument {
+    let document: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth < groupLevels; depth += 1) {
+      document = { group: document }
+    }
+    return document
+  }
+
   it('later documents override earlier tokens', () => {
     const merged = mergeDocuments([
       { a: { $type: 'number', $value: 1 } },
@@ -141,6 +152,36 @@ describe('mergeDocuments', () => {
     expect(theme.$extensions).toEqual({ example: { enabled: true } })
     expect((theme.$root as DTCGToken).$value).toBe('default')
   })
+
+  it('merges 64 token-group levels', () => {
+    const merged = mergeDocuments([nestedDocument(64)])
+    let group: DTCGGroup = merged
+    for (let depth = 0; depth < 64; depth += 1) {
+      group = group.group as DTCGGroup
+    }
+
+    expect((group.value as DTCGToken).$value).toBe(1)
+  })
+
+  it('rejects more than 64 token-group levels', () => {
+    const merge = () => mergeDocuments([nestedDocument(65)])
+
+    expect(merge).toThrow(TypeError)
+    expect(merge).toThrow(
+      'Token document merging can read at most 64 token-group levels.'
+    )
+  })
+
+  it('bounds merge work before copying an oversized group path', () => {
+    const key = 'x'.repeat(1_000_001)
+    const document = {
+      [key]: { value: { $type: 'number', $value: 1 } },
+    } as DTCGDocument
+
+    expect(() => mergeDocuments([document])).toThrow(
+      'Token document merging exceeds the 1,000,000-unit work limit.'
+    )
+  })
 })
 
 describe('flattenTokens', () => {
@@ -173,9 +214,71 @@ describe('flattenTokens', () => {
     )
     expect(isToken({ $value: 'own', hasOwnProperty: () => false })).toBe(true)
   })
+
+  it('rejects a non-group child allowed by group metadata types', () => {
+    const invalid: DTCGDocument = { bad: undefined }
+
+    expectResolutionFailure(
+      () => flattenTokens(invalid),
+      '#/document/bad',
+      /group child.*object or token/i
+    )
+  })
+
+  it('rejects a group cycle without recursive failure', () => {
+    const cyclic = Object.create(null) as DTCGDocument
+    cyclic.loop = cyclic
+
+    expectResolutionFailure(
+      () => flattenTokens(cyclic),
+      '#/document/loop',
+      /group cycle/i
+    )
+  })
+
+  it('rejects more than 64 token-group levels', () => {
+    let nested: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() => flattenTokens(nested)).toThrow(
+      'Token flattening can read at most 64 token-group levels.'
+    )
+  })
 })
 
 describe('applyResolver + resolveTokenValues', () => {
+  function aliasChain(length: number): Array<{
+    path: string
+    token: DTCGToken
+  }> {
+    return Array.from({ length }, (_, index) => ({
+      path: `token-${index}`,
+      token: {
+        $type: 'number',
+        $value: index === length - 1 ? 1 : `{token-${index + 1}}`,
+      },
+    }))
+  }
+
+  it('bounds work across repeated Resolver sources', () => {
+    const source = { $ref: 'empty.tokens.json' } as const
+    const repeatedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        repeated: { sources: Array(200_000).fill(source) },
+      },
+      resolutionOrder: [{ $ref: '#/sets/repeated' }],
+    }
+
+    expect(() =>
+      applyResolver({ 'empty.tokens.json': {} }, repeatedResolver)
+    ).toThrow('Resolver application exceeds the 1,000,000-unit work limit.')
+  })
+
   it('resolves the default contexts (light, comfortable)', () => {
     const merged = applyResolver(files, resolver)
     const values = resolveTokenValues(flattenTokens(merged))
@@ -233,6 +336,91 @@ describe('applyResolver + resolveTokenValues', () => {
     expect(() => resolveTokenValues(flat)).toThrow(/cycle/i)
   })
 
+  it('resolves a long alias chain without recursive calls', () => {
+    const values = resolveTokenValues(aliasChain(10_000))
+
+    expect(values.get('token-0')).toBe(1)
+    expect(values.get('token-9999')).toBe(1)
+  })
+
+  it('reports a long alias cycle without recursive calls', () => {
+    const flat = aliasChain(10_000)
+    flat[9_999] = {
+      path: 'token-9999',
+      token: { $type: 'number', $value: '{token-0}' },
+    }
+
+    expectResolutionFailure(
+      () => resolveTokenValues(flat),
+      'token-0',
+      /^Reference cycle: token-0 -> token-1/
+    )
+  })
+
+  it('collects one rotated cycle error for each failed token', () => {
+    const result = resolveTokenValuesSafe(
+      flattenTokens({
+        a: { $type: 'number', $value: '{b}' },
+        b: { $type: 'number', $value: '{a}' },
+      })
+    )
+
+    expect(result.values).toHaveLength(0)
+    expect(
+      result.errors.map(error => ({
+        message: error.message,
+        path: error.path,
+      }))
+    ).toEqual([
+      { message: 'Reference cycle: a -> b -> a', path: 'a' },
+      { message: 'Reference cycle: b -> a -> b', path: 'b' },
+    ])
+  })
+
+  it('adds a resolved target before aliases that point to it', () => {
+    const values = resolveTokenValues(
+      flattenTokens({
+        a: { $type: 'number', $value: '{b}' },
+        b: { $type: 'number', $value: '{c}' },
+        c: { $type: 'number', $value: 1 },
+      })
+    )
+
+    expect([...values.keys()]).toEqual(['c', 'b', 'a'])
+  })
+
+  it.each([resolveTokenValues, resolveTokenValuesSafe])(
+    'bounds work before copying a long reference',
+    resolve => {
+      const target = 'x'.repeat(1_000_001)
+      expect(() =>
+        resolve([
+          {
+            path: 'alias',
+            token: { $type: 'number', $value: `{${target}}` },
+          },
+        ])
+      ).toThrow(
+        'Token reference resolution exceeds the 1,000,000-unit work limit.'
+      )
+    }
+  )
+
+  it('keeps the path leading into a cycle in the error', () => {
+    expectResolutionFailure(
+      () =>
+        resolveTokenValues(
+          flattenTokens({
+            tail: { $type: 'number', $value: '{a}' },
+            a: { $type: 'number', $value: '{b}' },
+            b: { $type: 'number', $value: '{a}' },
+          })
+        ),
+      'a',
+      /^Reference cycle: tail -> a -> b -> a$/
+    )
+  })
+
   it('resolves own dangerous file, set, modifier, and context keys', () => {
     const hostileFiles = Object.create(null) as Record<string, DTCGDocument>
     hostileFiles['__proto__.tokens.json'] = {
@@ -288,7 +476,7 @@ describe('applyResolver + resolveTokenValues', () => {
     )
   })
 
-  it('ignores resolver sets and modifiers found only through prototypes', () => {
+  it('rejects resolver targets found only through prototypes', () => {
     const inheritedSets = Object.create({
       inherited: {
         sources: [{ fromSet: { $type: 'string', $value: 'unsafe' } }],
@@ -312,7 +500,11 @@ describe('applyResolver + resolveTokenValues', () => {
       ],
     }
 
-    expect(flattenTokens(applyResolver({}, inheritedResolver))).toEqual([])
+    expectResolutionFailure(
+      () => applyResolver({}, inheritedResolver),
+      '#/resolutionOrder/0',
+      /missing set "inherited"/i
+    )
   })
 
   it('rejects modifier contexts found only through the contexts prototype', () => {
@@ -375,7 +567,108 @@ describe('applyResolver + resolveTokenValues', () => {
     ).toEqual([])
   })
 
-  it('does not follow an inherited $ref in the resolution order', () => {
+  it('decodes unreserved, space, and Unicode text in local source references', () => {
+    const encodedRefResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './%62ase%20%E8%89%B2.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(
+      flattenTokens(
+        applyResolver(
+          {
+            'base 色.tokens.json': {
+              value: { $type: 'number', $value: 1 },
+            },
+          },
+          encodedRefResolver
+        )
+      )
+    ).toEqual([{ path: 'value', token: { $type: 'number', $value: 1 } }])
+  })
+
+  it('keeps an escaped slash in a local source file name', () => {
+    const encodedRefResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './folder%2Ftokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(
+      flattenTokens(
+        applyResolver(
+          {
+            'folder%2Ftokens.json': {
+              selected: { $type: 'string', $value: 'encoded file name' },
+            },
+            'folder/tokens.json': {
+              selected: { $type: 'string', $value: 'nested path' },
+            },
+          },
+          encodedRefResolver
+        )
+      )
+    ).toEqual([
+      {
+        path: 'selected',
+        token: { $type: 'string', $value: 'encoded file name' },
+      },
+    ])
+  })
+
+  it('rejects malformed URI text in a local source reference', () => {
+    const malformedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './base%2.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, malformedResolver),
+      '#/sets/base/sources/0',
+      /invalid URI encoding/i
+    )
+  })
+
+  it('reads a source $ref accessor once', () => {
+    let reads = 0
+    const source = Object.create(null) as DTCGRef
+    Object.defineProperty(source, '$ref', {
+      enumerable: true,
+      get() {
+        reads += 1
+        return reads === 1 ? './base.tokens.json' : './missing.tokens.json'
+      },
+    })
+    const accessorResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: { base: { sources: [source] } },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(
+      flattenTokens(
+        applyResolver(
+          {
+            'base.tokens.json': {
+              value: { $type: 'number', $value: 1 },
+            },
+          },
+          accessorResolver
+        )
+      )
+    ).toEqual([{ path: 'value', token: { $type: 'number', $value: 1 } }])
+    expect(reads).toBe(1)
+  })
+
+  it('rejects an inherited $ref in the resolution order', () => {
     const inheritedOrderEntry = Object.create({
       $ref: '#/sets/base',
     }) as DTCGRef
@@ -389,7 +682,97 @@ describe('applyResolver + resolveTokenValues', () => {
       resolutionOrder: [inheritedOrderEntry],
     }
 
-    expect(flattenTokens(applyResolver({}, inheritedOrderResolver))).toEqual([])
+    expectResolutionFailure(
+      () => applyResolver({}, inheritedOrderResolver),
+      '#/resolutionOrder/0',
+      /set or modifier reference/i
+    )
+  })
+
+  it.each([
+    ['missing set', '#/sets/missing', /missing set "missing"/i],
+    ['missing modifier', '#/modifiers/missing', /missing modifier "missing"/i],
+    ['unsupported target', '#/other/name', /set or modifier reference/i],
+  ])('rejects a %s in resolutionOrder', (_, ref, message) => {
+    const invalidResolver: ResolverDocument = {
+      version: '2025.10',
+      resolutionOrder: [{ $ref: ref }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, invalidResolver),
+      '#/resolutionOrder/0',
+      message
+    )
+  })
+
+  it('decodes JSON Pointer escapes in resolutionOrder names', () => {
+    const escapedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        'base/~tokens': {
+          sources: [{ value: { $type: 'number', $value: 1 } }],
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base~1~0tokens' }],
+    }
+
+    expect(flattenTokens(applyResolver({}, escapedResolver))).toEqual([
+      { path: 'value', token: { $type: 'number', $value: 1 } },
+    ])
+  })
+
+  it('decodes URI text in resolutionOrder JSON Pointer fragments', () => {
+    const encodedResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        'base tokens 色': {
+          sources: [{ value: { $type: 'number', $value: 1 } }],
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base%20tokens%20%E8%89%B2' }],
+    }
+
+    expect(flattenTokens(applyResolver({}, encodedResolver))).toEqual([
+      { path: 'value', token: { $type: 'number', $value: 1 } },
+    ])
+  })
+
+  it('rejects malformed URI text in a resolutionOrder reference', () => {
+    const malformedResolver: ResolverDocument = {
+      version: '2025.10',
+      resolutionOrder: [{ $ref: '#/sets/base%2' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, malformedResolver),
+      '#/resolutionOrder/0',
+      /invalid URI encoding/i
+    )
+  })
+
+  it('reads a resolutionOrder $ref accessor once', () => {
+    let reads = 0
+    const entry = Object.create(null) as DTCGRef
+    Object.defineProperty(entry, '$ref', {
+      enumerable: true,
+      get() {
+        reads += 1
+        return reads === 1 ? '#/sets/base' : '#/sets/missing'
+      },
+    })
+    const accessorResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ value: { $type: 'number', $value: 1 } }] },
+      },
+      resolutionOrder: [entry],
+    }
+
+    expect(flattenTokens(applyResolver({}, accessorResolver))).toEqual([
+      { path: 'value', token: { $type: 'number', $value: 1 } },
+    ])
+    expect(reads).toBe(1)
   })
 
   it.each([
@@ -570,7 +953,7 @@ describe('applyResolver + resolveTokenValues', () => {
     )
   })
 
-  it('ignores top-level sets found only through the resolver prototype', () => {
+  it('rejects top-level sets found only through the resolver prototype', () => {
     const inheritedSetsResolver = Object.assign(
       Object.create({
         sets: {
@@ -583,10 +966,14 @@ describe('applyResolver + resolveTokenValues', () => {
       }
     ) as ResolverDocument
 
-    expect(flattenTokens(applyResolver({}, inheritedSetsResolver))).toEqual([])
+    expectResolutionFailure(
+      () => applyResolver({}, inheritedSetsResolver),
+      '#/resolutionOrder/0',
+      /missing set "attacker"/i
+    )
   })
 
-  it('ignores top-level modifiers found only through the resolver prototype', () => {
+  it('rejects top-level modifiers found only through the resolver prototype', () => {
     const inheritedModifiersResolver = Object.assign(
       Object.create({
         modifiers: {
@@ -604,9 +991,11 @@ describe('applyResolver + resolveTokenValues', () => {
       }
     ) as ResolverDocument
 
-    expect(
-      flattenTokens(applyResolver({}, inheritedModifiersResolver))
-    ).toEqual([])
+    expectResolutionFailure(
+      () => applyResolver({}, inheritedModifiersResolver),
+      '#/resolutionOrder/0',
+      /missing modifier "attacker"/i
+    )
     expect(listContexts(inheritedModifiersResolver)).toEqual({})
   })
 
@@ -693,6 +1082,49 @@ describe('applyResolver + resolveTokenValues', () => {
     )
   })
 
+  it('rejects a modifier without contexts', () => {
+    const emptyResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: { theme: { contexts: {} } },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, emptyResolver),
+      '#/modifiers/theme/contexts',
+      /define at least one context/i
+    )
+    expect(() => listContexts(emptyResolver)).toThrow(ReferenceResolutionError)
+    expect(() => listPermutations(emptyResolver)).toThrow(
+      ReferenceResolutionError
+    )
+  })
+
+  it('rejects a modifier default that is not one of its contexts', () => {
+    const missingDefaultResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        theme: {
+          default: 'missing',
+          contexts: { light: [] },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, missingDefaultResolver),
+      '#/modifiers/theme/default',
+      /name one of its own contexts/i
+    )
+    expect(() => listContexts(missingDefaultResolver)).toThrow(
+      ReferenceResolutionError
+    )
+    expect(() => listPermutations(missingDefaultResolver)).toThrow(
+      ReferenceResolutionError
+    )
+  })
+
   it('rejects a modifier context with malformed own sources', () => {
     const malformedContextSourcesResolver: ResolverDocument = {
       version: '2025.10',
@@ -775,6 +1207,18 @@ describe('listContexts / listPermutations', () => {
       density: ['comfortable', 'compact'],
     })
     expect(Object.getPrototypeOf(contexts)).toBeNull()
+  })
+
+  it('bounds modifier names before building context paths', () => {
+    const modifier = 'x'.repeat(1_000_001)
+
+    expect(() =>
+      listContexts({
+        version: '2025.10',
+        modifiers: { [modifier]: { contexts: { only: [] } } },
+        resolutionOrder: [],
+      })
+    ).toThrow('Resolver contexts exceed the 1,000,000-unit work limit.')
   })
 
   it('lists only own modifier and context entries', () => {

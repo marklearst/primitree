@@ -43,14 +43,37 @@ function assertResolverDepth(
   }
 }
 
+function publicResolverBudget(
+  errorMessage: string,
+  depthErrorMessage: string
+): ResolverWorkBudget {
+  return {
+    remaining: 1_000_000,
+    errorMessage,
+    maxDepth: 64,
+    depthErrorMessage,
+  }
+}
+
 /**
  * Deep-merge DTCG documents; later documents override earlier ones at the
  * token level (a token in a later document replaces the same path).
  *
+ * One call reads at most 64 token-group levels and spends at most 1,000,000
+ * work units on document entries and group paths.
+ *
+ * @throws `TypeError` - The call exceeds its depth or work limit.
+ *
  * @public
  */
 export function mergeDocuments(documents: DTCGDocument[]): DTCGDocument {
-  return mergeDocumentsWithBudget(documents)
+  return mergeDocumentsWithBudget(
+    documents,
+    publicResolverBudget(
+      'Token document merging exceeds the 1,000,000-unit work limit.',
+      'Token document merging can read at most 64 token-group levels.'
+    )
+  )
 }
 
 /** @internal */
@@ -89,11 +112,11 @@ export function mergeDocumentsWithBudget(
         continue
       }
       const existing = hasOwn(target, key) ? target[key] : undefined
-      if (existing !== undefined && !isToken(existing)) {
-        mergeInto(existing, value, depth + 1)
+      if (existing !== undefined && !isToken(existing) && isRecord(existing)) {
+        mergeInto(existing as DTCGGroup, value as DTCGGroup, depth + 1)
       } else {
         const next: DTCGGroup = createDictionary()
-        mergeInto(next, value, depth + 1)
+        mergeInto(next, value as DTCGGroup, depth + 1)
         target[key] = next
       }
     }
@@ -108,10 +131,21 @@ export function mergeDocumentsWithBudget(
 /**
  * Flatten a DTCG document into a list of `{ path, token }` entries.
  *
+ * One call reads at most 64 token-group levels and spends at most 1,000,000
+ * work units on document entries and token paths.
+ *
+ * @throws `TypeError` - The call exceeds its depth or work limit.
+ *
  * @public
  */
 export function flattenTokens(document: DTCGDocument): FlatToken[] {
-  return flattenTokensWithBudget(document)
+  return flattenTokensWithBudget(
+    document,
+    publicResolverBudget(
+      'Token flattening exceeds the 1,000,000-unit work limit.',
+      'Token flattening can read at most 64 token-group levels.'
+    )
+  )
 }
 
 /** @internal */
@@ -119,9 +153,10 @@ export function flattenTokensWithBudget(
   document: DTCGDocument,
   budget?: ResolverWorkBudget
 ): FlatToken[] {
+  validateTokenDocument(document, '#/document', budget)
   const flat: FlatToken[] = []
 
-  function walk(group: DTCGGroup, prefix: string[], depth: number): void {
+  function walk(group: DTCGGroup, prefix: string, depth: number): void {
     assertResolverDepth(budget, depth)
     const entries = Object.entries(group)
     if (budget !== undefined) {
@@ -131,15 +166,20 @@ export function flattenTokensWithBudget(
       if (key.startsWith('$') && key !== '$root') {
         continue
       }
+      const separatorLength = prefix.length === 0 ? 0 : 1
+      if (budget !== undefined) {
+        chargeResolverWork(budget, prefix.length + separatorLength + key.length)
+      }
+      const tokenPath = prefix.length === 0 ? key : `${prefix}.${key}`
       if (isToken(value)) {
-        flat.push({ path: [...prefix, key].join('.'), token: value })
+        flat.push({ path: tokenPath, token: value })
       } else {
-        walk(value, [...prefix, key], depth + 1)
+        walk(value as DTCGGroup, tokenPath, depth + 1)
       }
     }
   }
 
-  walk(document, [], 0)
+  walk(document, '', 0)
   return flat
 }
 
@@ -154,6 +194,16 @@ export class ReferenceResolutionError extends Error {
     super(message)
     this.name = 'ReferenceResolutionError'
     this.path = path
+  }
+}
+
+const TOKEN_REFERENCE_WORK_LIMIT_MESSAGE =
+  'Token reference resolution exceeds the 1,000,000-unit work limit.'
+
+function tokenReferenceBudget(): ResolverWorkBudget {
+  return {
+    remaining: 1_000_000,
+    errorMessage: TOKEN_REFERENCE_WORK_LIMIT_MESSAGE,
   }
 }
 
@@ -224,6 +274,9 @@ function validateTokenDocument(
           continue
         }
 
+        if (budget !== undefined) {
+          chargeResolverWork(budget, groupPath.length + key.length + 1)
+        }
         const childPath = `${groupPath}/${key}`
         if (!isRecord(child)) {
           throw new ReferenceResolutionError(
@@ -330,6 +383,9 @@ function validateModifier(
   name: string,
   budget?: ResolverWorkBudget
 ): ValidatedModifier {
+  if (budget !== undefined) {
+    chargeResolverWork(budget, name.length + 1)
+  }
   const path = `#/modifiers/${name}`
   if (!isRecord(value)) {
     throw new ReferenceResolutionError(
@@ -357,7 +413,16 @@ function validateModifier(
   if (budget !== undefined) {
     chargeResolverWork(budget, contextEntries.length)
   }
+  if (contextEntries.length === 0) {
+    throw new ReferenceResolutionError(
+      `Resolver modifier "${name}" must define at least one context`,
+      `${path}/contexts`
+    )
+  }
   for (const [context, sources] of contextEntries) {
+    if (budget !== undefined) {
+      chargeResolverWork(budget, context.length + 1)
+    }
     if (!Array.isArray(sources)) {
       throw new ReferenceResolutionError(
         `Resolver context "${context}" for modifier "${name}" must have a sources array`,
@@ -374,9 +439,18 @@ function validateModifier(
   let defaultContext: string | undefined
   if (hasOwn(value, 'default')) {
     const rawDefault = value.default
-    if (rawDefault !== undefined && typeof rawDefault !== 'string') {
+    if (typeof rawDefault !== 'string') {
       throw new ReferenceResolutionError(
         `Resolver modifier "${name}" default must be a string`,
+        `${path}/default`
+      )
+    }
+    if (budget !== undefined) {
+      chargeResolverWork(budget, rawDefault.length + 1)
+    }
+    if (!hasOwn(contexts, rawDefault)) {
+      throw new ReferenceResolutionError(
+        `Resolver modifier "${name}" default must name one of its own contexts`,
         `${path}/default`
       )
     }
@@ -389,74 +463,115 @@ function validateModifier(
 /**
  * Resolve `{dot.path}` references in a flattened token map.
  *
+ * @remarks
+ * One call can spend up to 1,000,000 work units. Work includes token paths,
+ * references, reference walks, cycle messages, and resolved entries.
+ *
  * @returns Map of token path to resolved value.
+ * @throws {@link ReferenceResolutionError} - A target is missing or a
+ * reference cycle exists.
+ * @throws `TypeError` - The call exceeds 1,000,000 work units.
  *
  * @public
  */
 export function resolveTokenValues(
   flat: FlatToken[]
 ): Map<string, DTCGTokenValue> {
-  return resolveTokenValuesWithBudget(flat)
+  return resolveTokenValuesWithBudget(flat, tokenReferenceBudget())
+}
+
+interface TokenValueResolver {
+  readonly values: Map<string, DTCGTokenValue>
+  resolve(path: string): DTCGTokenValue
+}
+
+function createTokenValueResolver(
+  flat: FlatToken[],
+  budget: ResolverWorkBudget
+): TokenValueResolver {
+  const byPath = new Map<string, DTCGToken>()
+  chargeResolverWork(budget, flat.length)
+  for (const { path, token } of flat) {
+    chargeResolverWork(budget, path.length + 1)
+    byPath.set(path, token)
+  }
+
+  const values = new Map<string, DTCGTokenValue>()
+
+  function resolve(startPath: string): DTCGTokenValue {
+    const chain: string[] = []
+    const active = new Set<string>()
+    let path = startPath
+    let value: DTCGTokenValue
+
+    while (true) {
+      chargeResolverWork(budget)
+      if (values.has(path)) {
+        value = values.get(path) as DTCGTokenValue
+        break
+      }
+      if (active.has(path)) {
+        const cycle = [...chain, path]
+        chargeResolverWork(
+          budget,
+          cycle.reduce((length, entry) => length + entry.length + 4, 0)
+        )
+        throw new ReferenceResolutionError(
+          `Reference cycle: ${cycle.join(' -> ')}`,
+          path
+        )
+      }
+
+      const token = byPath.get(path)
+      if (token === undefined) {
+        throw new ReferenceResolutionError(
+          `Reference target "${path}" does not exist`,
+          path
+        )
+      }
+
+      active.add(path)
+      chain.push(path)
+      value = token.$value
+      if (!isReferenceValue(value)) {
+        break
+      }
+      chargeResolverWork(budget, value.length + 1)
+      path = value.slice(1, -1)
+    }
+
+    chargeResolverWork(budget, chain.length)
+    for (let index = chain.length - 1; index >= 0; index -= 1) {
+      values.set(chain[index] as string, value)
+    }
+    return value
+  }
+
+  return { values, resolve }
 }
 
 /** @internal */
 export function resolveTokenValuesWithBudget(
   flat: FlatToken[],
-  budget?: ResolverWorkBudget
+  budget: ResolverWorkBudget = tokenReferenceBudget()
 ): Map<string, DTCGTokenValue> {
-  const byPath = new Map<string, DTCGToken>()
-  if (budget !== undefined) {
-    chargeResolverWork(budget, flat.length)
-  }
-  for (const { path, token } of flat) {
-    byPath.set(path, token)
-  }
-
-  const resolved = new Map<string, DTCGTokenValue>()
-
-  function resolvePath(path: string, seen: string[]): DTCGTokenValue {
-    if (budget !== undefined) {
-      chargeResolverWork(budget)
-    }
-    const cached = resolved.get(path)
-    if (cached !== undefined) {
-      return cached
-    }
-    if (budget !== undefined) {
-      chargeResolverWork(budget, seen.length)
-    }
-    if (seen.includes(path)) {
-      throw new ReferenceResolutionError(
-        `Reference cycle: ${[...seen, path].join(' -> ')}`,
-        path
-      )
-    }
-    const token = byPath.get(path)
-    if (!token) {
-      throw new ReferenceResolutionError(
-        `Reference target "${path}" does not exist`,
-        path
-      )
-    }
-    let value = token.$value
-    if (isReferenceValue(value)) {
-      if (budget !== undefined) {
-        chargeResolverWork(budget, value.length + seen.length + 2)
-      }
-      value = resolvePath(value.slice(1, -1), [...seen, path])
-    }
-    resolved.set(path, value)
-    return value
-  }
+  const resolver = createTokenValueResolver(flat, budget)
 
   for (const { path } of flat) {
-    resolvePath(path, [])
+    resolver.resolve(path)
   }
-  return resolved
+  return resolver.values
 }
 
 /**
  * Resolve references while collecting failures in an `errors` array.
+ *
+ * @remarks
+ * One call can spend up to 1,000,000 work units. Work includes token paths,
+ * references, reference walks, cycle messages, and resolved entries.
+ *
+ * @returns Resolved values and one error for each input token that fails.
+ * @throws `TypeError` - The call exceeds 1,000,000 work units.
  *
  * @public
  */
@@ -464,42 +579,12 @@ export function resolveTokenValuesSafe(flat: FlatToken[]): {
   values: Map<string, DTCGTokenValue>
   errors: ReferenceResolutionError[]
 } {
-  const values = new Map<string, DTCGTokenValue>()
+  const resolver = createTokenValueResolver(flat, tokenReferenceBudget())
   const errors: ReferenceResolutionError[] = []
-  const byPath = new Map<string, DTCGToken>()
-  for (const { path, token } of flat) {
-    byPath.set(path, token)
-  }
-
-  function resolvePath(path: string, seen: string[]): DTCGTokenValue {
-    const cached = values.get(path)
-    if (cached !== undefined) {
-      return cached
-    }
-    if (seen.includes(path)) {
-      throw new ReferenceResolutionError(
-        `Reference cycle: ${[...seen, path].join(' -> ')}`,
-        path
-      )
-    }
-    const token = byPath.get(path)
-    if (!token) {
-      throw new ReferenceResolutionError(
-        `Reference target "${path}" does not exist`,
-        path
-      )
-    }
-    let value = token.$value
-    if (isReferenceValue(value)) {
-      value = resolvePath(value.slice(1, -1), [...seen, path])
-    }
-    values.set(path, value)
-    return value
-  }
 
   for (const { path } of flat) {
     try {
-      resolvePath(path, [])
+      resolver.resolve(path)
     } catch (err) {
       if (err instanceof ReferenceResolutionError) {
         errors.push(err)
@@ -508,18 +593,26 @@ export function resolveTokenValuesSafe(flat: FlatToken[]): {
       }
     }
   }
-  return { values, errors }
+  return { values: resolver.values, errors }
 }
 
 /**
  * List Resolver modifier axes and contexts.
+ *
+ * One call can spend up to 1,000,000 work units reading modifier and context
+ * names, defaults, and context arrays.
+ *
+ * @throws `TypeError` - The call exceeds 1,000,000 work units.
  *
  * @public
  */
 export function listContexts(
   resolver: ResolverDocument
 ): Record<string, string[]> {
-  return listContextsWithBudget(resolver)
+  return listContextsWithBudget(resolver, {
+    remaining: 1_000_000,
+    errorMessage: 'Resolver contexts exceed the 1,000,000-unit work limit.',
+  })
 }
 
 /** @internal */
@@ -547,18 +640,106 @@ export function listContextsWithBudget(
   return result
 }
 
-function isRef(source: unknown): source is DTCGRef {
-  return (
-    typeof source === 'object' &&
-    source !== null &&
-    !Array.isArray(source) &&
-    hasOwn(source, '$ref') &&
-    typeof (source as DTCGRef).$ref === 'string'
-  )
+function readOwnRef(
+  source: unknown,
+  path: string,
+  message: string
+): string | undefined {
+  if (!isRecord(source) || !hasOwn(source, '$ref')) {
+    return undefined
+  }
+  const ref = Reflect.get(source, '$ref')
+  if (typeof ref !== 'string') {
+    throw new ReferenceResolutionError(message, path)
+  }
+  return ref
 }
 
-function refToFileName(ref: string): string {
-  return ref.replace(/^\.\//, '')
+function decodeUriText(
+  value: string,
+  path: string,
+  decode: (text: string) => string
+): string {
+  try {
+    return decode(value)
+  } catch {
+    throw new ReferenceResolutionError(
+      `Resolver reference at "${path}" contains invalid URI encoding`,
+      path
+    )
+  }
+}
+
+function decodeJsonPointerSegment(segment: string, path: string): string {
+  const decoded: string[] = []
+  for (let index = 0; index < segment.length; index += 1) {
+    const character = segment[index] as string
+    if (character !== '~') {
+      decoded.push(character)
+      continue
+    }
+    const escapeCode = segment[index + 1]
+    if (escapeCode === '0') {
+      decoded.push('~')
+    } else if (escapeCode === '1') {
+      decoded.push('/')
+    } else {
+      throw new ReferenceResolutionError(
+        `Resolver reference at "${path}" contains an invalid JSON Pointer escape`,
+        path
+      )
+    }
+    index += 1
+  }
+  return decoded.join('')
+}
+
+function readResolutionOrderTarget(
+  entry: unknown,
+  index: number,
+  budget?: ResolverWorkBudget
+): { kind: 'sets' | 'modifiers'; name: string; ref: string; path: string } {
+  const path = `#/resolutionOrder/${index}`
+  const ref = readOwnRef(
+    entry,
+    path,
+    `Resolver resolutionOrder entry at "${path}" must be a set or modifier reference`
+  )
+  if (ref === undefined) {
+    throw new ReferenceResolutionError(
+      `Resolver resolutionOrder entry at "${path}" must be a set or modifier reference`,
+      path
+    )
+  }
+
+  if (budget !== undefined) {
+    chargeResolverWork(budget, ref.length)
+  }
+
+  const pointer = ref.startsWith('#/')
+    ? decodeUriText(ref.slice(2), path, decodeURIComponent)
+    : undefined
+  const segments = pointer?.split('/') ?? []
+  if (
+    segments.length !== 2 ||
+    (segments[0] !== 'sets' && segments[0] !== 'modifiers')
+  ) {
+    throw new ReferenceResolutionError(
+      `Resolver resolutionOrder entry at "${path}" must be a set or modifier reference`,
+      path
+    )
+  }
+
+  return {
+    kind: segments[0],
+    name: decodeJsonPointerSegment(segments[1] as string, path),
+    ref,
+    path,
+  }
+}
+
+function refToFileName(ref: string, path: string): string {
+  return decodeUriText(ref.replace(/^\.\//, ''), path, decodeURI)
 }
 
 /**
@@ -576,6 +757,11 @@ function refToFileName(ref: string): string {
  * const darkTokens = applyResolver(files, resolver, { semantic: 'dark' })
  * ```
  *
+ * One call reads at most 64 token-group levels and spends at most 1,000,000
+ * work units on Resolver entries, source text, token documents, and merges.
+ *
+ * @throws `TypeError` - The call exceeds its depth or work limit.
+ *
  * @public
  */
 export function applyResolver(
@@ -583,7 +769,15 @@ export function applyResolver(
   resolver: ResolverDocument,
   input: Record<string, string> = {}
 ): DTCGDocument {
-  return applyResolverWithBudget(files, resolver, input)
+  return applyResolverWithBudget(
+    files,
+    resolver,
+    input,
+    publicResolverBudget(
+      'Resolver application exceeds the 1,000,000-unit work limit.',
+      'Resolver application can read at most 64 token-group levels.'
+    )
+  )
 }
 
 /** @internal */
@@ -609,27 +803,35 @@ export function applyResolverWithBudget(
     }
     for (let index = 0; index < sources.length; index += 1) {
       const source = sources[index]
-      if (isRef(source)) {
-        const fileName = refToFileName(source.$ref)
+      const path = `${sourcePath}/${index}`
+      const ref = readOwnRef(
+        source,
+        path,
+        `Resolver source at "${path}" must contain a string $ref`
+      )
+      if (ref !== undefined) {
+        if (budget !== undefined) {
+          chargeResolverWork(budget, ref.length)
+        }
+        const fileName = refToFileName(ref, path)
         if (!hasOwn(files, fileName)) {
           throw new ReferenceResolutionError(
-            `Resolver references missing file "${source.$ref}"`,
-            source.$ref
+            `Resolver references missing file "${ref}"`,
+            ref
           )
         }
         const file = files[fileName]
         if (!isRecord(file)) {
           throw new ReferenceResolutionError(
-            `Resolver file "${source.$ref}" must contain a token document object`,
-            source.$ref
+            `Resolver file "${ref}" must contain a token document object`,
+            ref
           )
         }
-        validateTokenDocument(file, source.$ref, budget)
+        validateTokenDocument(file, ref, budget)
         documents.push(file as DTCGDocument)
         continue
       }
       if (!isRecord(source)) {
-        const path = `${sourcePath}/${index}`
         throw new ReferenceResolutionError(
           `Resolver source at "${path}" must be a reference or token document object`,
           path
@@ -642,52 +844,61 @@ export function applyResolverWithBudget(
   }
 
   for (let index = 0; index < resolutionOrder.length; index += 1) {
-    const entry = resolutionOrder[index]
-    if (!isRef(entry)) {
-      continue
-    }
-    const ref = entry.$ref
-    const setMatch = ref.match(/^#\/sets\/(.+)$/)
-    if (setMatch) {
-      const name = setMatch[1] as string
-      if (sets && hasOwn(sets, name)) {
-        const documents = sourcesToDocuments(
-          setSources(sets[name], name, budget),
-          `#/sets/${name}/sources`
-        )
-        for (const document of documents) {
-          ordered.push(document)
-        }
-      }
-      continue
-    }
-    const modifierMatch = ref.match(/^#\/modifiers\/(.+)$/)
-    if (modifierMatch) {
-      const name = modifierMatch[1] as string
-      if (!modifiers || !hasOwn(modifiers, name)) {
-        continue
-      }
-      const modifier = validateModifier(modifiers[name], name, budget)
-      const contextNames = Object.keys(modifier.contexts)
-      const selected = hasOwn(input, name) ? input[name] : undefined
-      const chosen =
-        selected ??
-        modifier.defaultContext ??
-        (contextNames[0] as string | undefined)
-      if (typeof chosen !== 'string' || !hasOwn(modifier.contexts, chosen)) {
+    const target = readResolutionOrderTarget(
+      resolutionOrder[index],
+      index,
+      budget
+    )
+    if (target.kind === 'sets') {
+      if (!sets || !hasOwn(sets, target.name)) {
         throw new ReferenceResolutionError(
-          `Unknown context "${chosen}" for modifier "${name}" ` +
-            `(available: ${contextNames.join(', ')})`,
-          ref
+          `Resolver references missing set "${target.name}"`,
+          target.path
         )
       }
       const documents = sourcesToDocuments(
-        modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>,
-        `${ref}/contexts/${chosen}`
+        setSources(sets[target.name], target.name, budget),
+        `#/sets/${target.name}/sources`
       )
       for (const document of documents) {
         ordered.push(document)
       }
+      continue
+    }
+
+    if (!modifiers || !hasOwn(modifiers, target.name)) {
+      throw new ReferenceResolutionError(
+        `Resolver references missing modifier "${target.name}"`,
+        target.path
+      )
+    }
+    const modifier = validateModifier(
+      modifiers[target.name],
+      target.name,
+      budget
+    )
+    const contextNames = Object.keys(modifier.contexts)
+    const selected = hasOwn(input, target.name) ? input[target.name] : undefined
+    if (budget !== undefined && selected !== undefined) {
+      chargeResolverWork(budget, selected.length + 1)
+    }
+    const chosen =
+      selected ??
+      modifier.defaultContext ??
+      (contextNames[0] as string | undefined)
+    if (typeof chosen !== 'string' || !hasOwn(modifier.contexts, chosen)) {
+      throw new ReferenceResolutionError(
+        `Unknown context "${chosen}" for modifier "${target.name}" ` +
+          `(available: ${contextNames.join(', ')})`,
+        target.ref
+      )
+    }
+    const documents = sourcesToDocuments(
+      modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>,
+      `${target.ref}/contexts/${chosen}`
+    )
+    for (const document of documents) {
+      ordered.push(document)
     }
   }
 
@@ -715,6 +926,14 @@ export function listPermutations(
     remaining: 1_000_000,
     errorMessage: workLimitMessage,
   }
+  return listPermutationsWithBudget(resolver, budget)
+}
+
+/** @internal */
+export function listPermutationsWithBudget(
+  resolver: ResolverDocument,
+  budget: ResolverWorkBudget
+): Array<Record<string, string>> {
   const axes = Object.entries(listContextsWithBudget(resolver, budget))
   if (axes.length === 0) {
     return [{}]

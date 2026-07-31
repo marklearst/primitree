@@ -299,6 +299,7 @@ describe('DTCG graph adapter', () => {
 
     expect(diagnostic.code).toBe('dtcg.invalid-document')
     expect(diagnostic.message).toContain(`type "${type}"`)
+    expect(diagnostic.path?.slice(0, 2)).toEqual(['token', '$value'])
   })
 
   it('accepts a negative dimension value', () => {
@@ -412,7 +413,7 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['space', 'base', '$value'],
     })
   })
@@ -585,7 +586,7 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['color-9999', '$value'],
     })
   })
@@ -615,7 +616,7 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
     })
     expect(valueReads).toBe(0)
   })
@@ -634,7 +635,23 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
+    })
+  })
+
+  it('counts each character in a long token reference toward the work limit', () => {
+    const reference = `{${'a'.repeat(100_001)}}`
+    const diagnostic = requireFailure(
+      createDTCGGraphFragment(
+        { alias: { $value: reference } },
+        { source: 'brand' }
+      )
+    )
+
+    expect(diagnostic).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
     })
   })
 
@@ -659,7 +676,7 @@ describe('DTCG graph adapter', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
     })
     expect(indexReads).toBe(0)
   })

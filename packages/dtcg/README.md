@@ -80,9 +80,9 @@ Limits for each call:
 - 64 path segments for a group or token
 - 256 characters for a dot-joined group or token path
 - 64 nested levels inside a token value
-- one shared 100,000-item work budget that counts document entries,
-  brace-reference segments, each literal value scan, token-value object keys,
-  and token-value array entries
+- one shared 100,000-unit work limit that counts document entries, characters
+  in brace references, each literal value scan, token-value object keys, and
+  token-value array entries
 
 ## Convert an export
 
@@ -122,8 +122,13 @@ const flat = flattenTokens(dark)
 const values = resolveTokenValues(flat)
 ```
 
+`applyResolver` and `flattenTokens` read up to 64 token-group levels and spend
+up to 1,000,000 work units per call.
 `resolveTokenValues` throws on a missing target or reference cycle.
-`resolveTokenValuesSafe` returns resolved values and collected errors.
+`resolveTokenValuesSafe` returns resolved values and one error for each input
+token that fails. `resolveTokenValues` and `resolveTokenValuesSafe` each have a
+1,000,000-unit work limit for token paths, references, reference walks, cycle
+messages, and resolved entries.
 
 ## Build in-memory pipeline files
 
@@ -152,22 +157,23 @@ files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
 requires a Resolver basename and rejects names that collide after lowercasing
 and Unicode normalization. Its JSON sorter accepts up to 1,000 token files, 64
 levels, 100,000 items, and 20 MiB of names and text values.
-The output keeps Resolver modifier order because it sets the order of CSS rules
-with equal specificity. It also keeps context order because the first context
-is the fallback when `default` is absent.
+The output keeps Resolver context order because the first context is the
+fallback when `default` is absent.
 
 The result summary stops at 64 token-group levels and 1,000,000 work units.
 Resolver reads and token merges spend those units. A Resolver can return at
 most 1,000 context permutations. Reading contexts and copying selections has a
 separate 1,000,000-unit work limit.
 
-CSS output reads up to 64 token-group levels and returns up to 20 MiB. Its
-1,000,000-unit work limit counts Resolver reads, token merges, value comparisons,
-declarations, token paths, and token text. CSS strings and selectors escape text
-that would break the file. CSS names keep token case and non-ASCII code points. ASCII
-punctuation uses lowercase hex markers, such as `_3f_` for `?`. Tailwind and
-TypeScript references use the same CSS names. Tailwind reads at most 64
-token-group levels and 100,000 items, and returns up to 20 MiB. Its
+CSS output reads up to 64 token-group levels and returns up to 20 MiB. It writes
+a compound selector when two or more Resolver axes use non-default contexts.
+Its 1,000,000-unit work limit counts Resolver reads, token merges, value
+comparisons, declarations, token paths, and token text. CSS strings and
+selectors escape text that would break the file. CSS names keep
+token case and non-ASCII code points. ASCII punctuation uses lowercase hex
+markers, such as `_3f_` for `?`. Tailwind and TypeScript references use the same
+CSS names. Tailwind reads at most 64 token-group levels and 100,000 items, and
+returns up to 20 MiB. Its
 1,000,000-unit work limit counts Resolver reads, token merges, token walking,
 alias type resolution, token paths, name allocation, and output text.
 

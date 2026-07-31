@@ -2,17 +2,20 @@ import type {
   DTCGColorComponent,
   DTCGColorValue,
   DTCGDocument,
+  DTCGGroup,
   DTCGToken,
   DTCGTokenValue,
   ResolverDocument,
 } from '../types'
-import { isReferenceValue } from '../types'
+import { isReferenceValue, isToken } from '../types'
+import { hasOwn } from '../dictionary'
 import { DTCGOutputCapabilityError } from './output-error'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
-  flattenTokens,
+  flattenTokensWithBudget,
   listContextsWithBudget,
+  listPermutationsWithBudget,
   type FlatToken,
   type ResolverWorkBudget,
 } from '../resolve'
@@ -85,17 +88,19 @@ function cssTextValue(value: string): string {
     : quoteCssString(value)
 }
 
-function escapeCssIdentifierFragment(value: string): string {
+function resolverAxisDataAttribute(value: string): string {
   let result = ''
   for (const character of value) {
-    if (/^[a-zA-Z0-9_-]$/u.test(character)) {
+    const code = character.codePointAt(0) ?? 0xfffd
+    const isLowercaseAsciiLetter = code >= 0x61 && code <= 0x7a
+    const isAsciiDigit = code >= 0x30 && code <= 0x39
+    if (isLowercaseAsciiLetter || isAsciiDigit) {
       result += character
       continue
     }
-    const code = character.codePointAt(0) ?? 0xfffd
-    result += `\\${(code === 0 ? 0xfffd : code).toString(16)} `
+    result += `_${code.toString(16)}_`
   }
-  return result
+  return `data-${result.length === 0 ? '_empty_' : result}`
 }
 
 function chargeCssText(value: string, budget: ResolverWorkBudget): void {
@@ -319,22 +324,92 @@ const CSS_DEPTH_LIMIT_MESSAGE =
   'CSS output can read at most 64 token-group levels.'
 const CSS_OUTPUT_LIMIT_MESSAGE = 'CSS output can contain at most 20 MiB.'
 
+interface CssPathShapeClaims {
+  readonly groups: Set<string>
+  readonly tokens: Map<string, DTCGToken>
+}
+
+function claimCssPathShapes(
+  document: DTCGDocument,
+  claims: CssPathShapeClaims,
+  budget: ResolverWorkBudget
+): void {
+  function walk(group: DTCGGroup, prefix: string[]): void {
+    const entries = Object.entries(group)
+    chargeResolverWork(budget, entries.length)
+    for (const [key, value] of entries) {
+      if (key.startsWith('$') && key !== '$root') {
+        continue
+      }
+      const segments = [...prefix, key]
+      const path = segments.join('.')
+      if (isToken(value)) {
+        if (claims.groups.has(path)) {
+          throw new DTCGOutputCapabilityError(
+            'css',
+            path,
+            value.$type ?? 'token',
+            'token-state'
+          )
+        }
+        claims.tokens.set(path, value)
+        continue
+      }
+
+      const previousToken = claims.tokens.get(path)
+      if (previousToken !== undefined) {
+        throw new DTCGOutputCapabilityError(
+          'css',
+          path,
+          previousToken.$type ?? 'token',
+          'token-state'
+        )
+      }
+      claims.groups.add(path)
+      walk(value as DTCGGroup, segments)
+    }
+  }
+
+  walk(document, [])
+}
+
 function readCssTokens(
   files: Record<string, DTCGDocument>,
   resolver: ResolverDocument,
   contexts: Record<string, string>,
   budget: ResolverWorkBudget,
-  claimed: Map<string, string>
+  claimed: Map<string, string>,
+  pathShapes: CssPathShapeClaims
 ): FlatToken[] {
-  const flat = flattenTokens(
-    applyResolverWithBudget(files, resolver, contexts, budget)
-  )
+  const document = applyResolverWithBudget(files, resolver, contexts, budget)
+  const flat = flattenTokensWithBudget(document, budget)
   chargeResolverWork(budget, flat.length)
   for (const { path } of flat) {
     chargeCssText(path, budget)
   }
   assertUniqueCssVarNames(flat, claimed)
+  claimCssPathShapes(document, pathShapes, budget)
   return flat
+}
+
+function assertDefaultTokensRemain(
+  defaults: ReadonlyMap<string, DTCGToken>,
+  selected: readonly FlatToken[],
+  budget: ResolverWorkBudget
+): void {
+  chargeResolverWork(budget, selected.length)
+  const selectedPaths = new Set(selected.map(({ path }) => path))
+  chargeResolverWork(budget, defaults.size)
+  for (const [path, token] of defaults) {
+    if (!selectedPaths.has(path)) {
+      throw new DTCGOutputCapabilityError(
+        'css',
+        path,
+        token.$type ?? 'token',
+        'token-state'
+      )
+    }
+  }
 }
 
 interface CssComparisonCache {
@@ -435,8 +510,9 @@ export interface EmitCssOptions {
  * Emit CSS custom properties from token files and a Resolver.
  *
  * @remarks
- * `:root` contains the default values. A `[data-<axis>='<context>']` block
- * contains values that change for a non-default context. The emitter escapes
+ * `:root` contains the default values. A single non-default axis writes the
+ * token values that differ from `:root`. Two or more non-default axes write
+ * the full selected token set under a compound selector. The emitter escapes
  * string values, modifier axes, and context names before writing CSS.
  * Color values keep their DTCG color space, components, and alpha.
  *
@@ -453,7 +529,7 @@ export interface EmitCssOptions {
  * @throws `TypeError` - A call exceeds 1,000,000 work units, 64 token-group
  * levels, or 20 MiB of CSS.
  * @throws {@link DTCGOutputCapabilityError} - The CSS writer cannot format a
- * token value.
+ * token value or keep a token path across Resolver states.
  * @throws `Error` - Two token paths map to the same CSS custom property name.
  *
  * @public
@@ -479,59 +555,88 @@ export function emitCss(
     depthErrorMessage: CSS_DEPTH_LIMIT_MESSAGE,
   }
   const claimed = new Map<string, string>()
+  const pathShapes: CssPathShapeClaims = {
+    groups: new Set(),
+    tokens: new Map(),
+  }
   const comparisonCache: CssComparisonCache = {
     values: new WeakMap(),
     pairs: new WeakMap(),
   }
 
-  const defaultFlat = readCssTokens(files, resolver, {}, budget, claimed)
+  const defaultFlat = readCssTokens(
+    files,
+    resolver,
+    {},
+    budget,
+    claimed,
+    pathShapes
+  )
   chargeResolverWork(budget, defaultFlat.length)
   const defaultByPath = new Map(defaultFlat.map(f => [f.path, f.token]))
 
-  appendCssLines(
-    lines,
-    output,
-    ':root {',
-    ...declarations(defaultFlat, '  ', budget),
-    '}'
-  )
+  appendCssLines(lines, output, ':root {')
+  for (const declaration of declarations(defaultFlat, '  ', budget)) {
+    appendCssLines(lines, output, declaration)
+  }
+  appendCssLines(lines, output, '}')
 
-  const axes = listContextsWithBudget(resolver, budget)
-  for (const [axis, contexts] of Object.entries(axes)) {
-    const defaultContext = resolver.modifiers?.[axis]?.default ?? contexts[0]
-    for (const context of contexts) {
-      if (context === defaultContext) {
-        continue
-      }
-      const contextFlat = readCssTokens(
-        files,
-        resolver,
-        { [axis]: context },
-        budget,
-        claimed
+  const axes = Object.entries(listContextsWithBudget(resolver, budget))
+  const defaultContexts = new Map<string, string | undefined>()
+  for (const [axis, contexts] of axes) {
+    const modifier =
+      resolver.modifiers && hasOwn(resolver.modifiers, axis)
+        ? resolver.modifiers[axis]
+        : undefined
+    defaultContexts.set(
+      axis,
+      modifier && hasOwn(modifier, 'default') ? modifier.default : contexts[0]
+    )
+  }
+
+  for (const selection of listPermutationsWithBudget(resolver, budget)) {
+    const selectedContexts = Object.entries(selection).filter(
+      ([axis, context]) => context !== defaultContexts.get(axis)
+    )
+    const selector = selectedContexts
+      .map(
+        ([axis, context]) =>
+          `[${resolverAxisDataAttribute(axis)}=${quoteCssString(context)}]`
       )
-      chargeResolverWork(budget, contextFlat.length)
-      const changed = contextFlat.filter(
-        f =>
-          !tokensEqual(
-            defaultByPath.get(f.path),
-            f.token,
-            budget,
-            comparisonCache
-          )
-      )
-      if (changed.length === 0) {
-        continue
-      }
-      appendCssLines(
-        lines,
-        output,
-        '',
-        `[data-${escapeCssIdentifierFragment(axis)}=${quoteCssString(context)}] {`,
-        ...declarations(changed, '  ', budget),
-        '}'
-      )
+      .join('')
+    if (selector.length === 0) {
+      continue
     }
+
+    const contextFlat = readCssTokens(
+      files,
+      resolver,
+      selection,
+      budget,
+      claimed,
+      pathShapes
+    )
+    assertDefaultTokensRemain(defaultByPath, contextFlat, budget)
+    chargeResolverWork(budget, contextFlat.length)
+    const changed = contextFlat.filter(
+      f =>
+        !tokensEqual(
+          defaultByPath.get(f.path),
+          f.token,
+          budget,
+          comparisonCache
+        )
+    )
+    const emitted = selectedContexts.length > 1 ? contextFlat : changed
+    if (emitted.length === 0) {
+      continue
+    }
+
+    appendCssLines(lines, output, '', `${selector} {`)
+    for (const declaration of declarations(emitted, '  ', budget)) {
+      appendCssLines(lines, output, declaration)
+    }
+    appendCssLines(lines, output, '}')
   }
 
   appendCssLines(lines, output, '')

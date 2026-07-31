@@ -188,9 +188,12 @@ function tokenAt(group: DTCGGroup, path: string): DTCGToken {
 
 function expectNullPrototypeGroups(group: DTCGGroup): void {
   expect(Object.getPrototypeOf(group)).toBeNull()
-  for (const value of Object.values(group)) {
+  for (const [key, value] of Object.entries(group)) {
+    if (key.startsWith('$') && key !== '$root') {
+      continue
+    }
     if (!isToken(value)) {
-      expectNullPrototypeGroups(value)
+      expectNullPrototypeGroups(value as DTCGGroup)
     }
   }
 }

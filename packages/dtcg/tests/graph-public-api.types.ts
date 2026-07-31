@@ -10,9 +10,21 @@ import {
   type DTCGFontFamilyValue,
   type DTCGFontWeightValue,
   type DTCGGraphFragmentOptions,
+  type DTCGDocument,
   type DTCGTokenType,
   type DTCGTokenValue,
 } from '../src/index'
+
+const documentWithMetadata: DTCGDocument = {
+  scale: {
+    $type: 'number',
+    $description: 'Scale values',
+    $deprecated: false,
+    $extensions: { vendor: {} },
+    base: { $value: 4, $deprecated: 'Use medium' },
+  },
+}
+void createDTCGGraphFragment(documentWithMetadata, { source: 'metadata' })
 
 const options: DTCGGraphFragmentOptions = {
   source: 'brand',

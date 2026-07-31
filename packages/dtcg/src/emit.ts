@@ -263,14 +263,20 @@ function insertToken(
     }
 
     const existing = node[segment]
-    if (existing === undefined || isToken(existing)) {
+    if (
+      existing === undefined ||
+      isToken(existing) ||
+      typeof existing !== 'object' ||
+      existing === null ||
+      Array.isArray(existing)
+    ) {
       throw new Error(
         `Internal token path collision at "${segments
           .slice(0, i + 1)
           .join('.')}": token blocks a group after path allocation`
       )
     }
-    node = existing
+    node = existing as DTCGGroup
   }
   const leaf = segments[segments.length - 1] as string
   if (hasOwn(node, leaf)) {

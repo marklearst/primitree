@@ -319,7 +319,7 @@ describe('DTCG graph color values', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['palette', 'sample', '$value'],
     })
   })
@@ -340,7 +340,7 @@ describe('DTCG graph color values', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['palette', 'sample', '$value'],
     })
   })
@@ -354,7 +354,7 @@ describe('DTCG graph color values', () => {
     expect(diagnostic).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['palette', 'sample', '$value'],
     })
   })

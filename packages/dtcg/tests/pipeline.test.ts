@@ -15,7 +15,7 @@ import type {
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
-import { buildPipeline } from '../src/pipeline/build'
+import { buildPipeline, DTCGOutputCapabilityError } from '../src/pipeline/build'
 
 const cliPackageManifest = JSON.parse(
   readFileSync(join(__dirname, '../../cli/package.json'), 'utf8')
@@ -198,8 +198,8 @@ describe('emitCss', () => {
     expect(css).toContain('--primitives-feature-rounded: true;')
   })
 
-  it('escapes Resolver axes and contexts in CSS selectors', () => {
-    const axis = 'semantic theme'
+  it('writes Resolver axes as lowercase HTML-safe data attributes', () => {
+    const axis = 'Semantic theme!'
     const hostileContext = "dark'] {\nbody { color: red; }\n/*"
     const output = emitCss(
       {},
@@ -234,9 +234,330 @@ describe('emitCss', () => {
       }
     )
 
-    expect(output).toContain('data-semantic\\20 theme=')
+    expect(output).toContain('data-_53_emantic_20_theme_21_=')
     expect(output).not.toContain('\nbody { color: red; }')
     expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('keeps ASCII-case Resolver axes as distinct data attributes', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: {
+          Mode: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          mode: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 2 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/modifiers/Mode' },
+          { $ref: '#/modifiers/mode' },
+        ],
+      }
+    )
+
+    expect(output).toContain("[data-_4d_ode='on']")
+    expect(output).toContain("[data-mode='on']")
+    expect(output).not.toContain('[data-Mode=')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('rejects a token path that becomes a group', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ branch: { $type: 'number', $value: 1 } }],
+            },
+          },
+          modifiers: {
+            shape: {
+              default: 'token',
+              contexts: {
+                token: [],
+                group: [
+                  {
+                    branch: {
+                      leaf: { $type: 'number', $value: 2 },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/shape' },
+          ],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'branch' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a group path that becomes a token', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [
+                {
+                  branch: {
+                    leaf: { $type: 'number', $value: 1 },
+                  },
+                },
+              ],
+            },
+          },
+          modifiers: {
+            shape: {
+              default: 'group',
+              contexts: {
+                group: [],
+                token: [{ branch: { $type: 'number', $value: 2 } }],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/shape' },
+          ],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'branch' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a selected context that drops a default token', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {
+          'light.tokens.json': {
+            light: { $type: 'number', $value: 1 },
+          },
+          'dark.tokens.json': {
+            dark: { $type: 'number', $value: 2 },
+          },
+        },
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [{ $ref: 'light.tokens.json' }],
+                dark: [{ $ref: 'dark.tokens.json' }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'light' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "light" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('uses Resolver merge precedence in single and combined selectors', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          second: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 2 } }],
+            },
+          },
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    const rules = parseCss(output).nodes.filter(node => node.type === 'rule')
+    const first = rules.find(rule => rule.selector === "[data-first='on']")
+    const second = rules.find(rule => rule.selector === "[data-second='on']")
+    const combined = rules.find(
+      rule =>
+        rule.selector.includes("[data-first='on']") &&
+        rule.selector.includes("[data-second='on']")
+    )
+
+    expect(first?.toString()).toContain('--value: 1')
+    expect(second?.toString()).toContain('--value: 2')
+    expect(combined?.toString()).toContain('--value: 2')
+  })
+
+  it('emits combined modifier values for non-orthogonal contexts', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          second: {
+            default: 'off',
+            contexts: {
+              off: [{ value: { $type: 'number', $value: 2 } }],
+              on: [],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    expect(output).toContain(
+      "[data-first='on'][data-second='on'] {\n  --value: 1;\n}"
+    )
+  })
+
+  it('resets a combined modifier value to the root value', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          second: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 0 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    expect(output).toContain("[data-first='on'] {\n  --value: 1;\n}")
+    expect(output).toContain(
+      "[data-first='on'][data-second='on'] {\n  --value: 0;\n}"
+    )
+  })
+
+  it('ignores an inherited default context when writing CSS', () => {
+    const theme = Object.assign(Object.create({ default: 'dark' }), {
+      contexts: {
+        light: [{ value: { $type: 'number' as const, $value: 1 } }],
+        dark: [{ value: { $type: 'number' as const, $value: 2 } }],
+      },
+    })
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: { theme },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      }
+    )
+
+    expect(output).toContain(':root {\n  --value: 1;\n}')
+    expect(output).toContain("[data-theme='dark'] {\n  --value: 2;\n}")
   })
 
   it('keeps punctuation paths distinct across Resolver contexts', () => {
@@ -245,11 +566,13 @@ describe('emitCss', () => {
         'light.tokens.json': {
           theme: {
             'foo bar': { $type: 'number', $value: 1 },
+            'foo@bar': { $type: 'number', $value: 2 },
           },
         },
         'dark.tokens.json': {
           theme: {
-            'foo@bar': { $type: 'number', $value: 2 },
+            'foo bar': { $type: 'number', $value: 3 },
+            'foo@bar': { $type: 'number', $value: 4 },
           },
         },
       },
@@ -270,6 +593,8 @@ describe('emitCss', () => {
 
     expect(output).toContain('--theme-foo_20_bar: 1;')
     expect(output).toContain('--theme-foo_40_bar: 2;')
+    expect(output).toContain('--theme-foo_20_bar: 3;')
+    expect(output).toContain('--theme-foo_40_bar: 4;')
     expect(() => parseCss(output)).not.toThrow()
   })
 
@@ -287,7 +612,7 @@ describe('emitCss', () => {
       ])
     )
     const contexts = Object.fromEntries(
-      Array.from({ length: 1_001 }, (_, index) => [`mode-${index}`, []])
+      Array.from({ length: 1_000 }, (_, index) => [`mode-${index}`, []])
     )
 
     expect(() =>
@@ -309,6 +634,42 @@ describe('emitCss', () => {
           { $ref: '#/modifiers/mode' },
         ],
       })
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('bounds Resolver file reference text before copying it', () => {
+    const reference = `${'x'.repeat(1_000_001)}.tokens.json`
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ $ref: reference }] } },
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('bounds Resolver context names before writing selectors', () => {
+    const context = 'x'.repeat(1_000_001)
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              contexts: {
+                [context]: [],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
     ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
   })
 

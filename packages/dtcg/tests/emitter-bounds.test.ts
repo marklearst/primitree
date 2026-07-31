@@ -39,7 +39,7 @@ function repeatedSourceFixture(sourceCount: number): {
 }
 
 describe('emitTypescript work bounds', () => {
-  it('resolves 200,000 empty sources within the work budget', () => {
+  it('bounds text work across repeated empty source references', () => {
     const reference = { $ref: 'empty.tokens.json' } as const
     const resolver = {
       version: '2025.10',
@@ -51,16 +51,9 @@ describe('emitTypescript work bounds', () => {
       resolutionOrder: [{ $ref: '#/sets/repeated' }],
     } satisfies ResolverDocument
 
-    let output: string | undefined
-    let failure: unknown
-    try {
-      output = emitTypescript({ 'empty.tokens.json': {} }, resolver)
-    } catch (error) {
-      failure = error
-    }
-
-    expect(failure).toBeUndefined()
-    expect(output).toContain('export type TokenPath = never')
+    expect(() => emitTypescript({ 'empty.tokens.json': {} }, resolver)).toThrow(
+      TYPESCRIPT_WORK_LIMIT_MESSAGE
+    )
   })
 
   it('rejects more than 64 token-group levels', () => {
@@ -91,8 +84,8 @@ describe('emitTypescript work bounds', () => {
     )
   })
 
-  it('counts flattening and reference resolution in the Resolver budget', () => {
-    const { files, resolver } = repeatedSourceFixture(3_259)
+  it('counts reference text in the Resolver budget', () => {
+    const { files, resolver } = repeatedSourceFixture(2_500)
     const resolverOnlyBudget: ResolverWorkBudget = {
       remaining: 1_000_000,
       errorMessage: TYPESCRIPT_WORK_LIMIT_MESSAGE,
@@ -102,9 +95,7 @@ describe('emitTypescript work bounds', () => {
       applyResolverWithBudget(files, resolver, {}, resolverOnlyBudget)
     ).not.toThrow()
     expect(resolverOnlyBudget.remaining).toBeGreaterThan(0)
-    expect(() => emitTypescript(files, resolver)).toThrow(
-      TYPESCRIPT_WORK_LIMIT_MESSAGE
-    )
+    expect(() => emitTypescript(files, resolver)).not.toThrow()
   })
 
   it('counts serialized token text in the TypeScript work budget', () => {

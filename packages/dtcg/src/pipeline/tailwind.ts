@@ -89,7 +89,7 @@ function flattenTypedTokens(
           declaredType: value.$type ?? type,
         })
       } else {
-        walk(value, path, type, depth + 1)
+        walk(value as DTCGGroup, path, type, depth + 1)
       }
     }
   }

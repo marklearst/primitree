@@ -337,7 +337,7 @@ describe('DTCG font family values', () => {
     ).toEqual({
       phase: 'source',
       code: 'dtcg.invalid-document',
-      message: 'The DTCG adapter reached its 100,000-item work limit.',
+      message: 'The DTCG adapter reached its 100,000-unit work limit.',
       path: ['token', '$value'],
     })
     expect(reads).toBe(0)

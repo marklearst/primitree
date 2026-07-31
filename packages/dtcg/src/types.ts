@@ -185,12 +185,24 @@ export interface DTCGToken {
   $type?: DTCGTokenType
   $value: DTCGTokenValue
   $description?: string
+  $deprecated?: boolean | string
   $extensions?: Record<string, unknown>
 }
 
 /** A DTCG group: nested groups and tokens. @public */
 export interface DTCGGroup {
-  [name: string]: DTCGToken | DTCGGroup
+  [name: string]:
+    | DTCGToken
+    | DTCGGroup
+    | string
+    | boolean
+    | Record<string, unknown>
+    | undefined
+  $type?: DTCGTokenType
+  $description?: string
+  $deprecated?: boolean | string
+  $extensions?: Record<string, unknown>
+  $root?: DTCGToken
 }
 
 /** A DTCG token document (the root group of a `*.tokens.json` file). @public */
