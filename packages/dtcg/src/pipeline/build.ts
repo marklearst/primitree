@@ -166,7 +166,7 @@ function sortJsonValue(
   budget: JsonSortBudget,
   depth: number,
   path: readonly string[],
-  preserveResolverContextOrder: boolean
+  preserveResolverOrder: boolean
 ): unknown {
   if (depth > MAX_OUTPUT_JSON_DEPTH) {
     throw new TypeError('DTCG output data can contain at most 64 levels.')
@@ -193,7 +193,7 @@ function sortJsonValue(
           budget,
           depth + 1,
           [...path, String(index)],
-          preserveResolverContextOrder
+          preserveResolverOrder
         )
       )
     }
@@ -203,12 +203,15 @@ function sortJsonValue(
     for (const key of keys) {
       chargeJsonBudget(budget, 0, key)
     }
+    const isResolverModifierMap =
+      preserveResolverOrder && path.length === 1 && path[0] === 'modifiers'
     const isResolverContextMap =
-      preserveResolverContextOrder &&
+      preserveResolverOrder &&
       path.length === 3 &&
       path[0] === 'modifiers' &&
       path[2] === 'contexts'
-    const orderedKeys = isResolverContextMap ? keys : keys.sort()
+    const orderedKeys =
+      isResolverModifierMap || isResolverContextMap ? keys : keys.sort()
     for (const key of orderedKeys) {
       Object.defineProperty(sorted, key, {
         value: sortJsonValue(
@@ -217,7 +220,7 @@ function sortJsonValue(
           budget,
           depth + 1,
           [...path, key],
-          preserveResolverContextOrder
+          preserveResolverOrder
         ),
         enumerable: true,
         configurable: true,
@@ -233,17 +236,10 @@ function sortJsonValue(
 function serializeSorted(
   value: unknown,
   budget: JsonSortBudget,
-  preserveResolverContextOrder = false
+  preserveResolverOrder = false
 ): string {
   const text = `${JSON.stringify(
-    sortJsonValue(
-      value,
-      new WeakSet(),
-      budget,
-      0,
-      [],
-      preserveResolverContextOrder
-    ),
+    sortJsonValue(value, new WeakSet(), budget, 0, [], preserveResolverOrder),
     null,
     2
   )}\n`
@@ -736,7 +732,9 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  *
  * The function accepts at most 1,000 token files. JSON sorting stops after 64
  * levels, 100,000 items, or 20 MiB of names and string values. These limits
- * apply before the function creates CSS or TypeScript text.
+ * apply before the function creates CSS or TypeScript text. The generated
+ * Resolver keeps modifier and context order. This preserves CSS rule order and
+ * each modifier’s fallback context when tools load the file again.
  *
  * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
  * limit counts Resolver reads and token merges.

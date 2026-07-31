@@ -152,6 +152,9 @@ files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
 requires a Resolver basename and rejects names that collide after lowercasing
 and Unicode normalization. Its JSON sorter accepts up to 1,000 token files, 64
 levels, 100,000 items, and 20 MiB of names and text values.
+The output keeps Resolver modifier order because it sets the order of CSS rules
+with equal specificity. It also keeps context order because the first context
+is the fallback when `default` is absent.
 
 The result summary stops at 64 token-group levels and 1,000,000 work units.
 Resolver reads and token merges spend those units. A Resolver can return at
