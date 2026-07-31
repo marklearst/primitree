@@ -5,7 +5,6 @@ import { spawnSync } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseArgs } from '../src/args'
 import { runCheck } from '../src/commands/check'
-import * as io from '../src/io'
 
 let directory: string
 
@@ -201,9 +200,13 @@ describe('primitree check with a project config', () => {
   it('keeps source file read errors', async () => {
     const configPath = await writeProject('{size.base}')
     const tokenPath = path.join(directory, 'tokens.json')
-    vi.spyOn(io, 'readJsonFile').mockRejectedValue(
-      new Error(`Could not read file: ${tokenPath}`)
-    )
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target) === tokenPath) {
+        throw new Error('Injected source read failure.')
+      }
+      return open(target, flags, mode)
+    })
 
     await expect(runCheck(parseArgs(['--config', configPath]))).rejects.toThrow(
       `Could not read file: ${tokenPath}`

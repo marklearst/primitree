@@ -10,6 +10,10 @@ import {
   MAX_BUILD_FILE_BYTES,
   parseBuildManifest,
 } from './output-manifest'
+import {
+  isUnsafePortablePathSegment,
+  portablePathComparisonKey,
+} from './portable-path'
 
 export interface BuildOutputDrift {
   readonly path: string
@@ -24,17 +28,6 @@ const MAX_OUTPUT_ENTRIES = 100_000
 const MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 const READ_BUFFER_BYTES = 64 * 1024
 const DIRECTORY_PERMISSION_BITS = 0o777
-const WINDOWS_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu
-
-function hasControlText(value: string): boolean {
-  for (const character of value) {
-    const code = character.charCodeAt(0)
-    if (code <= 31 || code === 127) {
-      return true
-    }
-  }
-  return false
-}
 
 function isMissing(error: unknown): boolean {
   return (
@@ -85,21 +78,17 @@ function validateBuildFiles(files: readonly PipelineFile[]): void {
       path.posix.isAbsolute(file.path) ||
       path.win32.isAbsolute(file.path) ||
       file.path.includes('\\') ||
-      hasControlText(file.path) ||
       segments.some(
         segment =>
           segment.length === 0 ||
           segment === '.' ||
           segment === '..' ||
-          segment.includes(':') ||
-          segment.endsWith('.') ||
-          segment.endsWith(' ') ||
-          WINDOWS_DEVICE_NAME.test(segment)
+          isUnsafePortablePathSegment(segment)
       )
     ) {
       throw new Error(`Unsafe build output path: ${JSON.stringify(file.path)}.`)
     }
-    const key = file.path.normalize('NFC').toLowerCase()
+    const key = portablePathComparisonKey(file.path)
     const prior = pathsByKey.get(key)
     if (prior !== undefined) {
       throw new Error(
@@ -155,12 +144,17 @@ function validateBuildCandidate(files: readonly PipelineFile[]) {
   return manifest
 }
 
-async function listOutputPaths(directory: string): Promise<{
+async function listOutputPaths(
+  directory: string,
+  symbolicLinks: 'reject' | 'list' = 'reject'
+): Promise<{
   readonly files: readonly string[]
   readonly directories: readonly string[]
+  readonly symbolicLinks: readonly string[]
 }> {
   const files: string[] = []
   const directories: string[] = []
+  const foundSymbolicLinks: string[] = []
   const pending = [{ absolute: directory, relative: '' }]
   let count = 0
 
@@ -178,9 +172,13 @@ async function listOutputPaths(directory: string): Promise<{
       const relative = path.posix.join(current.relative, entry.name)
       const absolute = path.join(current.absolute, entry.name)
       if (entry.isSymbolicLink()) {
-        throw new Error(
-          `Build output cannot contain a symbolic link: ${relative}`
-        )
+        if (symbolicLinks === 'reject') {
+          throw new Error(
+            `Build output cannot contain a symbolic link: ${relative}`
+          )
+        }
+        foundSymbolicLinks.push(relative)
+        continue
       }
       if (entry.isDirectory()) {
         directories.push(`${relative}/`)
@@ -198,6 +196,7 @@ async function listOutputPaths(directory: string): Promise<{
   return {
     files: files.sort(),
     directories: directories.sort(),
+    symbolicLinks: foundSymbolicLinks.sort(),
   }
 }
 
@@ -533,9 +532,20 @@ export async function inspectBuildOutput(
   const expectedDirectoriesForFiles = expectedDirectories(
     files.map(file => file.path)
   )
+  const actual = await listOutputPaths(directory, 'list')
+  const actualFiles = new Set(actual.files)
+  const actualSymbolicLinks = new Set(actual.symbolicLinks)
   for (const file of [...files].sort((left, right) =>
     left.path.localeCompare(right.path)
   )) {
+    if (actualSymbolicLinks.has(file.path)) {
+      drift.push({ path: file.path, kind: 'changed' })
+      continue
+    }
+    if (!actualFiles.has(file.path)) {
+      drift.push({ path: file.path, kind: 'missing' })
+      continue
+    }
     const filePath = path.join(directory, ...file.path.split('/'))
     const fileStats = await fs.lstat(filePath).catch(error => {
       if (isMissingExpectedFile(error)) {
@@ -547,14 +557,9 @@ export async function inspectBuildOutput(
       drift.push({ path: file.path, kind: 'missing' })
       continue
     }
-    if (fileStats.isDirectory()) {
-      drift.push({ path: file.path, kind: 'missing' })
-      continue
-    }
     if (!fileStats.isFile() || fileStats.isSymbolicLink()) {
-      throw new Error(
-        `Build output path must point to a file, not a symbolic link: ${file.path}`
-      )
+      drift.push({ path: file.path, kind: 'changed' })
+      continue
     }
     if (
       fileStats.size !== Buffer.byteLength(file.contents, 'utf8') ||
@@ -567,7 +572,6 @@ export async function inspectBuildOutput(
       drift.push({ path: file.path, kind: 'changed' })
     }
   }
-  const actual = await listOutputPaths(directory)
   for (const file of actual.files) {
     if (!expectedFiles.has(file)) {
       drift.push({ path: file, kind: 'unexpected' })
@@ -576,6 +580,11 @@ export async function inspectBuildOutput(
   for (const childDirectory of actual.directories) {
     if (!expectedDirectoriesForFiles.has(childDirectory)) {
       drift.push({ path: childDirectory, kind: 'unexpected' })
+    }
+  }
+  for (const symbolicLink of actual.symbolicLinks) {
+    if (!expectedFiles.has(symbolicLink)) {
+      drift.push({ path: symbolicLink, kind: 'unexpected' })
     }
   }
   drift.sort(
