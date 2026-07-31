@@ -1,22 +1,83 @@
 import {
   applyResolver,
+  createDTCGGraphFragment,
   cssValue,
   cssVarName,
   flattenTokens,
   listContexts,
+  type ReferenceResolutionError,
   resolveTokenValuesSafe,
   PRIMITREE_EXTENSION_KEY,
   type DTCGToken,
   type DTCGTokenValue,
 } from '@primitree/dtcg'
-import { diffVariables, formatDiffMarkdown } from '@primitree/core'
+import {
+  diffVariables,
+  formatDiffMarkdown,
+  type GraphDiagnostic,
+} from '@primitree/core'
 import type { TokenSource } from './source'
+
+class TokenSourceCheckError extends Error {
+  public readonly diagnostics: readonly GraphDiagnostic[]
+
+  public constructor(diagnostics: readonly GraphDiagnostic[]) {
+    super(
+      [
+        'Token source check failed.',
+        ...diagnostics.map(diagnostic => {
+          const location =
+            diagnostic.path === undefined
+              ? ''
+              : ` at "${diagnostic.path.join('.')}"`
+          return `[${diagnostic.code}]${location}: ${diagnostic.message}`
+        }),
+      ].join('\n')
+    )
+    this.name = 'TokenSourceCheckError'
+    this.diagnostics = diagnostics
+  }
+}
+
+class TokenSourceResolutionError extends Error {
+  public readonly errors: readonly ReferenceResolutionError[]
+
+  public constructor(
+    errors: readonly ReferenceResolutionError[],
+    tokenPaths: readonly string[]
+  ) {
+    super(
+      [
+        'Token source resolution failed.',
+        ...errors.map(
+          (error, index) =>
+            `At token "${tokenPaths[index] ?? error.path}": ${error.message}`
+        ),
+      ].join('\n')
+    )
+    this.name = 'TokenSourceResolutionError'
+    this.errors = errors
+  }
+}
 
 function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {
   const document = applyResolver(source.files, source.resolver, contexts ?? {})
   const flat = flattenTokens(document)
-  const { values } = resolveTokenValuesSafe(flat)
-  return { flat, values }
+  const fragment = createDTCGGraphFragment(document, { source: 'mcp' })
+  if (!fragment.ok) {
+    throw new TokenSourceCheckError(fragment.diagnostics)
+  }
+  const { values, errors } = resolveTokenValuesSafe(flat)
+  if (errors.length > 0) {
+    const failedTokenPaths = flat
+      .filter(({ path }) => !values.has(path))
+      .map(({ path }) => path)
+    throw new TokenSourceResolutionError(errors, failedTokenPaths)
+  }
+  const types = new Map(
+    fragment.value.tokens.map(token => [token.path.join('.'), token.type])
+  )
+  return { flat, values, types }
 }
 
 function describeValue(value: DTCGTokenValue | undefined): {
@@ -106,14 +167,15 @@ export function resolveContext(
   truncated: boolean
   tokens: Array<{ path: string; type?: string; css: string | null }>
 } {
-  const { flat, values } = resolvedFlat(source, contexts)
-  const tokens = flat.slice(0, limit).map(({ path, token }) => {
+  const { flat, types, values } = resolvedFlat(source, contexts)
+  const tokens = flat.slice(0, limit).map(({ path }) => {
     const entry: { path: string; type?: string; css: string | null } = {
       path,
       css: describeValue(values.get(path)).css,
     }
-    if (token.$type !== undefined) {
-      entry.type = token.$type
+    const type = types.get(path)
+    if (type !== undefined) {
+      entry.type = type
     }
     return entry
   })
@@ -146,10 +208,10 @@ export function searchTokens(
     description?: string
   }>
 } {
-  const { flat, values } = resolvedFlat(source, contexts)
+  const { flat, types, values } = resolvedFlat(source, contexts)
   const needle = query.toLowerCase()
   const matches = flat.filter(({ path, token }) => {
-    if (type && token.$type !== type) {
+    if (type && types.get(path) !== type) {
       return false
     }
     return (
@@ -170,8 +232,9 @@ export function searchTokens(
         path,
         css: describeValue(values.get(path)).css,
       }
-      if (token.$type !== undefined) {
-        entry.type = token.$type
+      const type = types.get(path)
+      if (type !== undefined) {
+        entry.type = type
       }
       if (token.$description !== undefined) {
         entry.description = token.$description
