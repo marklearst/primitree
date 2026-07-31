@@ -811,4 +811,57 @@ describe('listContexts / listPermutations', () => {
       listPermutations({ version: '2025.10', resolutionOrder: [] })
     ).toEqual([{}])
   })
+
+  it('allows exactly 1,000 context permutations', () => {
+    const contexts = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [`context-${index}`, []])
+    )
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 3 }, (_, index) => [`axis-${index}`, { contexts }])
+    )
+
+    expect(
+      listPermutations({
+        version: '2025.10',
+        modifiers,
+        resolutionOrder: [],
+      })
+    ).toHaveLength(1_000)
+  })
+
+  it('rejects more than 1,000 context permutations before allocation', () => {
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `axis-${index}`,
+        { contexts: { first: [], second: [] } },
+      ])
+    )
+
+    expect(() =>
+      listPermutations({
+        version: '2025.10',
+        modifiers,
+        resolutionOrder: [],
+      })
+    ).toThrow('Resolver can contain at most 1,000 context permutations.')
+  })
+
+  it('bounds the work needed to copy many modifier selections', () => {
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 1_500 }, (_, index) => [
+        `axis-${index}`,
+        { contexts: { only: [] } },
+      ])
+    )
+
+    expect(() =>
+      listPermutations({
+        version: '2025.10',
+        modifiers,
+        resolutionOrder: [],
+      })
+    ).toThrow(
+      'Resolver context permutations exceed the 1,000,000-unit work limit.'
+    )
+  })
 })

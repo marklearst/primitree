@@ -111,22 +111,35 @@ export function mergeDocumentsWithBudget(
  * @public
  */
 export function flattenTokens(document: DTCGDocument): FlatToken[] {
+  return flattenTokensWithBudget(document)
+}
+
+/** @internal */
+export function flattenTokensWithBudget(
+  document: DTCGDocument,
+  budget?: ResolverWorkBudget
+): FlatToken[] {
   const flat: FlatToken[] = []
 
-  function walk(group: DTCGGroup, prefix: string[]): void {
-    for (const [key, value] of Object.entries(group)) {
+  function walk(group: DTCGGroup, prefix: string[], depth: number): void {
+    assertResolverDepth(budget, depth)
+    const entries = Object.entries(group)
+    if (budget !== undefined) {
+      chargeResolverWork(budget, entries.length)
+    }
+    for (const [key, value] of entries) {
       if (key.startsWith('$') && key !== '$root') {
         continue
       }
       if (isToken(value)) {
         flat.push({ path: [...prefix, key].join('.'), token: value })
       } else {
-        walk(value, [...prefix, key])
+        walk(value, [...prefix, key], depth + 1)
       }
     }
   }
 
-  walk(document, [])
+  walk(document, [], 0)
   return flat
 }
 
@@ -383,7 +396,18 @@ function validateModifier(
 export function resolveTokenValues(
   flat: FlatToken[]
 ): Map<string, DTCGTokenValue> {
+  return resolveTokenValuesWithBudget(flat)
+}
+
+/** @internal */
+export function resolveTokenValuesWithBudget(
+  flat: FlatToken[],
+  budget?: ResolverWorkBudget
+): Map<string, DTCGTokenValue> {
   const byPath = new Map<string, DTCGToken>()
+  if (budget !== undefined) {
+    chargeResolverWork(budget, flat.length)
+  }
   for (const { path, token } of flat) {
     byPath.set(path, token)
   }
@@ -391,9 +415,15 @@ export function resolveTokenValues(
   const resolved = new Map<string, DTCGTokenValue>()
 
   function resolvePath(path: string, seen: string[]): DTCGTokenValue {
+    if (budget !== undefined) {
+      chargeResolverWork(budget)
+    }
     const cached = resolved.get(path)
     if (cached !== undefined) {
       return cached
+    }
+    if (budget !== undefined) {
+      chargeResolverWork(budget, seen.length)
     }
     if (seen.includes(path)) {
       throw new ReferenceResolutionError(
@@ -410,6 +440,9 @@ export function resolveTokenValues(
     }
     let value = token.$value
     if (isReferenceValue(value)) {
+      if (budget !== undefined) {
+        chargeResolverWork(budget, value.length + seen.length + 2)
+      }
       value = resolvePath(value.slice(1, -1), [...seen, path])
     }
     resolved.set(path, value)
@@ -662,19 +695,52 @@ export function applyResolverWithBudget(
 /**
  * List Resolver context permutations.
  *
+ * A Resolver can produce at most 1,000 permutations. One call also has a
+ * 1,000,000-unit work limit for reading contexts and copying selections.
+ *
  * @returns Array of context selections (e.g. `[{ semantic: 'light', density: 'compact' }, ...]`).
+ * @throws `TypeError` - The Resolver produces more than 1,000 permutations or
+ * exceeds the work limit.
  *
  * @public
  */
 export function listPermutations(
   resolver: ResolverDocument
 ): Array<Record<string, string>> {
-  const axes = Object.entries(listContexts(resolver))
+  const workLimitMessage =
+    'Resolver context permutations exceed the 1,000,000-unit work limit.'
+  const budget: ResolverWorkBudget = {
+    remaining: 1_000_000,
+    errorMessage: workLimitMessage,
+  }
+  const axes = Object.entries(listContextsWithBudget(resolver, budget))
   if (axes.length === 0) {
     return [{}]
   }
+  if (axes.some(([, contexts]) => contexts.length === 0)) {
+    return []
+  }
+  const maxPermutations = 1_000
+  let permutationCount = 1
+  for (const [, contexts] of axes) {
+    if (contexts.length > Math.floor(maxPermutations / permutationCount)) {
+      throw new TypeError(
+        'Resolver can contain at most 1,000 context permutations.'
+      )
+    }
+    permutationCount *= contexts.length
+  }
   let permutations: Array<Record<string, string>> = [{}]
-  for (const [axis, contexts] of axes) {
+  for (let axisIndex = 0; axisIndex < axes.length; axisIndex += 1) {
+    const entry = axes[axisIndex]
+    if (entry === undefined) {
+      continue
+    }
+    const [axis, contexts] = entry
+    chargeResolverWork(
+      budget,
+      (axisIndex + 1) * permutations.length * contexts.length
+    )
     const next: Array<Record<string, string>> = []
     for (const permutation of permutations) {
       for (const context of contexts) {

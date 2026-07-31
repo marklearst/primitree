@@ -177,6 +177,7 @@ export function emitTailwind(
   )
   const cssNames = new Map<string, string>()
   const used = new Set<string>()
+  const nextSuffix = new Map<string, number>()
   const lines: string[] = [
     '/* @primitree/dtcg output for Tailwind CSS v4.',
     '   Import tokens.css BEFORE this file so the referenced variables exist:',
@@ -219,11 +220,12 @@ export function emitTailwind(
     }
     if (used.has(name)) {
       const base = name
-      let suffix = 2
+      let suffix = nextSuffix.get(base) ?? 2
       while (used.has(`${base}-${suffix}`)) {
         suffix += 1
       }
       name = `${base}-${suffix}`
+      nextSuffix.set(base, suffix + 1)
     }
     used.add(name)
     entries.push(`  ${name}: var(${cssName});`)

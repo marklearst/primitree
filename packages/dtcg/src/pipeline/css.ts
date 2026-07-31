@@ -28,23 +28,36 @@ const CSS_WIDE_KEYWORDS = new Set([
 /**
  * Convert a dot path to a CSS custom property name.
  *
- * Non-ASCII characters remain in the name.
+ * Dots separate path segments. ASCII letters, digits, and non-ASCII code points
+ * stay unchanged. Each other code point becomes a lowercase hex marker, such
+ * as `_3f_` for `?`. This keeps different valid token paths from sharing a CSS
+ * name.
  *
  * @public
  */
 export function cssVarName(path: string): string {
   return `--${path
     .split('.')
-    .map(segment =>
-      segment
-        .trim()
-        .normalize('NFC')
-        .replace(/[^a-zA-Z0-9\u0080-\u{10FFFF}-]+/gu, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase()
-    )
-    .filter(s => s.length > 0)
+    .map(segment => escapeCssCustomPropertySegment(segment))
     .join('-')}`
+}
+
+function escapeCssCustomPropertySegment(segment: string): string {
+  let result = ''
+  for (const character of segment) {
+    const code = character.codePointAt(0) ?? 0xfffd
+    const isAsciiLetterOrDigit =
+      (code >= 0x30 && code <= 0x39) ||
+      (code >= 0x41 && code <= 0x5a) ||
+      (code >= 0x61 && code <= 0x7a)
+    const isNonAsciiScalar = code >= 0x80 && (code < 0xd800 || code > 0xdfff)
+    if (isAsciiLetterOrDigit || isNonAsciiScalar) {
+      result += character
+      continue
+    }
+    result += `_${code.toString(16)}_`
+  }
+  return result
 }
 
 function quoteCssString(value: string): string {

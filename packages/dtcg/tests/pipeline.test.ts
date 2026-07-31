@@ -39,10 +39,10 @@ describe('cssVarName / cssValue', () => {
   })
 
   it.each([
-    ['accented Latin', 'Couleur.Arrière-plan', '--couleur-arrière-plan'],
+    ['accented Latin', 'Couleur.Arrière-plan', '--Couleur-Arrière_2d_plan'],
     ['Arabic', 'ألوان.خلفية', '--ألوان-خلفية'],
     ['Chinese', '颜色.背景', '--颜色-背景'],
-    ['Cyrillic', 'Цвет.Фон', '--цвет-фон'],
+    ['Cyrillic', 'Цвет.Фон', '--Цвет-Фон'],
     ['Devanagari', 'रंग.पृष्ठभूमि', '--रंग-पृष्ठभूमि'],
   ])('keeps %s text in custom property names', (_name, path, expected) => {
     expect(cssVarName(path)).toBe(expected)
@@ -239,38 +239,38 @@ describe('emitCss', () => {
     expect(() => parseCss(output)).not.toThrow()
   })
 
-  it('rejects CSS name collisions across Resolver contexts', () => {
-    expect(() =>
-      emitCss(
-        {
-          'light.tokens.json': {
-            theme: {
-              'foo bar': { $type: 'number', $value: 1 },
-            },
+  it('keeps punctuation paths distinct across Resolver contexts', () => {
+    const output = emitCss(
+      {
+        'light.tokens.json': {
+          theme: {
+            'foo bar': { $type: 'number', $value: 1 },
           },
-          'dark.tokens.json': {
-            theme: {
-              'foo@bar': { $type: 'number', $value: 2 },
+        },
+        'dark.tokens.json': {
+          theme: {
+            'foo@bar': { $type: 'number', $value: 2 },
+          },
+        },
+      },
+      {
+        version: '2025.10',
+        modifiers: {
+          theme: {
+            default: 'light',
+            contexts: {
+              light: [{ $ref: 'light.tokens.json' }],
+              dark: [{ $ref: 'dark.tokens.json' }],
             },
           },
         },
-        {
-          version: '2025.10',
-          modifiers: {
-            theme: {
-              default: 'light',
-              contexts: {
-                light: [{ $ref: 'light.tokens.json' }],
-                dark: [{ $ref: 'dark.tokens.json' }],
-              },
-            },
-          },
-          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
-        }
-      )
-    ).toThrow(
-      'DTCG token paths "theme.foo bar" and "theme.foo@bar" both map to CSS custom property "--theme-foo-bar".'
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      }
     )
+
+    expect(output).toContain('--theme-foo_20_bar: 1;')
+    expect(output).toContain('--theme-foo_40_bar: 2;')
+    expect(() => parseCss(output)).not.toThrow()
   })
 
   it('bounds Resolver work shared across CSS contexts', () => {
@@ -438,13 +438,13 @@ describe('emitCss', () => {
     )
 
     expect(collision).toContain(
-      '--color-brand: var(--brand-palette-color-brand);'
+      '--color-brand: var(--brand_20_palette-color-brand);'
     )
     expect(collision).toContain(
-      '--color-brand-palette-brand: var(--brand-palette-color-color-brand);'
+      '--color-brand_20_palette-brand: var(--brand_20_palette-color-color-brand);'
     )
     expect(collision).toContain(
-      '--color-brand-palette-brand-2: var(--brand-palette-colors-brand);'
+      '--color-brand_20_palette-brand-2: var(--brand_20_palette-colors-brand);'
     )
   })
 
@@ -644,7 +644,9 @@ describe('emitTypescript', () => {
     runInNewContext(compiled.outputText, { exports: generated })
 
     expect(Object.hasOwn(generated.tokenVars ?? {}, prototypePath)).toBe(true)
-    expect(generated.tokenVars?.[prototypePath]).toBe('var(--proto)')
+    expect(generated.tokenVars?.[prototypePath]).toBe(
+      'var(--_5f__5f_proto_5f__5f_)'
+    )
     expect(Object.hasOwn(generated.tokenValues ?? {}, prototypePath)).toBe(true)
     expect(generated.tokenValues?.[prototypePath]).toBe(prototypeValue)
   })

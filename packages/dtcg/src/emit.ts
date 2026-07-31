@@ -71,6 +71,7 @@ function buildTokenPaths(
 ): Map<string, string[]> {
   const paths = new Map<string, string[]>()
   const claimed = new Set<string>()
+  const nextSuffix = new Map<string, number>()
 
   for (const variable of normalized.variables) {
     const collection = normalized.collectionsById[variable.collectionId]
@@ -85,10 +86,11 @@ function buildTokenPaths(
         `Token path collision for "${variable.name}" in collection ` +
           `"${collection.name}". Primitree appended a suffix.`
       )
-      let n = 2
+      let n = nextSuffix.get(key) ?? 2
       while (claimed.has(`${key}-${n}`)) {
         n += 1
       }
+      nextSuffix.set(key, n + 1)
       const last = segments[segments.length - 1] as string
       segments = [...segments.slice(0, -1), `${last}-${n}`]
       key = segments.join('.')

@@ -61,14 +61,16 @@ export function allocateUniqueSlugs<T>(
   getName: (item: T) => string
 ): string[] {
   const used = new Set<string>()
+  const nextSuffix = new Map<string, number>()
   return items.map(item => {
     const base = slugify(getName(item))
     let candidate = base
-    let suffix = 2
+    let suffix = nextSuffix.get(base) ?? 2
     while (used.has(candidate)) {
       candidate = `${base}-${suffix}`
       suffix += 1
     }
+    nextSuffix.set(base, suffix)
     used.add(candidate)
     return candidate
   })
@@ -81,13 +83,10 @@ export function allocateUniqueSlugs<T>(
  * @public
  */
 export function uniqueSlugs(names: string[]): Map<string, string> {
-  const used = new Map<string, number>()
+  const slugs = allocateUniqueSlugs(names, name => name)
   const result = new Map<string, string>()
-  for (const name of names) {
-    const base = slugify(name)
-    const count = used.get(base) ?? 0
-    used.set(base, count + 1)
-    result.set(name, count === 0 ? base : `${base}-${count + 1}`)
+  for (const [index, name] of names.entries()) {
+    result.set(name, slugs[index] as string)
   }
   return result
 }
