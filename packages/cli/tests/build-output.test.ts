@@ -559,6 +559,59 @@ describe('configured build output replacement', () => {
     expect(await fs.readdir(directory)).toEqual(['generated'])
   })
 
+  it('keeps the install and restore errors when both operations fail', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const rename = fs.rename.bind(fs)
+    let backup: string | undefined
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      if (
+        from === output &&
+        String(to).includes('.generated.primitree-backup-')
+      ) {
+        backup = String(to)
+        await rename(from, to)
+        return
+      }
+      if (
+        String(from).includes('.generated.primitree-stage-') &&
+        to === output
+      ) {
+        throw new Error('Injected install failure.')
+      }
+      if (backup !== undefined && String(from) === backup && to === output) {
+        throw new Error('Injected restore failure.')
+      }
+      await rename(from, to)
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected the build to fail with an Error.')
+    }
+    expect(failure.message).toContain('Injected install failure.')
+    expect(failure.message).toContain('Injected restore failure.')
+    if (backup === undefined) {
+      throw new Error(
+        'Expected Primitree to retain one prior output directory.'
+      )
+    }
+    expect(failure.message).toContain(backup)
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    await expect(fs.lstat(backup)).resolves.toBeDefined()
+    await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('keeps the install error and names a stage that cleanup could not remove', async () => {
     const output = path.join(directory, 'generated')
     const rename = fs.rename.bind(fs)

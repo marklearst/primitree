@@ -792,6 +792,81 @@ describe('loadPrimitreeConfig', () => {
     await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
   })
 
+  it('limits source path reads while checking output conflicts', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          file: `./source-${index}.tokens.json`,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let activeSourceReads = 0
+    let peakSourceReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+      if (/source-\d+\.tokens\.json$/u.test(String(target))) {
+        activeSourceReads += 1
+        peakSourceReads = Math.max(peakSourceReads, activeSourceReads)
+        await new Promise(resolve => setTimeout(resolve, 20))
+        activeSourceReads -= 1
+      }
+      return lstat(target)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+
+    expect(peakSourceReads).toBeLessThanOrEqual(16)
+  })
+
+  it('stops source path reads before reporting a path error', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          file: `./source-${index}.tokens.json`,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourceReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+      const targetPath = String(target)
+      if (targetPath.endsWith('source-0.tokens.json')) {
+        throw new Error('Injected source path failure.')
+      }
+      if (/source-\d+\.tokens\.json$/u.test(targetPath)) {
+        sourceReads += 1
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
+      return lstat(target)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Injected source path failure.'
+    )
+    const readsWhenRejected = sourceReads
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    expect(sourceReads).toBe(readsWhenRejected)
+  })
+
   it('loads the exact default file and resolves source paths from it', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
