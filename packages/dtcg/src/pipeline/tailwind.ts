@@ -1,14 +1,8 @@
-import type {
-  DTCGDocument,
-  DTCGGroup,
-  DTCGToken,
-  DTCGTokenType,
-  ResolverDocument,
-} from '../types'
-import { isReferenceValue, isToken } from '../types'
+import type { DTCGDocument, ResolverDocument } from '../types'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
+  flattenTypedTokensWithBudget,
   type ResolverWorkBudget,
 } from '../resolve'
 import { claimCssVarName, cssVarName } from './css'
@@ -20,12 +14,6 @@ const NAMESPACE_NOISE: Record<string, Set<string>> = {
   font: new Set(['font', 'fonts', 'family', 'typeface']),
   'font-weight': new Set(['font', 'weight']),
   ease: new Set(['ease', 'easing', 'timing']),
-}
-
-interface TypedFlatToken {
-  readonly path: string
-  readonly token: DTCGToken
-  readonly type: DTCGTokenType | undefined
 }
 
 const MAX_TAILWIND_GROUP_DEPTH = 64
@@ -41,112 +29,6 @@ const TAILWIND_OUTPUT_LIMIT_MESSAGE =
 
 function chargeTailwindText(value: string, budget: ResolverWorkBudget): void {
   chargeResolverWork(budget, value.length + 1)
-}
-
-function flattenTypedTokens(
-  document: DTCGDocument,
-  budget: ResolverWorkBudget
-): TypedFlatToken[] {
-  const entries: Array<{
-    readonly path: string
-    readonly token: DTCGToken
-    readonly declaredType: DTCGTokenType | undefined
-  }> = []
-  let items = 0
-
-  function walk(
-    group: DTCGGroup,
-    prefix: string,
-    inheritedType: DTCGTokenType | undefined,
-    depth: number
-  ): void {
-    if (depth > MAX_TAILWIND_GROUP_DEPTH) {
-      throw new TypeError(TAILWIND_DEPTH_LIMIT_MESSAGE)
-    }
-    const groupType = Reflect.get(group, '$type')
-    const type =
-      typeof groupType === 'string'
-        ? (groupType as DTCGTokenType)
-        : inheritedType
-    const groupEntries = Object.entries(group)
-    chargeResolverWork(budget, groupEntries.length)
-    for (const [key, value] of groupEntries) {
-      items += 1
-      if (items > MAX_TAILWIND_ITEMS) {
-        throw new TypeError('Tailwind output can read at most 100,000 items.')
-      }
-      if (key.startsWith('$') && key !== '$root') {
-        continue
-      }
-      const pathLength =
-        prefix.length === 0 ? key.length : prefix.length + key.length + 1
-      chargeResolverWork(budget, pathLength + 1)
-      const path = prefix.length === 0 ? key : `${prefix}.${key}`
-      if (isToken(value)) {
-        entries.push({
-          path,
-          token: value,
-          declaredType: value.$type ?? type,
-        })
-      } else {
-        walk(value as DTCGGroup, path, type, depth + 1)
-      }
-    }
-  }
-
-  walk(document, '', undefined, 0)
-  chargeResolverWork(budget, entries.length)
-  const byPath = new Map(entries.map(entry => [entry.path, entry]))
-  const resolved = new Map<string, DTCGTokenType | undefined>()
-
-  function resolveType(
-    start: (typeof entries)[number]
-  ): DTCGTokenType | undefined {
-    const active = new Set<string>()
-    const trail: string[] = []
-    let entry: (typeof entries)[number] | undefined = start
-    let type: DTCGTokenType | undefined
-
-    while (entry !== undefined) {
-      chargeResolverWork(budget)
-      if (entry.declaredType !== undefined) {
-        type = entry.declaredType
-        break
-      }
-      if (resolved.has(entry.path)) {
-        type = resolved.get(entry.path)
-        break
-      }
-      if (active.has(entry.path) || !isReferenceValue(entry.token.$value)) {
-        break
-      }
-      chargeTailwindText(entry.token.$value, budget)
-      active.add(entry.path)
-      trail.push(entry.path)
-      entry = byPath.get(entry.token.$value.slice(1, -1))
-    }
-
-    chargeResolverWork(budget, trail.length)
-    for (const path of trail) {
-      resolved.set(path, type)
-    }
-    return type
-  }
-
-  const typed = entries.map(entry => ({
-    path: entry.path,
-    token: entry.token,
-    type: resolveType(entry),
-  }))
-  if (typed.length > 1) {
-    chargeResolverWork(
-      budget,
-      typed.length * Math.ceil(Math.log2(typed.length))
-    )
-  }
-  return typed.sort((left, right) =>
-    left.path === right.path ? 0 : left.path < right.path ? -1 : 1
-  )
 }
 
 function tailwindName(
@@ -173,6 +55,11 @@ function tailwindName(
     .filter(s => s.length > 0)
     .join('-')
   return slug.length > 0 ? slug : 'default'
+}
+
+function isRadiusPath(path: string): boolean {
+  const wordSeparated = path.replace(/([a-z0-9])([A-Z])/gu, '$1-$2')
+  return /(^|[./_-])radius($|[./_-])/iu.test(wordSeparated)
 }
 
 function utf8ByteLength(value: string): number {
@@ -257,9 +144,14 @@ export function emitTailwind(
     maxDepth: MAX_TAILWIND_GROUP_DEPTH,
     depthErrorMessage: TAILWIND_DEPTH_LIMIT_MESSAGE,
   }
-  const flat = flattenTypedTokens(
+  const flat = flattenTypedTokensWithBudget(
     applyResolverWithBudget(files, resolver, {}, budget),
-    budget
+    budget,
+    {
+      maxItems: MAX_TAILWIND_ITEMS,
+      itemLimitMessage: 'Tailwind output can read at most 100,000 items.',
+      sort: true,
+    }
   )
   const cssNames = new Map<string, string>()
   const used = new Set<string>()
@@ -285,7 +177,7 @@ export function emitTailwind(
         namespace = 'color'
         break
       case 'dimension':
-        namespace = /(^|[./-])radius/i.test(path) ? 'radius' : 'spacing'
+        namespace = isRadiusPath(path) ? 'radius' : 'spacing'
         break
       case 'fontFamily':
         namespace = 'font'

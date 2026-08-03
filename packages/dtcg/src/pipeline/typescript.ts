@@ -1,12 +1,17 @@
-import type { DTCGDocument, DTCGTokenValue, ResolverDocument } from '../types'
+import type {
+  DTCGDocument,
+  DTCGTokenType,
+  DTCGTokenValue,
+  ResolverDocument,
+} from '../types'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
-  flattenTokensWithBudget,
+  flattenTypedTokensWithBudget,
   resolveTokenValuesWithBudget,
   type ResolverWorkBudget,
 } from '../resolve'
-import { assertUniqueCssVarNames, cssVarName, cssValue } from './css'
+import { assertUniqueCssVarNames, cssVarName, typedCssValue } from './css'
 
 const MAX_TYPESCRIPT_WORK = 1_000_000
 const MAX_TYPESCRIPT_GROUP_DEPTH = 64
@@ -100,20 +105,25 @@ function appendTypescriptLine(
 
 function resolvedValueLiteral(
   value: DTCGTokenValue,
+  type: DTCGTokenType | undefined,
   budget: ResolverWorkBudget,
-  cache: Map<DTCGTokenValue, string>
+  cache: Map<DTCGTokenType | undefined, Map<DTCGTokenValue, string>>
 ): string {
-  const cached = cache.get(value)
+  const valuesForType = cache.get(type) ?? new Map<DTCGTokenValue, string>()
+  const cached = valuesForType.get(value)
   if (cached !== undefined) {
     return cached
   }
 
   chargeTypescriptValueWork(value, budget)
   const css =
-    typeof value === 'boolean' || Array.isArray(value) ? null : cssValue(value)
+    typeof value === 'boolean' || Array.isArray(value)
+      ? null
+      : typedCssValue(value, type)
   const literal =
     css === null ? (JSON.stringify(value) as string) : stringLiteral(css)
-  cache.set(value, literal)
+  valuesForType.set(value, literal)
+  cache.set(type, valuesForType)
   return literal
 }
 
@@ -143,13 +153,14 @@ export function emitTypescript(
     depthErrorMessage: TYPESCRIPT_DEPTH_LIMIT_MESSAGE,
   }
   const merged = applyResolverWithBudget(files, resolver, {}, budget)
-  const flat = flattenTokensWithBudget(merged, budget)
+  const flat = flattenTypedTokensWithBudget(merged, budget)
   chargeResolverWork(budget, flat.length)
   for (const { path } of flat) {
     chargeTypescriptText(path, budget)
   }
   assertUniqueCssVarNames(flat)
   const resolved = resolveTokenValuesWithBudget(flat, budget)
+  const types = new Map(flat.map(token => [token.path, token.type]))
 
   const paths = flat.map(f => f.path)
   if (paths.length > 1) {
@@ -205,13 +216,16 @@ export function emitTypescript(
     '/** Values resolved for the default contexts. */'
   )
   appendTypescriptLine(lines, output, 'export const tokenValues = {')
-  const valueLiterals = new Map<DTCGTokenValue, string>()
+  const valueLiterals = new Map<
+    DTCGTokenType | undefined,
+    Map<DTCGTokenValue, string>
+  >()
   for (const path of paths) {
     const value = resolved.get(path)
     const literal =
       value === undefined
         ? 'undefined'
-        : resolvedValueLiteral(value, budget, valueLiterals)
+        : resolvedValueLiteral(value, types.get(path), budget, valueLiterals)
     appendTypescriptLine(
       lines,
       output,

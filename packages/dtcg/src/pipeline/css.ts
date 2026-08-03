@@ -4,6 +4,7 @@ import type {
   DTCGDocument,
   DTCGGroup,
   DTCGToken,
+  DTCGTokenType,
   DTCGTokenValue,
   ResolverDocument,
 } from '../types'
@@ -13,11 +14,12 @@ import { DTCGOutputCapabilityError } from './output-error'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
-  flattenTokensWithBudget,
+  flattenTypedTokensWithBudget,
   listContextsWithBudget,
   listPermutationsWithBudget,
   type FlatToken,
   type ResolverWorkBudget,
+  type TypedFlatToken,
 } from '../resolve'
 
 const CSS_WIDE_KEYWORDS = new Set([
@@ -26,6 +28,25 @@ const CSS_WIDE_KEYWORDS = new Set([
   'unset',
   'revert',
   'revert-layer',
+])
+
+const FONT_WEIGHT_CSS_EQUIVALENTS = new Map<string, number>([
+  ['thin', 100],
+  ['hairline', 100],
+  ['extra-light', 200],
+  ['ultra-light', 200],
+  ['light', 300],
+  ['regular', 400],
+  ['book', 400],
+  ['medium', 500],
+  ['semi-bold', 600],
+  ['demi-bold', 600],
+  ['extra-bold', 800],
+  ['ultra-bold', 800],
+  ['black', 900],
+  ['heavy', 900],
+  ['extra-black', 950],
+  ['ultra-black', 950],
 ])
 
 /**
@@ -94,7 +115,7 @@ function resolverAxisDataAttribute(value: string): string {
     const code = character.codePointAt(0) ?? 0xfffd
     const isLowercaseAsciiLetter = code >= 0x61 && code <= 0x7a
     const isAsciiDigit = code >= 0x30 && code <= 0x39
-    if (isLowercaseAsciiLetter || isAsciiDigit) {
+    if (isLowercaseAsciiLetter || isAsciiDigit || code === 0x2d) {
       result += character
       continue
     }
@@ -209,7 +230,8 @@ function formatCssCubicBezier(value: readonly unknown[]): string | null {
 
 function formatCssValue(
   value: DTCGTokenValue,
-  budget?: ResolverWorkBudget
+  budget?: ResolverWorkBudget,
+  type?: DTCGTokenType
 ): string | null {
   if (budget !== undefined) {
     chargeCssValueWork(value, budget)
@@ -224,6 +246,12 @@ function formatCssValue(
     return String(value)
   }
   if (typeof value === 'string') {
+    if (type === 'fontWeight') {
+      const numericValue = FONT_WEIGHT_CSS_EQUIVALENTS.get(value)
+      if (numericValue !== undefined) {
+        return String(numericValue)
+      }
+    }
     return cssTextValue(value)
   }
   if (Array.isArray(value)) {
@@ -272,15 +300,22 @@ export function cssValue(value: DTCGTokenValue): string | null {
   return formatCssValue(value)
 }
 
+export function typedCssValue(
+  value: DTCGTokenValue,
+  type: DTCGTokenType | undefined
+): string | null {
+  return formatCssValue(value, undefined, type)
+}
+
 function declarations(
-  flat: FlatToken[],
+  flat: TypedFlatToken[],
   indent: string,
   budget: ResolverWorkBudget
 ): string[] {
   const lines: string[] = []
   chargeResolverWork(budget, flat.length)
-  for (const { path, token } of flat) {
-    const value = formatCssValue(token.$value, budget)
+  for (const { path, token, type } of flat) {
+    const value = formatCssValue(token.$value, budget, type)
     if (value === null) {
       throw new DTCGOutputCapabilityError('css', path, token.$type ?? 'token')
     }
@@ -380,9 +415,9 @@ function readCssTokens(
   budget: ResolverWorkBudget,
   claimed: Map<string, string>,
   pathShapes: CssPathShapeClaims
-): FlatToken[] {
+): TypedFlatToken[] {
   const document = applyResolverWithBudget(files, resolver, contexts, budget)
-  const flat = flattenTokensWithBudget(document, budget)
+  const flat = flattenTypedTokensWithBudget(document, budget)
   chargeResolverWork(budget, flat.length)
   for (const { path } of flat) {
     chargeCssText(path, budget)
@@ -393,14 +428,14 @@ function readCssTokens(
 }
 
 function assertDefaultTokensRemain(
-  defaults: ReadonlyMap<string, DTCGToken>,
-  selected: readonly FlatToken[],
+  defaults: ReadonlyMap<string, TypedFlatToken>,
+  selected: readonly TypedFlatToken[],
   budget: ResolverWorkBudget
 ): void {
   chargeResolverWork(budget, selected.length)
   const selectedPaths = new Set(selected.map(({ path }) => path))
   chargeResolverWork(budget, defaults.size)
-  for (const [path, token] of defaults) {
+  for (const [path, { token }] of defaults) {
     if (!selectedPaths.has(path)) {
       throw new DTCGOutputCapabilityError(
         'css',
@@ -432,8 +467,8 @@ function comparableTokenValue(
 }
 
 function tokensEqual(
-  a: DTCGToken | undefined,
-  b: DTCGToken | undefined,
+  a: TypedFlatToken | undefined,
+  b: TypedFlatToken | undefined,
   budget: ResolverWorkBudget,
   cache: CssComparisonCache
 ): boolean {
@@ -443,18 +478,24 @@ function tokensEqual(
   if (a === undefined || b === undefined) {
     return false
   }
+  if (a.type !== b.type) {
+    return false
+  }
+  if (a.token === b.token) {
+    return true
+  }
 
-  const cachedPairs = cache.pairs.get(a)
-  if (cachedPairs?.has(b)) {
-    return cachedPairs.get(b) as boolean
+  const cachedPairs = cache.pairs.get(a.token)
+  if (cachedPairs?.has(b.token)) {
+    return cachedPairs.get(b.token) as boolean
   }
 
   const equal =
-    comparableTokenValue(a, budget, cache) ===
-    comparableTokenValue(b, budget, cache)
+    comparableTokenValue(a.token, budget, cache) ===
+    comparableTokenValue(b.token, budget, cache)
   const pairs = cachedPairs ?? new WeakMap<DTCGToken, boolean>()
-  pairs.set(b, equal)
-  cache.pairs.set(a, pairs)
+  pairs.set(b.token, equal)
+  cache.pairs.set(a.token, pairs)
   return equal
 }
 
@@ -573,7 +614,7 @@ export function emitCss(
     pathShapes
   )
   chargeResolverWork(budget, defaultFlat.length)
-  const defaultByPath = new Map(defaultFlat.map(f => [f.path, f.token]))
+  const defaultByPath = new Map(defaultFlat.map(f => [f.path, f]))
 
   appendCssLines(lines, output, ':root {')
   for (const declaration of declarations(defaultFlat, '  ', budget)) {
@@ -619,13 +660,7 @@ export function emitCss(
     assertDefaultTokensRemain(defaultByPath, contextFlat, budget)
     chargeResolverWork(budget, contextFlat.length)
     const changed = contextFlat.filter(
-      f =>
-        !tokensEqual(
-          defaultByPath.get(f.path),
-          f.token,
-          budget,
-          comparisonCache
-        )
+      f => !tokensEqual(defaultByPath.get(f.path), f, budget, comparisonCache)
     )
     const emitted = selectedContexts.length > 1 ? contextFlat : changed
     if (emitted.length === 0) {
