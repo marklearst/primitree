@@ -23,5 +23,5 @@ export function isUnsafePortablePathSegment(segment: string): boolean {
 }
 
 export function portablePathComparisonKey(value: string): string {
-  return value.normalize('NFC').toUpperCase().normalize('NFC')
+  return value.normalize('NFC').toLowerCase().toUpperCase().normalize('NFC')
 }
