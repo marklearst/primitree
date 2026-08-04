@@ -44,14 +44,14 @@ REST API.
 
 ## Packages
 
-| Package                                  | Purpose                                                                                                      |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API                                      |
-| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                                        |
-| [`@primitree/cli`](packages/cli)         | Download local Figma variables JSON; build token files, compare exports, check inputs, and scaffold projects |
-| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                                            |
-| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                                                       |
-| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                                             |
+| Package                                  | Purpose                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API              |
+| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                |
+| [`@primitree/cli`](packages/cli)         | Check and inspect local DTCG sources; convert Figma exports; scaffold token projects |
+| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                    |
+| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                               |
+| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                     |
 
 ## Review token changes
 
@@ -77,6 +77,19 @@ Variables: 1 renamed, 1 value change.
 
 `--fail-on-breaking` exits with code 2 when the report contains removals,
 renames, moves, or type changes.
+
+## Check and inspect a DTCG source
+
+Add named local DTCG files and their layer rules to `primitree.config.ts`.
+Check one source or explain one exact token path:
+
+```sh
+primitree check --source brand
+primitree inspect semantic.action --source brand
+```
+
+The inspection report includes the token ID, resolved value, alias chain,
+owners, direct dependents, and source location.
 
 ## Use built tokens in React
 

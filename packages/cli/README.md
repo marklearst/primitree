@@ -104,6 +104,21 @@ The older path form still checks a Figma variables export or a built token
 directory. The command exits with code 1 for findings and code 2 for command,
 config, or input errors.
 
+## `primitree inspect`
+
+```sh
+primitree inspect <token.path> [--config <path>] [--source <name>]
+                                  [--format text|json]
+```
+
+The command reads the same config as `primitree check`. It reports the token
+ID, source, type, resolved value, alias chain, owners, direct dependents, and
+source location. The token path must match one token, such as
+`semantic.action`.
+
+The command exits with code 0 after it finds the token and code 2 for command,
+config, or input errors.
+
 ## `primitree init`
 
 ```sh

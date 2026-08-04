@@ -1,0 +1,30 @@
+---
+title: primitree inspect
+description: Explain one token from a configured local DTCG source.
+---
+
+```bash
+primitree inspect <token.path> [--config <path>] [--source <name>]
+                                  [--format text|json]
+```
+
+The command reads `./primitree.config.ts` by default. `--config` names one
+exact config file. `--source` selects a source when the file contains several
+sources.
+
+The token path uses dots between path segments. This example selects the
+`action` token under `semantic`:
+
+```bash
+primitree inspect semantic.action
+```
+
+The text report lists:
+
+- token path, ID, source, and type
+- resolved value and alias chain
+- owners and direct dependents
+- source file and token pointer
+
+Use `--format json` for a JSON report. The command exits with code `0` after it
+finds the token and code `2` for command, config, or input errors.

@@ -1,8 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
-  composeGraph,
-  createSourceView,
   normalizeVariables,
   resolveAllVariableValues,
   VariablesParseError,
@@ -14,12 +12,11 @@ import {
   listPermutations,
   resolveTokenValues,
   isToken,
-  toGraphFragment,
   type DTCGDocument,
   type ResolverDocument,
 } from '@primitree/dtcg'
 import { type ParsedArgs } from '../args'
-import { loadPrimitreeConfig } from '../config/load'
+import { loadConfiguredSourceGraph } from '../config/source'
 import { fileExists, readJsonFile } from '../io'
 
 function formatCount(count: number, singular: string): string {
@@ -57,12 +54,6 @@ interface CheckReport {
 
 const CONFIG_CHECK_FLAGS = new Set(['config', 'source', 'format'])
 
-function resultError(result: {
-  diagnostics: readonly { message: string }[]
-}): Error {
-  return new Error(result.diagnostics.map(item => item.message).join('\n'))
-}
-
 async function runConfiguredCheck(args: ParsedArgs): Promise<void> {
   if (args.positionals.length > 0) {
     throw new Error('Config-backed check does not accept a path argument.')
@@ -81,51 +72,24 @@ async function runConfiguredCheck(args: ParsedArgs): Promise<void> {
   const sourceFlag = args.flags['source']
   if (sourceFlag === true) throw new Error('--source needs a source name.')
 
-  const loaded = await loadPrimitreeConfig({
+  const configured = await loadConfiguredSourceGraph({
     ...(typeof configFlag === 'string' ? { configPath: configFlag } : {}),
+    ...(typeof sourceFlag === 'string' ? { sourceName: sourceFlag } : {}),
   })
-  const sourceNames = Object.keys(loaded.sources)
-  if (sourceFlag === undefined && sourceNames.length > 1) {
-    throw new Error('Use --source when the config has several sources.')
-  }
-  const sourceName =
-    typeof sourceFlag === 'string' ? sourceFlag : sourceNames[0]!
-  const source = loaded.sources[sourceName]
-  if (source === undefined) {
-    throw new Error(`Config source "${sourceName}" does not exist.`)
-  }
-
-  const stats = await fs.stat(source.file).catch(() => undefined)
-  if (stats === undefined || !stats.isFile()) {
-    throw new Error(`Could not read the file for source "${sourceName}".`)
-  }
-  if (stats.size > 10 * 1024 * 1024) {
-    throw new Error(`Source "${sourceName}" exceeds the 10 MiB file limit.`)
-  }
-  const document = await readJsonFile(source.file).catch(() => {
-    throw new Error(`Source "${sourceName}" is not valid JSON.`)
-  })
-  const fragment = toGraphFragment(document, {
-    source: sourceName,
-    uri: path.relative(path.dirname(loaded.configPath), source.file),
-  })
-  if (!fragment.ok) throw resultError(fragment)
-  const graph = composeGraph([fragment.value])
-  if (!graph.ok) throw resultError(graph)
-  const view = createSourceView(graph.value, { id: sourceName })
-  if (!view.ok) throw resultError(view)
+  const { sourceName, source, graph, view } = configured
   const policy = createPolicy({
     id: sourceName,
     viewId: sourceName,
     layers: source.architecture.layers,
     ownership: source.ownership,
   })
-  if (!policy.ok) throw resultError(policy)
-  const report = evaluatePolicy(
-    { graph: graph.value, view: view.value },
-    policy.value
-  )
-  if (!report.ok) throw resultError(report)
+  if (!policy.ok) {
+    throw new Error(policy.diagnostics.map(item => item.message).join('\n'))
+  }
+  const report = evaluatePolicy({ graph, view }, policy.value)
+  if (!report.ok) {
+    throw new Error(report.diagnostics.map(item => item.message).join('\n'))
+  }
 
   if (format === 'json') {
     console.log(
@@ -139,7 +103,7 @@ async function runConfiguredCheck(args: ParsedArgs): Promise<void> {
     )
   } else if (report.value.findings.length === 0) {
     console.log(
-      `Check passed for source "${sourceName}" with ${formatCount(graph.value.tokens.length, 'token')}.`
+      `Check passed for source "${sourceName}" with ${formatCount(graph.tokens.length, 'token')}.`
     )
   } else {
     for (const finding of report.value.findings) {
