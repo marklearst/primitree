@@ -54,12 +54,20 @@ function inputWithinWorkLimit(root: unknown): boolean {
     }
     seen.add(value)
     if (Array.isArray(value)) {
-      remaining -= value.length
+      const length: unknown = Reflect.get(value, 'length')
+      if (
+        typeof length !== 'number' ||
+        !Number.isSafeInteger(length) ||
+        length < 0
+      ) {
+        return false
+      }
+      remaining -= length
       if (remaining < 0) {
         return false
       }
-      for (const item of value) {
-        stack.push(item)
+      for (let index = 0; index < length; index += 1) {
+        stack.push(Reflect.get(value, index))
       }
       continue
     }
@@ -552,6 +560,12 @@ function evaluatePolicyInput(
   }
   for (const { token } of viewTokensById.values()) {
     for (const authored of token.values) {
+      if (!chargeWork(budget)) {
+        return failure(
+          'policy.work-limit',
+          'Policy evaluation exceeds the 1,000,000-unit work limit.'
+        )
+      }
       if (
         authored.value.kind === 'reference' &&
         !viewTokensById.has(authored.value.target)
@@ -731,6 +745,12 @@ export function evaluatePolicy(
   options?: PolicyEvaluationOptions
 ): PolicyResult<PolicyReport> {
   try {
+    if (!inputWithinWorkLimit([snapshot, policy, options])) {
+      return failure(
+        'policy.work-limit',
+        'Policy evaluation input exceeds the 1,000,000-unit work limit.'
+      )
+    }
     return evaluatePolicyInput(snapshot, policy, options)
   } catch {
     return failure(
