@@ -2,12 +2,16 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { parseArgs } from '../src/args'
+import { runInspect } from '../src/commands/inspect'
 
 let directory: string
 
 beforeEach(async () => {
   directory = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-inspect-'))
+  vi.spyOn(console, 'log').mockImplementation(() => {})
+  process.exitCode = undefined
   await fs.writeFile(
     path.join(directory, 'primitree.config.ts'),
     `export default {
@@ -52,10 +56,12 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  vi.restoreAllMocks()
+  process.exitCode = undefined
   await fs.rm(directory, { recursive: true, force: true })
 })
 
-function runInspect(...args: string[]) {
+function runInspectProcess(...args: string[]) {
   const cliPath = path.join(import.meta.dirname, '../dist/index.js')
   return spawnSync(process.execPath, [cliPath, 'inspect', ...args], {
     cwd: directory,
@@ -64,11 +70,21 @@ function runInspect(...args: string[]) {
 }
 
 describe('primitree inspect with a project config', () => {
-  it('reports one exact token path as JSON', () => {
-    const result = runInspect('semantic.action', '--format', 'json')
+  it('reports one exact token path as JSON', async () => {
+    await runInspect(
+      parseArgs([
+        'semantic.action',
+        '--config',
+        path.join(directory, 'primitree.config.ts'),
+        '--format',
+        'json',
+      ])
+    )
 
-    expect(result.status).toBe(0)
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(process.exitCode).toBeUndefined()
+    expect(console.log).toHaveBeenCalledTimes(1)
+    const output = vi.mocked(console.log).mock.calls[0]?.[0]
+    expect(JSON.parse(String(output))).toEqual({
       schemaVersion: 1,
       command: 'inspect',
       source: 'brand',
@@ -99,11 +115,21 @@ describe('primitree inspect with a project config', () => {
     })
   })
 
-  it('prints the token explanation as text', () => {
-    const result = runInspect('semantic.action')
+  it('prints the token explanation as text', async () => {
+    await runInspect(
+      parseArgs([
+        'semantic.action',
+        '--config',
+        path.join(directory, 'primitree.config.ts'),
+      ])
+    )
 
-    expect(result.status).toBe(0)
-    expect(result.stdout).toBe(`Token: semantic.action
+    expect(process.exitCode).toBeUndefined()
+    const output = vi
+      .mocked(console.log)
+      .mock.calls.map(([value]) => String(value))
+      .join('\n')
+    expect(`${output}\n`).toBe(`Token: semantic.action
 ID: source:brand/token:semantic.action
 Source: brand
 Type: number
@@ -129,11 +155,16 @@ Token pointer: /semantic/action
       'utf8'
     )
 
-    const result = runInspect('size.base')
-
-    expect(result.status).toBe(2)
-    expect(result.stderr).toContain('Token references contain a cycle.')
-    expect(result.stdout).toBe('')
+    await expect(
+      runInspect(
+        parseArgs([
+          'size.base',
+          '--config',
+          path.join(directory, 'primitree.config.ts'),
+        ])
+      )
+    ).rejects.toThrow('Token references contain a cycle.')
+    expect(console.log).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -149,7 +180,7 @@ Token pointer: /semantic/action
     ],
     ['missing format', ['semantic.action', '--format']],
   ])('returns exit code 2 for $name', (_name, args) => {
-    const result = runInspect(...args)
+    const result = runInspectProcess(...args)
 
     expect(result.status).toBe(2)
   })
