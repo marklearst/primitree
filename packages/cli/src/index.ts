@@ -15,7 +15,7 @@ Usage:
 
 Commands:
   build    Convert variables JSON into token files and code
-  diff     Compare two variables exports by stable Figma ID
+  diff     Compare configured DTCG files or Figma variables exports
   check    Check a configured DTCG source, Figma export, or built token directory
   inspect  Explain one token from a configured DTCG source
   init     Create a token repository from sample data or an export
