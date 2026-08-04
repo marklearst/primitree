@@ -603,6 +603,8 @@ test('exports one immutable dependency-ordered release inventory', () => {
           'dist/index.d.cts',
           'dist/types.d.ts',
           'dist/types.d.cts',
+          'dist/policy.d.ts',
+          'dist/policy.d.cts',
         ],
         requiredBin: undefined,
         requiredBinTarget: undefined,
@@ -617,6 +619,11 @@ test('exports one immutable dependency-ordered release inventory', () => {
           './types:require:types=./dist/types.d.cts',
           './types:require:default=./dist/types.cjs',
           './types:default=./dist/types.js',
+          './policy:import:types=./dist/policy.d.ts',
+          './policy:import:default=./dist/policy.js',
+          './policy:require:types=./dist/policy.d.cts',
+          './policy:require:default=./dist/policy.cjs',
+          './policy:default=./dist/policy.js',
         ],
       },
       {
@@ -1635,6 +1642,23 @@ test('pins repository actions and exposes only the four reviewed jobs', () => {
     `${consumer}\n${publish}\n${githubRelease}`,
     /pnpm\/action-setup@/
   )
+})
+
+test('keeps Codecov informational while package coverage gates remain blocking', () => {
+  const configUrl = new URL('../codecov.yml', import.meta.url)
+  assert.equal(existsSync(configUrl), true)
+  assert.deepEqual(parseYaml(readFileSync(configUrl, 'utf8')), {
+    coverage: {
+      status: {
+        project: {
+          default: { target: 'auto', informational: true },
+        },
+        patch: {
+          default: { target: 'auto', informational: true },
+        },
+      },
+    },
+  })
 })
 
 test('rejects YAML forms that bypass workflow trust-boundary checks', () => {

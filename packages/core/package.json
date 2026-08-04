@@ -34,6 +34,17 @@
         "default": "./dist/types.cjs"
       },
       "default": "./dist/types.js"
+    },
+    "./policy": {
+      "import": {
+        "types": "./dist/policy.d.ts",
+        "default": "./dist/policy.js"
+      },
+      "require": {
+        "types": "./dist/policy.d.cts",
+        "default": "./dist/policy.cjs"
+      },
+      "default": "./dist/policy.js"
     }
   },
   "keywords": [

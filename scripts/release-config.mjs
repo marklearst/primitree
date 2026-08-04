@@ -74,6 +74,8 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
       'dist/index.d.cts',
       'dist/types.d.ts',
       'dist/types.d.cts',
+      'dist/policy.d.ts',
+      'dist/policy.d.cts',
     ],
     expectedExports: {
       '.': {
@@ -97,6 +99,17 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
           default: './dist/types.cjs',
         },
         default: './dist/types.js',
+      },
+      './policy': {
+        import: {
+          types: './dist/policy.d.ts',
+          default: './dist/policy.js',
+        },
+        require: {
+          types: './dist/policy.d.cts',
+          default: './dist/policy.cjs',
+        },
+        default: './dist/policy.js',
       },
     },
     requiredBin: undefined,
