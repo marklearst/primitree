@@ -363,6 +363,94 @@ describe('source-neutral graph', () => {
     expect(inspected.resolution.value).toBe('#69f')
   })
 
+  it('rejects repeated token IDs or paths and reports tokens outside the view', () => {
+    const sourceId = requireValue(createSourceId('duplicate-view'))
+    const firstId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'first' })
+    )
+    const secondId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'second' })
+    )
+    const graph = requireValue(
+      composeGraph([
+        requireValue(
+          createGraphFragment({
+            source: { id: sourceId, type: 'dtcg' },
+            groups: [],
+            tokens: [firstId, secondId].map((id, index) => ({
+              id,
+              sourceId,
+              name: index === 0 ? 'First' : 'Second',
+              path: [index === 0 ? 'first' : 'second'],
+              type: 'color',
+              values: [
+                {
+                  value: {
+                    kind: 'literal',
+                    value: index === 0 ? '#36f' : '#69f',
+                  },
+                },
+              ],
+            })),
+          })
+        ),
+      ])
+    )
+    const view = requireValue(createSourceView(graph, { id: 'app' }))
+    const [first, second] = view.tokens
+    if (first === undefined || second === undefined) {
+      throw new Error('Expected two view members.')
+    }
+    const duplicateTokenView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([first, { ...second, tokenId: first.tokenId }]),
+    })
+    const duplicatePathView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([first, { ...second, path: first.path }]),
+    })
+    const reducedView = Object.freeze({
+      ...view,
+      tokens: Object.freeze([first]),
+    })
+
+    expect(
+      inspectToken(
+        { graph, view: reducedView },
+        { kind: 'token-id', tokenId: secondId }
+      )
+    ).toEqual({
+      ok: false,
+      diagnostics: [
+        {
+          code: 'graph.unknown-token',
+          phase: 'resolve',
+          message: 'The requested token is not in the view.',
+        },
+      ],
+    })
+
+    for (const invalidView of [duplicateTokenView, duplicatePathView]) {
+      expect(resolveToken(graph, invalidView, firstId)).toMatchObject({
+        ok: false,
+        diagnostics: [{ code: 'graph.invalid-resolution-input' }],
+      })
+      expect(resolveView(graph, invalidView)).toMatchObject({
+        ok: false,
+        diagnostics: [{ code: 'graph.invalid-resolution-input' }],
+      })
+      expect(
+        inspectToken(
+          { graph, view: invalidView },
+          { kind: 'path', path: first.path }
+        )
+      ).toMatchObject({
+        ok: false,
+        diagnostics: [{ code: 'graph.invalid-inspection-input' }],
+      })
+    }
+  })
+
   it('walks a long alias chain and caps full-view work', () => {
     const sourceId = requireValue(createSourceId('s'))
     const localIds = Array.from({ length: 3_000 }, (_, index) =>
