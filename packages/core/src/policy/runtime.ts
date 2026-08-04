@@ -43,19 +43,31 @@ function inputWithinWorkLimit(root: unknown): boolean {
   while (stack.length > 0) {
     const value = stack.pop()
     remaining -= typeof value === 'string' ? value.length + 1 : 1
-    if (remaining < 0) return false
-    if (value === null || typeof value !== 'object') continue
-    if (seen.has(value)) continue
+    if (remaining < 0) {
+      return false
+    }
+    if (value === null || typeof value !== 'object') {
+      continue
+    }
+    if (seen.has(value)) {
+      continue
+    }
     seen.add(value)
     if (Array.isArray(value)) {
       remaining -= value.length
-      if (remaining < 0) return false
-      for (const item of value) stack.push(item)
+      if (remaining < 0) {
+        return false
+      }
+      for (const item of value) {
+        stack.push(item)
+      }
       continue
     }
     for (const key of Object.keys(value)) {
       remaining -= key.length + 1
-      if (remaining < 0) return false
+      if (remaining < 0) {
+        return false
+      }
       stack.push(Reflect.get(value, key))
     }
   }
@@ -96,8 +108,18 @@ function isName(value: unknown): value is string {
     value.length > 0 &&
     value.length <= 256 &&
     value.trim() === value &&
-    !/[\u0000-\u001f\u007f]/u.test(value)
+    !hasControlCharacter(value)
   )
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f) {
+      return true
+    }
+  }
+  return false
 }
 
 function isPlainKey(value: string): boolean {
@@ -113,7 +135,7 @@ function isTokenId(value: unknown): value is TokenId {
     value.length <= MAX_GRAPH_QUALIFIED_ID_LENGTH &&
     value.startsWith('source:') &&
     value.includes('/token:') &&
-    !/[\u0000-\u001f\u007f]/u.test(value)
+    !hasControlCharacter(value)
   )
 }
 
@@ -121,11 +143,15 @@ function copyNames(
   value: unknown,
   maximum: number
 ): readonly string[] | undefined {
-  if (!Array.isArray(value) || value.length > maximum) return undefined
+  if (!Array.isArray(value) || value.length > maximum) {
+    return undefined
+  }
   const output: string[] = []
   const seen = new Set<string>()
   for (const item of value) {
-    if (!isName(item) || seen.has(item)) return undefined
+    if (!isName(item) || seen.has(item)) {
+      return undefined
+    }
     seen.add(item)
     output.push(item)
   }
@@ -140,22 +166,34 @@ function copyOwnership(value: unknown): PolicyOwnership | undefined {
   if (value === undefined) {
     return Object.freeze({ default: NO_NAMES, paths: Object.freeze({}) })
   }
-  if (!isRecord(value)) return undefined
+  if (!isRecord(value)) {
+    return undefined
+  }
   const defaultOwners =
     value.default === undefined
       ? NO_NAMES
       : copyNames(value.default, MAX_OWNERS)
-  if (defaultOwners === undefined) return undefined
+  if (defaultOwners === undefined) {
+    return undefined
+  }
   const pathsInput = value.paths
-  if (pathsInput !== undefined && !isRecord(pathsInput)) return undefined
+  if (pathsInput !== undefined && !isRecord(pathsInput)) {
+    return undefined
+  }
   const pathsRecord = pathsInput ?? {}
   const pathKeys = Object.keys(pathsRecord)
-  if (pathKeys.length > MAX_ROOTS) return undefined
+  if (pathKeys.length > MAX_ROOTS) {
+    return undefined
+  }
   const paths: Record<string, readonly string[]> = Object.create(null)
   for (const root of pathKeys) {
-    if (!isPlainKey(root) || !isName(root)) return undefined
+    if (!isPlainKey(root) || !isName(root)) {
+      return undefined
+    }
     const owners = copyNames(Reflect.get(pathsRecord, root), MAX_OWNERS)
-    if (owners === undefined) return undefined
+    if (owners === undefined) {
+      return undefined
+    }
     Object.defineProperty(paths, root, {
       value: owners,
       enumerable: true,
@@ -311,28 +349,44 @@ function findingId(
 function layerByRoot(policy: Policy): Map<string, PolicyLayer> {
   const output = new Map<string, PolicyLayer>()
   for (const layer of policy.layers) {
-    for (const root of layer.roots) output.set(root, layer)
+    for (const root of layer.roots) {
+      output.set(root, layer)
+    }
   }
   return output
 }
 
-function tokenPathKey(token: TokenNode): string {
-  return token.path.join('\u0000')
+interface PolicyToken {
+  readonly token: TokenNode
+  readonly path: readonly string[]
 }
 
-function compareTokens(left: TokenNode, right: TokenNode): number {
-  const leftPath = tokenPathKey(left)
-  const rightPath = tokenPathKey(right)
-  if (leftPath < rightPath) return -1
-  if (leftPath > rightPath) return 1
-  if (left.id < right.id) return -1
-  if (left.id > right.id) return 1
+function tokenPathKey(path: readonly string[]): string {
+  return path.join('\u0000')
+}
+
+function compareTokens(left: PolicyToken, right: PolicyToken): number {
+  const leftPath = tokenPathKey(left.path)
+  const rightPath = tokenPathKey(right.path)
+  if (leftPath < rightPath) {
+    return -1
+  }
+  if (leftPath > rightPath) {
+    return 1
+  }
+  if (left.token.id < right.token.id) {
+    return -1
+  }
+  if (left.token.id > right.token.id) {
+    return 1
+  }
   return 0
 }
 
 function makeFinding(input: {
   readonly ruleId: PolicyRuleId
   readonly token: TokenNode
+  readonly path: readonly string[]
   readonly message: string
   readonly owners: readonly string[]
   readonly baseline: ReadonlySet<string>
@@ -344,7 +398,7 @@ function makeFinding(input: {
     findingId: id,
     ruleId: input.ruleId,
     tokenId: input.token.id,
-    path: Object.freeze([...input.token.path]),
+    path: Object.freeze([...input.path]),
     message: input.message,
     owners: input.owners,
     disposition: input.baseline.has(id) ? 'baseline' : 'active',
@@ -385,12 +439,16 @@ function baselineSet(
   options: unknown,
   budget: WorkBudget
 ): PolicyResult<ReadonlySet<string>> {
-  if (options === undefined) return success(new Set())
+  if (options === undefined) {
+    return success(new Set())
+  }
   if (!isRecord(options)) {
     return failure('policy.invalid-options', 'Policy options are invalid.')
   }
   const baseline = options.baseline
-  if (baseline === undefined) return success(new Set())
+  if (baseline === undefined) {
+    return success(new Set())
+  }
   if (!Array.isArray(baseline) || baseline.length > MAX_FINDINGS) {
     return failure('policy.invalid-baseline', 'The policy baseline is invalid.')
   }
@@ -425,7 +483,9 @@ function evaluatePolicyInput(
   options?: PolicyEvaluationOptions
 ): PolicyResult<PolicyReport> {
   const checkedPolicy = createPolicy(policy)
-  if (!checkedPolicy.ok) return checkedPolicy
+  if (!checkedPolicy.ok) {
+    return checkedPolicy
+  }
   const selectedPolicy = checkedPolicy.value
   if (snapshot.view.id !== selectedPolicy.viewId) {
     return failure(
@@ -445,42 +505,80 @@ function evaluatePolicyInput(
   }
   const budget: WorkBudget = { remaining: MAX_OPERATION_WORK }
   const checkedBaseline = baselineSet(options, budget)
-  if (!checkedBaseline.ok) return checkedBaseline
+  if (!checkedBaseline.ok) {
+    return checkedBaseline
+  }
   const baseline = checkedBaseline.value
-  const viewIds = new Set<TokenId>()
+  const graphTokensById = new Map(graphTokens.map(token => [token.id, token]))
+  const viewTokensById = new Map<TokenId, PolicyToken>()
+  const viewPaths = new Set<string>()
   for (const item of viewTokens) {
-    if (!isRecord(item) || !isTokenId(item.tokenId)) {
+    if (
+      !isRecord(item) ||
+      !isTokenId(item.tokenId) ||
+      !Array.isArray(item.path) ||
+      item.path.length === 0 ||
+      item.path.some(segment => !isName(segment)) ||
+      viewTokensById.has(item.tokenId as TokenId)
+    ) {
       return failure(
         'policy.invalid-snapshot',
         'The graph snapshot is invalid.'
       )
     }
-    if (!chargeWork(budget, item.tokenId.length + 1)) {
+    const path = Object.freeze([...(item.path as string[])])
+    const pathKey = tokenPathKey(path)
+    const token = graphTokensById.get(item.tokenId as TokenId)
+    if (token === undefined || viewPaths.has(pathKey)) {
+      return failure(
+        'policy.invalid-snapshot',
+        'The graph snapshot is invalid.'
+      )
+    }
+    if (
+      !chargeWork(
+        budget,
+        item.tokenId.length +
+          path.reduce((total, segment) => total + segment.length + 1, 1)
+      )
+    ) {
       return failure(
         'policy.work-limit',
         'Policy evaluation exceeds the 1,000,000-unit work limit.'
       )
     }
-    viewIds.add(item.tokenId as TokenId)
+    viewTokensById.set(item.tokenId as TokenId, Object.freeze({ token, path }))
+    viewPaths.add(pathKey)
   }
-  const tokens = graphTokens
-    .filter(token => viewIds.has(token.id))
-    .sort(compareTokens)
-  const tokensById = new Map(tokens.map(token => [token.id, token]))
+  for (const { token } of viewTokensById.values()) {
+    for (const authored of token.values) {
+      if (
+        authored.value.kind === 'reference' &&
+        !viewTokensById.has(authored.value.target)
+      ) {
+        return failure(
+          'policy.invalid-snapshot',
+          'The graph snapshot is invalid.'
+        )
+      }
+    }
+  }
+  const tokens = [...viewTokensById.values()].sort(compareTokens)
   const roots = layerByRoot(selectedPolicy)
   const findings: PolicyFinding[] = []
-  for (const token of tokens) {
+  for (const selectedToken of tokens) {
+    const { token, path } = selectedToken
     const tokenWork =
       token.id.length +
       token.values.length +
-      token.path.reduce((total, segment) => total + segment.length + 1, 1)
+      path.reduce((total, segment) => total + segment.length + 1, 1)
     if (!chargeWork(budget, tokenWork)) {
       return failure(
         'policy.work-limit',
         'Policy evaluation exceeds the 1,000,000-unit work limit.'
       )
     }
-    const root = token.path[0]
+    const root = path[0]
     const layer = root === undefined ? undefined : roots.get(root)
     const owners =
       root === undefined
@@ -495,17 +593,19 @@ function evaluatePolicyInput(
           {
             ruleId: 'PT1001',
             token,
+            path,
             message: 'Token path does not match a policy layer.',
             owners,
             baseline,
           },
           budget
         )
-      )
+      ) {
         return failure(
           'policy.work-limit',
           'Policy evaluation exceeds the 1,000,000-unit work limit.'
         )
+      }
     } else {
       const hasLiteral = token.values.some(
         value => value.value.kind === 'literal'
@@ -523,6 +623,7 @@ function evaluatePolicyInput(
             {
               ruleId: 'PT1003',
               token,
+              path,
               message: `Layer ${layer.id} does not allow this token value form.`,
               owners,
               baseline,
@@ -530,26 +631,33 @@ function evaluatePolicyInput(
             },
             budget
           )
-        )
+        ) {
           return failure(
             'policy.work-limit',
             'Policy evaluation exceeds the 1,000,000-unit work limit.'
           )
+        }
       }
       const targets = new Set<TokenId>()
       for (const authored of token.values) {
-        if (authored.value.kind === 'reference')
+        if (authored.value.kind === 'reference') {
           targets.add(authored.value.target)
+        }
       }
       for (const targetId of targets) {
-        const target = tokensById.get(targetId)
-        const targetRoot = target?.path[0]
+        const target = viewTokensById.get(targetId)
+        if (target === undefined) {
+          return failure(
+            'policy.invalid-snapshot',
+            'The graph snapshot is invalid.'
+          )
+        }
+        const targetRoot = target.path[0]
         const targetLayer =
           targetRoot === undefined ? undefined : roots.get(targetRoot)
         if (
-          target !== undefined &&
-          (targetLayer === undefined ||
-            !layer.references.includes(targetLayer.id))
+          targetLayer === undefined ||
+          !layer.references.includes(targetLayer.id)
         ) {
           if (
             !appendFinding(
@@ -557,6 +665,7 @@ function evaluatePolicyInput(
               {
                 ruleId: 'PT1004',
                 token,
+                path,
                 message:
                   targetLayer === undefined
                     ? `Layer ${layer.id} cannot reference an unassigned token.`
@@ -568,11 +677,12 @@ function evaluatePolicyInput(
               },
               budget
             )
-          )
+          ) {
             return failure(
               'policy.work-limit',
               'Policy evaluation exceeds the 1,000,000-unit work limit.'
             )
+          }
         }
       }
     }
@@ -584,6 +694,7 @@ function evaluatePolicyInput(
           {
             ruleId: 'PT1005',
             token,
+            path,
             message: 'Token has no owner.',
             owners,
             baseline,
@@ -591,11 +702,12 @@ function evaluatePolicyInput(
           },
           budget
         )
-      )
+      ) {
         return failure(
           'policy.work-limit',
           'Policy evaluation exceeds the 1,000,000-unit work limit.'
         )
+      }
     }
   }
 
