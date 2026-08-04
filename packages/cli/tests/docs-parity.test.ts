@@ -7,6 +7,7 @@ import { checkHelp } from '../src/commands/check'
 import { diffHelp } from '../src/commands/diff'
 import { exportHelp } from '../src/commands/export'
 import { initHelp } from '../src/commands/init'
+import { inspectHelp } from '../src/commands/inspect'
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..')
 const commands = [
@@ -15,6 +16,7 @@ const commands = [
   ['diff', diffHelp],
   ['export', exportHelp],
   ['init', initHelp],
+  ['inspect', inspectHelp],
 ] as const
 
 function options(text: string): string[] {

@@ -1,6 +1,7 @@
 # @primitree/cli
 
-`@primitree/cli` turns a Figma variables export into files for version control.
+`@primitree/cli` checks local DTCG token files against project rules. It also
+keeps the older commands for Figma variables exports during the 1.0 update.
 
 ```sh
 npx @primitree/cli build variables.json
@@ -46,11 +47,17 @@ Build options:
 ## `primitree diff`
 
 ```sh
+primitree diff <before.tokens.json> <after.tokens.json> --config <path>
+                [--source <name>] [--format text|json]
 primitree diff <old.json> <new.json>
 ```
 
-The command matches variables by stable Figma IDs and writes a Markdown report.
-Use `--json` for JSON output, `--out <file>` to write a file, and
+The configured form reports token changes, tokens affected through references,
+and new or resolved policy findings. It exits with code 1 when the after file
+has active findings.
+
+The older form matches variables by stable Figma IDs and writes a Markdown
+report. Use `--json` for JSON output, `--out <file>` to write a file, and
 `--fail-on-breaking` to exit with code 2 when the report contains a breaking
 change.
 
@@ -61,13 +68,68 @@ primitree diff backup/variables.json variables.json --fail-on-breaking
 ## `primitree check`
 
 ```sh
+primitree check [--config <path>] [--source <name>] [--format text|json]
 primitree check <variables.json | tokens-dir>
 ```
 
-For a variables export, the command checks the input shape, alias graph, and
-mode resolution. For a built token directory, it checks each Resolver context
-combination and token reference. The command exits with code 1 when it finds a
-problem.
+The config form reads `./primitree.config.ts` unless `--config` names a file.
+It selects one local DTCG source, builds its token graph, and checks its layer
+and owner rules. Use `--source` when the config contains several sources.
+
+Install the CLI in the project before importing its config helper:
+
+```sh
+npm install -D @primitree/cli
+```
+
+```ts
+import { defineConfig } from '@primitree/cli/config'
+
+export default defineConfig({
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [
+          { id: 'base', roots: ['color'], values: 'literal' },
+          {
+            id: 'meaning',
+            roots: ['semantic'],
+            values: 'reference',
+            references: ['base'],
+          },
+        ],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+})
+```
+
+Paths are relative to the config file. Primitree reads the named config file
+and does not search parent folders. It rejects unknown settings. Each source
+needs one to four layers.
+
+The older path form still checks a Figma variables export or a built token
+directory. The command exits with code 1 for findings and code 2 for command,
+config, or input errors.
+
+## `primitree inspect`
+
+```sh
+primitree inspect <token.path> [--config <path>] [--source <name>]
+                                  [--format text|json]
+```
+
+The command reads the same config as `primitree check`. It reports the token
+ID, source, type, resolved value, alias chain, owners, direct dependents, and
+source location. The token path must match one token, such as
+`semantic.action`.
+
+The command exits with code 0 after it finds the token and code 2 for command,
+config, or input errors.
 
 ## `primitree init`
 

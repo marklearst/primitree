@@ -1,6 +1,6 @@
 ---
 title: CLI commands
-description: Use the Primitree CLI to download Figma variables JSON, build token outputs, compare exports, and check inputs.
+description: Use the Primitree CLI to download Figma variables JSON, build token outputs, check sources, and explain tokens.
 ---
 
 The CLI requires Node.js 24 or newer. Add it as a development dependency:
@@ -13,13 +13,14 @@ Binary name: `primitree`.
 
 ## Commands
 
-| Command  | Purpose                                            |
-| -------- | -------------------------------------------------- |
-| `build`  | Write token JSON, Resolver, CSS, Tailwind, and TS  |
-| `diff`   | Semantic changelog between two exports             |
-| `check`  | Validate export or built tokens directory          |
-| `init`   | Create a token repository with sample data         |
-| `export` | Download variables via Figma REST API (Enterprise) |
+| Command   | Purpose                                            |
+| --------- | -------------------------------------------------- |
+| `build`   | Write token JSON, Resolver, CSS, Tailwind, and TS  |
+| `diff`    | Compare DTCG files or Figma variables exports      |
+| `check`   | Check a DTCG source, Figma export, or token folder |
+| `inspect` | Explain one token from a configured source         |
+| `init`    | Create a token repository with sample data         |
+| `export`  | Download variables via Figma REST API (Enterprise) |
 
 ```bash
 primitree <command> --help
@@ -52,6 +53,11 @@ npm run build
     title='check'
     href='/docs/cli/check'
     description='Validate before merge'
+  />
+  <Card
+    title='inspect'
+    href='/docs/cli/inspect'
+    description='Explain one token'
   />
   <Card
     title='init'
