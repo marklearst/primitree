@@ -146,8 +146,14 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     name: '@primitree/cli',
     attwProfile: null,
     requiredFiles: ['dist'],
-    requiredDeclarationFiles: ['dist/index.d.ts'],
-    expectedExports: undefined,
+    requiredDeclarationFiles: ['dist/index.d.ts', 'dist/config.d.ts'],
+    expectedExports: {
+      './config': {
+        types: './dist/config.d.ts',
+        import: './dist/config.js',
+        default: './dist/config.js',
+      },
+    },
     requiredBin: 'primitree',
     requiredBinTarget: './dist/index.js',
     requiredInternalRuntimeDependencies: ['@primitree/core', '@primitree/dtcg'],

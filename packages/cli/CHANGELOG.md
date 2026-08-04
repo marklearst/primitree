@@ -6,6 +6,8 @@ Initial release of `@primitree/cli`.
 
 ### Added
 
+- A typed `@primitree/cli/config` export for named local DTCG sources.
+- Config-backed `primitree check` reports for token layer and owner rules.
 - `primitree build` for token files, Resolver contexts, CSS, Tailwind CSS v4, TypeScript, transformer configuration, and a workflow template.
 - `primitree diff` for ID-based comparison between two variables exports.
 - `primitree check` for variables exports and built token directories.

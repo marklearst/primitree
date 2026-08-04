@@ -645,10 +645,14 @@ test('exports one immutable dependency-ordered release inventory', () => {
         name: '@primitree/cli',
         attwProfile: null,
         requiredFiles: ['dist'],
-        requiredDeclarationFiles: ['dist/index.d.ts'],
+        requiredDeclarationFiles: ['dist/index.d.ts', 'dist/config.d.ts'],
         requiredBin: 'primitree',
         requiredBinTarget: './dist/index.js',
-        exportSignatures: [],
+        exportSignatures: [
+          './config:types=./dist/config.d.ts',
+          './config:import=./dist/config.js',
+          './config:default=./dist/config.js',
+        ],
       },
       {
         name: '@primitree/hooks',

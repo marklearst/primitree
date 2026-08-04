@@ -6,11 +6,13 @@
 export interface ParsedArgs {
   positionals: string[]
   flags: Record<string, string | boolean>
+  duplicateFlags: string[]
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const positionals: string[] = []
   const flags: Record<string, string | boolean> = {}
+  const duplicateFlags: string[] = []
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
@@ -19,10 +21,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg.startsWith('--')) {
       const eq = arg.indexOf('=')
+      const name = arg.slice(2, eq === -1 ? undefined : eq)
+      if (Object.hasOwn(flags, name)) duplicateFlags.push(name)
       if (eq !== -1) {
-        flags[arg.slice(2, eq)] = arg.slice(eq + 1)
+        flags[name] = arg.slice(eq + 1)
       } else {
-        const name = arg.slice(2)
         const next = argv[i + 1]
         if (next !== undefined && !next.startsWith('--')) {
           flags[name] = next
@@ -36,7 +39,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
   }
 
-  return { positionals, flags }
+  return { positionals, flags, duplicateFlags }
 }
 
 export function getStringFlag(

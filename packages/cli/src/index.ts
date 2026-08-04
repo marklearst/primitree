@@ -15,7 +15,7 @@ Usage:
 Commands:
   build    Convert variables JSON into token files and code
   diff     Compare two variables exports by stable Figma ID
-  check    Validate a variables export or a built tokens directory
+  check    Check a configured DTCG source, Figma export, or built token directory
   init     Create a token repository from sample data or an export
   export   Download local variables through the Figma REST API
 
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
   if (!command) {
     console.log(GLOBAL_HELP)
     console.error(`Unknown command: ${commandName}`)
-    process.exitCode = 1
+    process.exitCode = 2
     return
   }
 
@@ -67,5 +67,5 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err)
-  process.exit(1)
+  process.exit(2)
 })
