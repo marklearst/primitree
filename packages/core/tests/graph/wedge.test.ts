@@ -424,7 +424,7 @@ describe('source-neutral graph', () => {
       diagnostics: [
         {
           code: 'graph.unknown-token',
-          phase: 'resolve',
+          phase: 'inspect',
           message: 'The requested token is not in the view.',
         },
       ],
