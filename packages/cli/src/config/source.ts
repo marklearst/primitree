@@ -16,9 +16,22 @@ interface LoadConfiguredSourceOptions {
   readonly sourceName?: string
 }
 
+interface BuildConfiguredSourceGraphOptions {
+  readonly file?: string
+  readonly label?: string
+  readonly provenanceFile?: string
+}
+
+export interface ConfiguredSource {
+  readonly configPath: string
+  readonly sourceName: string
+  readonly source: LoadedDTCGSourceConfig
+}
+
 export interface ConfiguredSourceGraph {
   readonly sourceName: string
   readonly source: LoadedDTCGSourceConfig
+  readonly document: unknown
   readonly graph: TokenGraph
   readonly view: GraphView
 }
@@ -29,9 +42,9 @@ function resultError(result: {
   return new Error(result.diagnostics.map(item => item.message).join('\n'))
 }
 
-export async function loadConfiguredSourceGraph(
+export async function loadConfiguredSource(
   options: LoadConfiguredSourceOptions
-): Promise<ConfiguredSourceGraph> {
+): Promise<ConfiguredSource> {
   const loaded = await loadPrimitreeConfig({
     ...(options.configPath === undefined
       ? {}
@@ -50,17 +63,35 @@ export async function loadConfiguredSourceGraph(
     throw new Error(`Config source "${sourceName}" does not exist.`)
   }
 
-  const stats = await fs.stat(source.file).catch(() => undefined)
+  return Object.freeze({
+    configPath: loaded.configPath,
+    sourceName,
+    source,
+  })
+}
+
+export async function buildConfiguredSourceGraph(
+  configured: ConfiguredSource,
+  options: BuildConfiguredSourceGraphOptions = {}
+): Promise<ConfiguredSourceGraph> {
+  const sourceFile = options.file ?? configured.source.file
+  const sourceLabel =
+    options.label ?? `file for source "${configured.sourceName}"`
+
+  const stats = await fs.stat(sourceFile).catch(() => undefined)
   if (stats === undefined || !stats.isFile()) {
-    throw new Error(`Could not read the file for source "${sourceName}".`)
+    throw new Error(`Could not read the ${sourceLabel}.`)
   }
   if (stats.size > 10 * 1024 * 1024) {
-    throw new Error(`Source "${sourceName}" exceeds the 10 MiB file limit.`)
+    throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
   }
-  const document = await readJsonFile(source.file)
+  const document = await readJsonFile(sourceFile)
   const fragment = toGraphFragment(document, {
-    source: sourceName,
-    uri: path.relative(path.dirname(loaded.configPath), source.file),
+    source: configured.sourceName,
+    uri: path.relative(
+      path.dirname(configured.configPath),
+      options.provenanceFile ?? sourceFile
+    ),
   })
   if (!fragment.ok) {
     throw resultError(fragment)
@@ -69,7 +100,7 @@ export async function loadConfiguredSourceGraph(
   if (!graph.ok) {
     throw resultError(graph)
   }
-  const view = createSourceView(graph.value, { id: sourceName })
+  const view = createSourceView(graph.value, { id: configured.sourceName })
   if (!view.ok) {
     throw resultError(view)
   }
@@ -79,9 +110,16 @@ export async function loadConfiguredSourceGraph(
   }
 
   return Object.freeze({
-    sourceName,
-    source,
+    sourceName: configured.sourceName,
+    source: configured.source,
+    document,
     graph: graph.value,
     view: view.value,
   })
+}
+
+export async function loadConfiguredSourceGraph(
+  options: LoadConfiguredSourceOptions
+): Promise<ConfiguredSourceGraph> {
+  return buildConfiguredSourceGraph(await loadConfiguredSource(options))
 }

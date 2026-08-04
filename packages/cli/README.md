@@ -47,11 +47,17 @@ Build options:
 ## `primitree diff`
 
 ```sh
+primitree diff <before.tokens.json> <after.tokens.json> --config <path>
+                [--source <name>] [--format text|json]
 primitree diff <old.json> <new.json>
 ```
 
-The command matches variables by stable Figma IDs and writes a Markdown report.
-Use `--json` for JSON output, `--out <file>` to write a file, and
+The configured form reports token changes, tokens affected through references,
+and new or resolved policy findings. It exits with code 1 when the after file
+has active findings.
+
+The older form matches variables by stable Figma IDs and writes a Markdown
+report. Use `--json` for JSON output, `--out <file>` to write a file, and
 `--fail-on-breaking` to exit with code 2 when the report contains a breaking
 change.
 

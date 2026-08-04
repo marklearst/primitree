@@ -1,13 +1,33 @@
 ---
 title: primitree diff
-description: Semantic diff between two Figma variables exports with stable ID matching.
+description: Compare two DTCG files with configured rules or two Figma variables exports.
 ---
 
 ```bash
+primitree diff <before.tokens.json> <after.tokens.json> --config <path>
+                [--source <name>] [--format text|json]
 primitree diff <before.json> <after.json> [options]
 ```
 
-## ID-based comparison
+## Configured DTCG comparison
+
+The configured form reads the layer and owner rules from one exact config
+file. It reports added, removed, and changed tokens. Each change lists the
+tokens affected through references.
+
+The report also lists new and resolved policy findings. It exits with code `1`
+when the after file has active findings and code `2` for command, config, or
+input errors.
+
+```bash
+primitree diff backup.tokens.json tokens.json \
+  --config primitree.config.ts \
+  --source brand
+```
+
+Use `--format json` for one JSON report.
+
+## Figma ID comparison
 
 String diffs show a rename as a removal and an addition.
 
@@ -28,6 +48,9 @@ Markdown is the default output format. Use `--json` to write the `VariablesDiff`
 
 | Option               | Description                                       |
 | -------------------- | ------------------------------------------------- |
+| `--config <path>`    | Read DTCG rules from this config file             |
+| `--source <name>`    | Select one configured DTCG source                 |
+| `--format <value>`   | Set the configured report format to text or JSON  |
 | `--json`             | Output the raw diff as JSON instead of Markdown   |
 | `--out <file>`       | Write output to a file instead of standard output |
 | `--fail-on-breaking` | Exit with code 2 after a breaking change          |
