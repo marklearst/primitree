@@ -21,6 +21,14 @@
       "dependsOn": ["build"],
       "outputs": ["coverage/**"]
     },
+    "@primitree/cli#test": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "@primitree/cli#test:coverage": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
+    },
     "@primitree/hooks#typecheck": {
       "dependsOn": ["build"],
       "outputs": []
