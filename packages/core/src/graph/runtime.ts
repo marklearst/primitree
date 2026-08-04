@@ -58,13 +58,21 @@ function inputWithinWorkLimit(root: unknown): boolean {
     } else {
       remaining -= 1
     }
-    if (remaining < 0) return false
-    if (value === null || typeof value !== 'object') continue
-    if (seen.has(value)) continue
+    if (remaining < 0) {
+      return false
+    }
+    if (value === null || typeof value !== 'object') {
+      continue
+    }
+    if (seen.has(value)) {
+      continue
+    }
     seen.add(value)
     if (Array.isArray(value)) {
       remaining -= value.length
-      if (remaining < 0) return false
+      if (remaining < 0) {
+        return false
+      }
       for (let index = 0; index < value.length; index += 1) {
         stack.push(value[index])
       }
@@ -72,7 +80,9 @@ function inputWithinWorkLimit(root: unknown): boolean {
     }
     for (const key of Object.keys(value)) {
       remaining -= key.length + 1
-      if (remaining < 0) return false
+      if (remaining < 0) {
+        return false
+      }
       stack.push(Reflect.get(value, key))
     }
   }
@@ -128,8 +138,18 @@ function isTextWithinLimit(value: unknown, maximum: number): value is string {
     value.length > 0 &&
     value.length <= maximum &&
     value.trim() === value &&
-    !/[\u0000-\u001f\u007f]/u.test(value)
+    !hasControlCharacter(value)
   )
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f) {
+      return true
+    }
+  }
+  return false
 }
 
 function isLabel(value: unknown): value is string {
@@ -379,7 +399,9 @@ export function qualifyId<Kind extends QualifiedIdKind>(input: {
   readonly localId: string
 }): Result<QualifiedIdForKind<Kind>> {
   try {
-    if (!inputWithinWorkLimit(input)) return workLimit('source')
+    if (!inputWithinWorkLimit(input)) {
+      return workLimit('source')
+    }
     return qualifyIdInput(input)
   } catch {
     return failure(
@@ -584,7 +606,9 @@ function createGraphFragmentInput(input: unknown): Result<GraphFragment> {
 
 export function createGraphFragment(input: unknown): Result<GraphFragment> {
   try {
-    if (!inputWithinWorkLimit(input)) return workLimit('source')
+    if (!inputWithinWorkLimit(input)) {
+      return workLimit('source')
+    }
     return createGraphFragmentInput(input)
   } catch {
     return failure(
@@ -616,7 +640,9 @@ function composeGraphInput(
 
   for (const candidate of fragments) {
     const validated = createGraphFragment(candidate)
-    if (!validated.ok) return validated
+    if (!validated.ok) {
+      return validated
+    }
     const fragment = validated.value
     if (sourceIds.has(fragment.source.id as string)) {
       return failure(
@@ -688,7 +714,9 @@ export function composeGraph(
   fragments: readonly GraphFragment[]
 ): Result<TokenGraph> {
   try {
-    if (!inputWithinWorkLimit(fragments)) return workLimit('compose')
+    if (!inputWithinWorkLimit(fragments)) {
+      return workLimit('compose')
+    }
     return composeGraphInput(fragments)
   } catch {
     return failure(
@@ -723,7 +751,9 @@ function createSourceViewInput(
   const paths = new Set<string>()
   const tokens = graph.tokens.map(token => {
     const key = pathKey(token.path)
-    if (paths.has(key)) return undefined
+    if (paths.has(key)) {
+      return undefined
+    }
     paths.add(key)
     return Object.freeze({ tokenId: token.id, path: token.path })
   })
@@ -750,7 +780,9 @@ export function createSourceView(
   options: { readonly id: string }
 ): Result<GraphView> {
   try {
-    if (!inputWithinWorkLimit([graph, options])) return workLimit('view')
+    if (!inputWithinWorkLimit([graph, options])) {
+      return workLimit('view')
+    }
     return createSourceViewInput(graph, options)
   } catch {
     return failure(
@@ -797,9 +829,15 @@ function queryFromAdjacency(
       'The requested token is not in the graph.'
     )
   }
-  const neighbors = (id: TokenId): readonly TokenId[] =>
-    adjacency.get(id) ?? NO_TOKEN_IDS
-  if (!transitive) return success(neighbors(tokenId))
+  const neighbors = (id: TokenId): readonly TokenId[] => {
+    const candidates = adjacency.get(id) ?? NO_TOKEN_IDS
+    return Object.freeze(
+      candidates.filter(candidate => tokenIds.has(candidate))
+    )
+  }
+  if (!transitive) {
+    return success(neighbors(tokenId))
+  }
 
   const seen = new Set<TokenId>([tokenId])
   const result: TokenId[] = []
@@ -807,8 +845,12 @@ function queryFromAdjacency(
   while (queue.length > 0) {
     const next: TokenId[] = []
     for (const id of queue) {
-      if (!chargeWork(budget)) return workLimit('resolve')
-      if (seen.has(id)) continue
+      if (!chargeWork(budget)) {
+        return workLimit('resolve')
+      }
+      if (seen.has(id)) {
+        continue
+      }
       seen.add(id)
       result.push(id)
       next.push(...neighbors(id))
@@ -850,7 +892,9 @@ export function getReferences(
   tokenId: TokenId
 ): Result<readonly ReferenceEdge[]> {
   try {
-    if (!inputWithinWorkLimit([graph, tokenId])) return workLimit('resolve')
+    if (!inputWithinWorkLimit([graph, tokenId])) {
+      return workLimit('resolve')
+    }
     if (!tokenMap(graph).has(tokenId)) {
       return failure(
         'graph.unknown-token',
@@ -938,7 +982,9 @@ function resolveTokenWithMaps(
   let resolvedToken: TokenNode | undefined
   let resolvedValue: JsonValue | undefined
   while (resolvedToken === undefined) {
-    if (!chargeWork(budget)) return workLimit('resolve')
+    if (!chargeWork(budget)) {
+      return workLimit('resolve')
+    }
     const token = tokens.get(currentId)
     if (token === undefined || !paths.has(currentId)) {
       return failure(
@@ -961,7 +1007,9 @@ function resolveTokenWithMaps(
     }[] = []
     for (const authored of token.values) {
       const specificity = Object.keys(authored.conditions).length
-      if (!chargeWork(budget, specificity + 1)) return workLimit('resolve')
+      if (!chargeWork(budget, specificity + 1)) {
+        return workLimit('resolve')
+      }
       if (matchesSelection(authored.conditions, selected)) {
         candidates.push({ authored, specificity })
       }
@@ -997,7 +1045,9 @@ function resolveTokenWithMaps(
       resolvedValue = winner.value.value
       continue
     }
-    if (chain.length === 1) directReferences.push(winner.value.target)
+    if (chain.length === 1) {
+      directReferences.push(winner.value.target)
+    }
     const target = tokens.get(winner.value.target)
     if (target === undefined || !paths.has(winner.value.target)) {
       return failure(
@@ -1102,7 +1152,9 @@ export function resolveView(
         selected,
         budget
       )
-      if (!resolved.ok) return resolved
+      if (!resolved.ok) {
+        return resolved
+      }
       output.push(resolved.value)
     }
     return success(Object.freeze(output))
@@ -1156,9 +1208,15 @@ function inspectTokenInput(
     tokenId,
     selection
   )
-  if (!dependencies.ok) return dependencies
-  if (!dependents.ok) return dependents
-  if (!resolution.ok) return resolution
+  if (!dependencies.ok) {
+    return dependencies
+  }
+  if (!dependents.ok) {
+    return dependents
+  }
+  if (!resolution.ok) {
+    return resolution
+  }
   return success(
     Object.freeze({
       tokenId,
@@ -1191,6 +1249,16 @@ export function inspectToken(
   }
 }
 
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) {
+    return -1
+  }
+  if (left > right) {
+    return 1
+  }
+  return 0
+}
+
 function stableShape(value: unknown): string {
   if (value === null || typeof value !== 'object') {
     return value === undefined ? 'undefined' : JSON.stringify(value)
@@ -1199,22 +1267,57 @@ function stableShape(value: unknown): string {
     return `[${value.map(stableShape).join(',')}]`
   }
   return `{${Object.keys(value)
-    .sort((left, right) => left.localeCompare(right))
+    .sort(compareCodeUnits)
     .map(
       key => `${JSON.stringify(key)}:${stableShape(Reflect.get(value, key))}`
     )
     .join(',')}}`
 }
 
-function tokenShape(token: TokenNode): string {
+function tokenShape(token: TokenNode, path: readonly string[]): string {
   return stableShape({
     sourceId: token.sourceId,
     groupId: token.groupId,
     name: token.name,
-    path: token.path,
+    path,
     type: token.type,
     values: token.values,
   })
+}
+
+interface ViewTokenRecord {
+  readonly token: TokenNode
+  readonly path: readonly string[]
+}
+
+function viewTokenMap(
+  snapshot: GraphSnapshot
+): Result<ReadonlyMap<TokenId, ViewTokenRecord>> {
+  const graphTokens = tokenMap(snapshot.graph)
+  const tokens = new Map<TokenId, ViewTokenRecord>()
+  const paths = new Set<string>()
+  for (const member of snapshot.view.tokens) {
+    const token = graphTokens.get(member.tokenId)
+    const path = copyStringArray(member.path)
+    const key = path === undefined ? undefined : pathKey(path)
+    if (
+      token === undefined ||
+      path === undefined ||
+      path.length === 0 ||
+      key === undefined ||
+      tokens.has(member.tokenId) ||
+      paths.has(key)
+    ) {
+      return failure(
+        'graph.invalid-diff-input',
+        'diff',
+        'A graph snapshot contains an invalid view member.'
+      )
+    }
+    tokens.set(member.tokenId, Object.freeze({ token, path }))
+    paths.add(key)
+  }
+  return success(tokens)
 }
 
 function diffGraphViewsInput(
@@ -1228,8 +1331,16 @@ function diffGraphViewsInput(
       'Graph snapshots must use the same view ID.'
     )
   }
-  const beforeTokens = tokenMap(before.graph)
-  const afterTokens = tokenMap(after.graph)
+  const checkedBeforeTokens = viewTokenMap(before)
+  if (!checkedBeforeTokens.ok) {
+    return checkedBeforeTokens
+  }
+  const checkedAfterTokens = viewTokenMap(after)
+  if (!checkedAfterTokens.ok) {
+    return checkedAfterTokens
+  }
+  const beforeTokens = checkedBeforeTokens.value
+  const afterTokens = checkedAfterTokens.value
   const beforeTokenIds = new Set(beforeTokens.keys())
   const afterTokenIds = new Set(afterTokens.keys())
   const beforeDependents = createAdjacency(before.graph, 'dependents')
@@ -1247,10 +1358,13 @@ function diffGraphViewsInput(
         ? 'added'
         : newToken === undefined
           ? 'removed'
-          : tokenShape(oldToken) === tokenShape(newToken)
+          : tokenShape(oldToken.token, oldToken.path) ===
+              tokenShape(newToken.token, newToken.path)
             ? undefined
             : 'changed'
-    if (kind === undefined) continue
+    if (kind === undefined) {
+      continue
+    }
     const impact = queryFromAdjacency(
       kind === 'removed' ? beforeTokenIds : afterTokenIds,
       kind === 'removed' ? beforeDependents : afterDependents,
@@ -1258,7 +1372,9 @@ function diffGraphViewsInput(
       true,
       budget
     )
-    if (!impact.ok) return impact
+    if (!impact.ok) {
+      return impact
+    }
     changes.push(
       Object.freeze({
         kind,
@@ -1275,7 +1391,9 @@ export function diffGraphViews(
   after: GraphSnapshot
 ): Result<GraphDiff> {
   try {
-    if (!inputWithinWorkLimit([before, after])) return workLimit('diff')
+    if (!inputWithinWorkLimit([before, after])) {
+      return workLimit('diff')
+    }
     return diffGraphViewsInput(before, after)
   } catch {
     return failure(

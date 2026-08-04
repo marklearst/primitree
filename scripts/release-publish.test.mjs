@@ -1072,9 +1072,11 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
     assert.equal(esmCalls.length, 1)
     assert.equal(esmCalls[0][2], '--eval')
     assert.match(esmCalls[0][3], /await import\('@primitree\/core'\)/)
+    assert.match(esmCalls[0][3], /await import\('@primitree\/core\/policy'\)/)
     assert.equal(commonJsCalls.length, 1)
     assert.equal(commonJsCalls[0][2], '--eval')
     assert.match(commonJsCalls[0][3], /require\('@primitree\/core'\)/)
+    assert.match(commonJsCalls[0][3], /require\('@primitree\/core\/policy'\)/)
     const scopeCheck = calls.findIndex(
       call => call[1] === 'config' && call[3] === '@primitree:registry'
     )
@@ -1219,6 +1221,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   }
   for (const specifier of [
     '@primitree/core',
+    '@primitree/core/policy',
     '@primitree/core/types',
     '@primitree/dtcg',
     '@primitree/hooks',
@@ -1235,6 +1238,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   }
   for (const specifier of [
     '@primitree/core',
+    '@primitree/core/policy',
     '@primitree/core/types',
     '@primitree/dtcg',
     '@primitree/hooks',

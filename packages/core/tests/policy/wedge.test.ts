@@ -18,7 +18,9 @@ type TestResult<Value> =
 
 function requireValue<Value>(result: TestResult<Value>): Value {
   expect(result.ok).toBe(true)
-  if (!result.ok) throw new Error('Expected a successful result.')
+  if (!result.ok) {
+    throw new Error('Expected a successful result.')
+  }
   return result.value
 }
 
@@ -151,6 +153,106 @@ describe('token policy checks', () => {
     )
   })
 
+  it('uses the path selected by the view', () => {
+    const snapshot = createSnapshot()
+    const view = Object.freeze({
+      ...snapshot.view,
+      tokens: Object.freeze([
+        Object.freeze({
+          tokenId: snapshot.ids.blue,
+          path: Object.freeze(['semantic', 'blue']),
+        }),
+      ]),
+    })
+    const policy = requireValue(createPolicy(policyInput))
+
+    const report = requireValue(
+      evaluatePolicy({ graph: snapshot.graph, view }, policy)
+    )
+
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        ruleId: 'PT1003',
+        tokenId: snapshot.ids.blue,
+        path: ['semantic', 'blue'],
+        owners: ['product-design'],
+        layerId: 'meaning',
+      }),
+    ])
+  })
+
+  it('uses the target path selected by the view for reference checks', () => {
+    const snapshot = createSnapshot()
+    const view = Object.freeze({
+      ...snapshot.view,
+      tokens: Object.freeze(
+        snapshot.view.tokens
+          .filter(
+            member =>
+              member.tokenId === snapshot.ids.blue ||
+              member.tokenId === snapshot.ids.action
+          )
+          .map(member =>
+            member.tokenId === snapshot.ids.blue
+              ? Object.freeze({
+                  tokenId: member.tokenId,
+                  path: Object.freeze(['component', 'blue']),
+                })
+              : member
+          )
+      ),
+    })
+    const policy = requireValue(createPolicy(policyInput))
+
+    const report = requireValue(
+      evaluatePolicy({ graph: snapshot.graph, view }, policy)
+    )
+
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        ruleId: 'PT1004',
+        tokenId: snapshot.ids.action,
+        targetTokenId: snapshot.ids.blue,
+        path: ['semantic', 'action'],
+      })
+    )
+  })
+
+  it('rejects an alias when its target is absent from the view', () => {
+    const snapshot = createSnapshot()
+    const view = Object.freeze({
+      ...snapshot.view,
+      tokens: Object.freeze(
+        snapshot.view.tokens.filter(
+          member => member.tokenId === snapshot.ids.action
+        )
+      ),
+    })
+    const policy = requireValue(createPolicy(policyInput))
+
+    const result = evaluatePolicy({ graph: snapshot.graph, view }, policy)
+
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics[0]?.code).toBe('policy.invalid-snapshot')
+
+    const unassignedView = Object.freeze({
+      ...snapshot.view,
+      tokens: Object.freeze(
+        snapshot.view.tokens.filter(
+          member => member.tokenId === snapshot.ids.loose
+        )
+      ),
+    })
+    const unassignedResult = evaluatePolicy(
+      { graph: snapshot.graph, view: unassignedView },
+      policy
+    )
+    expect(unassignedResult.ok).toBe(false)
+    expect(unassignedResult.diagnostics[0]?.code).toBe(
+      'policy.invalid-snapshot'
+    )
+  })
+
   it('accepts one to four layers and rejects other counts or duplicate roots', () => {
     const layer = (id: string, root: string) => ({
       id,
@@ -189,6 +291,74 @@ describe('token policy checks', () => {
         layers: [layer('one', 'shared'), layer('two', 'shared')],
       }).diagnostics[0]?.code
     ).toBe('policy.duplicate-root')
+  })
+
+  it('returns exact diagnostics for invalid policy details and options', () => {
+    const layer = {
+      id: 'base',
+      roots: ['color'],
+      values: 'literal' as const,
+      references: [] as string[],
+    }
+    const cases = [
+      [
+        createPolicy({
+          id: 'duplicate-layer',
+          viewId: 'app',
+          layers: [layer, { ...layer, roots: ['other'] }],
+        }),
+        'policy.duplicate-layer',
+      ],
+      [
+        createPolicy({
+          id: 'invalid-layer',
+          viewId: 'app',
+          layers: [{ ...layer, roots: [] }],
+        }),
+        'policy.invalid-layer',
+      ],
+      [
+        createPolicy({
+          id: 'unknown-layer',
+          viewId: 'app',
+          layers: [{ ...layer, references: ['missing'] }],
+        }),
+        'policy.unknown-layer',
+      ],
+      [
+        createPolicy({
+          id: 'invalid-owners',
+          viewId: 'app',
+          layers: [layer],
+          ownership: { default: ['team', 'team'] },
+        }),
+        'policy.invalid-ownership',
+      ],
+      [
+        createPolicy({
+          id: 'unknown-owner-root',
+          viewId: 'app',
+          layers: [layer],
+          ownership: { paths: { other: ['team'] } },
+        }),
+        'policy.unknown-owner-root',
+      ],
+      [parsePolicy('x'.repeat(1_000_001)), 'policy.input-limit'],
+    ] as const
+
+    for (const [result, code] of cases) {
+      expect(result.diagnostics[0]?.code).toBe(code)
+    }
+
+    const snapshot = createSnapshot()
+    const policy = requireValue(createPolicy(policyInput))
+    expect(
+      evaluatePolicy(snapshot, policy, [] as never).diagnostics[0]?.code
+    ).toBe('policy.invalid-options')
+    expect(
+      evaluatePolicy(snapshot, policy, { baseline: ['bad'] } as never)
+        .diagnostics[0]?.code
+    ).toBe('policy.invalid-baseline')
   })
 
   it('parses JSON and marks exact baseline findings', () => {
