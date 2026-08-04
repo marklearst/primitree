@@ -13,6 +13,7 @@ import type { DTCGTokenType } from './types'
 
 const MAX_GRAPH_ITEMS = 100_000
 const MAX_GRAPH_DEPTH = 64
+const MAX_JOINED_PATH_LENGTH = 256
 
 const SUPPORTED_TOKEN_TYPES = new Set<string>([
   'color',
@@ -114,6 +115,21 @@ function isDTCGName(value: string): boolean {
     !value.includes('}') &&
     !hasControlCharacter(value)
   )
+}
+
+function joinedPathFitsLimit(path: readonly string[]): boolean {
+  let length = 0
+  for (let index = 0; index < path.length; index += 1) {
+    const segment = path[index]
+    if (segment === undefined) {
+      return false
+    }
+    length += segment.length + (index === 0 ? 0 : 1)
+    if (length > MAX_JOINED_PATH_LENGTH) {
+      return false
+    }
+  }
+  return true
 }
 
 function pointer(path: readonly string[]): string {
@@ -483,6 +499,9 @@ function createTokenInput(input: {
   if (input.path.length > MAX_GRAPH_DEPTH) {
     return failure('A DTCG token path can contain at most 64 path segments.')
   }
+  if (!joinedPathFitsLimit(input.path)) {
+    return failure('A DTCG token path can contain at most 256 characters.')
+  }
   const idResult = qualifyId({
     sourceId: input.sourceId,
     kind: 'token',
@@ -730,6 +749,11 @@ export function toGraphFragment(
         if (groupPath.length > MAX_GRAPH_DEPTH) {
           return failure(
             'A DTCG group path can contain at most 64 path segments.'
+          )
+        }
+        if (!joinedPathFitsLimit(groupPath)) {
+          return failure(
+            'A DTCG group path can contain at most 256 characters.'
           )
         }
         const idResult = qualifyId({
