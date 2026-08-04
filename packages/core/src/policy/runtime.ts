@@ -4,6 +4,7 @@ import type {
   TokenId,
   TokenNode,
 } from '../graph/types'
+import { MAX_GRAPH_QUALIFIED_ID_LENGTH } from '../graph/limits'
 import type {
   Policy,
   PolicyEvaluationOptions,
@@ -23,7 +24,6 @@ const MAX_INPUT_TEXT = 1_000_000
 const MAX_OPERATION_WORK = 1_000_000
 const MAX_ROOTS = 256
 const MAX_OWNERS = 256
-const MAX_TOKEN_ID_LENGTH = 4_096
 const MAX_FINDING_ID_LENGTH = 65_536
 const MAX_FINDINGS = 100_000
 
@@ -110,7 +110,7 @@ function isTokenId(value: unknown): value is TokenId {
   return (
     typeof value === 'string' &&
     value.length > 0 &&
-    value.length <= MAX_TOKEN_ID_LENGTH &&
+    value.length <= MAX_GRAPH_QUALIFIED_ID_LENGTH &&
     value.startsWith('source:') &&
     value.includes('/token:') &&
     !/[\u0000-\u001f\u007f]/u.test(value)

@@ -26,6 +26,11 @@ import type {
   TokenType,
   TokenValue,
 } from './types'
+import {
+  MAX_GRAPH_LABEL_LENGTH,
+  MAX_GRAPH_QUALIFIED_ID_LENGTH,
+  MAX_GRAPH_SOURCE_ID_LENGTH,
+} from './limits'
 
 const NO_DIAGNOSTICS = Object.freeze([]) as readonly GraphDiagnostic[]
 const NO_PROVENANCE = Object.freeze([]) as readonly Provenance[]
@@ -117,13 +122,40 @@ function isPlainKey(value: string): boolean {
   )
 }
 
-function isLabel(value: unknown): value is string {
+function isTextWithinLimit(value: unknown, maximum: number): value is string {
   return (
     typeof value === 'string' &&
     value.length > 0 &&
-    value.length <= 256 &&
+    value.length <= maximum &&
     value.trim() === value &&
     !/[\u0000-\u001f\u007f]/u.test(value)
+  )
+}
+
+function isLabel(value: unknown): value is string {
+  return isTextWithinLimit(value, MAX_GRAPH_LABEL_LENGTH)
+}
+
+function isSourceId(value: unknown): value is SourceId {
+  return (
+    isTextWithinLimit(value, MAX_GRAPH_SOURCE_ID_LENGTH) &&
+    value.startsWith('source:')
+  )
+}
+
+function isGroupId(value: unknown, sourceId: SourceId): value is GroupId {
+  return (
+    isTextWithinLimit(value, MAX_GRAPH_QUALIFIED_ID_LENGTH) &&
+    value.startsWith(`${sourceId}/group:`)
+  )
+}
+
+function isTokenId(value: unknown, sourceId?: SourceId): value is TokenId {
+  return (
+    isTextWithinLimit(value, MAX_GRAPH_QUALIFIED_ID_LENGTH) &&
+    (sourceId === undefined
+      ? value.startsWith('source:') && value.includes('/token:')
+      : value.startsWith(`${sourceId}/token:`))
   )
 }
 
@@ -265,7 +297,7 @@ function copyTokenValue(value: unknown): TokenValue | undefined {
       ? undefined
       : Object.freeze({ kind: 'literal' as const, value: copied })
   }
-  if (value.kind === 'reference' && isLabel(value.target)) {
+  if (value.kind === 'reference' && isTokenId(value.target)) {
     return Object.freeze({
       kind: 'reference' as const,
       target: value.target as TokenId,
@@ -326,8 +358,7 @@ function qualifyIdInput<Kind extends QualifiedIdKind>(input: {
 }): Result<QualifiedIdForKind<Kind>> {
   if (
     !isRecord(input) ||
-    !isLabel(input.sourceId) ||
-    !input.sourceId.startsWith('source:') ||
+    !isSourceId(input.sourceId) ||
     (input.kind !== 'group' && input.kind !== 'token') ||
     !isLabel(input.localId)
   ) {
@@ -369,8 +400,7 @@ function createGraphFragmentInput(input: unknown): Result<GraphFragment> {
   }
   const sourceInput = input.source
   if (
-    !isLabel(sourceInput.id) ||
-    !sourceInput.id.startsWith('source:') ||
+    !isSourceId(sourceInput.id) ||
     !isLabel(sourceInput.type) ||
     (sourceInput.name !== undefined && !isLabel(sourceInput.name)) ||
     (sourceInput.precedence !== undefined &&
@@ -423,8 +453,7 @@ function createGraphFragmentInput(input: unknown): Result<GraphFragment> {
     const path = copyStringArray(item.path)
     const provenance = copyProvenance(item.provenance)
     if (
-      !isLabel(item.id) ||
-      !item.id.startsWith(`${source.id}/group:`) ||
+      !isGroupId(item.id, source.id) ||
       item.sourceId !== source.id ||
       !isLabel(item.name) ||
       path === undefined ||
@@ -463,11 +492,10 @@ function createGraphFragmentInput(input: unknown): Result<GraphFragment> {
     const path = copyStringArray(item.path)
     const provenance = copyProvenance(item.provenance)
     if (
-      !isLabel(item.id) ||
-      !item.id.startsWith(`${source.id}/token:`) ||
+      !isTokenId(item.id, source.id) ||
       item.sourceId !== source.id ||
       (item.groupId !== undefined &&
-        (!isLabel(item.groupId) || !groupIds.has(item.groupId))) ||
+        (!isGroupId(item.groupId, source.id) || !groupIds.has(item.groupId))) ||
       !isLabel(item.name) ||
       path === undefined ||
       path.length === 0 ||

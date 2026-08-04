@@ -385,6 +385,89 @@ describe('source-neutral graph', () => {
     expect(createSourceId('\ud800').ok).toBe(false)
   })
 
+  it('passes the largest source name through the public ID functions', () => {
+    const sourceId = requireValue(createSourceId('\u0800'.repeat(256)))
+    const tokenId = requireValue(
+      qualifyId({ sourceId, kind: 'token', localId: 'token' })
+    )
+
+    expect(
+      createGraphFragment({
+        source: { id: sourceId, type: 'dtcg' },
+        groups: [],
+        tokens: [
+          {
+            id: tokenId,
+            sourceId,
+            name: 'Token',
+            path: ['token'],
+            type: 'color',
+            values: [{ value: { kind: 'literal', value: '#36f' } }],
+          },
+        ],
+      }).ok
+    ).toBe(true)
+  })
+
+  it('passes the largest local IDs into a graph fragment', () => {
+    const sourceId = requireValue(createSourceId('brand'))
+    const groupId = requireValue(
+      qualifyId({
+        sourceId,
+        kind: 'group',
+        localId: '\u0800'.repeat(256),
+      })
+    )
+    const tokenId = requireValue(
+      qualifyId({
+        sourceId,
+        kind: 'token',
+        localId: '\u0801'.repeat(256),
+      })
+    )
+    const targetId = requireValue(
+      qualifyId({
+        sourceId,
+        kind: 'token',
+        localId: '\u0802'.repeat(256),
+      })
+    )
+
+    expect(
+      createGraphFragment({
+        source: { id: sourceId, type: 'dtcg' },
+        groups: [
+          {
+            id: groupId,
+            sourceId,
+            name: 'Group',
+            path: ['group'],
+          },
+        ],
+        tokens: [
+          {
+            id: tokenId,
+            sourceId,
+            groupId,
+            name: 'Alias',
+            path: ['alias'],
+            type: 'color',
+            values: [{ value: { kind: 'reference', target: targetId } }],
+          },
+          {
+            id: targetId,
+            sourceId,
+            groupId,
+            name: 'Target',
+            path: ['target'],
+            type: 'color',
+            values: [{ value: { kind: 'literal', value: '#36f' } }],
+          },
+        ],
+      }).ok
+    ).toBe(true)
+  })
+
   it('stops fragment work before copying an oversized value', () => {
     const sourceId = requireValue(createSourceId('brand'))
     const tokenId = requireValue(
