@@ -1,6 +1,7 @@
 # @primitree/cli
 
-`@primitree/cli` turns a Figma variables export into files for version control.
+`@primitree/cli` checks local DTCG token files against project rules. It also
+keeps the older commands for Figma variables exports during the 1.0 update.
 
 ```sh
 npx @primitree/cli build variables.json
@@ -61,13 +62,53 @@ primitree diff backup/variables.json variables.json --fail-on-breaking
 ## `primitree check`
 
 ```sh
+primitree check [--config <path>] [--source <name>] [--format text|json]
 primitree check <variables.json | tokens-dir>
 ```
 
-For a variables export, the command checks the input shape, alias graph, and
-mode resolution. For a built token directory, it checks each Resolver context
-combination and token reference. The command exits with code 1 when it finds a
-problem.
+The config form reads `./primitree.config.ts` unless `--config` names a file.
+It selects one local DTCG source, builds its token graph, and checks its layer
+and owner rules. Use `--source` when the config contains several sources.
+
+Install the CLI in the project before importing its config helper:
+
+```sh
+npm install -D @primitree/cli
+```
+
+```ts
+import { defineConfig } from '@primitree/cli/config'
+
+export default defineConfig({
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [
+          { id: 'base', roots: ['color'], values: 'literal' },
+          {
+            id: 'meaning',
+            roots: ['semantic'],
+            values: 'reference',
+            references: ['base'],
+          },
+        ],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+})
+```
+
+Paths are relative to the config file. Primitree reads the named config file
+and does not search parent folders. It rejects unknown settings. Each source
+needs one to four layers.
+
+The older path form still checks a Figma variables export or a built token
+directory. The command exits with code 1 for findings and code 2 for command,
+config, or input errors.
 
 ## `primitree init`
 

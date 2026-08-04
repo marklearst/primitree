@@ -735,6 +735,7 @@ function runInstalledPackageSmokeChecks({
     '@primitree/core',
     '@primitree/core/policy',
     '@primitree/core/types',
+    '@primitree/cli/config',
     '@primitree/dtcg',
     '@primitree/hooks',
     '@primitree/mcp',
@@ -774,6 +775,44 @@ function runInstalledPackageSmokeChecks({
       options
     )
   }
+
+  const configuredDirectory = path.join(consumerDirectory, 'configured-cli')
+  mkdirSync(configuredDirectory, { recursive: true })
+  writeFileSync(
+    path.join(configuredDirectory, 'package.json'),
+    `${JSON.stringify({ private: true, type: 'commonjs' }, null, 2)}\n`
+  )
+  writeFileSync(
+    path.join(configuredDirectory, 'primitree.config.ts'),
+    `import { defineConfig } from '@primitree/cli/config'
+
+export default defineConfig({
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [{ id: 'base', roots: ['size'], values: 'literal' }],
+      },
+      ownership: { default: ['design-systems'] },
+    },
+  },
+})
+`
+  )
+  writeFileSync(
+    path.join(configuredDirectory, 'tokens.json'),
+    `${JSON.stringify({
+      size: { base: { $type: 'number', $value: 4 } },
+    })}\n`
+  )
+  smokeCommand(
+    runCommand,
+    path.join(consumerDirectory, 'node_modules', '.bin', 'primitree'),
+    ['check', '--format', 'json'],
+    { ...options, cwd: configuredDirectory }
+  )
 }
 
 export function runPackedTarballConsumer({
