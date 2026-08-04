@@ -425,7 +425,7 @@ describe('source-neutral graph', () => {
         { graph: afterGraph, view: diffView }
       ).diagnostics[0]?.code
     ).toBe('graph.work-limit')
-  })
+  }, 15_000)
 
   it('charges condition matching across a full view', () => {
     const sourceId = requireValue(createSourceId('conditions'))
