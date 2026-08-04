@@ -46,6 +46,8 @@ export type {
 } from './pipeline/build'
 
 export { isToken, isReferenceValue } from './types'
+export { toGraphFragment } from './graph'
+export type { DTCGGraphOptions } from './graph'
 export type {
   DTCGColorValue,
   DTCGDimensionValue,
