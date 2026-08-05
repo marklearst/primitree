@@ -4,6 +4,12 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createSourceId } from '@primitree/core'
 import { createPolicy, type Policy } from '@primitree/core/policy'
+import {
+  buildOutputBackupPrefix,
+  buildOutputLockName,
+  buildOutputStagePrefix,
+  MAX_BUILD_OUTPUT_NAME_BYTES,
+} from '../build-output-paths'
 import type { PrimitreeOutputFormat } from '../config'
 import {
   isUnsafePortablePathSegment,
@@ -163,7 +169,7 @@ function rejectReservedOutputPaths(
     const parent = path.dirname(owner.comparisonDirectory)
     const name = path.basename(owner.comparisonDirectory)
     const lockKey = portablePathComparisonKey(
-      path.join(parent, `.${name}.primitree-lock`)
+      path.join(parent, buildOutputLockName(name))
     )
     const lockCandidate = firstConfiguredPathAtOrAfter(ordered, lockKey)
     let candidate = lockCandidate?.key === lockKey ? lockCandidate : undefined
@@ -179,8 +185,8 @@ function rejectReservedOutputPaths(
     }
     if (candidate === undefined) {
       for (const reservedName of [
-        `.${name}.primitree-stage-`,
-        `.${name}.primitree-backup-`,
+        buildOutputStagePrefix(name),
+        buildOutputBackupPrefix(name),
       ]) {
         const reservedKey = portablePathComparisonKey(
           path.join(parent, reservedName)
@@ -538,6 +544,12 @@ function normalizeOutputs(
   if (directory === configDirectory) {
     throw new Error(
       `Source "${sourceId}" output directory cannot be the config directory.`
+    )
+  }
+  const outputNameBytes = Buffer.byteLength(path.basename(directory), 'utf8')
+  if (outputNameBytes > MAX_BUILD_OUTPUT_NAME_BYTES) {
+    throw new Error(
+      `Source "${sourceId}" output directory name is ${outputNameBytes} UTF-8 bytes; use at most ${MAX_BUILD_OUTPUT_NAME_BYTES} UTF-8 bytes so Primitree can create its lock, staging, and backup paths.`
     )
   }
   const sourceFromOutput = path.relative(directory, sourceFile)

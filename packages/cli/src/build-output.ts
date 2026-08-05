@@ -3,6 +3,12 @@ import type { Stats } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { PipelineFile } from '@primitree/dtcg'
+import {
+  buildOutputBackupName,
+  buildOutputBackupPrefix,
+  buildOutputLockName,
+  buildOutputStagePrefix,
+} from './build-output-paths'
 import { writePipelineFiles } from './io'
 import {
   BUILD_MANIFEST_PATH,
@@ -381,7 +387,7 @@ async function findInterruptedBackups(
   parent: string,
   name: string
 ): Promise<readonly string[]> {
-  const prefix = `.${name}.primitree-backup-`
+  const prefix = buildOutputBackupPrefix(name)
   const backups: string[] = []
   const entries = await fs.opendir(parent)
   let count = 0
@@ -612,7 +618,7 @@ export async function installBuildOutput(
   const name = path.basename(directory)
   await checkOutputParent(rootDirectory, directory, true)
   await checkOutputParent(rootDirectory, directory, false)
-  const lock = path.join(parent, `.${name}.primitree-lock`)
+  const lock = path.join(parent, buildOutputLockName(name))
   const lockHandle = await fs.open(lock, 'wx').catch(error => {
     if (
       error !== null &&
@@ -645,7 +651,7 @@ export async function installBuildOutput(
       await verifyOwnedOutput(directory, sourceId)
     }
     const stage = await fs.mkdtemp(
-      path.join(parent, `.${name}.primitree-stage-`)
+      path.join(parent, buildOutputStagePrefix(name))
     )
     let stageExists = true
     const runPreparedInstall = async (): Promise<'written'> => {
@@ -675,7 +681,7 @@ export async function installBuildOutput(
       }
       const backup = path.join(
         parent,
-        `.${name}.primitree-backup-${randomUUID()}`
+        buildOutputBackupName(name, randomUUID())
       )
       await fs.rename(directory, backup)
       let outputMode: number
