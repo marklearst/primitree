@@ -1103,6 +1103,65 @@ export function listPermutationsWithBudget(
   budget: ResolverWorkBudget
 ): Array<Record<string, string>> {
   const axes = Object.entries(listContextsWithBudget(resolver, budget))
+  return permutationsForAxes(axes, budget)
+}
+
+/** @internal */
+export function readResolutionContextStatesWithBudget(
+  resolver: ResolverDocument,
+  budget: ResolverWorkBudget
+): {
+  readonly defaultSelection: Record<string, string>
+  readonly permutations: Array<Record<string, string>>
+} {
+  const root = resolverRecord(resolver)
+  const resolutionOrder = resolutionOrderOf(root, budget)
+  const modifiers = optionalResolverContainer(root, 'modifiers')
+  const active = new Set<string>()
+
+  for (let index = 0; index < resolutionOrder.length; index += 1) {
+    const target = readResolutionOrderTarget(
+      resolutionOrder[index],
+      index,
+      budget
+    )
+    if (target.kind !== 'modifiers') {
+      continue
+    }
+    if (!modifiers || !hasOwn(modifiers, target.name)) {
+      throw new ReferenceResolutionError(
+        `Resolver references missing modifier "${target.name}"`,
+        target.path
+      )
+    }
+    active.add(target.name)
+  }
+
+  const axes: Array<[string, string[]]> = []
+  const defaultSelection = createDictionary<string>()
+  for (const name of active) {
+    const modifier = validateModifier(
+      (modifiers as Record<string, unknown>)[name],
+      name,
+      budget
+    )
+    const contexts = Object.keys(modifier.contexts)
+    axes.push([name, contexts])
+    const chosen = modifier.defaultContext ?? contexts[0]
+    if (chosen !== undefined) {
+      defaultSelection[name] = chosen
+    }
+  }
+  return {
+    defaultSelection,
+    permutations: permutationsForAxes(axes, budget),
+  }
+}
+
+function permutationsForAxes(
+  axes: ReadonlyArray<readonly [string, string[]]>,
+  budget: ResolverWorkBudget
+): Array<Record<string, string>> {
   if (axes.length === 0) {
     return [{}]
   }

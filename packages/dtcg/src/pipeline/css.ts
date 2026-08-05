@@ -9,14 +9,12 @@ import type {
   ResolverDocument,
 } from '../types'
 import { isReferenceValue, isToken } from '../types'
-import { hasOwn } from '../dictionary'
 import { DTCGOutputCapabilityError } from './output-error'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
   flattenTypedTokensWithBudget,
-  listContextsWithBudget,
-  listPermutationsWithBudget,
+  readResolutionContextStatesWithBudget,
   type FlatToken,
   type ResolverWorkBudget,
   type TypedFlatToken,
@@ -581,18 +579,19 @@ export interface EmitCssOptions {
  * string values, modifier axes, and context names before writing CSS.
  * Color values keep their DTCG color space, components, and alpha.
  *
- * One call reads at most 64 token-group levels and returns at most 20 MiB.
- * Its 1,000,000-unit work limit counts Resolver reads, token merges, value
- * comparisons, declarations, token paths, and token text. The emitter rejects
- * token paths that map to the same CSS custom property name.
+ * One call evaluates at most 1,000 active-context permutations, reads at most
+ * 64 token-group levels, and returns at most 20 MiB. Its 1,000,000-unit work
+ * limit counts active Resolver contexts, token merges, value comparisons,
+ * declarations, token paths, and token text. The emitter rejects token paths
+ * that map to the same CSS custom property name.
  *
  * @param files - Token files keyed by their path from the Resolver file.
  * @param resolver - Resolver that selects files and default contexts.
  * @param options - Optional stylesheet banner.
  * @returns CSS custom properties for the selected token values.
  *
- * @throws `TypeError` - A call exceeds 1,000,000 work units, 64 token-group
- * levels, or 20 MiB of CSS.
+ * @throws `TypeError` - A call exceeds 1,000 active-context permutations,
+ * 1,000,000 work units, 64 token-group levels, or 20 MiB of CSS.
  * @throws {@link DTCGOutputCapabilityError} - The CSS writer cannot format a
  * token value or keep a token path across Resolver states.
  * @throws `Error` - Two token paths map to the same CSS custom property name.
@@ -646,22 +645,10 @@ export function emitCss(
   }
   appendCssLines(lines, output, '}')
 
-  const axes = Object.entries(listContextsWithBudget(resolver, budget))
-  const defaultContexts = new Map<string, string | undefined>()
-  for (const [axis, contexts] of axes) {
-    const modifier =
-      resolver.modifiers && hasOwn(resolver.modifiers, axis)
-        ? resolver.modifiers[axis]
-        : undefined
-    defaultContexts.set(
-      axis,
-      modifier && hasOwn(modifier, 'default') ? modifier.default : contexts[0]
-    )
-  }
-
-  for (const selection of listPermutationsWithBudget(resolver, budget)) {
+  const contextStates = readResolutionContextStatesWithBudget(resolver, budget)
+  for (const selection of contextStates.permutations) {
     const selectedContexts = Object.entries(selection).filter(
-      ([axis, context]) => context !== defaultContexts.get(axis)
+      ([axis, context]) => context !== contextStates.defaultSelection[axis]
     )
     const selector = selectedContexts
       .map(

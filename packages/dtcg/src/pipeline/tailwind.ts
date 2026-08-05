@@ -1,11 +1,14 @@
-import type { DTCGDocument, ResolverDocument } from '../types'
+import type { DTCGDocument, DTCGTokenType, ResolverDocument } from '../types'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
   flattenTypedTokensWithBudget,
+  readResolutionContextStatesWithBudget,
   type ResolverWorkBudget,
+  type TypedFlatToken,
 } from '../resolve'
 import { claimCssVarName, cssVarName } from './css'
+import { DTCGOutputCapabilityError } from './output-error'
 
 const NAMESPACE_NOISE: Record<string, Set<string>> = {
   color: new Set(['color', 'colors']),
@@ -26,6 +29,9 @@ const TAILWIND_DEPTH_LIMIT_MESSAGE =
   'Tailwind output can read at most 64 token-group levels.'
 const TAILWIND_OUTPUT_LIMIT_MESSAGE =
   'Tailwind output can contain at most 20 MiB.'
+
+type TailwindNamespace =
+  'color' | 'radius' | 'spacing' | 'font' | 'font-weight' | 'ease'
 
 function chargeTailwindText(value: string, budget: ResolverWorkBudget): void {
   chargeResolverWork(budget, value.length + 1)
@@ -60,6 +66,84 @@ function tailwindName(
 function isRadiusPath(path: string): boolean {
   const wordSeparated = path.replace(/([a-z0-9])([A-Z])/gu, '$1-$2')
   return /(^|[./_-])radius($|[./_-])/iu.test(wordSeparated)
+}
+
+function tailwindNamespace(
+  path: string,
+  type: DTCGTokenType | undefined
+): TailwindNamespace | null {
+  switch (type) {
+    case 'color':
+      return 'color'
+    case 'dimension':
+      return isRadiusPath(path) ? 'radius' : 'spacing'
+    case 'fontFamily':
+      return 'font'
+    case 'fontWeight':
+      return 'font-weight'
+    case 'cubicBezier':
+      return 'ease'
+    default:
+      return null
+  }
+}
+
+function readTailwindTokens(
+  files: Record<string, DTCGDocument>,
+  resolver: ResolverDocument,
+  contexts: Record<string, string>,
+  budget: ResolverWorkBudget
+): TypedFlatToken[] {
+  return flattenTypedTokensWithBudget(
+    applyResolverWithBudget(files, resolver, contexts, budget),
+    budget,
+    {
+      maxItems: MAX_TAILWIND_ITEMS,
+      itemLimitMessage: 'Tailwind output can read at most 100,000 items.',
+      sort: true,
+    }
+  )
+}
+
+function tailwindNamespaceClaims(
+  flat: readonly TypedFlatToken[],
+  budget: ResolverWorkBudget
+): Map<string, TailwindNamespace | null> {
+  chargeResolverWork(budget, flat.length)
+  const claims = new Map<string, TailwindNamespace | null>()
+  for (const { path, type } of flat) {
+    chargeTailwindText(path, budget)
+    claims.set(path, tailwindNamespace(path, type))
+  }
+  return claims
+}
+
+function assertStableTailwindNamespaces(
+  defaults: ReadonlyMap<string, TailwindNamespace | null>,
+  selected: ReadonlyMap<string, TailwindNamespace | null>,
+  budget: ResolverWorkBudget
+): void {
+  chargeResolverWork(budget, defaults.size + selected.size)
+  for (const [path, namespace] of defaults) {
+    if (namespace !== null && selected.get(path) !== namespace) {
+      throw new DTCGOutputCapabilityError(
+        'tailwind',
+        path,
+        namespace,
+        'tailwind-namespace'
+      )
+    }
+  }
+  for (const [path, namespace] of selected) {
+    if (namespace !== null && defaults.get(path) !== namespace) {
+      throw new DTCGOutputCapabilityError(
+        'tailwind',
+        path,
+        namespace,
+        'tailwind-namespace'
+      )
+    }
+  }
 }
 
 function utf8ByteLength(value: string): number {
@@ -116,19 +200,24 @@ function hasTailwindName(
  * Mapping: `color` → `--color-*`; `dimension` → `--radius-*` for paths that
  * mention radius and `--spacing-*` for other paths; `fontFamily` →
  * `--font-*`; `fontWeight` → `--font-weight-*`; `cubicBezier` → `--ease-*`.
- * The emitter skips types without a Tailwind namespace.
+ * The emitter skips types without a Tailwind namespace. A token path must map
+ * to the same namespace in every Resolver context where Tailwind reads it.
  *
- * One call reads at most 64 token-group levels and 100,000 items, and returns
- * at most 20 MiB. Its 1,000,000-unit work limit counts Resolver reads, token
- * merges, token walking, alias type resolution, token paths, name allocation,
- * and output text.
+ * One call evaluates at most 1,000 active-context permutations, reads at most
+ * 64 token-group levels and 100,000 items per context, and returns at most
+ * 20 MiB. Its 1,000,000-unit work limit counts active Resolver contexts, token
+ * merges, token walking, alias type resolution, namespace checks, token paths,
+ * name allocation, and output text.
  *
  * @param files - Token files keyed by their path from the Resolver file.
  * @param resolver - Resolver that selects files and default contexts.
  * @returns Tailwind CSS v4 theme variables linked to generated CSS variables.
  *
- * @throws `TypeError` - A call exceeds 1,000,000 work units, 64 token-group
- * levels, 100,000 items, or 20 MiB of output.
+ * @throws `TypeError` - A call exceeds 1,000 active-context permutations,
+ * 1,000,000 work units, 64 token-group levels, 100,000 items per context, or
+ * 20 MiB of output.
+ * @throws {@link DTCGOutputCapabilityError} - A token path changes Tailwind
+ * namespace or disappears between Resolver contexts.
  * @throws `Error` - Two emitted token paths map to the same CSS custom property
  * name.
  *
@@ -144,15 +233,26 @@ export function emitTailwind(
     maxDepth: MAX_TAILWIND_GROUP_DEPTH,
     depthErrorMessage: TAILWIND_DEPTH_LIMIT_MESSAGE,
   }
-  const flat = flattenTypedTokensWithBudget(
-    applyResolverWithBudget(files, resolver, {}, budget),
-    budget,
-    {
-      maxItems: MAX_TAILWIND_ITEMS,
-      itemLimitMessage: 'Tailwind output can read at most 100,000 items.',
-      sort: true,
+  const flat = readTailwindTokens(files, resolver, {}, budget)
+  const defaultNamespaces = tailwindNamespaceClaims(flat, budget)
+  const contextStates = readResolutionContextStatesWithBudget(resolver, budget)
+  for (const selection of contextStates.permutations) {
+    const selectedEntries = Object.entries(selection)
+    chargeResolverWork(budget, selectedEntries.length)
+    if (
+      selectedEntries.every(
+        ([axis, context]) => contextStates.defaultSelection[axis] === context
+      )
+    ) {
+      continue
     }
-  )
+    const selected = readTailwindTokens(files, resolver, selection, budget)
+    assertStableTailwindNamespaces(
+      defaultNamespaces,
+      tailwindNamespaceClaims(selected, budget),
+      budget
+    )
+  }
   const cssNames = new Map<string, string>()
   const used = new Set<string>()
   const nextSuffix = new Map<string, number>()
@@ -169,28 +269,9 @@ export function emitTailwind(
     appendTailwindLine(lines, output, budget, line)
   }
 
-  for (const { path, type } of flat) {
+  for (const { path } of flat) {
     chargeTailwindText(path, budget)
-    let namespace: string | null = null
-    switch (type) {
-      case 'color':
-        namespace = 'color'
-        break
-      case 'dimension':
-        namespace = isRadiusPath(path) ? 'radius' : 'spacing'
-        break
-      case 'fontFamily':
-        namespace = 'font'
-        break
-      case 'fontWeight':
-        namespace = 'font-weight'
-        break
-      case 'cubicBezier':
-        namespace = 'ease'
-        break
-      default:
-        namespace = null
-    }
+    const namespace = defaultNamespaces.get(path) ?? null
     if (namespace === null) {
       continue
     }

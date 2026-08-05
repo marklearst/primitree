@@ -1415,6 +1415,19 @@ describe('listContexts / listPermutations', () => {
     })
   })
 
+  it('keeps unused declared modifiers in the public cross-product', () => {
+    const resolverWithUnusedModifier: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        active: { contexts: { light: [], dark: [] } },
+        unused: { contexts: { roomy: [], compact: [] } },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/active' }],
+    }
+
+    expect(listPermutations(resolverWithUnusedModifier)).toHaveLength(4)
+  })
+
   it('returns a single empty permutation when there are no modifiers', () => {
     expect(
       listPermutations({ version: '2025.10', resolutionOrder: [] })
