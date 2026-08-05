@@ -1,14 +1,15 @@
 import {
   applyResolver,
   createDTCGGraphFragment,
-  cssValue,
   cssVarName,
   flattenTokens,
   listContexts,
   type ReferenceResolutionError,
   resolveTokenValuesSafe,
+  typedCssValue,
   PRIMITREE_EXTENSION_KEY,
   type DTCGToken,
+  type DTCGTokenType,
   type DTCGTokenValue,
 } from '@primitree/dtcg'
 import {
@@ -80,13 +81,36 @@ function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {
   return { flat, values, types }
 }
 
-function describeValue(value: DTCGTokenValue | undefined): {
+function isDTCGTokenType(value: string | undefined): value is DTCGTokenType {
+  switch (value) {
+    case 'boolean':
+    case 'color':
+    case 'cubicBezier':
+    case 'dimension':
+    case 'duration':
+    case 'fontFamily':
+    case 'fontWeight':
+    case 'number':
+    case 'string':
+      return true
+    default:
+      return false
+  }
+}
+
+function describeValue(
+  value: DTCGTokenValue | undefined,
+  type: string | undefined
+): {
   value: DTCGTokenValue | undefined
   css: string | null
 } {
   return {
     value,
-    css: value === undefined ? null : cssValue(value),
+    css:
+      value === undefined
+        ? null
+        : typedCssValue(value, isDTCGTokenType(type) ? type : undefined),
   }
 }
 
@@ -135,12 +159,12 @@ export function getToken(
   cssVar?: string
   figma?: unknown
 } {
-  const { flat, values } = resolvedFlat(source, contexts)
+  const { flat, types, values } = resolvedFlat(source, contexts)
   const entry = flat.find(f => f.path === path)
   if (!entry) {
     return { path, found: false }
   }
-  const described = describeValue(values.get(path))
+  const described = describeValue(values.get(path), types.get(path))
   return {
     path,
     found: true,
@@ -171,7 +195,7 @@ export function resolveContext(
   const tokens = flat.slice(0, limit).map(({ path }) => {
     const entry: { path: string; type?: string; css: string | null } = {
       path,
-      css: describeValue(values.get(path)).css,
+      css: describeValue(values.get(path), types.get(path)).css,
     }
     const type = types.get(path)
     if (type !== undefined) {
@@ -230,7 +254,7 @@ export function searchTokens(
         description?: string
       } = {
         path,
-        css: describeValue(values.get(path)).css,
+        css: describeValue(values.get(path), types.get(path)).css,
       }
       const type = types.get(path)
       if (type !== undefined) {
