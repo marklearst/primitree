@@ -16,7 +16,18 @@ export interface FlatToken {
   token: DTCGToken
 }
 
+/**
+ * A flattened token and the type that applies after inheritance and alias
+ * lookup.
+ *
+ * @remarks
+ * `type` is `undefined` when the token has no declaration, inherits no group
+ * declaration, and its whole-token alias chain reaches no typed token.
+ *
+ * @public
+ */
 export interface TypedFlatToken extends FlatToken {
+  /** Effective token type, or `undefined` when no type can be found. */
   type: DTCGTokenType | undefined
 }
 
@@ -170,6 +181,33 @@ function publicResolverBudget(
     maxDepth: 64,
     depthErrorMessage,
   }
+}
+
+/**
+ * Flatten a DTCG document and include each token's effective type.
+ *
+ * @remarks
+ * A token's effective type comes from its own `$type`, an inherited group
+ * `$type`, or the target of an untyped whole-token alias.
+ *
+ * One call reads at most 64 token-group levels and spends at most 1,000,000
+ * work units on document entries, token paths, and alias type resolution.
+ *
+ * @param document - Token document to flatten.
+ * @returns Tokens with their dot-joined paths and effective types.
+ *
+ * @throws {@link ReferenceResolutionError} - The document is malformed.
+ * @throws `TypeError` - The call exceeds its depth or work limit.
+ *
+ * @public
+ */
+export function flattenTypedTokens(document: DTCGDocument): TypedFlatToken[] {
+  const budget = publicResolverBudget(
+    'Typed token flattening exceeds the 1,000,000-unit work limit.',
+    'Typed token flattening can read at most 64 token-group levels.'
+  )
+  validateTokenDocument(document, '#/document', budget)
+  return flattenTypedTokensWithBudget(document, budget)
 }
 
 /**

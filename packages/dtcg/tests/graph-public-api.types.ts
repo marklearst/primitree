@@ -13,6 +13,7 @@ import {
   type DTCGDocument,
   type DTCGTokenType,
   type DTCGTokenValue,
+  type TypedFlatToken,
 } from '../src/index'
 
 const documentWithMetadata: DTCGDocument = {
@@ -79,6 +80,10 @@ const output = buildDTCGOutputs(outputSet, {
   typescript: true,
 })
 void output
+
+declare const typedToken: TypedFlatToken
+const effectiveType: DTCGTokenType | undefined = typedToken.type
+void effectiveType
 
 // @ts-expect-error DTCG font weight names use exact lowercase spellings.
 const invalidWeight: DTCGFontWeightValue = 'Bold'

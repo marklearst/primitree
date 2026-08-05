@@ -6,6 +6,7 @@ describe('DTCG graph public API', () => {
     expect(dtcgExports()).toContain('buildDTCGOutputs')
     expect(dtcgExports()).toContain('DTCGOutputCapabilityError')
     expect(dtcgExports()).toContain('typedCssValue')
+    expect(dtcgExports()).toContain('flattenTypedTokens')
     expect(dtcgExports()).not.toContain('toGraphFragment')
 
     const result = dtcg.createDTCGGraphFragment(
