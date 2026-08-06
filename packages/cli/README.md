@@ -152,6 +152,20 @@ The older path form still checks a Figma variables export or a built token
 directory. The command exits with code 1 for findings and code 2 for command,
 config, or input errors.
 
+Positional variables JSON must be 20 MiB or smaller. In a built token source,
+`tokens.resolver.json` and each `*.tokens.json` file must be 20 MiB or smaller,
+and their combined size cannot exceed 256 MiB. The source can contain at most
+1,000 token files, 100,000 directory entries, and 64 nested directory levels.
+Built sources support nested token files. Resolver references use paths
+relative to the directory containing `tokens.resolver.json`.
+
+Every positional JSON file must contain valid UTF-8. The variables input must
+be a regular file. A built source accepts directories and regular files; the
+check rejects symbolic links and special nodes. A built-source warning appears
+when a token has no effective type. A token's own `$type`, an inherited group
+`$type`, or a type reached through a whole-token alias counts as an effective
+type.
+
 ## `primitree inspect`
 
 ```sh
