@@ -22,8 +22,8 @@ Initial release of `@primitree/dtcg`.
 - Base token files by collection and mode override files.
 - Resolver documents that map Figma modes to contexts.
 - Figma metadata under `$extensions['com.primitree']`.
-- Reference resolution, context application, effective-type flattening, and
-  context listing.
+- Reference resolution, context application, effective-type flattening,
+  context listing, and shared-budget validation across every declared context.
 - CSS custom properties, Tailwind CSS v4 themes, and TypeScript token accessors.
 - `buildDTCGOutputs` for checked token files and a Resolver, with bounded JSON
   sorting and output-path collision checks.

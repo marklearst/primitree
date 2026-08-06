@@ -13,6 +13,7 @@ import {
   type DTCGDocument,
   type DTCGTokenType,
   type DTCGTokenValue,
+  type ResolverContextValidation,
   type TypedFlatToken,
 } from '../src/index'
 
@@ -84,6 +85,19 @@ void output
 declare const typedToken: TypedFlatToken
 const effectiveType: DTCGTokenType | undefined = typedToken.type
 void effectiveType
+
+declare const contextValidation: ResolverContextValidation
+if (contextValidation.ok) {
+  const untypedTokenPaths: string[] = contextValidation.untypedTokenPaths
+  void untypedTokenPaths
+  // @ts-expect-error Successful context validation has no error.
+  void contextValidation.error
+} else {
+  const validationError: Error = contextValidation.error
+  void validationError
+  // @ts-expect-error Failed context validation has no untyped path list.
+  void contextValidation.untypedTokenPaths
+}
 
 // @ts-expect-error DTCG font weight names use exact lowercase spellings.
 const invalidWeight: DTCGFontWeightValue = 'Bold'
