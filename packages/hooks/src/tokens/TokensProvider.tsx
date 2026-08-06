@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import {
   applyResolver,
-  flattenTokens,
+  flattenTypedTokens,
   listContexts,
   mergeDocuments,
   resolveTokenValuesSafe,
@@ -119,14 +119,16 @@ export function TokensProvider({
       document = tokens
     }
 
-    const flat = flattenTokens(document)
+    const flat = flattenTypedTokens(document)
     const tokensByPath = new Map(flat.map(f => [f.path, f.token]))
+    const typesByPath = new Map(flat.map(f => [f.path, f.type]))
     const { values: valuesByPath } = resolveTokenValuesSafe(flat)
 
     return {
       document,
       flat,
       tokensByPath,
+      typesByPath,
       valuesByPath,
       contexts,
       availableContexts,

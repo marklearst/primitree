@@ -10,7 +10,7 @@ import { TokensContext, type TokensContextValue } from './TokensContext'
  * @example
  * ```tsx
  * const { flat, valuesByPath } = useTokens()
- * const colors = flat.filter(t => t.token.$type === 'color')
+ * const colors = flat.filter(t => t.type === 'color')
  * ```
  *
  * @public

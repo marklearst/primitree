@@ -67,9 +67,15 @@ function Toolbar() {
 
 The local-token API includes:
 
-- `useToken(path)` for one token, its resolved value, CSS value, and `var()` accessor
-- `useTokens()` for flattened tokens under the active contexts
+- `useToken(path)` for one token, its resolved value, effective type, CSS value,
+  and `var()` accessor
+- `useTokens()` for typed flattened tokens and path lookups under the active
+  contexts
 - `useTheme()` for Resolver contexts and `setContext`
+
+Effective types include declarations inherited from parent groups and types
+found through whole-token aliases. The hooks recompute those types when a
+Resolver context changes, so CSS formatting follows the active document.
 
 These hooks read supplied artifacts and can render during SSR. They do not
 need a Figma Personal Access Token or a network request.

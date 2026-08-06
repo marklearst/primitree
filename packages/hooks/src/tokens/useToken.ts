@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import {
-  cssValue,
   cssVarName,
+  typedCssValue,
   type DTCGToken,
+  type DTCGTokenType,
   type DTCGTokenValue,
 } from '@primitree/dtcg'
 import { useTokens } from './useTokens'
@@ -17,6 +18,8 @@ export interface UseTokenResult {
   token: DTCGToken | undefined
   /** The value after reference resolution under the active contexts. */
   value: DTCGTokenValue | undefined
+  /** Effective type after group inheritance and whole-token alias lookup. */
+  type: DTCGTokenType | undefined
   /** The CSS form of that value, such as `'color(srgb 0.2 0.4 1)'` or `'8px'`. */
   css: string | null
   /** The CSS custom property accessor (`'var(--semantic-color-bg-brand)'`). */
@@ -44,17 +47,19 @@ export interface UseTokenResult {
  * @public
  */
 export function useToken(path: string): UseTokenResult {
-  const { tokensByPath, valuesByPath } = useTokens()
+  const { tokensByPath, typesByPath, valuesByPath } = useTokens()
 
   return useMemo(() => {
     const token = tokensByPath.get(path)
     const value = valuesByPath.get(path)
+    const type = typesByPath.get(path)
     return {
       token,
       value,
-      css: value === undefined ? null : cssValue(value),
+      type,
+      css: value === undefined ? null : typedCssValue(value, type),
       cssVar: `var(${cssVarName(path)})`,
       exists: token !== undefined,
     }
-  }, [tokensByPath, valuesByPath, path])
+  }, [tokensByPath, typesByPath, valuesByPath, path])
 }
