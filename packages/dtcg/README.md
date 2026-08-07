@@ -160,10 +160,14 @@ The function returns token JSON, the Resolver, CSS custom properties, a
 Tailwind CSS v4 theme, and TypeScript token accessors. It does not read or write
 files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
 
-`buildDTCGOutputs` rejects file names with absolute paths or `..` segments. It
-requires a Resolver basename and rejects names that collide after lowercasing
-and Unicode normalization. Its JSON sorter accepts up to 1,000 token files, 64
+`buildDTCGOutputs` rejects file names with absolute paths or `..` segments. The
+Resolver file name must be `tokens.resolver.json`, which is the name Primitree
+readers discover. The builder rejects output names that collide after
+lowercasing and Unicode normalization, along with file names that contain a
+lone UTF-16 surrogate. Its JSON sorter accepts up to 1,000 token files, 64
 levels, 100,000 items, and 20 MiB of names and text values.
+The builder also rejects Resolver axis and context names with a lone UTF-16
+surrogate before returning the output summary.
 The output keeps Resolver context order because the first context is the
 fallback when `default` is absent.
 
@@ -176,11 +180,14 @@ CSS output reads up to 64 token-group levels and returns up to 20 MiB. It writes
 a compound selector when two or more Resolver axes use non-default contexts.
 Its 1,000,000-unit work limit counts active Resolver contexts, token merges,
 value comparisons, declarations, token paths, and token text. CSS strings and
-selectors escape text that would break the file. CSS names keep
+selectors escape text that would break the file. CSS output rejects lone UTF-16
+surrogates in raw strings before a UTF-8 writer can replace them. CSS names keep
 token case and non-ASCII code points. ASCII punctuation uses lowercase hex
 markers, such as `_3f_` for `?`. Tailwind and TypeScript references use the same
-CSS names. Tailwind reads at most 64 token-group levels and 100,000 items per
-context, and returns up to 20 MiB. Its
+CSS names. Custom CSS banners reject `*/`, which would close the generated
+header comment.
+Tailwind reads at most 64 token-group levels and 100,000 items per context, and
+returns up to 20 MiB. Its
 1,000,000-unit work limit counts active Resolver contexts, token merges, token
 walking, alias type resolution, namespace checks, token paths, name allocation,
 and output text. CSS and Tailwind evaluate at most 1,000 active-context

@@ -43,8 +43,8 @@ export interface ToDTCGResult {
   files: Record<string, DTCGDocument>
   /** DTCG Resolver (2025.10) describing how modes combine. */
   resolver: ResolverDocument
-  /** Suggested file name for the resolver document. */
-  resolverFileName: string
+  /** Required file name for the Resolver document. */
+  resolverFileName: 'tokens.resolver.json'
   /** Conversion warnings. The converter still returns token files when this array is non-empty. */
   warnings: string[]
 }

@@ -23,11 +23,11 @@ function capabilityMessage(
     : `The CSS output cannot represent the ${type} value at "${tokenPath}".`
 }
 
-/** Reports a token value or Resolver state that an output cannot represent. @public */
+/** Reports text, token values, or Resolver states rejected by an output writer. @public */
 export class DTCGOutputCapabilityError extends Error {
   /** Output kind that rejected the value or state. */
   public readonly format: 'css' | 'tailwind'
-  /** Dot path of the token that the output could not include. */
+  /** Token path or output location that the writer could not include. */
   public readonly tokenPath: string
 
   public constructor(

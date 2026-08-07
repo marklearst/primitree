@@ -1,6 +1,7 @@
 import { toDTCG, type ToDTCGOptions } from '../emit'
 import {
   applyResolverWithBudget,
+  chargeResolverWork,
   flattenTokens,
   listContextsWithBudget,
   type ResolverWorkBudget,
@@ -9,6 +10,7 @@ import type { DTCGDocument, ResolverDocument } from '../types'
 import { emitCss } from './css'
 import { emitTailwind } from './tailwind'
 import { emitTypescript } from './typescript'
+import { hasLoneUtf16Surrogate } from './unicode'
 import cliPackageManifest from '../../../cli/package.json' with { type: 'json' }
 
 export { DTCGOutputCapabilityError } from './output-error'
@@ -25,8 +27,8 @@ export interface PipelineFile {
  *
  * @remarks
  * File names are relative to the Resolver file. Token files may use nested
- * paths, such as `themes/dark.tokens.json`. The Resolver file name must be a
- * basename without directory segments.
+ * paths, such as `themes/dark.tokens.json`. Primitree readers look for a
+ * Resolver named `tokens.resolver.json`.
  *
  * @public
  */
@@ -35,8 +37,8 @@ export interface DTCGOutputSet {
   readonly files: Record<string, DTCGDocument>
   /** Resolver used to select the token files and contexts. */
   readonly resolver: ResolverDocument
-  /** File name for the Resolver output. */
-  readonly resolverFileName: string
+  /** Required file name for the Resolver output. */
+  readonly resolverFileName: 'tokens.resolver.json'
 }
 
 /**
@@ -274,6 +276,11 @@ function isWindowsIncompatiblePathSegment(value: string): boolean {
 }
 
 function validateRelativeOutputPath(value: string, label: string): void {
+  if (hasLoneUtf16Surrogate(value)) {
+    throw new Error(
+      `The DTCG ${label} path cannot contain a lone UTF-16 surrogate.`
+    )
+  }
   const segments = value.split('/')
   if (
     value.length === 0 ||
@@ -302,10 +309,11 @@ function validateDTCGOutputPaths(input: DTCGOutputSet): void {
   if (tokenFileNames.length > MAX_OUTPUT_TOKEN_FILES) {
     throw new Error('A DTCG output set can contain at most 1,000 token files.')
   }
-  if (input.resolverFileName.includes('/')) {
-    throw new Error('The DTCG Resolver file name cannot contain path segments.')
+  if (input.resolverFileName !== 'tokens.resolver.json') {
+    throw new Error(
+      'The DTCG Resolver file name must be "tokens.resolver.json".'
+    )
   }
-  validateRelativeOutputPath(input.resolverFileName, 'Resolver file')
   const claimed = new Map<string, string>()
   for (const name of [...tokenFileNames, input.resolverFileName]) {
     if (name !== input.resolverFileName || Object.hasOwn(input.files, name)) {
@@ -326,6 +334,28 @@ function validateDTCGOutputPaths(input: DTCGOutputSet): void {
         throw new Error(`DTCG output paths collide: "${parent}" and "${name}".`)
       }
       separator = key.indexOf('/', separator + 1)
+    }
+  }
+}
+
+function assertUnicodeScalarResolverNames(
+  contextsByAxis: Readonly<Record<string, readonly string[]>>,
+  budget: ResolverWorkBudget
+): void {
+  for (const [axis, contexts] of Object.entries(contextsByAxis)) {
+    chargeResolverWork(budget, axis.length + 1)
+    if (hasLoneUtf16Surrogate(axis)) {
+      throw new Error(
+        'The DTCG Resolver axis name cannot contain a lone UTF-16 surrogate.'
+      )
+    }
+    for (const context of contexts) {
+      chargeResolverWork(budget, context.length + 1)
+      if (hasLoneUtf16Surrogate(context)) {
+        throw new Error(
+          'The DTCG Resolver context name cannot contain a lone UTF-16 surrogate.'
+        )
+      }
     }
   }
 }
@@ -761,8 +791,9 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * Resolver state that it cannot represent, or a token path changes Tailwind
  * namespace between Resolver states.
  *
- * @throws `Error` - The builder rejects unsafe file names, a Resolver file name
- * with directory segments, output path collisions, and CSS name collisions.
+ * @throws `Error` - The builder rejects unsafe file names, a Resolver file
+ * name other than `tokens.resolver.json`, lone surrogates in Resolver names,
+ * output path collisions, and CSS name collisions.
  *
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
  * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
@@ -852,13 +883,17 @@ export function buildDTCGOutputs(
     depthErrorMessage: OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE,
   }
 
+  const collections = Object.keys(input.resolver.sets ?? {}).length
+  const variables = flattenTokens(
+    applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget)
+  ).length
+  const contexts = listContextsWithBudget(input.resolver, summaryBudget)
+  assertUnicodeScalarResolverNames(contexts, summaryBudget)
   const summary: PipelineSummary = {
-    collections: Object.keys(input.resolver.sets ?? {}).length,
-    variables: flattenTokens(
-      applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget)
-    ).length,
+    collections,
+    variables,
     tokenFiles: tokenFileNames.length + 1,
-    contexts: listContextsWithBudget(input.resolver, summaryBudget),
+    contexts,
     files: files.map(file => file.path),
   }
 

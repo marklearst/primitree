@@ -364,22 +364,139 @@ describe('buildDTCGOutputs', () => {
     ).toThrow(`Unsafe DTCG token file path: "${fileName}".`)
   })
 
-  it('requires the Resolver file name to be a basename', () => {
-    expect(() =>
+  it.each([
+    ['lone high surrogate', '\ud800.tokens.json'],
+    ['distinct lone high surrogate', '\ud801.tokens.json'],
+    ['lone low surrogate', '\udc00.tokens.json'],
+  ])('rejects a %s in a token output path', (_label, fileName) => {
+    const run = () =>
       buildDTCGOutputs({
         ...input,
-        resolverFileName: 'config/tokens.resolver.json',
+        files: { [fileName]: document },
+        resolver: {
+          ...input.resolver,
+          sets: { brand: { sources: [{ $ref: fileName }] } },
+        },
       })
-    ).toThrow('The DTCG Resolver file name cannot contain path segments.')
+
+    expect(run).toThrow(Error)
+    expect(run).toThrow(
+      'The DTCG token file path cannot contain a lone UTF-16 surrogate.'
+    )
+  })
+
+  it('keeps valid astral pairs and non-English token output paths', () => {
+    const result = buildDTCGOutputs(
+      {
+        ...input,
+        files: { '主题😀.tokens.json': document },
+        resolver: {
+          ...input.resolver,
+          sets: {
+            brand: { sources: [{ $ref: '主题😀.tokens.json' }] },
+          },
+        },
+      },
+      { css: false, tailwind: false, typescript: false }
+    )
+
+    expect(result.files.map(file => file.path)).toEqual([
+      'tokens/主题😀.tokens.json',
+      'tokens/tokens.resolver.json',
+    ])
+  })
+
+  it.each([
+    ['axis', '\ud800', 'theme'],
+    ['context', 'theme', '\udc00'],
+  ])(
+    'rejects a lone surrogate in a Resolver %s name when CSS is disabled',
+    (location, axis, context) => {
+      const run = () =>
+        buildDTCGOutputs(
+          {
+            ...input,
+            resolver: {
+              version: '2025.10',
+              modifiers: {
+                [axis]: {
+                  contexts: {
+                    [context]: [
+                      { value: { $type: 'string', $value: 'selected' } },
+                    ],
+                  },
+                },
+              },
+              resolutionOrder: [{ $ref: `#/modifiers/${axis}` }],
+            },
+          },
+          { css: false, tailwind: false, typescript: false }
+        )
+
+      expect(run).toThrow(Error)
+      expect(run).toThrow(
+        `The DTCG Resolver ${location} name cannot contain a lone UTF-16 surrogate.`
+      )
+    }
+  )
+
+  it('keeps valid astral pairs and non-English Resolver names', () => {
+    const result = buildDTCGOutputs(
+      {
+        ...input,
+        resolver: {
+          version: '2025.10',
+          modifiers: {
+            '语义😀': {
+              contexts: {
+                '暗い🌙': [{ value: { $type: 'string', $value: 'selected' } }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/语义😀' }],
+        },
+      },
+      { css: false, tailwind: false, typescript: false }
+    )
+
+    expect(result.summary.contexts).toEqual({ '语义😀': ['暗い🌙'] })
+  })
+
+  it('rejects a Resolver file name with path segments', () => {
+    const candidate = { ...input }
+    Reflect.set(candidate, 'resolverFileName', 'config/tokens.resolver.json')
+
+    expect(() => buildDTCGOutputs(candidate)).toThrow(
+      'The DTCG Resolver file name must be "tokens.resolver.json".'
+    )
   })
 
   it('rejects a Windows-reserved Resolver file name', () => {
-    expect(() =>
-      buildDTCGOutputs({
-        ...input,
-        resolverFileName: 'CON.tokens.json',
-      })
-    ).toThrow('Unsafe DTCG Resolver file path: "CON.tokens.json".')
+    const candidate = { ...input }
+    Reflect.set(candidate, 'resolverFileName', 'CON.tokens.json')
+
+    expect(() => buildDTCGOutputs(candidate)).toThrow(
+      'The DTCG Resolver file name must be "tokens.resolver.json".'
+    )
+  })
+
+  it('rejects a safe custom Resolver basename', () => {
+    const candidate = { ...input }
+    Reflect.set(candidate, 'resolverFileName', 'brand.resolver.json')
+
+    let failure: unknown
+    try {
+      buildDTCGOutputs(candidate)
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure).not.toBeInstanceOf(TypeError)
+    expect(failure).toHaveProperty(
+      'message',
+      'The DTCG Resolver file name must be "tokens.resolver.json".'
+    )
   })
 
   it('rejects token and Resolver paths that collide by case', () => {
@@ -628,6 +745,44 @@ describe('buildDTCGOutputs', () => {
     expect(run).toThrow(DTCGOutputCapabilityError)
     expect(run).toThrow(
       'The CSS output cannot represent the fontFamily value at "type.family".'
+    )
+  })
+
+  it('rejects a lone surrogate in a Resolver context through the output builder', () => {
+    const run = () =>
+      buildDTCGOutputs(
+        {
+          ...input,
+          resolver: {
+            version: '2025.10',
+            sets: {
+              base: {
+                sources: [{ value: { $type: 'string', $value: 'default' } }],
+              },
+            },
+            modifiers: {
+              theme: {
+                default: 'light',
+                contexts: {
+                  light: [],
+                  '\ud800': [
+                    { value: { $type: 'string', $value: 'selected' } },
+                  ],
+                },
+              },
+            },
+            resolutionOrder: [
+              { $ref: '#/sets/base' },
+              { $ref: '#/modifiers/theme' },
+            ],
+          },
+        },
+        { tailwind: false, typescript: false }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The CSS output cannot represent the string value at "resolver context".'
     )
   })
 })
