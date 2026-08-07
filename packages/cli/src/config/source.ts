@@ -11,6 +11,12 @@ import {
 } from '@primitree/core'
 import { createDTCGGraphFragment } from '@primitree/dtcg'
 import { loadPrimitreeConfig, type LoadedDTCGSourceConfig } from './load'
+import {
+  configuredSourceFileFingerprint,
+  readConfiguredSourceFileFingerprint,
+  sameConfiguredSourceFile,
+  type ConfiguredSourceFileFingerprint,
+} from './source-snapshot'
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024
 const SOURCE_READ_BUFFER_BYTES = 64 * 1024
@@ -49,7 +55,8 @@ function resultError(result: {
 
 async function readConfiguredJsonFile(
   filePath: string,
-  sourceLabel: string
+  sourceLabel: string,
+  expectedFingerprint?: ConfiguredSourceFileFingerprint
 ): Promise<unknown> {
   const absolute = path.resolve(filePath)
   const unreadable = () => new Error(`Could not read file: ${absolute}`)
@@ -59,17 +66,26 @@ async function readConfiguredJsonFile(
       throw unreadable()
     })
 
-  let raw: string | undefined
+  let document: unknown
+  let readCompleted = false
   let readFailed = false
   let readFailure: unknown
   try {
-    const stats = await handle.stat().catch(() => {
+    const stats = await handle.stat({ bigint: true }).catch(() => {
       throw unreadable()
     })
     if (!stats.isFile()) {
       throw new Error(`Could not read the ${sourceLabel}.`)
     }
-    if (stats.size > MAX_SOURCE_BYTES) {
+    const openedFingerprint = configuredSourceFileFingerprint(stats)
+    const changed = () => new Error(`The ${sourceLabel} changed while reading.`)
+    if (
+      expectedFingerprint !== undefined &&
+      !sameConfiguredSourceFile(expectedFingerprint, openedFingerprint)
+    ) {
+      throw changed()
+    }
+    if (stats.size > BigInt(MAX_SOURCE_BYTES)) {
       throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
     }
 
@@ -91,12 +107,39 @@ async function readConfiguredJsonFile(
       }
       chunks.push(buffer.subarray(0, bytesRead))
     }
+    const completedFingerprint = configuredSourceFileFingerprint(
+      await handle.stat({ bigint: true }).catch(() => {
+        throw unreadable()
+      })
+    )
+    if (!sameConfiguredSourceFile(openedFingerprint, completedFingerprint)) {
+      throw changed()
+    }
+    const pathStats = await fs.stat(absolute, { bigint: true }).catch(() => {
+      throw changed()
+    })
+    if (
+      !pathStats.isFile() ||
+      !sameConfiguredSourceFile(
+        completedFingerprint,
+        configuredSourceFileFingerprint(pathStats)
+      )
+    ) {
+      throw changed()
+    }
+    let raw: string
     try {
       raw = new TextDecoder('utf-8', { fatal: true }).decode(
         Buffer.concat(chunks, position)
       )
     } catch (error) {
       throw new Error(`File is not valid UTF-8: ${absolute}`, { cause: error })
+    }
+    try {
+      document = JSON.parse(raw)
+      readCompleted = true
+    } catch {
+      throw new Error(`File is not valid JSON: ${absolute}`)
     }
   } catch (error) {
     readFailed = true
@@ -124,15 +167,10 @@ async function readConfiguredJsonFile(
       cause: closeFailure,
     })
   }
-  if (raw === undefined) {
+  if (!readCompleted) {
     throw unreadable()
   }
-
-  try {
-    return JSON.parse(raw)
-  } catch {
-    throw new Error(`File is not valid JSON: ${absolute}`)
-  }
+  return document
 }
 
 export async function loadConfiguredSource(
@@ -171,7 +209,15 @@ export async function buildConfiguredSourceGraph(
   const sourceLabel =
     options.label ?? `file for source "${configured.sourceName}"`
 
-  const document = await readConfiguredJsonFile(sourceFile, sourceLabel)
+  const expectedFingerprint =
+    path.resolve(sourceFile) === configured.source.file
+      ? readConfiguredSourceFileFingerprint(configured.source)
+      : undefined
+  const document = await readConfiguredJsonFile(
+    sourceFile,
+    sourceLabel,
+    expectedFingerprint
+  )
   const fragment = createDTCGGraphFragment(document, {
     source: configured.sourceName,
     uri: path.relative(

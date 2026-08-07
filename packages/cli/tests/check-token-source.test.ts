@@ -394,6 +394,51 @@ describe('primitree check built token source loading', () => {
     }
   })
 
+  it('rejects the outer source root replaced during final realpath', async () => {
+    const original = `${directory}.original`
+    const replacement = `${directory}.replacement`
+    await writeJson('tokens.resolver.json', resolverFor('source.tokens.json'))
+    await writeJson('source.tokens.json', {})
+    await fs.mkdir(replacement)
+    await fs.writeFile(
+      path.join(replacement, 'tokens.resolver.json'),
+      JSON.stringify(resolverFor('source.tokens.json'))
+    )
+    await fs.writeFile(path.join(replacement, 'source.tokens.json'), '{}')
+    const realpath = fs.realpath.bind(fs)
+    let rootRealpathCalls = 0
+    let swapped = false
+    const resolvePath = vi
+      .spyOn(fs, 'realpath')
+      .mockImplementation(async (target, options) => {
+        if (String(target) === directory) {
+          rootRealpathCalls += 1
+          if (rootRealpathCalls === 2) {
+            await fs.rename(directory, original)
+            await fs.rename(replacement, directory)
+            swapped = true
+          }
+        }
+        return realpath(target, options)
+      })
+
+    try {
+      await expect(runCheck(parseArgs([directory]))).rejects.toThrow(
+        'Token source directory changed while reading: .'
+      )
+    } finally {
+      resolvePath.mockRestore()
+      if (swapped) {
+        await fs.rename(directory, replacement)
+        await fs.rename(original, directory)
+        await fs.rm(replacement, { recursive: true, force: true })
+      }
+    }
+
+    expect(rootRealpathCalls).toBe(2)
+    expect(swapped).toBe(true)
+  })
+
   it('rejects a source entry added while another token file is read', async () => {
     const tokenPath = path.join(directory, 'source.tokens.json')
     await writeJson('tokens.resolver.json', resolverFor('source.tokens.json'))

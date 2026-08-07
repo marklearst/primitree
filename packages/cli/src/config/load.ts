@@ -15,6 +15,11 @@ import {
   isUnsafePortablePathSegment,
   portablePathComparisonKey,
 } from '../portable-path'
+import {
+  configuredSourceFileFingerprint,
+  retainConfiguredSourceFileFingerprint,
+  type ConfiguredSourceFileFingerprint,
+} from './source-snapshot'
 
 interface LoadPrimitreeConfigOptions {
   readonly cwd?: string
@@ -97,6 +102,7 @@ interface SourceFileEntry {
   readonly file: string
   readonly comparisonFile: string
   readonly followedLink: boolean
+  readonly fingerprint?: ConfiguredSourceFileFingerprint
   readonly order: number
 }
 
@@ -354,7 +360,11 @@ async function resolveSourceComparisonPath(
   configDirectory: string,
   comparisonConfigDirectory: string,
   sourceFile: string
-): Promise<{ readonly path: string; readonly followedLink: boolean }> {
+): Promise<{
+  readonly path: string
+  readonly followedLink: boolean
+  readonly fingerprint?: ConfiguredSourceFileFingerprint
+}> {
   let candidate = path.resolve(
     comparisonConfigDirectory,
     path.relative(configDirectory, sourceFile)
@@ -368,6 +378,7 @@ async function resolveSourceComparisonPath(
       .filter(segment => segment.length > 0)
     let current = root
     let followedLink = false
+    let finalFingerprint: ConfiguredSourceFileFingerprint | undefined
 
     for (let index = 0; index < segments.length; index += 1) {
       const segment = segments[index]
@@ -375,7 +386,7 @@ async function resolveSourceComparisonPath(
         continue
       }
       current = path.join(current, segment)
-      const stats = await fs.lstat(current).catch(error => {
+      const stats = await fs.lstat(current, { bigint: true }).catch(error => {
         if (isMissing(error)) {
           return undefined
         }
@@ -385,6 +396,9 @@ async function resolveSourceComparisonPath(
         return { path: candidate, followedLink: followedAnyLink }
       }
       if (!stats.isSymbolicLink()) {
+        if (index === segments.length - 1 && stats.isFile()) {
+          finalFingerprint = configuredSourceFileFingerprint(stats)
+        }
         continue
       }
       if (linkCount === MAX_SOURCE_LINKS) {
@@ -404,7 +418,13 @@ async function resolveSourceComparisonPath(
     }
 
     if (!followedLink) {
-      return { path: candidate, followedLink: followedAnyLink }
+      return {
+        path: candidate,
+        followedLink: followedAnyLink,
+        ...(finalFingerprint === undefined
+          ? {}
+          : { fingerprint: finalFingerprint }),
+      }
     }
   }
 
@@ -448,6 +468,9 @@ async function resolveSourceComparisonPaths(
             ...sourceFile,
             comparisonFile: resolved.path,
             followedLink: resolved.followedLink,
+            ...(resolved.fingerprint === undefined
+              ? {}
+              : { fingerprint: resolved.fingerprint }),
           }
         } catch (error) {
           if (!failed) {
@@ -727,6 +750,10 @@ export async function loadPrimitreeConfig(
   const comparisonConfigDirectory = await fs.realpath(configDirectory)
   const outputDirectories: OutputDirectoryEntry[] = []
   const sourceFiles: SourceFileEntry[] = []
+  const normalizedSources: Array<{
+    readonly sourceId: string
+    readonly source: LoadedDTCGSourceConfig
+  }> = []
   for (const [sourceId, value] of Object.entries(config.sources)) {
     const source = normalizeSource(sourceId, value, configDirectory)
     if (source.outputs !== undefined) {
@@ -752,10 +779,7 @@ export async function loadPrimitreeConfig(
       followedLink: false,
       order: sourceFiles.length,
     })
-    Object.defineProperty(sources, sourceId, {
-      value: source,
-      enumerable: true,
-    })
+    normalizedSources.push({ sourceId, source })
   }
   const comparedSourceFiles =
     outputDirectories.length === 0
@@ -776,6 +800,20 @@ export async function loadPrimitreeConfig(
     outputDirectories,
     comparedSourceFiles
   )
+  for (let index = 0; index < normalizedSources.length; index += 1) {
+    const normalized = normalizedSources[index]
+    if (normalized === undefined) {
+      continue
+    }
+    const fingerprint = comparedSourceFiles[index]?.fingerprint
+    if (fingerprint !== undefined) {
+      retainConfiguredSourceFileFingerprint(normalized.source, fingerprint)
+    }
+    Object.defineProperty(sources, normalized.sourceId, {
+      value: normalized.source,
+      enumerable: true,
+    })
+  }
   return Object.freeze({
     schemaVersion: 1,
     configPath,
