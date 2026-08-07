@@ -47,6 +47,12 @@ export default defineConfig({
 })
 ```
 
+Configured source files must contain valid UTF-8 and be 10 MiB or smaller.
+Output-path validation records the identity of each existing regular source
+file it inspects. Primitree compares that identity with the file it opens.
+During the bounded read, it rejects changes to the opened file or configured
+path.
+
 The older `<path>` form can point to:
 
 - a `variables.json` export

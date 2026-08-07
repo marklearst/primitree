@@ -146,7 +146,11 @@ export default defineConfig({
 
 Paths are relative to the config file. Primitree reads the named config file
 and does not search parent folders. It rejects unknown settings. Each source
-needs one to four layers.
+needs one to four layers. Configured source files must contain valid UTF-8 and
+be 10 MiB or smaller. Output-path validation records the identity of each
+existing regular source file it inspects. Primitree compares that identity with
+the file it opens. During the bounded read, it rejects changes to the opened
+file or configured path.
 
 The older path form still checks a Figma variables export or a built token
 directory. The command exits with code 1 for findings and code 2 for command,
