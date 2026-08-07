@@ -180,12 +180,13 @@ CSS output reads up to 64 token-group levels and returns up to 20 MiB. It writes
 a compound selector when two or more Resolver axes use non-default contexts.
 Its 1,000,000-unit work limit counts active Resolver contexts, token merges,
 value comparisons, declarations, token paths, and token text. CSS strings and
-selectors escape text that would break the file. CSS output rejects lone UTF-16
-surrogates in raw strings before a UTF-8 writer can replace them. CSS names keep
-token case and non-ASCII code points. ASCII punctuation uses lowercase hex
-markers, such as `_3f_` for `?`. Tailwind and TypeScript references use the same
-CSS names. Custom CSS banners reject `*/`, which would close the generated
-header comment.
+selectors escape text that would break the file. CSS output rejects U+0000 in
+raw strings, emitted Resolver context names, and custom banners because CSS
+replaces it with U+FFFD. It also rejects lone UTF-16 surrogates before a UTF-8
+writer can replace them. CSS names keep token case and non-ASCII code points. ASCII
+punctuation uses lowercase hex markers, such as `_3f_` for `?`. Tailwind and
+TypeScript references use the same CSS names. Custom CSS banners reject `*/`,
+which would close the generated header comment.
 Tailwind reads at most 64 token-group levels and 100,000 items per context, and
 returns up to 20 MiB. Its
 1,000,000-unit work limit counts active Resolver contexts, token merges, token

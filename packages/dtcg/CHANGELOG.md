@@ -38,10 +38,10 @@ Initial release of `@primitree/dtcg`.
   TypeScript values for DTCG cubic Bezier tokens.
 - CSS output escapes strings and Resolver selectors. One work limit covers
   every context, including token paths and text. CSS output also limits group
-  depth and returned text, and rejects lone UTF-16 surrogates in raw CSS text.
-  Custom banners reject text that would close the generated comment. CSS and
-  TypeScript reject CSS custom property collisions. Tailwind checks emitted
-  values.
+  depth and returned text. It rejects U+0000 and lone UTF-16 surrogates in raw
+  CSS text. Custom banners reject text that would close the generated comment.
+  CSS and TypeScript reject CSS custom property collisions. Tailwind checks
+  emitted values.
 - In-memory pipeline output with Style Dictionary or Terrazzo configuration.
 
 ### Requirements
