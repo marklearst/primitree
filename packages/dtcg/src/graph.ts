@@ -71,6 +71,7 @@ interface PreparedToken extends TokenInput {
 interface AdapterIssue {
   readonly code: string
   readonly message: string
+  readonly path?: readonly string[]
 }
 
 interface WorkBudget {
@@ -144,12 +145,14 @@ function pathKey(path: readonly string[]): string {
 
 function failure(
   message: string,
-  code = 'dtcg.invalid-document'
+  code = 'dtcg.invalid-document',
+  path?: readonly string[]
 ): GraphFailure {
   const diagnostic = Object.freeze({
     code,
     phase: 'source' as const,
     message,
+    ...(path === undefined ? {} : { path }),
   })
   return Object.freeze({
     ok: false as const,
@@ -157,8 +160,12 @@ function failure(
   })
 }
 
-function invalid(message: string): AdapterIssue {
-  return { code: 'dtcg.invalid-document', message }
+function invalid(message: string, path?: readonly string[]): AdapterIssue {
+  return {
+    code: 'dtcg.invalid-document',
+    message,
+    ...(path === undefined ? {} : { path }),
+  }
 }
 
 function unsupported(message: string): AdapterIssue {
@@ -173,12 +180,12 @@ function consumeWork(budget: WorkBudget, count = 1): boolean {
   return true
 }
 
-function workLimitIssue(): AdapterIssue {
-  return invalid('The DTCG adapter reached its 100,000-item work limit.')
+function workLimitIssue(path?: readonly string[]): AdapterIssue {
+  return invalid('The DTCG adapter reached its 100,000-item work limit.', path)
 }
 
 function failureFor(issue: AdapterIssue): GraphFailure {
-  return failure(issue.message, issue.code)
+  return failure(issue.message, issue.code, issue.path)
 }
 
 function validateMetadataValues(
@@ -329,10 +336,11 @@ function readReference(
 
 function scanLiteralValue(
   root: unknown,
-  budget: WorkBudget
+  budget: WorkBudget,
+  workLimitPath?: readonly string[]
 ): AdapterIssue | undefined {
   if (!consumeWork(budget)) {
-    return workLimitIssue()
+    return workLimitIssue(workLimitPath)
   }
   const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
     { value: root, depth: 0 },
@@ -365,7 +373,7 @@ function scanLiteralValue(
 
     if (Array.isArray(value)) {
       if (!consumeWork(budget, value.length)) {
-        return workLimitIssue()
+        return workLimitIssue(workLimitPath)
       }
       for (let index = value.length - 1; index >= 0; index -= 1) {
         stack.push({ value: Reflect.get(value, index), depth: entry.depth + 1 })
@@ -380,7 +388,7 @@ function scanLiteralValue(
     }
     const keys = Object.keys(value)
     if (!consumeWork(budget, keys.length)) {
-      return workLimitIssue()
+      return workLimitIssue(workLimitPath)
     }
     for (let index = keys.length - 1; index >= 0; index -= 1) {
       const key = keys[index]
@@ -436,13 +444,38 @@ function isColorValue(value: unknown): boolean {
   )
 }
 
+function fieldPath(path: readonly string[], field: string): readonly string[] {
+  return Object.freeze([...path, field])
+}
+
+function dimensionValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  const message = 'A DTCG token value does not match type "dimension".'
+  if (!isPlainRecord(value)) {
+    return invalid(message, valuePath)
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length !== 2 ||
+    !hasOwn(value, 'value') ||
+    !hasOwn(value, 'unit') ||
+    !hasOnlyKeys(value, new Set(['value', 'unit']))
+  ) {
+    return invalid(message, valuePath)
+  }
+  if (!isFiniteNumber(value.value)) {
+    return invalid(message, fieldPath(valuePath, 'value'))
+  }
+  if (value.unit !== 'px' && value.unit !== 'rem') {
+    return invalid(message, fieldPath(valuePath, 'unit'))
+  }
+  return undefined
+}
+
 function isDimensionValue(value: unknown): boolean {
-  return (
-    isPlainRecord(value) &&
-    hasOnlyKeys(value, new Set(['value', 'unit'])) &&
-    isFiniteNumber(value.value) &&
-    (value.unit === 'px' || value.unit === 'rem')
-  )
+  return dimensionValueIssue(value, []) === undefined
 }
 
 function isDurationValue(value: unknown): boolean {
@@ -532,9 +565,11 @@ function prepareToken(
   sourceId: SourceId,
   budget: WorkBudget
 ): PreparedToken | GraphFailure {
+  const dimensionValuePath =
+    token.type === 'dimension' ? fieldPath(token.path, '$value') : undefined
   const reference = readReference(token.value, budget)
   if (reference.kind === 'work-limit') {
-    return failureFor(workLimitIssue())
+    return failureFor(workLimitIssue(dimensionValuePath))
   }
   if (reference.kind === 'invalid') {
     return failure('A DTCG reference path is invalid.')
@@ -555,7 +590,7 @@ function prepareToken(
     }
   }
 
-  const valueIssue = scanLiteralValue(token.value, budget)
+  const valueIssue = scanLiteralValue(token.value, budget, dimensionValuePath)
   if (valueIssue !== undefined) {
     return failureFor(valueIssue)
   }
@@ -806,6 +841,17 @@ export function toGraphFragment(
         return typeResult.failure
       }
       if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'dimension'
+      ) {
+        const issue = dimensionValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
+      } else if (
         token.coreValue.kind === 'literal' &&
         !matchesType(typeResult.value, token.value)
       ) {
