@@ -1,8 +1,9 @@
 # @primitree/dtcg
 
-`@primitree/dtcg` converts Figma variables JSON into DTCG 2025.10 plus a
-documented boolean extension. It creates token documents, a Resolver document,
-CSS custom properties, a Tailwind CSS v4 theme, and TypeScript token accessors.
+`@primitree/dtcg` reads supported DTCG 2025.10 token values and converts Figma
+variables JSON into DTCG plus a documented boolean extension. It creates token
+documents, a Resolver document, CSS custom properties, a Tailwind CSS v4 theme,
+and TypeScript token accessors.
 
 ```sh
 npm install @primitree/dtcg
@@ -47,6 +48,8 @@ The reader supports:
 - group `$type` inheritance and `$root`
 - `color` values in any of the 14 color spaces checked by the package, including
   missing components marked with `none`
+- `cubicBezier` values with four finite coordinates and both x coordinates from
+  0 through 1
 - `dimension` values with `px` or `rem`, and finite `duration` values with `ms`
   or `s`
 - `fontFamily` values with one font name or an ordered list of names
@@ -187,6 +190,8 @@ CSS custom properties keep boolean values and ordered font fallback lists.
 Color values keep their DTCG color space, components, missing markers, and
 alpha. A `hex` fallback stays in token JSON and does not replace those
 coordinates in CSS.
+Cubic Bezier values become `cubic-bezier()` in CSS. Tailwind maps them to its
+`--ease-*` namespace. TypeScript output keeps the four-number tuple.
 Tailwind output follows group type inheritance and alias type inference. It adds
 a number suffix to the later name when two paths produce the same Tailwind name.
 

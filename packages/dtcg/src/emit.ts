@@ -14,7 +14,6 @@ import type {
   DTCGDocument,
   DTCGGroup,
   DTCGToken,
-  DTCGTokenType,
   DTCGTokenValue,
   FigmaMetadataExtension,
   ResolverDocument,
@@ -137,7 +136,7 @@ function referenceFor(
 function convertValue(
   ctx: EmitContext,
   variable: NormalizedVariable,
-  type: DTCGTokenType,
+  type: ReturnType<typeof inferTokenType>,
   value: VariableValue
 ): DTCGTokenValue | null {
   if (isVariableAlias(value)) {

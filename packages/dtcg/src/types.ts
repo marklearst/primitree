@@ -2,8 +2,9 @@
  * DTCG 2025.10 types for Primitree.
  *
  * @remarks
- * These types cover DTCG 2025.10 values that Figma variables can express,
- * the Resolver module, and the documented Primitree boolean extension.
+ * These types cover the DTCG 2025.10 values that Primitree reads, the Resolver
+ * module, Figma variable output, and the documented Primitree boolean
+ * extension.
  */
 
 /**
@@ -59,6 +60,19 @@ export interface DTCGColorValue {
   alpha?: number
   hex?: string
 }
+
+/**
+ * Four control-point coordinates for a DTCG cubic Bezier curve.
+ *
+ * @remarks
+ * The entries are P1x, P1y, P2x, and P2y. Both x coordinates range from 0
+ * through 1. Both y coordinates may be any finite number.
+ *
+ * @see [DTCG cubic Bezier type](https://www.designtokens.org/tr/2025.10/format/#cubic-bezier)
+ *
+ * @public
+ */
+export type DTCGCubicBezierValue = [number, number, number, number]
 
 /** DTCG dimension value. @public */
 export interface DTCGDimensionValue {
@@ -124,7 +138,7 @@ export type DTCGFontWeightValue =
   | 'ultra-black'
 
 /**
- * Token types emitted from Figma variables.
+ * Token types that Primitree reads or emits.
  *
  * @remarks
  * DTCG 2025.10 does not define `boolean`. Primitree documents it as an
@@ -134,6 +148,7 @@ export type DTCGFontWeightValue =
  */
 export type DTCGTokenType =
   | 'color'
+  | 'cubicBezier'
   | 'dimension'
   | 'number'
   | 'fontWeight'
@@ -145,6 +160,7 @@ export type DTCGTokenType =
 /** A token `$value`, including `{dot.path}` reference strings. @public */
 export type DTCGTokenValue =
   | DTCGColorValue
+  | DTCGCubicBezierValue
   | DTCGDimensionValue
   | DTCGDurationValue
   | DTCGFontFamilyValue

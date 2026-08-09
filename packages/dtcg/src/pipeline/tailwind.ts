@@ -15,6 +15,7 @@ const NAMESPACE_NOISE: Record<string, Set<string>> = {
   spacing: new Set(['space', 'spacing']),
   font: new Set(['font', 'fonts', 'family', 'typeface']),
   'font-weight': new Set(['font', 'weight']),
+  ease: new Set(['ease', 'easing', 'timing']),
 }
 
 interface TypedFlatToken {
@@ -146,8 +147,8 @@ function tailwindName(path: string, namespace: string): string {
  * @remarks
  * Mapping: `color` → `--color-*`; `dimension` → `--radius-*` for paths that
  * mention radius and `--spacing-*` for other paths; `fontFamily` →
- * `--font-*`; `fontWeight` → `--font-weight-*`. The emitter skips types
- * without a Tailwind namespace.
+ * `--font-*`; `fontWeight` → `--font-weight-*`; `cubicBezier` → `--ease-*`.
+ * The emitter skips types without a Tailwind namespace.
  *
  * @public
  */
@@ -182,6 +183,9 @@ export function emitTailwind(
         break
       case 'fontWeight':
         namespace = 'font-weight'
+        break
+      case 'cubicBezier':
+        namespace = 'ease'
         break
       default:
         namespace = null

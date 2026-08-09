@@ -134,6 +134,7 @@ test('API reference generation writes the four public modules and an index', asy
     assert.match(dtcg, /^### DTCGColorComponent$/mu)
     assert.match(dtcg, /^### DTCGColorSpace$/mu)
     assert.match(dtcg, /^### DTCGColorValue$/mu)
+    assert.match(dtcg, /^### DTCGCubicBezierValue$/mu)
     assert.match(dtcg, /\bDTCGFontFamilyValue\b/u)
     assert.match(dtcg, /\bDTCGFontWeightValue\b/u)
     assert.match(dtcg, /\bbuildDTCGOutputs\b/u)

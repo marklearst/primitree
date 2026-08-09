@@ -260,6 +260,7 @@ describe('DTCG graph adapter', () => {
         hex: '#3366ff',
       },
     ],
+    ['cubicBezier', [0.25, 0.1, 0.75, 0.9]],
     ['dimension', { value: 8, unit: 'px' }],
     ['duration', { value: 200, unit: 'ms' }],
     ['number', 1.25],
@@ -280,6 +281,7 @@ describe('DTCG graph adapter', () => {
 
   it.each([
     ['color', { colorSpace: 'srgb', components: [0, 1] }],
+    ['cubicBezier', [1.1, 0, 0.5, 1]],
     ['dimension', { value: 8, unit: 'em' }],
     ['duration', { value: '200', unit: 'ms' }],
     ['number', '1'],

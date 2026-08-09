@@ -30,6 +30,113 @@ function readLiteral(type: string, value: unknown) {
   return fragment.tokens[0]?.values[0]?.value
 }
 
+describe('DTCG cubic Bezier values', () => {
+  it.each([[[0, -1, 1, 2]], [[0.25, 0.1, 0.75, 0.9]]])(
+    'keeps a four-number curve',
+    value => {
+      expect(readLiteral('cubicBezier', value)).toEqual({
+        kind: 'literal',
+        value,
+      })
+    }
+  )
+
+  it('inherits the curve type from its group', () => {
+    const fragment = requireValue(
+      createDTCGGraphFragment(
+        {
+          motion: {
+            $type: 'cubicBezier',
+            standard: { $value: [0, -1, 1, 2] },
+          },
+        },
+        { source: 'brand' }
+      )
+    )
+
+    expect(fragment.tokens[0]).toMatchObject({
+      type: 'cubicBezier',
+      values: [{ value: { kind: 'literal', value: [0, -1, 1, 2] } }],
+    })
+  })
+
+  it.each([
+    ['first x below zero', [-0.01, 0, 0.5, 1], '0'],
+    ['first x above one', [1.01, 0, 0.5, 1], '0'],
+    ['second x below zero', [0.5, 0, -0.01, 1], '2'],
+    ['second x above one', [0.5, 0, 1.01, 1], '2'],
+    ['non-finite first x', [Number.NaN, 0, 0.5, 1], '0'],
+    ['non-finite first y', [0.5, Number.NaN, 0.5, 1], '1'],
+    ['non-finite second y', [0.5, 0, 0.5, Number.POSITIVE_INFINITY], '3'],
+    ['text component', [0.5, 0, 0.5, '1'], '3'],
+  ])('reports the %s component', (_label, value, index) => {
+    expect(
+      requireFailure(
+        createDTCGGraphFragment(
+          { token: { $type: 'cubicBezier', $value: value } },
+          { source: 'brand' }
+        )
+      )
+    ).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'A DTCG token value does not match type "cubicBezier".',
+      path: ['token', '$value', index],
+    })
+  })
+
+  it.each([
+    ['three entries', [0, 0, 1]],
+    ['five entries', [0, 0, 1, 1, 2]],
+    ['object', { 0: 0, 1: 0, 2: 1, 3: 1 }],
+  ])('rejects a %s value at the value path', (_label, value) => {
+    expect(
+      requireFailure(
+        createDTCGGraphFragment(
+          { token: { $type: 'cubicBezier', $value: value } },
+          { source: 'brand' }
+        )
+      )
+    ).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'A DTCG token value does not match type "cubicBezier".',
+      path: ['token', '$value'],
+    })
+  })
+
+  it('rejects a sparse curve at the missing entry', () => {
+    const value = [0, 0, 1, 1]
+    delete value[2]
+
+    expect(
+      requireFailure(
+        createDTCGGraphFragment(
+          { token: { $type: 'cubicBezier', $value: value } },
+          { source: 'brand' }
+        )
+      )
+    ).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'A DTCG token value does not match type "cubicBezier".',
+      path: ['token', '$value', '2'],
+    })
+  })
+
+  it('copies a curve before returning the graph', () => {
+    const value = [0.25, 0.1, 0.75, 0.9]
+    const literal = readLiteral('cubicBezier', value)
+
+    value[0] = 1
+
+    expect(literal).toEqual({
+      kind: 'literal',
+      value: [0.25, 0.1, 0.75, 0.9],
+    })
+  })
+})
+
 describe('DTCG duration values', () => {
   it.each([[{ value: 100, unit: 'ms' }], [{ value: 1.5, unit: 's' }]])(
     'keeps a duration literal',

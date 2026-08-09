@@ -1,6 +1,5 @@
 /**
- * Convert Figma variables JSON to DTCG 2025.10 plus a documented boolean
- * extension.
+ * Read, resolve, convert, and build DTCG 2025.10 token data.
  *
  * @remarks
  * The package emits token documents and a DTCG 2025.10 Resolver for Figma
@@ -58,6 +57,7 @@ export type {
   DTCGColorComponent,
   DTCGColorSpace,
   DTCGColorValue,
+  DTCGCubicBezierValue,
   DTCGDimensionValue,
   DTCGDurationValue,
   DTCGFontFamilyValue,

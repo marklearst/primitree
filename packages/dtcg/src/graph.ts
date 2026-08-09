@@ -13,6 +13,7 @@ import type {
   DTCGColorComponent,
   DTCGColorSpace,
   DTCGColorValue,
+  DTCGCubicBezierValue,
   DTCGTokenType,
 } from './types'
 
@@ -22,6 +23,7 @@ const MAX_JOINED_PATH_LENGTH = 256
 
 const SUPPORTED_TOKEN_TYPES = new Set<string>([
   'color',
+  'cubicBezier',
   'dimension',
   'duration',
   'number',
@@ -662,6 +664,44 @@ function isColorValue(value: unknown): boolean {
   return readColorValue(value, []).ok
 }
 
+type CubicBezierValueReadResult =
+  | { readonly ok: true; readonly value: DTCGCubicBezierValue }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readCubicBezierValue(
+  value: unknown,
+  valuePath: readonly string[]
+): CubicBezierValueReadResult {
+  if (!Array.isArray(value) || value.length !== 4) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('cubicBezier', valuePath),
+    }
+  }
+  const curve: DTCGCubicBezierValue = [0, 0, 0, 0]
+  for (const index of [0, 1, 2, 3] as const) {
+    const itemPath = fieldPath(valuePath, String(index))
+    if (!hasOwn(value, index)) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('cubicBezier', itemPath),
+      }
+    }
+    const coordinate = Reflect.get(value, index)
+    if (
+      !isFiniteNumber(coordinate) ||
+      ((index === 0 || index === 2) && (coordinate < 0 || coordinate > 1))
+    ) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('cubicBezier', itemPath),
+      }
+    }
+    curve[index] = coordinate
+  }
+  return { ok: true, value: curve }
+}
+
 function dimensionValueIssue(
   value: unknown,
   valuePath: readonly string[]
@@ -777,6 +817,9 @@ function matchesType(type: DTCGTokenType, value: unknown): boolean {
     case 'color': {
       return isColorValue(value)
     }
+    case 'cubicBezier': {
+      return readCubicBezierValue(value, []).ok
+    }
     case 'dimension': {
       return isDimensionValue(value)
     }
@@ -857,6 +900,7 @@ function prepareToken(
   const typedValuePath =
     token.type === 'dimension' ||
     token.type === 'color' ||
+    token.type === 'cubicBezier' ||
     token.type === 'duration' ||
     token.type === 'fontFamily' ||
     token.type === 'fontWeight'
@@ -959,18 +1003,19 @@ function inferTokenType(
  * token sets its own type. The reader accepts `$root` and keeps `$root` as the
  * final token path segment.
  *
- * Supported DTCG token types are `color`, `dimension`, `duration`, `number`,
- * `fontWeight`, `fontFamily`, and `string`. The reader also accepts Primitree's
- * documented `boolean` extension.
+ * Supported DTCG token types are `color`, `cubicBezier`, `dimension`,
+ * `duration`, `number`, `fontWeight`, `fontFamily`, and `string`. The reader
+ * also accepts Primitree's documented `boolean` extension.
  *
  * Color values may use any of the 14 color spaces checked by this package.
  * Each color has three components in the allowed range for its color space. A
  * component may be `none`. Alpha from 0 through 1 and six-digit hex text are
  * optional. Dimension values use a finite number with `px` or `rem`. Duration
- * values use a finite number with `ms` or `s`. Number values must be finite.
- * Font weights use numbers from 1 through 1000 or the names listed by DTCG.
- * Font families use one name or an ordered list of names. String values use
- * text.
+ * values use a finite number with `ms` or `s`. Cubic Bezier values use four
+ * finite coordinates. Both x coordinates range from 0 through 1. Number
+ * values must be finite. Font weights use numbers from 1 through 1000 or the
+ * names listed by DTCG. Font families use one name or an ordered list of names.
+ * String values use text.
  *
  * The reader creates immediate edges for whole-token brace references in the
  * supplied document. An alias may omit `$type` when its reference chain reaches
@@ -1246,6 +1291,18 @@ export function createDTCGGraphFragment(
           return failureFor(color.issue)
         }
         coreValue = { kind: 'literal', value: color.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'cubicBezier'
+      ) {
+        const curve = readCubicBezierValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!curve.ok) {
+          return failureFor(curve.issue)
+        }
+        coreValue = { kind: 'literal', value: curve.value }
       } else if (
         token.coreValue.kind === 'literal' &&
         typeResult.value === 'duration'
