@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
+import { parse as parseCss } from 'postcss'
 import ts from 'typescript'
 import { parse as parseYaml } from 'yaml'
 import { toDTCG } from '../src/emit'
+import type { DTCGDocument } from '../src/types'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
@@ -37,7 +39,10 @@ describe('cssVarName / cssValue', () => {
     expect(cssValue(0.4)).toBe('0.4')
     expect(cssValue('Inter')).toBe('Inter')
     expect(cssValue('Inter Display')).toBe("'Inter Display'")
-    expect(cssValue(true)).toBeNull()
+    expect(cssValue(true)).toBe('true')
+    expect(cssValue(['Inter Display', 'sans-serif'])).toBe(
+      "'Inter Display', sans-serif"
+    )
     expect(cssValue('{primitives.color.blue.500}')).toBe(
       'var(--primitives-color-blue-500)'
     )
@@ -53,6 +58,24 @@ describe('cssVarName / cssValue', () => {
       cssValue({ colorSpace: 'srgb', components: [0, 0, 0], alpha: 0.5 })
     ).toBe('rgb(0 0 0 / 0.5)')
   })
+
+  it('quotes CSS strings that contain declaration or block text', () => {
+    const value = "keep; }\nbody { content: 'safe'"
+    const formatted = cssValue(value)
+
+    expect(formatted).toBe("'keep; }\\a body { content: \\'safe\\''")
+    expect(() => parseCss(`:root { --value: ${formatted}; }`)).not.toThrow()
+    expect(cssValue('A,B')).toBe("'A,B'")
+    expect(cssValue('A)')).toBe("'A)'")
+    expect(cssValue('A\u0001B')).toBe("'A\\1 B'")
+  })
+
+  it.each(['initial', 'inherit', 'unset', 'revert', 'revert-layer'])(
+    'quotes the CSS-wide keyword %s',
+    keyword => {
+      expect(cssValue(keyword)).toBe(`'${keyword}'`)
+    }
+  )
 })
 
 describe('emitCss', () => {
@@ -79,8 +102,276 @@ describe('emitCss', () => {
     expect(darkBlock).not.toContain('--semantic-space-page')
   })
 
-  it('skips boolean tokens', () => {
-    expect(css).not.toContain('--primitives-feature-rounded')
+  it('writes boolean tokens as custom property values', () => {
+    expect(css).toContain('--primitives-feature-rounded: true;')
+  })
+
+  it('escapes Resolver axes and contexts in CSS selectors', () => {
+    const axis = 'semantic theme'
+    const hostileContext = "dark'] {\nbody { color: red; }\n/*"
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'string', $value: 'base' },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          [axis]: {
+            default: 'light',
+            contexts: {
+              light: [],
+              [hostileContext]: [
+                {
+                  value: { $type: 'string', $value: 'changed' },
+                },
+              ],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: `#/modifiers/${axis}` },
+        ],
+      }
+    )
+
+    expect(output).toContain('data-semantic\\20 theme=')
+    expect(output).not.toContain('\nbody { color: red; }')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('rejects CSS name collisions across Resolver contexts', () => {
+    expect(() =>
+      emitCss(
+        {
+          'light.tokens.json': {
+            theme: {
+              'foo bar': { $type: 'number', $value: 1 },
+            },
+          },
+          'dark.tokens.json': {
+            theme: {
+              'foo@bar': { $type: 'number', $value: 2 },
+            },
+          },
+        },
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [{ $ref: 'light.tokens.json' }],
+                dark: [{ $ref: 'dark.tokens.json' }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toThrow(
+      'DTCG token paths "theme.foo bar" and "theme.foo@bar" both map to CSS custom property "--theme-foo-bar".'
+    )
+  })
+
+  it('bounds Resolver work shared across CSS contexts', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'number' as const, $value: index },
+      ])
+    )
+    const sourceFiles = Object.fromEntries(
+      Array.from({ length: 101 }, (_, index) => [
+        `part-${index}.tokens.json`,
+        { shared },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 1_001 }, (_, index) => [`mode-${index}`, []])
+    )
+
+    expect(() =>
+      emitCss(sourceFiles, {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: Object.keys(sourceFiles).map(file => ({ $ref: file })),
+          },
+        },
+        modifiers: {
+          mode: {
+            default: 'mode-0',
+            contexts,
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/mode' },
+        ],
+      })
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('counts token text across CSS contexts', () => {
+    const value = 'x'.repeat(20_000)
+    const contexts = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `mode-${index}`,
+        [
+          {
+            value: {
+              $type: 'string' as const,
+              $value: `${value}-${index}`,
+            },
+          },
+        ],
+      ])
+    )
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            mode: {
+              default: 'mode-0',
+              contexts,
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('stops before CSS output exceeds 20 MiB', () => {
+    const banner = 'é'.repeat(10 * 1024 * 1024 + 1)
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          resolutionOrder: [],
+        },
+        { banner }
+      )
+    ).toThrow('CSS output can contain at most 20 MiB.')
+  })
+
+  it('bounds group nesting for direct CSS output', () => {
+    let nested: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { source: { sources: [nested] } },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
+        }
+      )
+    ).toThrow('CSS output can read at most 64 token-group levels.')
+  })
+
+  it('uses inherited and alias token types in Tailwind names', () => {
+    const primitive: DTCGDocument = {
+      brand: { $value: '#3366ff' },
+    }
+    Reflect.set(primitive, '$type', 'color')
+    const inherited = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                primitive,
+                semantic: {
+                  action: { $value: '{primitive.brand}' },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(inherited).toContain('--color-brand: var(--primitive-brand);')
+    expect(inherited).toContain('--color-action: var(--semantic-action);')
+  })
+
+  it('adds a suffix when Tailwind names collide', () => {
+    const collision = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                theme: {
+                  color: {
+                    brand: { $type: 'color', $value: '#3366ff' },
+                    color: {
+                      brand: { $type: 'color', $value: '#3355ee' },
+                    },
+                  },
+                  colors: {
+                    brand: { $type: 'color', $value: '#2244cc' },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(collision).toContain('--color-brand: var(--theme-color-brand);')
+    expect(collision).toContain(
+      '--color-theme-brand: var(--theme-color-color-brand);'
+    )
+    expect(collision).toContain(
+      '--color-theme-brand-2: var(--theme-colors-brand);'
+    )
+  })
+
+  it('bounds group nesting before Tailwind traversal', () => {
+    let nested: DTCGDocument = {
+      brand: { $type: 'color', $value: '#3366ff' },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: { source: { sources: [nested] } },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
+        }
+      )
+    ).toThrow('Tailwind output can read at most 64 token-group levels.')
   })
 })
 

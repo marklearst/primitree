@@ -37,9 +37,15 @@ export { emitCss, cssVarName, cssValue } from './pipeline/css'
 export type { EmitCssOptions } from './pipeline/css'
 export { emitTailwind } from './pipeline/tailwind'
 export { emitTypescript } from './pipeline/typescript'
-export { buildPipeline } from './pipeline/build'
+export {
+  buildDTCGOutputs,
+  buildPipeline,
+  DTCGOutputCapabilityError,
+} from './pipeline/build'
 export type {
   PipelineFile,
+  DTCGOutputSet,
+  BuildOutputOptions,
   BuildPipelineOptions,
   BuildPipelineResult,
   PipelineSummary,

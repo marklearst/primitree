@@ -133,6 +133,9 @@ test('API reference generation writes the four public modules and an index', asy
     assert.match(dtcg, /\bDTCGGraphFragmentOptions\b/u)
     assert.match(dtcg, /\bDTCGFontFamilyValue\b/u)
     assert.match(dtcg, /\bDTCGFontWeightValue\b/u)
+    assert.match(dtcg, /\bbuildDTCGOutputs\b/u)
+    assert.match(dtcg, /\bDTCGOutputSet\b/u)
+    assert.match(dtcg, /\bDTCGOutputCapabilityError\b/u)
     assert.doesNotMatch(dtcg, /\btoGraphFragment\b/u)
     assert.doesNotMatch(dtcg, /\bDTCGGraphOptions\b/u)
   } finally {

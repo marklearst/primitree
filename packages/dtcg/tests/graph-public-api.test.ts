@@ -1,8 +1,10 @@
 import * as dtcg from '../src/index'
 
 describe('DTCG graph public API', () => {
-  it('exports createDTCGGraphFragment and omits toGraphFragment', () => {
+  it('exports the graph and output builders and omits toGraphFragment', () => {
     expect(dtcgExports()).toContain('createDTCGGraphFragment')
+    expect(dtcgExports()).toContain('buildDTCGOutputs')
+    expect(dtcgExports()).toContain('DTCGOutputCapabilityError')
     expect(dtcgExports()).not.toContain('toGraphFragment')
 
     const result = dtcg.createDTCGGraphFragment(
