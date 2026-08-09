@@ -42,7 +42,7 @@ describe('getToken', () => {
   it('returns the token, resolved value, css, and figma metadata', () => {
     const result = getToken(source, 'semantic.color.bg.brand')
     expect(result.found).toBe(true)
-    expect(result.css).toBe('#3366ff')
+    expect(result.css).toBe('color(srgb 0.2 0.4 1)')
     expect(result.cssVar).toBe('var(--semantic-color-bg-brand)')
     expect(result.token?.$value).toBe('{primitives.color.blue.500}')
     expect(result.token?.$extensions).toMatchObject({
@@ -57,7 +57,7 @@ describe('getToken', () => {
     const result = getToken(source, 'semantic.color.bg.brand', {
       semantic: 'dark',
     })
-    expect(result.css).toBe('#8cb3ff')
+    expect(result.css).toBe('color(srgb 0.55 0.7 1)')
   })
 
   it('reports missing tokens', () => {
@@ -72,7 +72,9 @@ describe('resolveContext', () => {
       density: 'compact',
     })
     const byPath = new Map(result.tokens.map(t => [t.path, t]))
-    expect(byPath.get('semantic.color.bg.brand')?.css).toBe('#8cb3ff')
+    expect(byPath.get('semantic.color.bg.brand')?.css).toBe(
+      'color(srgb 0.55 0.7 1)'
+    )
     expect(byPath.get('density.control.height')?.css).toBe('32px')
     expect(result.truncated).toBe(false)
     expect(result.total).toBe(12)
