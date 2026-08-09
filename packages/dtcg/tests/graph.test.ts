@@ -584,6 +584,7 @@ describe('DTCG graph adapter', () => {
       phase: 'source',
       code: 'dtcg.invalid-document',
       message: 'The DTCG adapter reached its 100,000-item work limit.',
+      path: ['color-14285', '$value'],
     })
   })
 
@@ -656,6 +657,33 @@ describe('DTCG graph adapter', () => {
       message: 'The DTCG adapter reached its 100,000-item work limit.',
     })
     expect(indexReads).toBe(0)
+  })
+
+  it('reads the length of a proxied array once', () => {
+    let lengthReads = 0
+    let indexReads = 0
+    const value = new Proxy([0, 0, 0], {
+      get(target, property, receiver) {
+        if (property === 'length') {
+          lengthReads += 1
+          return lengthReads === 1 ? 3 : 100_001
+        }
+        if (typeof property === 'string' && /^\d+$/u.test(property)) {
+          indexReads += 1
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    requireFailure(
+      toGraphFragment(
+        { token: { $type: 'string', $value: value } },
+        { source: 'brand' }
+      )
+    )
+
+    expect(lengthReads).toBe(1)
+    expect(indexReads).toBe(3)
   })
 
   it('infers an alias type through forward references', () => {
