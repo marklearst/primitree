@@ -17,7 +17,7 @@ export interface UseTokenResult {
   token: DTCGToken | undefined
   /** The value after reference resolution under the active contexts. */
   value: DTCGTokenValue | undefined
-  /** The CSS form of that value (`'#3366ff'`, `'8px'`, ...). */
+  /** The CSS form of that value, such as `'color(srgb 0.2 0.4 1)'` or `'8px'`. */
   css: string | null
   /** The CSS custom property accessor (`'var(--semantic-color-bg-brand)'`). */
   cssVar: string
