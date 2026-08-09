@@ -5,7 +5,7 @@ import {
   type GraphFragment,
 } from '@primitree/core'
 import { describe, expect, it } from 'vitest'
-import { toGraphFragment } from '../src/index'
+import { createDTCGGraphFragment } from '../src/index'
 
 function requireValue<Value>(result: {
   readonly ok: boolean
@@ -56,7 +56,7 @@ describe('DTCG graph reference chains', () => {
     ],
   ] as const)('resolves a three-token %s chain', (type, value) => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           scale: {
             alias: { $value: '{scale.middle}' },
@@ -107,13 +107,13 @@ describe('DTCG graph reference chains', () => {
       { palette, alias },
     ]) {
       expect(
-        requireFailure(toGraphFragment(document, { source: 'brand' }))
+        requireFailure(createDTCGGraphFragment(document, { source: 'brand' }))
       ).toEqual(expected)
     }
   })
 
   it('rejects a type conflict at the middle alias', () => {
-    const result = toGraphFragment(
+    const result = createDTCGGraphFragment(
       {
         scale: {
           alias: { $value: '{scale.middle}' },
@@ -137,7 +137,7 @@ describe('DTCG graph reference chains', () => {
 
   it('keeps typed cycles for Core to report', () => {
     const fragment = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           first: { $type: 'number', $value: '{second}' },
           second: { $type: 'number', $value: '{first}' },
@@ -158,7 +158,7 @@ describe('DTCG graph reference chains', () => {
 
   it('builds the same graph when token keys are shuffled', () => {
     const aliasFirst = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           scale: {
             alias: { $value: '{scale.middle}' },
@@ -173,7 +173,7 @@ describe('DTCG graph reference chains', () => {
       )
     )
     const baseFirst = requireValue(
-      toGraphFragment(
+      createDTCGGraphFragment(
         {
           spare: {
             value: { $value: 1, $type: 'number' },

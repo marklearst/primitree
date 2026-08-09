@@ -114,10 +114,16 @@ const COLOR_SPACE_RANGES = new Map<
   ['xyz-d50', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
 ])
 
-export interface DTCGGraphOptions {
-  /** Name used to create the Core source ID. */
+/**
+ * Source details for {@link createDTCGGraphFragment}.
+ *
+ * @public
+ */
+export interface DTCGGraphFragmentOptions {
+  /** Name used to create the Core source ID and qualify group and token IDs. */
   readonly source: string
-  /** File name or URI copied into provenance records. */
+
+  /** Optional file name or URI copied into source, group, and token provenance. */
   readonly uri?: string
 }
 
@@ -851,25 +857,87 @@ function inferTokenType(
 }
 
 /**
- * Convert one token document from Primitree's DTCG value set into a Core graph
- * fragment.
+ * Read Primitree's supported DTCG value subset into a Core graph fragment.
  *
  * @remarks
- * The adapter supports group type inheritance, `$root`, and whole-token brace
- * references. It returns a source diagnostic for group extension, nested brace
- * references, JSON Pointer references, and token types that this package does
- * not support. It checks DTCG descriptions, deprecation values, and extensions.
- * Core graph records do not store those fields, so the adapter omits them.
+ * The caller reads and parses JSON. This function performs no file I/O.
  *
- * @param document - DTCG token document to read.
+ * A group `$type` applies to its child groups and tokens until another group or
+ * token sets its own type. The reader accepts `$root` and keeps `$root` as the
+ * final token path segment.
+ *
+ * Supported DTCG token types are `color`, `dimension`, `duration`, `number`,
+ * `fontWeight`, `fontFamily`, and `string`. The reader also accepts Primitree's
+ * documented `boolean` extension.
+ *
+ * Color values may use any of the 14 color spaces checked by this package.
+ * Each color has three components in the allowed range for its color space. A
+ * component may be `none`. Alpha from 0 through 1 and six-digit hex text are
+ * optional. Dimension values use a finite number with `px` or `rem`. Duration
+ * values use a finite number with `ms` or `s`. Number and `fontWeight` values
+ * must be finite numbers. `fontFamily` and `string` values must be text.
+ *
+ * The reader creates immediate edges for whole-token brace references in the
+ * supplied document. An alias may omit `$type` when its reference chain reaches
+ * a typed token. The reader requires an alias and its immediate target to have
+ * the same effective type whenever that target exists. Core resolves token
+ * values later.
+ *
+ * A typed alias may keep a missing target for Core `composeGraph` to report. A
+ * cycle whose aliases share one effective type remains in the fragment. Core
+ * `resolveToken` reports `graph.reference-cycle` when a caller resolves a token
+ * in that cycle.
+ * The reader rejects a cycle with no type because it cannot infer that type.
+ *
+ * The reader checks that `$description` is text, `$deprecated` is boolean or
+ * text, and `$extensions` is a plain object. Core graph records do not store
+ * those fields, so the returned fragment omits them.
+ *
+ * Group and token paths may contain at most 64 segments. Their dot-joined paths
+ * may contain at most 256 characters. Token values may contain at most 64
+ * nested levels.
+ *
+ * Each call has one 100,000-item work budget. It counts document entries,
+ * brace-reference segments, each literal value scan, token-value object keys,
+ * and token-value array entries.
+ *
+ * The reader rejects `$extends`, JSON Pointer references, references nested
+ * inside literal values, unknown reserved properties, and token types outside
+ * the supported list.
+ *
+ * @param document - Parsed token document that uses the supported value subset.
  * @param options - Source name and optional provenance URI.
- * @returns A graph fragment result or a source diagnostic.
+ * @returns A Core result containing a graph fragment or source diagnostics.
+ *
+ * @example
+ * ```ts
+ * import { createDTCGGraphFragment } from '@primitree/dtcg'
+ *
+ * const result = createDTCGGraphFragment(
+ *   {
+ *     scale: {
+ *       $type: 'number',
+ *       base: { $value: 4 },
+ *       control: { $value: '{scale.base}' },
+ *     },
+ *   },
+ *   { source: 'brand', uri: 'tokens.json' }
+ * )
+ *
+ * if (!result.ok) {
+ *   throw new Error(result.diagnostics[0]?.message ?? 'DTCG input failed')
+ * }
+ *
+ * const fragment = result.value
+ * ```
+ *
+ * @see [DTCG 2025.10 Format Module](https://www.designtokens.org/tr/2025.10/format/)
  *
  * @public
  */
-export function toGraphFragment(
+export function createDTCGGraphFragment(
   document: unknown,
-  options: DTCGGraphOptions
+  options: DTCGGraphFragmentOptions
 ): Result<GraphFragment> {
   try {
     if (!isPlainRecord(document) || !isPlainRecord(options)) {

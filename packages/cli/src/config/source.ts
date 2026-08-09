@@ -7,7 +7,7 @@ import {
   type GraphView,
   type TokenGraph,
 } from '@primitree/core'
-import { toGraphFragment } from '@primitree/dtcg'
+import { createDTCGGraphFragment } from '@primitree/dtcg'
 import { readJsonFile } from '../io'
 import { loadPrimitreeConfig, type LoadedDTCGSourceConfig } from './load'
 
@@ -86,7 +86,7 @@ export async function buildConfiguredSourceGraph(
     throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
   }
   const document = await readJsonFile(sourceFile)
-  const fragment = toGraphFragment(document, {
+  const fragment = createDTCGGraphFragment(document, {
     source: configured.sourceName,
     uri: path.relative(
       path.dirname(configured.configPath),

@@ -121,7 +121,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/dtcg/package.json',
     name: '@primitree/dtcg',
     attwProfile: 'strict',
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
     expectedExports: {
       '.': {

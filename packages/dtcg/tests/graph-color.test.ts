@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toGraphFragment } from '../src/index'
+import { createDTCGGraphFragment } from '../src/index'
 
 function requireValue<Value>(result: {
   readonly ok: boolean
@@ -13,7 +13,7 @@ function requireValue<Value>(result: {
 }
 
 function readColor(value: unknown) {
-  return toGraphFragment(
+  return createDTCGGraphFragment(
     {
       palette: {
         sample: { $type: 'color', $value: value },
