@@ -892,12 +892,12 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
       file: './after.tokens.json',
       architecture: {
         layers: [
-          { id: 'base', roots: ['size'], values: 'literal' },
+          { id: 'base', roots: ['base'], values: 'literal' },
           {
-            id: 'meaning',
+            id: 'semantic',
             roots: ['semantic'],
             values: 'reference',
-            references: ['base', 'meaning'],
+            references: ['base', 'semantic'],
           },
         ],
       },
@@ -907,19 +907,46 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
 }
 `
   )
-  const tokens = value => ({
-    size: { base: { $type: 'number', $value: value } },
+  const beforeValues = {
+    duration: { value: 100, unit: 'ms' },
+    family: ['Inter', 'sans-serif'],
+    weight: 'bold',
+  }
+  const afterValues = {
+    duration: { value: 0.2, unit: 's' },
+    family: ['Atkinson Hyperlegible', 'sans-serif'],
+    weight: 650.5,
+  }
+  const tokenDocument = values => ({
+    base: {
+      motion: {
+        quick: { $type: 'duration', $value: values.duration },
+      },
+      type: {
+        family: { $type: 'fontFamily', $value: values.family },
+        weight: { $type: 'fontWeight', $value: values.weight },
+      },
+    },
     semantic: {
-      action: { $type: 'number', $value: '{size.base}' },
+      motion: {
+        quick: { $type: 'duration', $value: '{base.motion.quick}' },
+        control: { $type: 'duration', $value: '{semantic.motion.quick}' },
+      },
+      type: {
+        family: { $type: 'fontFamily', $value: '{base.type.family}' },
+        body: { $type: 'fontFamily', $value: '{semantic.type.family}' },
+        weight: { $type: 'fontWeight', $value: '{base.type.weight}' },
+        emphasis: { $type: 'fontWeight', $value: '{semantic.type.weight}' },
+      },
     },
   })
   writeFileSync(
     path.join(consumerDirectory, 'before.tokens.json'),
-    `${JSON.stringify(tokens(4), null, 2)}\n`
+    `${JSON.stringify(tokenDocument(beforeValues), null, 2)}\n`
   )
   writeFileSync(
     path.join(consumerDirectory, 'after.tokens.json'),
-    `${JSON.stringify(tokens(8), null, 2)}\n`
+    `${JSON.stringify(tokenDocument(afterValues), null, 2)}\n`
   )
 
   const cli = path.join(consumerDirectory, 'node_modules', '.bin', 'primitree')
@@ -947,19 +974,53 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
     )
   }
 
-  const inspect = parseCliJson(
-    runCommand(cli, ['inspect', 'semantic.action', ...shared], options),
-    'packed primitree inspect'
-  )
-  if (
-    inspect.command !== 'inspect' ||
-    inspect.source !== 'brand' ||
-    inspect.resolvedValue !== 8 ||
-    inspect.token?.path?.join('.') !== 'semantic.action'
-  ) {
-    throw new Error(
-      'packed primitree inspect report did not match the expected command, source, value, and token path'
+  const inspections = [
+    {
+      path: 'semantic.motion.control',
+      type: 'duration',
+      value: afterValues.duration,
+      chain: [
+        'semantic.motion.control',
+        'semantic.motion.quick',
+        'base.motion.quick',
+      ],
+    },
+    {
+      path: 'semantic.type.body',
+      type: 'fontFamily',
+      value: afterValues.family,
+      chain: ['semantic.type.body', 'semantic.type.family', 'base.type.family'],
+    },
+    {
+      path: 'semantic.type.emphasis',
+      type: 'fontWeight',
+      value: afterValues.weight,
+      chain: [
+        'semantic.type.emphasis',
+        'semantic.type.weight',
+        'base.type.weight',
+      ],
+    },
+  ]
+  for (const expected of inspections) {
+    const inspect = parseCliJson(
+      runCommand(cli, ['inspect', expected.path, ...shared], options),
+      `packed primitree inspect ${expected.path}`
     )
+    const chain = inspect.aliasChain?.map(token => token?.path?.join('.'))
+    if (
+      inspect.command !== 'inspect' ||
+      inspect.source !== 'brand' ||
+      inspect.token?.path?.join('.') !== expected.path ||
+      inspect.token?.type !== expected.type ||
+      JSON.stringify(inspect.resolvedValue) !==
+        JSON.stringify(expected.value) ||
+      JSON.stringify(chain) !== JSON.stringify(expected.chain)
+    ) {
+      throw new Error(
+        `packed primitree inspect ${expected.path} did not return its type, value, and full alias chain`
+      )
+    }
   }
 
   const diff = parseCliJson(
@@ -970,22 +1031,37 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
     ),
     'packed primitree diff'
   )
-  const changedBase = diff.changes?.find(
-    change =>
-      change?.kind === 'changed' &&
-      change.token?.path?.join('.') === 'size.base'
-  )
+  const changes = diff.changes?.map(change => ({
+    kind: change?.kind,
+    path: change?.token?.path?.join('.'),
+    impacted: change?.impacted?.map(token => token?.path?.join('.')),
+  }))
+  const expectedChanges = [
+    {
+      kind: 'changed',
+      path: 'base.motion.quick',
+      impacted: ['semantic.motion.quick', 'semantic.motion.control'],
+    },
+    {
+      kind: 'changed',
+      path: 'base.type.family',
+      impacted: ['semantic.type.family', 'semantic.type.body'],
+    },
+    {
+      kind: 'changed',
+      path: 'base.type.weight',
+      impacted: ['semantic.type.weight', 'semantic.type.emphasis'],
+    },
+  ]
   if (
     diff.command !== 'diff' ||
     diff.source !== 'brand' ||
-    changedBase?.impacted?.some(
-      token => token?.path?.join('.') === 'semantic.action'
-    ) !== true ||
+    JSON.stringify(changes) !== JSON.stringify(expectedChanges) ||
     diff.findings?.added?.length !== 0 ||
     diff.findings?.resolved?.length !== 0
   ) {
     throw new Error(
-      'packed primitree diff report did not match the expected command, source, affected token, and findings'
+      'packed primitree diff did not return three changed values, two affected aliases for each value, and no added or resolved findings'
     )
   }
 }

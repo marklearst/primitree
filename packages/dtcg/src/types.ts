@@ -20,11 +20,62 @@ export interface DTCGDimensionValue {
   unit: 'px' | 'rem'
 }
 
-/** DTCG duration value. @public */
+/**
+ * A DTCG duration with a numeric value and an `ms` or `s` unit.
+ *
+ * @see [DTCG duration type](https://www.designtokens.org/tr/2025.10/format/#duration)
+ *
+ * @public
+ */
 export interface DTCGDurationValue {
   value: number
   unit: 'ms' | 's'
 }
+
+/**
+ * A DTCG font family name or ordered fallback list.
+ *
+ * @remarks
+ * A string names one font family. A string array keeps the authored fallback
+ * order.
+ *
+ * @see [DTCG font family type](https://www.designtokens.org/tr/2025.10/format/#font-family)
+ *
+ * @public
+ */
+export type DTCGFontFamilyValue = string | string[]
+
+/**
+ * A DTCG font weight number or named value.
+ *
+ * @remarks
+ * Numeric values range from 1 through 1000. Named values use the lowercase
+ * names listed by DTCG 2025.10.
+ *
+ * @see [DTCG font weight type](https://www.designtokens.org/tr/2025.10/format/#font-weight)
+ *
+ * @public
+ */
+export type DTCGFontWeightValue =
+  | number
+  | 'thin'
+  | 'hairline'
+  | 'extra-light'
+  | 'ultra-light'
+  | 'light'
+  | 'normal'
+  | 'regular'
+  | 'book'
+  | 'medium'
+  | 'semi-bold'
+  | 'demi-bold'
+  | 'bold'
+  | 'extra-bold'
+  | 'ultra-bold'
+  | 'black'
+  | 'heavy'
+  | 'extra-black'
+  | 'ultra-black'
 
 /**
  * Token types emitted from Figma variables.
@@ -50,6 +101,8 @@ export type DTCGTokenValue =
   | DTCGColorValue
   | DTCGDimensionValue
   | DTCGDurationValue
+  | DTCGFontFamilyValue
+  | DTCGFontWeightValue
   | string
   | number
   | boolean

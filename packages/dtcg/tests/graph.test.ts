@@ -283,8 +283,8 @@ describe('DTCG graph adapter', () => {
     ['dimension', { value: 8, unit: 'em' }],
     ['duration', { value: '200', unit: 'ms' }],
     ['number', '1'],
-    ['fontWeight', 'bold'],
-    ['fontFamily', ['Inter']],
+    ['fontWeight', 0],
+    ['fontFamily', ['Inter', 400]],
     ['string', 1],
     ['boolean', 1],
   ])('rejects a value that does not match %s', (type, value) => {

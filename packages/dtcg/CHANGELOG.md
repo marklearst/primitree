@@ -10,8 +10,9 @@ Initial release of `@primitree/dtcg`.
 - Group `$type` inheritance, `$root`, metadata shape checks, and metadata
   omission from Core graph records.
 - Graph input for the supported `color`, `dimension`, `duration`, `number`,
-  `fontWeight`, `fontFamily`, `string`, and `boolean` value forms, including all
-  14 color spaces checked by the package.
+  `fontWeight`, `fontFamily`, `string`, and `boolean` value forms. This includes
+  all 14 checked color spaces, ordered font family lists, and named or numeric
+  font weights.
 - Same-file brace reference chains with alias type inference and immediate type
   checks. Core `resolveToken` reports cycles whose aliases share one effective
   type.
