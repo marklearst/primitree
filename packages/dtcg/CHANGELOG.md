@@ -28,6 +28,10 @@ Initial release of `@primitree/dtcg`.
   sorting and output-path collision checks.
 - CSS output for boolean values and font fallback lists. Tailwind names follow
   inherited and alias token types, and name collisions receive number suffixes.
+- CSS output for all 14 DTCG color spaces, missing color components, and alpha.
+  It keeps authored color coordinates instead of rounding sRGB values or using
+  the optional hex fallback. Public color types and the DTCG reader use the
+  same 14 space names and `none` component marker.
 - CSS output escapes strings and Resolver selectors. One work limit covers
   every context, including token paths and text. CSS output also limits group
   depth and returned text. CSS and TypeScript reject CSS custom property

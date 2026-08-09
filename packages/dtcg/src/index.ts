@@ -55,6 +55,8 @@ export { isToken, isReferenceValue } from './types'
 export { createDTCGGraphFragment } from './graph'
 export type { DTCGGraphFragmentOptions } from './graph'
 export type {
+  DTCGColorComponent,
+  DTCGColorSpace,
   DTCGColorValue,
   DTCGDimensionValue,
   DTCGDurationValue,

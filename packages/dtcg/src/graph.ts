@@ -9,7 +9,12 @@ import {
   type SourceId,
   type TokenId,
 } from '@primitree/core'
-import type { DTCGTokenType } from './types'
+import type {
+  DTCGColorComponent,
+  DTCGColorSpace,
+  DTCGColorValue,
+  DTCGTokenType,
+} from './types'
 
 const MAX_GRAPH_ITEMS = 100_000
 const MAX_GRAPH_DEPTH = 64
@@ -41,24 +46,6 @@ const TOKEN_PROPERTIES = new Set([
   '$deprecated',
   '$extensions',
 ])
-
-type ColorComponent = number | 'none'
-
-type SupportedColorSpace =
-  | 'srgb'
-  | 'srgb-linear'
-  | 'hsl'
-  | 'hwb'
-  | 'lab'
-  | 'lch'
-  | 'oklab'
-  | 'oklch'
-  | 'display-p3'
-  | 'a98-rgb'
-  | 'prophoto-rgb'
-  | 'rec2020'
-  | 'xyz-d65'
-  | 'xyz-d50'
 
 type ComponentRange =
   | { readonly kind: 'closed'; readonly min: number; readonly max: number }
@@ -118,7 +105,7 @@ const FONT_WEIGHT_NAMES = new Set([
 ])
 
 const COLOR_SPACE_RANGES = new Map<
-  SupportedColorSpace,
+  DTCGColorSpace,
   readonly [ComponentRange, ComponentRange, ComponentRange]
 >([
   ['srgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
@@ -569,15 +556,8 @@ function componentMatchesRange(
   }
 }
 
-interface ColorLiteralValue {
-  readonly colorSpace: SupportedColorSpace
-  readonly components: readonly [ColorComponent, ColorComponent, ColorComponent]
-  readonly alpha?: number
-  readonly hex?: string
-}
-
 type ColorValueReadResult =
-  | { readonly ok: true; readonly value: ColorLiteralValue }
+  | { readonly ok: true; readonly value: DTCGColorValue }
   | { readonly ok: false; readonly issue: AdapterIssue }
 
 function readColorValue(
@@ -602,7 +582,7 @@ function readColorValue(
   const colorSpaceValue = Reflect.get(value, 'colorSpace')
   const ranges =
     typeof colorSpaceValue === 'string'
-      ? COLOR_SPACE_RANGES.get(colorSpaceValue as SupportedColorSpace)
+      ? COLOR_SPACE_RANGES.get(colorSpaceValue as DTCGColorSpace)
       : undefined
   if (ranges === undefined) {
     return {
@@ -610,14 +590,18 @@ function readColorValue(
       issue: invalid(message, fieldPath(valuePath, 'colorSpace')),
     }
   }
-  const colorSpace = colorSpaceValue as SupportedColorSpace
+  const colorSpace = colorSpaceValue as DTCGColorSpace
 
   const componentsPath = fieldPath(valuePath, 'components')
   const componentsValue = Reflect.get(value, 'components')
   if (!Array.isArray(componentsValue) || componentsValue.length !== 3) {
     return { ok: false, issue: invalid(message, componentsPath) }
   }
-  const components: [ColorComponent, ColorComponent, ColorComponent] = [0, 0, 0]
+  const components: [
+    DTCGColorComponent,
+    DTCGColorComponent,
+    DTCGColorComponent,
+  ] = [0, 0, 0]
   for (const index of [0, 1, 2] as const) {
     const componentPath = fieldPath(componentsPath, String(index))
     if (!hasOwn(componentsValue, index)) {

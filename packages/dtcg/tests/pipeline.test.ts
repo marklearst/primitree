@@ -7,7 +7,7 @@ import { parse as parseCss } from 'postcss'
 import ts from 'typescript'
 import { parse as parseYaml } from 'yaml'
 import { toDTCG } from '../src/emit'
-import type { DTCGDocument } from '../src/types'
+import type { DTCGColorValue, DTCGDocument } from '../src/types'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
@@ -53,10 +53,39 @@ describe('cssVarName / cssValue', () => {
         alpha: 1,
         hex: '#3366ff',
       })
-    ).toBe('#3366ff')
+    ).toBe('color(srgb 0.2 0.4 1)')
     expect(
       cssValue({ colorSpace: 'srgb', components: [0, 0, 0], alpha: 0.5 })
-    ).toBe('rgb(0 0 0 / 0.5)')
+    ).toBe('color(srgb 0 0 0 / 0.5)')
+    expect(
+      cssValue({ colorSpace: 'srgb', components: [1, 0, 0], alpha: 0 })
+    ).toBe('color(srgb 1 0 0 / 0)')
+  })
+
+  it.each([
+    ['srgb', [0.123456, 'none', 1], 'color(srgb 0.123456 none 1 / 0.5)'],
+    ['srgb-linear', [0.2, 'none', 1], 'color(srgb-linear 0.2 none 1 / 0.5)'],
+    ['hsl', [240, 'none', 50], 'hsl(240 none 50% / 0.5)'],
+    ['hwb', [240, 10, 'none'], 'hwb(240 10% none / 0.5)'],
+    ['lab', ['none', -20, 30], 'lab(none -20 30 / 0.5)'],
+    ['lch', [50, 'none', 240], 'lch(50 none 240 / 0.5)'],
+    ['oklab', ['none', -0.1, 0.2], 'oklab(none -0.1 0.2 / 0.5)'],
+    ['oklch', [0.5, 'none', 240], 'oklch(0.5 none 240 / 0.5)'],
+    ['display-p3', [0.2, 'none', 1], 'color(display-p3 0.2 none 1 / 0.5)'],
+    ['a98-rgb', [0.2, 'none', 1], 'color(a98-rgb 0.2 none 1 / 0.5)'],
+    ['prophoto-rgb', [0.2, 'none', 1], 'color(prophoto-rgb 0.2 none 1 / 0.5)'],
+    ['rec2020', [0.2, 'none', 1], 'color(rec2020 0.2 none 1 / 0.5)'],
+    ['xyz-d65', [0.2, 'none', 1], 'color(xyz-d65 0.2 none 1 / 0.5)'],
+    ['xyz-d50', [0.2, 'none', 1], 'color(xyz-d50 0.2 none 1 / 0.5)'],
+  ] as const satisfies readonly (readonly [
+    DTCGColorValue['colorSpace'],
+    DTCGColorValue['components'],
+    string,
+  ])[])('formats %s colors for CSS', (colorSpace, components, expected) => {
+    const formatted = cssValue({ colorSpace, components, alpha: 0.5 })
+
+    expect(formatted).toBe(expected)
+    expect(() => parseCss(`:root { --value: ${formatted}; }`)).not.toThrow()
   })
 
   it('quotes CSS strings that contain declaration or block text', () => {
@@ -83,7 +112,7 @@ describe('emitCss', () => {
 
   it('emits default values into :root with alias vars preserved', () => {
     expect(css).toContain(':root {')
-    expect(css).toContain('--primitives-color-blue-500: #3366ff;')
+    expect(css).toContain('--primitives-color-blue-500: color(srgb 0.2 0.4 1);')
     expect(css).toContain(
       '--semantic-color-bg-brand: var(--primitives-color-blue-500);'
     )
@@ -409,7 +438,9 @@ describe('emitTypescript', () => {
     expect(source).toContain(
       '["semantic.color.bg.brand"]: "var(--semantic-color-bg-brand)",'
     )
-    expect(source).toContain('["primitives.color.blue.500"]: "#3366ff",')
+    expect(source).toContain(
+      '["primitives.color.blue.500"]: "color(srgb 0.2 0.4 1)",'
+    )
     expect(source).toContain('["density.control.height"]: "40px",')
     expect(source).toContain('["primitives.feature.rounded"]: true,')
     expect(source).not.toContain('["primitives.feature.rounded"]: "true",')
