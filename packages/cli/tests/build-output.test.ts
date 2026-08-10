@@ -8,6 +8,10 @@ import {
   installBuildOutput as installBuildOutputWithRoot,
 } from '../src/build-output'
 import {
+  buildOutputLongestSidecarName,
+  MAX_BUILD_RESOLVED_PATH_BYTES,
+} from '../src/build-output-paths'
+import {
   BUILD_MANIFEST_PATH,
   createBuildManifest,
   hashBuildText,
@@ -15,14 +19,19 @@ import {
 } from '../src/output-manifest'
 
 let directory: string
+let sandboxDirectory: string
 
 beforeEach(async () => {
-  directory = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-output-'))
+  sandboxDirectory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'primitree-output-')
+  )
+  directory = path.join(sandboxDirectory, 'project')
+  await fs.mkdir(directory)
 })
 
 afterEach(async () => {
   vi.restoreAllMocks()
-  await fs.rm(directory, { recursive: true, force: true })
+  await fs.rm(sandboxDirectory, { recursive: true, force: true })
 })
 
 function buildFiles(
@@ -47,6 +56,33 @@ function installBuildOutput(
   root = directory
 ) {
   return installBuildOutputWithRoot(output, files, sourceId, root)
+}
+
+function relativeFilePathWithResolvedBytes(
+  targetDirectory: string,
+  resolvedBytes: number,
+  fill: string
+): string {
+  const separatorBytes = Buffer.byteLength(path.sep, 'utf8')
+  let remaining =
+    resolvedBytes -
+    Buffer.byteLength(`${path.resolve(targetDirectory)}${path.sep}`, 'utf8')
+  const segments: string[] = []
+  while (remaining > 200) {
+    const segmentBytes = Math.min(200, remaining - 1 - separatorBytes)
+    const fillBytes = Buffer.byteLength(fill, 'utf8')
+    const repeatedBytes = Math.floor(segmentBytes / fillBytes) * fillBytes
+    segments.push(
+      `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(segmentBytes - repeatedBytes)}`
+    )
+    remaining -= segmentBytes + separatorBytes
+  }
+  const fillBytes = Buffer.byteLength(fill, 'utf8')
+  const repeatedBytes = Math.floor(remaining / fillBytes) * fillBytes
+  segments.push(
+    `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(remaining - repeatedBytes)}`
+  )
+  return segments.join('/')
 }
 
 async function replaceInstalledManifestFiles(
@@ -285,19 +321,455 @@ describe('configured build output paths', () => {
     ).resolves.toBe('value\n')
   })
 
-  it('accepts a build-file path at the 16,639-byte boundary', async () => {
+  it('keeps the 16,639-byte relative limit before applying the resolved-path limit', async () => {
     const output = path.join(directory, 'missing')
     const filePath = Array.from({ length: 65 }, () => 'a'.repeat(255)).join('/')
     const files = buildFiles([{ path: filePath, contents: 'value\n' }])
 
     expect(Buffer.byteLength(filePath, 'utf8')).toBe(16_639)
-    await expect(inspectBuildOutput(output, files)).resolves.toMatchObject({
-      status: 'drift',
-    })
+    await expect(inspectBuildOutput(output, files)).rejects.toThrow(
+      'Resolved build output file path is'
+    )
   })
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'inspects a %s build-file path at exactly 1,023 resolved UTF-8 bytes',
+    async (_kind, fill) => {
+      const output = path.join(directory, 'missing')
+      const filePath = relativeFilePathWithResolvedBytes(
+        output,
+        MAX_BUILD_RESOLVED_PATH_BYTES,
+        fill
+      )
+      expect(
+        Buffer.byteLength(path.join(output, ...filePath.split('/')), 'utf8')
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES)
+      for (const segment of filePath.split('/')) {
+        expect(Buffer.byteLength(segment, 'utf8')).toBeLessThanOrEqual(255)
+      }
+
+      await expect(
+        inspectBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }])
+        )
+      ).resolves.toMatchObject({ status: 'drift' })
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a %s build-file path at 1,024 resolved UTF-8 bytes before inspection',
+    async (_kind, fill) => {
+      const output = path.join(directory, 'missing')
+      const filePath = relativeFilePathWithResolvedBytes(
+        output,
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1,
+        fill
+      )
+      const lstat = fs.lstat.bind(fs)
+      let filesystemReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        filesystemReads += 1
+        return lstat(target, options)
+      })
+
+      await expect(
+        inspectBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }])
+        )
+      ).rejects.toThrow(
+        `Resolved build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(filePath)}.`
+      )
+      expect(filesystemReads).toBe(0)
+    }
+  )
 })
 
 describe('configured build output replacement', () => {
+  it('detects a physical-root ABA during inspection', async () => {
+    const root = path.join(directory, 'project')
+    const heldRoot = path.join(directory, 'project-held')
+    const substituteRoot = path.join(directory, 'project-substitute')
+    const output = path.join(root, 'generated')
+    await fs.mkdir(root)
+    await fs.mkdir(substituteRoot)
+    const realpath = fs.realpath.bind(fs)
+    let swapped = false
+    vi.spyOn(fs, 'realpath').mockImplementation(async target => {
+      const resolved = await realpath(target)
+      if (!swapped && String(target) === root) {
+        await fs.rename(root, heldRoot)
+        await fs.rename(substituteRoot, root)
+        await fs.rename(root, substituteRoot)
+        await fs.rename(heldRoot, root)
+        swapped = true
+      }
+      return resolved
+    })
+
+    await expect(
+      inspectBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+  })
+
+  it('creates multiple missing output parents under a stable root', async () => {
+    const root = path.join(directory, 'project')
+    const output = path.join(root, 'a', 'b', 'generated')
+    await fs.mkdir(root)
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).resolves.toBe('written')
+
+    await expect(
+      fs.readFile(path.join(output, 'tokens/a.json'), 'utf8')
+    ).resolves.toBe('value\n')
+  })
+
+  it('rejects an output-root ABA around the first parent creation', async () => {
+    const root = path.join(directory, 'project')
+    const heldRoot = path.join(directory, 'project-held')
+    const substituteRoot = path.join(directory, 'project-substitute')
+    const firstParent = path.join(root, 'a')
+    const output = path.join(firstParent, 'generated')
+    await fs.mkdir(root)
+    await fs.mkdir(substituteRoot)
+    const mkdir = fs.mkdir.bind(fs)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    let lockOpens = 0
+    vi.spyOn(fs, 'mkdir').mockImplementation(async (target, options) => {
+      if (!swapped && String(target) === firstParent) {
+        await fs.rename(root, heldRoot)
+        await fs.rename(substituteRoot, root)
+        const result = await mkdir(target, options)
+        await fs.rename(root, substituteRoot)
+        await fs.rename(heldRoot, root)
+        swapped = true
+        return result
+      }
+      return mkdir(target, options)
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target).includes('.generated.primitree-lock')) {
+        lockOpens += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(lockOpens).toBe(0)
+    await expect(fs.readdir(root)).resolves.toEqual([])
+  })
+
+  it('keeps a direct output root bound during the creating traversal', async () => {
+    const root = path.join(directory, 'project')
+    const heldRoot = path.join(directory, 'project-held')
+    const substituteRoot = path.join(directory, 'project-substitute')
+    const output = path.join(root, 'generated')
+    await fs.mkdir(root)
+    await fs.mkdir(substituteRoot)
+    const lstat = fs.lstat.bind(fs)
+    const realpath = fs.realpath.bind(fs)
+    const open = fs.open.bind(fs)
+    let preflightResolved = false
+    let rootReadsAfterPreflight = 0
+    let swapped = false
+    let lockOpens = 0
+    vi.spyOn(fs, 'realpath').mockImplementation(async target => {
+      const resolved = await realpath(target)
+      if (String(target) === root) {
+        preflightResolved = true
+      }
+      return resolved
+    })
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      const stats = await lstat(target, options)
+      if (preflightResolved && String(target) === root) {
+        rootReadsAfterPreflight += 1
+        if (!swapped && rootReadsAfterPreflight === 5) {
+          await fs.rename(root, heldRoot)
+          await fs.rename(substituteRoot, root)
+          swapped = true
+        }
+      }
+      return stats
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target).includes('.generated.primitree-lock')) {
+        lockOpens += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(lockOpens).toBe(0)
+    await expect(fs.readdir(root)).resolves.toEqual([])
+  })
+
+  it('binds the physical-root preflight before creating an output lock', async () => {
+    const root = path.join(directory, 'project')
+    const heldRoot = path.join(directory, 'project-held')
+    const substituteRoot = path.join(directory, 'project-substitute')
+    const output = path.join(root, 'generated')
+    await fs.mkdir(root)
+    await fs.mkdir(substituteRoot)
+    const realpath = fs.realpath.bind(fs)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    let lockOpens = 0
+    vi.spyOn(fs, 'realpath').mockImplementation(async target => {
+      const resolved = await realpath(target)
+      if (!swapped && String(target) === root) {
+        await fs.rename(root, heldRoot)
+        await fs.rename(substituteRoot, root)
+        swapped = true
+      }
+      return resolved
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target).includes('.generated.primitree-lock')) {
+        lockOpens += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(lockOpens).toBe(0)
+    await expect(fs.readdir(root)).resolves.toEqual([])
+  })
+
+  it('detects a physical-root ABA during realpath before creating an output lock', async () => {
+    const root = path.join(directory, 'project')
+    const heldRoot = path.join(directory, 'project-held')
+    const substituteRoot = path.join(directory, 'project-substitute')
+    const output = path.join(root, 'generated')
+    await fs.mkdir(root)
+    await fs.mkdir(substituteRoot)
+    const realpath = fs.realpath.bind(fs)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    let lockOpens = 0
+    vi.spyOn(fs, 'realpath').mockImplementation(async target => {
+      const resolved = await realpath(target)
+      if (!swapped && String(target) === root) {
+        await fs.rename(root, heldRoot)
+        await fs.rename(substituteRoot, root)
+        await fs.rename(root, substituteRoot)
+        await fs.rename(heldRoot, root)
+        swapped = true
+      }
+      return resolved
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target).includes('.generated.primitree-lock')) {
+        lockOpens += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(lockOpens).toBe(0)
+    await expect(fs.readdir(root)).resolves.toEqual([])
+  })
+
+  it('keeps the closest existing output parent bound during creation', async () => {
+    const root = path.join(directory, 'project')
+    const parent = path.join(root, 'build')
+    const heldParent = path.join(root, 'build-held')
+    const substituteParent = path.join(root, 'build-substitute')
+    const output = path.join(parent, 'generated')
+    await fs.mkdir(parent, { recursive: true })
+    await fs.mkdir(substituteParent)
+    const lstat = fs.lstat.bind(fs)
+    const open = fs.open.bind(fs)
+    let parentReads = 0
+    let swapped = false
+    let lockOpens = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      const stats = await lstat(target, options)
+      if (String(target) === parent) {
+        parentReads += 1
+        if (!swapped && parentReads > 2) {
+          await fs.rename(parent, heldParent)
+          await fs.rename(substituteParent, parent)
+          swapped = true
+        }
+      }
+      return stats
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target).includes('.generated.primitree-lock')) {
+        lockOpens += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        root
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(lockOpens).toBe(0)
+    await expect(fs.readdir(parent)).resolves.toEqual([])
+  })
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'installs a %s build-file path at exactly 1,023 bytes below the longest synthetic root',
+    async (_kind, fill) => {
+      const output = path.join(directory, 'generated')
+      const physicalDirectory = await fs.realpath(directory)
+      const longestSyntheticRoot = path.join(
+        physicalDirectory,
+        buildOutputLongestSidecarName('generated')
+      )
+      const filePath = relativeFilePathWithResolvedBytes(
+        longestSyntheticRoot,
+        MAX_BUILD_RESOLVED_PATH_BYTES,
+        fill
+      )
+      expect(
+        Buffer.byteLength(
+          path.join(longestSyntheticRoot, ...filePath.split('/')),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES)
+
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }]),
+          'brand'
+        )
+      ).resolves.toBe('written')
+      await expect(
+        fs.readFile(path.join(output, ...filePath.split('/')), 'utf8')
+      ).resolves.toBe('value\n')
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'changed\n' }]),
+          'brand'
+        )
+      ).resolves.toBe('written')
+      await expect(
+        fs.readFile(path.join(output, ...filePath.split('/')), 'utf8')
+      ).resolves.toBe('changed\n')
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a %s build-file path at 1,024 bytes below the longest synthetic root before locking',
+    async (_kind, fill) => {
+      const output = path.join(directory, 'generated')
+      const physicalDirectory = await fs.realpath(directory)
+      const longestSyntheticRoot = path.join(
+        physicalDirectory,
+        buildOutputLongestSidecarName('generated')
+      )
+      const filePath = relativeFilePathWithResolvedBytes(
+        longestSyntheticRoot,
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1,
+        fill
+      )
+      expect(
+        Buffer.byteLength(
+          path.join(longestSyntheticRoot, ...filePath.split('/')),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES + 1)
+      const open = fs.open.bind(fs)
+      const lstat = fs.lstat.bind(fs)
+      let lockOpens = 0
+      let filesystemReads = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        lockOpens += 1
+        return open(target, flags, mode)
+      })
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        filesystemReads += 1
+        return lstat(target, options)
+      })
+
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }]),
+          'brand'
+        )
+      ).rejects.toThrow(
+        `Resolved build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(filePath)}.`
+      )
+      expect(lockOpens).toBe(0)
+      expect(filesystemReads).toBeGreaterThan(0)
+    }
+  )
+
   it('keeps writer parent guards valid across a new install and replacement', async () => {
     const output = path.join(directory, 'generated')
 
@@ -397,6 +869,57 @@ describe('configured build output replacement', () => {
       'Build output path can contain at most 16,639 UTF-8 bytes.'
     )
   })
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a %s installed-manifest path at 1,024 resolved UTF-8 bytes before inspecting the owned path',
+    async (_kind, fill) => {
+      const output = path.join(directory, 'generated')
+      await installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+        'brand'
+      )
+      const hostilePath = relativeFilePathWithResolvedBytes(
+        output,
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1,
+        fill
+      )
+      const hostileAbsolute = path.join(output, ...hostilePath.split('/'))
+      expect(Buffer.byteLength(hostileAbsolute, 'utf8')).toBe(
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1
+      )
+      await replaceInstalledManifestFiles(output, [
+        {
+          path: 'tokens/a.json',
+          bytes: Buffer.byteLength('old\n', 'utf8'),
+          sha256: hashBuildText('old\n'),
+        },
+        { path: hostilePath, bytes: 0, sha256: hashBuildText('') },
+      ])
+      const lstat = fs.lstat.bind(fs)
+      let hostilePathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target) === hostileAbsolute) {
+          hostilePathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+          'brand'
+        )
+      ).rejects.toThrow(
+        `Resolved build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(hostilePath)}.`
+      )
+      expect(hostilePathReads).toBe(0)
+    }
+  )
 
   it.skipIf(process.platform === 'win32')(
     'matches new sibling directory permissions for new output',
@@ -1030,6 +1553,72 @@ describe('configured build output replacement', () => {
     await expect(
       fs.readFile(path.join(backup, 'keep.txt'), 'utf8')
     ).resolves.toBe('keep me\n')
+  })
+
+  it('reports retained cleanup paths from an interrupted build before replacing output', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const before = await snapshotFiles(output)
+    const cleanupDirectory = path.join(
+      directory,
+      '.generated.primitree-clean-20000000-0000-0000-0000-000000000000'
+    )
+    const cleanupFile = path.join(
+      directory,
+      '.generated.primitree-clean-10000000-0000-0000-0000-000000000000'
+    )
+    await fs.mkdir(cleanupDirectory)
+    await fs.writeFile(
+      path.join(cleanupDirectory, 'keep.txt'),
+      'directory data\n',
+      'utf8'
+    )
+    await fs.writeFile(cleanupFile, 'file data\n', 'utf8')
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      `Primitree found one or more recovery paths from an interrupted build. Check these paths before running the build again: ${cleanupFile}, ${cleanupDirectory}`
+    )
+
+    expect(await snapshotFiles(output)).toEqual(before)
+    await expect(fs.readFile(cleanupFile, 'utf8')).resolves.toBe('file data\n')
+    await expect(
+      fs.readFile(path.join(cleanupDirectory, 'keep.txt'), 'utf8')
+    ).resolves.toBe('directory data\n')
+  })
+
+  it('does not treat cleanup paths for another output name as interrupted state', async () => {
+    const output = path.join(directory, 'generated')
+    const otherCleanup = path.join(
+      directory,
+      '.generated-extra.primitree-clean-00000000-0000-0000-0000-000000000000'
+    )
+    const similarCleanup = path.join(
+      directory,
+      '.generated.primitree-cleanup-00000000-0000-0000-0000-000000000000'
+    )
+    await fs.mkdir(otherCleanup)
+    await fs.writeFile(similarCleanup, 'keep me\n', 'utf8')
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand'
+      )
+    ).resolves.toBe('written')
+
+    await expect(fs.lstat(otherCleanup)).resolves.toBeDefined()
+    await expect(fs.readFile(similarCleanup, 'utf8')).resolves.toBe('keep me\n')
   })
 
   it('refuses to write while the output lock exists', async () => {

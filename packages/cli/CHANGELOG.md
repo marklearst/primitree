@@ -17,10 +17,16 @@ Initial release of `@primitree/cli`.
 - `primitree init` for token repository scaffolding.
 - `primitree export` for Enterprise Variables REST API access.
 - Unsafe-path checks for scaffold and generated file writes.
-- Configured output paths limit intermediate directory segments to 255 UTF-8
-  bytes and the final directory name to 200 UTF-8 bytes. Generated file path
-  segments use the 255-byte limit, with at most 64 directory levels and 16,639
-  UTF-8 bytes in total.
+- Configured output directories and every resolved file path under their
+  output, staging, backup, and cleanup directories can use up to 1,023 UTF-8
+  bytes. Normalized relative output paths can use up to 64 components.
+  Intermediate components can use up to 255 UTF-8 bytes, and the final
+  directory name can use up to 200. Configs can define up to 64 named sources.
+  Configured source paths must stay below the config directory and can use up
+  to 64 resolved absolute components and 1,023 UTF-8 bytes, including after
+  symbolic-link resolution, with up to 255 UTF-8 bytes in each component.
+  Generated file path segments use the 255-byte limit, with at most 64 directory
+  levels and 16,639 UTF-8 bytes relative to the output.
 - Portable path checks reject lone UTF-16 surrogates before filesystem encoding
   can replace them.
 - Positional input checks reject malformed UTF-8, symbolic links, and special nodes.
@@ -32,6 +38,9 @@ Initial release of `@primitree/cli`.
   fails.
 - Configured `build --check` rechecks the output directory and its ancestors
   throughout inspection and stops if one changes.
+- Configured builds report retained backup and cleanup sidecars from interrupted
+  installs before replacing output. Cleanup sidecars can be files or directories
+  and remain in place for manual inspection.
 - Built-source scans recheck directory identity after resolving each selected
   root path.
 - Positional variables JSON can be up to 20 MiB. Built token sources can contain up to 1,000 token files, 100,000 directory entries, and 64 nested directory levels. Each built-source JSON file can be up to 20 MiB, with a 256 MiB combined limit that includes the Resolver.

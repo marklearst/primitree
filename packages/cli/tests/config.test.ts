@@ -5,6 +5,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineConfig } from '../src/config'
+import {
+  buildOutputLongestDerivedFilePath,
+  buildOutputLongestSidecarName,
+  LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH,
+  MAX_BUILD_OUTPUT_DIRECTORY_PATH_COMPONENTS,
+  MAX_BUILD_RESOLVED_PATH_BYTES,
+} from '../src/build-output-paths'
 import { loadPrimitreeConfig } from '../src/config/load'
 import { loadConfiguredSourceGraph } from '../src/config/source'
 
@@ -40,6 +47,78 @@ async function writeConfig(
     'utf8'
   )
   return configPath
+}
+
+function outputPathWithResolvedBytes(
+  directory: string,
+  derivedPathBytes: number,
+  fill: string
+): string {
+  const separatorBytes = Buffer.byteLength(path.sep, 'utf8')
+  let remaining =
+    derivedPathBytes -
+    Buffer.byteLength(`${directory}${path.sep}`, 'utf8') -
+    Buffer.byteLength(
+      `${buildOutputLongestSidecarName('')}${path.sep}${LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH}`,
+      'utf8'
+    )
+  const segments: string[] = []
+  while (remaining > 200) {
+    const segmentBytes = Math.min(200, remaining - 1 - separatorBytes)
+    const fillBytes = Buffer.byteLength(fill, 'utf8')
+    const repeatedBytes = Math.floor(segmentBytes / fillBytes) * fillBytes
+    segments.push(
+      `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(segmentBytes - repeatedBytes)}`
+    )
+    remaining -= segmentBytes + separatorBytes
+  }
+  const fillBytes = Buffer.byteLength(fill, 'utf8')
+  const repeatedBytes = Math.floor(remaining / fillBytes) * fillBytes
+  segments.push(
+    `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(remaining - repeatedBytes)}`
+  )
+  return segments.join('/')
+}
+
+function absolutePathComponentCount(filePath: string): number {
+  const root = path.parse(filePath).root
+  return filePath
+    .slice(root.length)
+    .split(path.sep)
+    .filter(segment => segment.length > 0).length
+}
+
+function sourcePathWithAbsoluteComponents(
+  directory: string,
+  componentCount: number
+): string {
+  const remaining = componentCount - absolutePathComponentCount(directory)
+  if (remaining < 1) {
+    throw new Error('The source fixture needs at least one relative component.')
+  }
+  return Array.from({ length: remaining }, () => 'a').join('/')
+}
+
+function sourcePathWithResolvedBytes(
+  directory: string,
+  resolvedBytes: number,
+  fill: string
+): string {
+  const separatorBytes = Buffer.byteLength(path.sep, 'utf8')
+  let remaining =
+    resolvedBytes - Buffer.byteLength(`${directory}${path.sep}`, 'utf8')
+  const segments: string[] = []
+  while (remaining > 200) {
+    const segmentBytes = Math.min(200, remaining - 1 - separatorBytes)
+    const fillBytes = Buffer.byteLength(fill, 'utf8')
+    const repeatedBytes = Math.floor(segmentBytes / fillBytes) * fillBytes
+    segments.push(
+      `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(segmentBytes - repeatedBytes)}`
+    )
+    remaining -= segmentBytes + separatorBytes
+  }
+  segments.push('a'.repeat(remaining))
+  return segments.join('/')
 }
 
 const source = {
@@ -149,7 +228,7 @@ describe('loadConfiguredSourceGraph', () => {
     }
   )
 
-  it('stops when the opened source grows beyond 10 MiB', async () => {
+  it('stops before reading when the opened source grows after its first fstat', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
       schemaVersion: 1,
@@ -182,7 +261,7 @@ describe('loadConfiguredSourceGraph', () => {
     })
 
     await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
-      'The file for source "brand" exceeds the 10 MiB file limit.'
+      'The file for source "brand" changed before reading.'
     )
 
     expect(grew).toBe(true)
@@ -384,6 +463,48 @@ describe('defineConfig', () => {
 })
 
 describe('loadPrimitreeConfig', () => {
+  it('rejects a source file above the config directory', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: '../tokens.json' } },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" file must stay below the config directory.'
+    )
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a source symlink that resolves outside the config directory',
+    async () => {
+      const directory = await temporaryDirectory()
+      const outside = await temporaryDirectory()
+      await fs.writeFile(path.join(outside, 'tokens.json'), '{}\n', 'utf8')
+      await fs.symlink(
+        path.join(outside, 'tokens.json'),
+        path.join(directory, 'tokens.json')
+      )
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: source },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let outsideReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${outside}${path.sep}`)) {
+          outsideReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+      expect(outsideReads).toBe(0)
+    }
+  )
+
   it('loads source output settings relative to the config file', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
@@ -499,6 +620,334 @@ describe('loadPrimitreeConfig', () => {
       await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
         `Source "brand" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
       )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'accepts a derived output file path at exactly 1,023 UTF-8 bytes (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const physicalDirectory = await fs.realpath(directory)
+      const configuredDirectory = outputPathWithResolvedBytes(
+        physicalDirectory,
+        MAX_BUILD_RESOLVED_PATH_BYTES,
+        fill
+      )
+      for (const segment of configuredDirectory.split('/')) {
+        expect(Buffer.byteLength(segment, 'utf8')).toBeLessThanOrEqual(200)
+      }
+      expect(
+        Buffer.byteLength(
+          buildOutputLongestDerivedFilePath(
+            path.resolve(physicalDirectory, configuredDirectory),
+            LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH
+          ),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES)
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.resolve(directory, configuredDirectory)
+      )
+    }
+  )
+
+  it('rejects an output directory deeper than 64 normalized components before filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const configuredDirectory = Array.from({ length: 65 }, () => 'a').join('/')
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: configuredDirectory },
+        },
+      },
+    })
+    const lstat = fs.lstat.bind(fs)
+    let outputPathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}a`)) {
+        outputPathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      `Source "brand" output directory can contain at most ${MAX_BUILD_OUTPUT_DIRECTORY_PATH_COMPONENTS} path components.`
+    )
+    expect(outputPathReads).toBe(0)
+  })
+
+  it('accepts an output directory with exactly 64 normalized components', async () => {
+    const directory = await temporaryDirectory()
+    const configuredDirectory = Array.from({ length: 64 }, () => 'a').join('/')
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: configuredDirectory },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs?.directory).toBe(
+      path.join(directory, configuredDirectory)
+    )
+  })
+
+  it('rejects a config with more than 64 named sources before source filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const sources = Object.fromEntries(
+      Array.from({ length: 65 }, (_, index) => [
+        `source-${index}`,
+        { ...source, file: `./source-${index}.json` },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourcePathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}source-`)) {
+        sourcePathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Primitree config can contain at most 64 named sources.'
+    )
+    expect(sourcePathReads).toBe(0)
+  })
+
+  it('accepts a config with exactly 64 named sources', async () => {
+    const directory = await temporaryDirectory()
+    const sources = Object.fromEntries(
+      Array.from({ length: 64 }, (_, index) => [
+        `source-${index}`,
+        { ...source, file: `./source-${index}.json` },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(Object.keys(loaded.sources)).toHaveLength(64)
+  })
+
+  it('rejects a configured source path with 65 absolute components before filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const configuredFile = sourcePathWithAbsoluteComponents(directory, 65)
+    expect(
+      absolutePathComponentCount(path.resolve(directory, configuredFile))
+    ).toBe(65)
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: configuredFile } },
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourcePathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}a`)) {
+        sourcePathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" configured token file path can contain at most 64 components.'
+    )
+    expect(sourcePathReads).toBe(0)
+  })
+
+  it('accepts a configured source path with exactly 64 absolute components', async () => {
+    const directory = await temporaryDirectory()
+    const physicalDirectory = await fs.realpath(directory)
+    const configuredFile = sourcePathWithAbsoluteComponents(
+      physicalDirectory,
+      64
+    )
+    expect(
+      absolutePathComponentCount(
+        path.resolve(physicalDirectory, configuredFile)
+      )
+    ).toBe(64)
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: configuredFile } },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.file).toBe(
+      path.resolve(directory, configuredFile)
+    )
+  })
+
+  it.each([
+    ['ASCII', 'a'.repeat(256), 256],
+    ['multibyte', '界'.repeat(86), 258],
+  ])(
+    'rejects a configured source path component over 255 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, configuredFile, encodedBytes) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let sourcePathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}`)) {
+          sourcePathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" configured token file path component is ${encodedBytes} UTF-8 bytes; use at most 255 UTF-8 bytes.`
+      )
+      expect(sourcePathReads).toBe(0)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'accepts a configured source path at exactly 1,023 UTF-8 bytes (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const physicalDirectory = await fs.realpath(directory)
+      const configuredFile = sourcePathWithResolvedBytes(
+        physicalDirectory,
+        1023,
+        fill
+      )
+      const resolved = path.resolve(directory, configuredFile)
+      expect(
+        Buffer.byteLength(
+          path.resolve(physicalDirectory, configuredFile),
+          'utf8'
+        )
+      ).toBe(1023)
+      for (const component of configuredFile.split('/')) {
+        expect(Buffer.byteLength(component, 'utf8')).toBeLessThanOrEqual(255)
+      }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.file).toBe(resolved)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a configured source path over 1,023 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const configuredFile = sourcePathWithResolvedBytes(directory, 1024, fill)
+      expect(
+        Buffer.byteLength(path.resolve(directory, configuredFile), 'utf8')
+      ).toBe(1024)
+      for (const component of configuredFile.split('/')) {
+        expect(Buffer.byteLength(component, 'utf8')).toBeLessThanOrEqual(255)
+      }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let sourcePathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}`)) {
+          sourcePathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" configured token file path is 1024 UTF-8 bytes; use at most 1023 UTF-8 bytes.'
+      )
+      expect(sourcePathReads).toBe(0)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a derived output file path over 1,023 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const configuredDirectory = outputPathWithResolvedBytes(
+        directory,
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1,
+        fill
+      )
+      for (const segment of configuredDirectory.split('/')) {
+        expect(Buffer.byteLength(segment, 'utf8')).toBeLessThanOrEqual(200)
+      }
+      expect(
+        Buffer.byteLength(
+          buildOutputLongestDerivedFilePath(
+            path.resolve(directory, configuredDirectory),
+            LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH
+          ),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES + 1)
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let outputPathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}${fill}`)) {
+          outputPathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" derived build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes.`
+      )
+      expect(outputPathReads).toBe(0)
     }
   )
 
@@ -889,7 +1338,7 @@ describe('loadPrimitreeConfig', () => {
     const generated = path.join(directory, 'generated')
     await fs.mkdir(generated)
     await fs.writeFile(path.join(generated, 'tokens.json'), '{}', 'utf8')
-    await fs.symlink(generated, path.join(directory, 'linked-target'))
+    await fs.symlink('./generated', path.join(directory, 'linked-target'))
     await fs.symlink('./linked-target', path.join(directory, 'linked'))
     const configPath = await writeConfig(directory, {
       schemaVersion: 1,
@@ -916,7 +1365,10 @@ describe('loadPrimitreeConfig', () => {
     await fs.mkdir(generated)
     const target = path.join(generated, 'tokens.json')
     await fs.writeFile(target, '{}', 'utf8')
-    await fs.symlink(target, path.join(directory, 'linked.tokens.json'))
+    await fs.symlink(
+      './generated/tokens.json',
+      path.join(directory, 'linked.tokens.json')
+    )
     const configPath = await writeConfig(directory, {
       schemaVersion: 1,
       sources: {
@@ -959,7 +1411,7 @@ describe('loadPrimitreeConfig', () => {
     const actual = path.join(directory, 'actual')
     await fs.mkdir(actual)
     await fs.writeFile(path.join(actual, 'tokens.json'), '{}', 'utf8')
-    await fs.symlink(actual, path.join(directory, 'linked'))
+    await fs.symlink('./actual', path.join(directory, 'linked'))
     const configPath = await writeConfig(directory, {
       schemaVersion: 1,
       sources: {
@@ -1090,6 +1542,7 @@ describe('loadPrimitreeConfig', () => {
     ],
     ['staging path', './generated', './.generated.primitree-stage-owned'],
     ['backup path', './generated', './.generated.primitree-backup-owned'],
+    ['cleanup path', './generated', './.generated.primitree-clean-owned'],
     ['portable case match', './Generated', './.generated.primitree-lock'],
     [
       'portable Unicode match',
@@ -1154,6 +1607,7 @@ describe('loadPrimitreeConfig', () => {
     ['./generated', './.generated.primitree-lock-copy'],
     ['./generated', './.generated.primitree-stage'],
     ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated.primitree-clean'],
     ['./generated', './.generated-copy.primitree-lock'],
   ])(
     'allows output directories near reserved path names',
@@ -1195,6 +1649,12 @@ describe('loadPrimitreeConfig', () => {
       'backup path',
       './generated',
       './.generated.primitree-backup-owned',
+      false,
+    ],
+    [
+      'cleanup path',
+      './generated',
+      './.generated.primitree-clean-owned',
       false,
     ],
     [
@@ -1240,6 +1700,7 @@ describe('loadPrimitreeConfig', () => {
     ['./generated', './.generated.primitree-lock-copy'],
     ['./generated', './.generated.primitree-stage'],
     ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated.primitree-clean'],
     ['./generated', './.generated-copy.primitree-lock'],
   ])(
     'allows token files near reserved path names',

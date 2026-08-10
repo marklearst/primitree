@@ -14,8 +14,11 @@ import { loadPrimitreeConfig, type LoadedDTCGSourceConfig } from './load'
 import {
   configuredSourceFileFingerprint,
   readConfiguredSourceFileFingerprint,
+  readConfiguredSourcePathVerifier,
   sameConfiguredSourceFile,
   type ConfiguredSourceFileFingerprint,
+  type ConfiguredSourcePathSnapshot,
+  type ConfiguredSourcePathVerifier,
 } from './source-snapshot'
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024
@@ -56,10 +59,28 @@ function resultError(result: {
 async function readConfiguredJsonFile(
   filePath: string,
   sourceLabel: string,
-  expectedFingerprint?: ConfiguredSourceFileFingerprint
+  expectedFingerprint?: ConfiguredSourceFileFingerprint,
+  pathVerifier?: ConfiguredSourcePathVerifier
 ): Promise<unknown> {
   const absolute = path.resolve(filePath)
   const unreadable = () => new Error(`Could not read file: ${absolute}`)
+  const changedBeforeReading = (cause?: unknown) =>
+    new Error(
+      `The ${sourceLabel} changed before reading.`,
+      cause === undefined ? undefined : { cause }
+    )
+  let initialPathSnapshot: ConfiguredSourcePathSnapshot | undefined
+  try {
+    initialPathSnapshot = await pathVerifier?.()
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith('Build output path cannot use a symbolic link:')
+    ) {
+      throw error
+    }
+    throw changedBeforeReading(error)
+  }
   const handle = await fs
     .open(absolute, fsConstants.O_RDONLY | fsConstants.O_NONBLOCK)
     .catch(() => {
@@ -79,6 +100,33 @@ async function readConfiguredJsonFile(
     }
     const openedFingerprint = configuredSourceFileFingerprint(stats)
     const changed = () => new Error(`The ${sourceLabel} changed while reading.`)
+    if (pathVerifier !== undefined) {
+      let verifiedSnapshot: ConfiguredSourcePathSnapshot
+      try {
+        verifiedSnapshot = await pathVerifier()
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.startsWith(
+            'Build output path cannot use a symbolic link:'
+          )
+        ) {
+          throw error
+        }
+        throw changedBeforeReading(error)
+      }
+      if (
+        initialPathSnapshot === undefined ||
+        verifiedSnapshot.targetKey !== initialPathSnapshot.targetKey ||
+        verifiedSnapshot.fingerprint === undefined ||
+        !sameConfiguredSourceFile(
+          verifiedSnapshot.fingerprint,
+          openedFingerprint
+        )
+      ) {
+        throw changedBeforeReading()
+      }
+    }
     if (
       expectedFingerprint !== undefined &&
       !sameConfiguredSourceFile(expectedFingerprint, openedFingerprint)
@@ -114,6 +162,35 @@ async function readConfiguredJsonFile(
     )
     if (!sameConfiguredSourceFile(openedFingerprint, completedFingerprint)) {
       throw changed()
+    }
+    if (pathVerifier !== undefined) {
+      let verifiedSnapshot: ConfiguredSourcePathSnapshot
+      try {
+        verifiedSnapshot = await pathVerifier()
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.startsWith(
+            'Build output path cannot use a symbolic link:'
+          )
+        ) {
+          throw error
+        }
+        throw new Error(`The ${sourceLabel} changed while reading.`, {
+          cause: error,
+        })
+      }
+      if (
+        initialPathSnapshot === undefined ||
+        verifiedSnapshot.targetKey !== initialPathSnapshot.targetKey ||
+        verifiedSnapshot.fingerprint === undefined ||
+        !sameConfiguredSourceFile(
+          verifiedSnapshot.fingerprint,
+          completedFingerprint
+        )
+      ) {
+        throw changed()
+      }
     }
     const pathStats = await fs.stat(absolute, { bigint: true }).catch(() => {
       throw changed()
@@ -210,13 +287,18 @@ export async function buildConfiguredSourceGraph(
     options.label ?? `file for source "${configured.sourceName}"`
 
   const expectedFingerprint =
-    path.resolve(sourceFile) === configured.source.file
+    options.file === undefined
       ? readConfiguredSourceFileFingerprint(configured.source)
+      : undefined
+  const pathVerifier =
+    options.file === undefined
+      ? readConfiguredSourcePathVerifier(configured.source)
       : undefined
   const document = await readConfiguredJsonFile(
     sourceFile,
     sourceLabel,
-    expectedFingerprint
+    expectedFingerprint,
+    pathVerifier
   )
   const fragment = createDTCGGraphFragment(document, {
     source: configured.sourceName,

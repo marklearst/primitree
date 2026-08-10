@@ -8,9 +8,21 @@ export interface ConfiguredSourceFileFingerprint {
   readonly ctimeNs: bigint
 }
 
+export interface ConfiguredSourcePathSnapshot {
+  readonly targetKey: string
+  readonly fingerprint?: ConfiguredSourceFileFingerprint
+}
+
+export type ConfiguredSourcePathVerifier =
+  () => Promise<ConfiguredSourcePathSnapshot>
+
 const configuredSourceFileFingerprints = new WeakMap<
   object,
   ConfiguredSourceFileFingerprint
+>()
+const configuredSourcePathVerifiers = new WeakMap<
+  object,
+  ConfiguredSourcePathVerifier
 >()
 
 export function retainConfiguredSourceFileFingerprint(
@@ -24,6 +36,19 @@ export function readConfiguredSourceFileFingerprint(
   source: object
 ): ConfiguredSourceFileFingerprint | undefined {
   return configuredSourceFileFingerprints.get(source)
+}
+
+export function retainConfiguredSourcePathVerifier(
+  source: object,
+  verifier: ConfiguredSourcePathVerifier
+): void {
+  configuredSourcePathVerifiers.set(source, verifier)
+}
+
+export function readConfiguredSourcePathVerifier(
+  source: object
+): ConfiguredSourcePathVerifier | undefined {
+  return configuredSourcePathVerifiers.get(source)
 }
 
 export function configuredSourceFileFingerprint(

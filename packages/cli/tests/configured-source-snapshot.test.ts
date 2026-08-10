@@ -2,7 +2,11 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadConfiguredSourceGraph } from '../src/config/source'
+import {
+  buildConfiguredSourceGraph,
+  loadConfiguredSource,
+  loadConfiguredSourceGraph,
+} from '../src/config/source'
 
 const temporaryDirectories: string[] = []
 
@@ -23,11 +27,15 @@ async function temporaryDirectory(): Promise<string> {
   return directory
 }
 
-async function writeConfig(directory: string, withOutputs = false) {
+async function writeConfig(
+  directory: string,
+  withOutputs = false,
+  sourceFile = './tokens.json'
+) {
   const configPath = path.join(directory, 'primitree.config.ts')
   const source = {
     type: 'dtcg',
-    file: './tokens.json',
+    file: sourceFile,
     architecture: {
       layers: [{ id: 'primitive', roots: ['color'], values: 'literal' }],
     },
@@ -77,7 +85,356 @@ async function markSnapshotChanged(filePath: string): Promise<void> {
   await fs.utimes(filePath, markerTime, markerTime)
 }
 
+function absolutePathComponentCount(filePath: string): number {
+  const root = path.parse(filePath).root
+  return filePath
+    .slice(root.length)
+    .split(path.sep)
+    .filter(segment => segment.length > 0).length
+}
+
 describe('configured source snapshots', () => {
+  it.skipIf(process.platform === 'win32').each([
+    ['output', './late/tokens.json', 'generated', true],
+    ['lock', './late', '.generated.primitree-lock', false],
+    ['stage', './late/tokens.json', '.generated.primitree-stage-held', true],
+    ['backup', './late/tokens.json', '.generated.primitree-backup-held', true],
+    [
+      'backup with a high Unicode suffix',
+      './late/tokens.json',
+      '.generated.primitree-backup-\udbff\udffdx',
+      true,
+    ],
+    ['cleanup', './late/tokens.json', '.generated.primitree-clean-held', true],
+  ])(
+    'rejects a missing source that later links into its output %s path before open',
+    async (_name, sourceFile, targetRelative, targetIsDirectory) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, true, sourceFile)
+      const configured = await loadConfiguredSource({ configPath })
+      const target = path.join(directory, targetRelative)
+      if (targetIsDirectory) {
+        await fs.mkdir(target)
+        await fs.writeFile(
+          path.join(target, 'tokens.json'),
+          snapshotFixture('outside-1', 'outside-2')
+        )
+      } else {
+        await fs.writeFile(target, snapshotFixture('outside-1', 'outside-2'))
+      }
+      await fs.symlink(`./${targetRelative}`, path.join(directory, 'late'))
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) === path.resolve(directory, sourceFile)) {
+          sourceOpenCalls += 1
+        }
+        return open(target, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'does not read a source whose ancestor is swapped into its output during open',
+    async () => {
+      const directory = await temporaryDirectory()
+      await fs.mkdir(path.join(directory, 'late'))
+      await fs.writeFile(
+        path.join(directory, 'late', 'tokens.json'),
+        snapshotFixture('inside-1', 'inside-2')
+      )
+      const configPath = await writeConfig(
+        directory,
+        true,
+        './late/tokens.json'
+      )
+      const configured = await loadConfiguredSource({ configPath })
+      const generated = path.join(directory, 'generated')
+      await fs.mkdir(generated)
+      await fs.writeFile(
+        path.join(generated, 'tokens.json'),
+        snapshotFixture('outside-1', 'outside-2')
+      )
+      const held = path.join(directory, 'late-held')
+      const sourcePath = path.join(directory, 'late', 'tokens.json')
+      const open = fs.open.bind(fs)
+      let readCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        const handle = await open(target, flags, mode)
+        if (String(target) === sourcePath) {
+          const read = handle.read.bind(handle)
+          vi.spyOn(handle, 'read').mockImplementation(async (...args) => {
+            readCalls += 1
+            return read(...args)
+          })
+          await fs.rename(path.join(directory, 'late'), held)
+          await fs.symlink('./generated', path.join(directory, 'late'))
+        }
+        return handle
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(readCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'does not read after an ancestor ABA makes open and the post-open leaf probe see the output',
+    async () => {
+      const directory = await temporaryDirectory()
+      const late = path.join(directory, 'late')
+      const held = path.join(directory, 'late-held')
+      const sourcePath = path.join(late, 'tokens.json')
+      const generated = path.join(directory, 'generated')
+      const outputPath = path.join(generated, 'tokens.json')
+      await fs.mkdir(generated)
+      await fs.writeFile(
+        outputPath,
+        JSON.stringify({
+          color: { output: { $type: 'string', $value: 'outside' } },
+        }),
+        'utf8'
+      )
+      const configPath = await writeConfig(
+        directory,
+        true,
+        './late/tokens.json'
+      )
+      const configured = await loadConfiguredSource({ configPath })
+      await fs.mkdir(late)
+      await fs.writeFile(
+        sourcePath,
+        JSON.stringify({
+          color: { source: { $type: 'string', $value: 'inside' } },
+        }),
+        'utf8'
+      )
+      const open = fs.open.bind(fs)
+      let outputWasOpened = false
+      let readCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) !== sourcePath) {
+          return open(target, flags, mode)
+        }
+        await fs.rename(late, held)
+        await fs.symlink('./generated', late)
+        let handle: Awaited<ReturnType<typeof fs.open>>
+        try {
+          handle = await open(target, flags, mode)
+          outputWasOpened = true
+        } finally {
+          await fs.rm(late)
+          await fs.rename(held, late)
+        }
+        const read = handle.read.bind(handle)
+        vi.spyOn(handle, 'read').mockImplementation(async (...args) => {
+          readCalls += 1
+          return read(...args)
+        })
+        return handle
+      })
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(outputWasOpened).toBe(true)
+      expect(readCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a symlink-expanded source path over the configured path bound before open',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, false, './linked.json')
+      const configured = await loadConfiguredSource({ configPath })
+      const prefixBytes = Buffer.byteLength(`${directory}${path.sep}`, 'utf8')
+      let remaining = 1024 - prefixBytes
+      const segments: string[] = []
+      while (remaining > 200) {
+        const segmentBytes = Math.min(200, remaining - 2)
+        segments.push('a'.repeat(segmentBytes))
+        remaining -= segmentBytes + 1
+      }
+      segments.push('a'.repeat(remaining))
+      expect(
+        Buffer.byteLength(path.resolve(directory, segments.join('/')), 'utf8')
+      ).toBe(1024)
+      await fs.symlink(segments.join('/'), path.join(directory, 'linked.json'))
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) === path.join(directory, 'linked.json')) {
+          sourceOpenCalls += 1
+        }
+        return open(target, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a no-output symlink-expanded source path with 65 absolute components before open',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, false, './linked.json')
+      const configured = await loadConfiguredSource({ configPath })
+      const comparisonDirectory = await fs.realpath(directory)
+      const remaining = 65 - absolutePathComponentCount(comparisonDirectory)
+      expect(remaining).toBeGreaterThan(0)
+      const target = Array.from({ length: remaining }, () => 'a').join('/')
+      expect(
+        absolutePathComponentCount(path.resolve(comparisonDirectory, target))
+      ).toBe(65)
+      await fs.symlink(target, path.join(directory, 'linked.json'))
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+        if (String(file) === path.join(directory, 'linked.json')) {
+          sourceOpenCalls += 1
+        }
+        return open(file, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a no-output symlink-expanded source component over 255 UTF-8 bytes before open',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, false, './linked.json')
+      const configured = await loadConfiguredSource({ configPath })
+      await fs.symlink('a'.repeat(256), path.join(directory, 'linked.json'))
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+        if (String(file) === path.join(directory, 'linked.json')) {
+          sourceOpenCalls += 1
+        }
+        return open(file, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a missing output that becomes a symlink to the source target before open',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, true)
+      const tokenPath = path.join(directory, 'tokens.json')
+      await fs.writeFile(tokenPath, snapshotFixture('inside-1', 'inside-2'))
+      const configured = await loadConfiguredSource({ configPath })
+      await fs.symlink('./tokens.json', path.join(directory, 'generated'))
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) === tokenPath) {
+          sourceOpenCalls += 1
+        }
+        return open(target, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        `Build output path cannot use a symbolic link: ${path.join(directory, 'generated')}`
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects missing output and source ancestors that later link to the same outside root',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = path.join(directory, 'primitree.config.ts')
+      await fs.writeFile(
+        configPath,
+        `export default ${JSON.stringify({
+          schemaVersion: 1,
+          sources: {
+            brand: {
+              type: 'dtcg',
+              file: './late/tokens.json',
+              architecture: {
+                layers: [
+                  { id: 'primitive', roots: ['color'], values: 'literal' },
+                ],
+              },
+              outputs: { directory: './generated/nested' },
+            },
+          },
+        })}\n`,
+        'utf8'
+      )
+      const configured = await loadConfiguredSource({ configPath })
+      const outside = path.join(directory, 'outside')
+      await fs.mkdir(path.join(outside, 'nested'), { recursive: true })
+      await fs.writeFile(
+        path.join(outside, 'tokens.json'),
+        snapshotFixture('outside-1', 'outside-2')
+      )
+      await fs.symlink('./outside', path.join(directory, 'generated'))
+      await fs.symlink('./outside', path.join(directory, 'late'))
+      const sourcePath = path.join(directory, 'late', 'tokens.json')
+      const open = fs.open.bind(fs)
+      let sourceOpenCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) === sourcePath) {
+          sourceOpenCalls += 1
+        }
+        return open(target, flags, mode)
+      })
+
+      await expect(buildConfiguredSourceGraph(configured)).rejects.toThrow(
+        `Build output path cannot use a symbolic link: ${path.join(directory, 'generated')}`
+      )
+
+      expect(sourceOpenCalls).toBe(0)
+    }
+  )
+
+  it('loads an ordinary source beside its configured output', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, true)
+    await fs.writeFile(
+      path.join(directory, 'tokens.json'),
+      JSON.stringify({
+        color: { value: { $type: 'string', $value: 'red' } },
+      }),
+      'utf8'
+    )
+
+    const result = await loadConfiguredSourceGraph({ configPath })
+
+    expect(result.sourceName).toBe('brand')
+  })
+
   it('rejects a same-inode rewrite that creates a hybrid read', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory)
