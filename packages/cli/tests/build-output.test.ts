@@ -11,6 +11,7 @@ import {
   BUILD_MANIFEST_PATH,
   createBuildManifest,
   hashBuildText,
+  type BuildManifest,
 } from '../src/output-manifest'
 
 let directory: string
@@ -46,6 +47,30 @@ function installBuildOutput(
   root = directory
 ) {
   return installBuildOutputWithRoot(output, files, sourceId, root)
+}
+
+async function replaceInstalledManifestFiles(
+  output: string,
+  files: BuildManifest['files']
+): Promise<void> {
+  const manifestPath = path.join(output, BUILD_MANIFEST_PATH)
+  const manifest = JSON.parse(
+    await fs.readFile(manifestPath, 'utf8')
+  ) as BuildManifest
+  await fs.writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        ...manifest,
+        files: [...files].sort((left, right) =>
+          left.path.localeCompare(right.path)
+        ),
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  )
 }
 
 async function snapshotFiles(root: string): Promise<unknown> {
@@ -239,6 +264,37 @@ describe('configured build output paths', () => {
     await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(fs.readdir(directory)).resolves.toEqual([])
   })
+
+  it('accepts 64 build-file directory levels', async () => {
+    const output = path.join(directory, 'generated')
+    const filePath = `${Array.from(
+      { length: 64 },
+      (_, index) => `d${index}`
+    ).join('/')}/token.json`
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: filePath, contents: 'value\n' }]),
+        'brand'
+      )
+    ).resolves.toBe('written')
+
+    await expect(
+      fs.readFile(path.join(output, filePath), 'utf8')
+    ).resolves.toBe('value\n')
+  })
+
+  it('accepts a build-file path at the 16,639-byte boundary', async () => {
+    const output = path.join(directory, 'missing')
+    const filePath = Array.from({ length: 65 }, () => 'a'.repeat(255)).join('/')
+    const files = buildFiles([{ path: filePath, contents: 'value\n' }])
+
+    expect(Buffer.byteLength(filePath, 'utf8')).toBe(16_639)
+    await expect(inspectBuildOutput(output, files)).resolves.toMatchObject({
+      status: 'drift',
+    })
+  })
 })
 
 describe('configured build output replacement', () => {
@@ -264,6 +320,82 @@ describe('configured build output replacement', () => {
     await expect(
       fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
     ).resolves.toBe('new\n')
+  })
+
+  it('rejects 65 manifest directory levels before joining the path', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const hostilePath = `${Array.from(
+      { length: 65 },
+      (_, index) => `d${index}`
+    ).join('/')}/token.json`
+    await replaceInstalledManifestFiles(output, [
+      {
+        path: 'tokens/a.json',
+        bytes: Buffer.byteLength('old\n', 'utf8'),
+        sha256: hashBuildText('old\n'),
+      },
+      { path: hostilePath, bytes: 0, sha256: hashBuildText('') },
+    ])
+    const join = path.join.bind(path)
+    vi.spyOn(path, 'join').mockImplementation((...segments) => {
+      if (segments.length > 65) {
+        throw new Error('Reached an unbounded build-output path join.')
+      }
+      return join(...segments)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      'Build output path can contain at most 64 nested directory levels.'
+    )
+  })
+
+  it('rejects an oversized manifest path before splitting or joining it', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const hostilePath = Array.from({ length: 66 }, () => 'a'.repeat(255)).join(
+      '/'
+    )
+    expect(Buffer.byteLength(hostilePath, 'utf8')).toBe(16_895)
+    await replaceInstalledManifestFiles(output, [
+      {
+        path: 'tokens/a.json',
+        bytes: Buffer.byteLength('old\n', 'utf8'),
+        sha256: hashBuildText('old\n'),
+      },
+      { path: hostilePath, bytes: 0, sha256: hashBuildText('') },
+    ])
+    const join = path.join.bind(path)
+    vi.spyOn(path, 'join').mockImplementation((...segments) => {
+      if (segments.length > 65) {
+        throw new Error('Reached an unbounded build-output path join.')
+      }
+      return join(...segments)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      'Build output path can contain at most 16,639 UTF-8 bytes.'
+    )
   })
 
   it.skipIf(process.platform === 'win32')(
