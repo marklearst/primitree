@@ -1342,6 +1342,122 @@ describe('configured build output replacement', () => {
     expect(await fs.readdir(heldAncestor)).toEqual([])
   })
 
+  it('binds a swapped output-lock handle before any build mutation', async () => {
+    const project = path.join(directory, 'project')
+    const parent = path.join(project, 'build')
+    const heldParent = path.join(project, 'held-build')
+    const outsideParent = path.join(directory, 'outside-build')
+    const output = path.join(parent, 'generated')
+    const lock = path.join(parent, '.generated.primitree-lock')
+    const outsideLock = path.join(outsideParent, '.generated.primitree-lock')
+    await fs.mkdir(parent, { recursive: true })
+    await fs.mkdir(outsideParent)
+    const open = fs.open.bind(fs)
+    const closeFailure = new Error('Injected swapped lock close failure.')
+    let closeCalls = 0
+    let swapped = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (!swapped && String(target) === lock) {
+        await fs.rename(parent, heldParent)
+        await fs.rename(outsideParent, parent)
+        const handle = await open(target, flags, mode)
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+          throw closeFailure
+        })
+        await fs.rename(parent, outsideParent)
+        await fs.rename(heldParent, parent)
+        await fs.writeFile(lock, 'substitute\n', 'utf8')
+        swapped = true
+        return handle
+      }
+      return open(target, flags, mode)
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+      'brand',
+      project
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output-lock binding to fail.')
+    }
+    expect(failure.message).toBe(
+      `Primitree could not bind the output lock to its path: ${lock}\nLock binding error: The opened lock does not match the lock path.\nCould not close output lock: ${lock}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both output-lock binding and close failures.')
+    }
+    expect((failure.cause.errors[0] as Error).message).toBe(
+      `Primitree could not bind the output lock to its path: ${lock}\nLock binding error: The opened lock does not match the lock path.`
+    )
+    expect(failure.cause.errors[1]).toBe(closeFailure)
+    expect(swapped).toBe(true)
+    expect(closeCalls).toBe(1)
+    await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.readFile(lock, 'utf8')).resolves.toBe('substitute\n')
+    await expect(fs.lstat(outsideLock)).resolves.toMatchObject({ size: 0 })
+    expect(await fs.readdir(parent)).toEqual(['.generated.primitree-lock'])
+  })
+
+  it('stops when a parent swap hides an interrupted backup during open', async () => {
+    const project = path.join(directory, 'project')
+    const parent = path.join(project, 'build')
+    const heldParent = path.join(project, 'held-build')
+    const outsideParent = path.join(directory, 'outside-build')
+    const output = path.join(parent, 'generated')
+    await fs.mkdir(parent, { recursive: true })
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand',
+      project
+    )
+    const before = await snapshotFiles(output)
+    const backup = path.join(parent, '.generated.primitree-backup-interrupted')
+    await fs.mkdir(backup)
+    await fs.writeFile(path.join(backup, 'keep.txt'), 'keep me\n', 'utf8')
+    await fs.mkdir(outsideParent)
+    const openDirectory = fs.opendir.bind(fs)
+    let swapped = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      if (!swapped && String(target) === parent) {
+        await fs.rename(parent, heldParent)
+        await fs.rename(outsideParent, parent)
+        const handle = await openDirectory(parent, options)
+        await fs.rename(parent, outsideParent)
+        await fs.rename(heldParent, parent)
+        swapped = true
+        return handle
+      }
+      return openDirectory(target, options)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand',
+        project
+      )
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${parent}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(await snapshotFiles(output)).toEqual(before)
+    await expect(
+      fs.readFile(path.join(backup, 'keep.txt'), 'utf8')
+    ).resolves.toBe('keep me\n')
+    await expect(fs.readdir(outsideParent)).resolves.toEqual([])
+  })
+
   it('rejects an output directory changed while empty-output verification opens it', async () => {
     const output = path.join(directory, 'generated')
     const heldOutput = path.join(directory, 'held-generated')

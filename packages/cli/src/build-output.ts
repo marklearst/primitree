@@ -1010,6 +1010,44 @@ function isSamePathIdentity(left: BigIntStats, right: BigIntStats): boolean {
   )
 }
 
+async function bindOutputLock(
+  handle: BuildOutputFileHandle,
+  lock: string,
+  parentGuard: OutputPathGuard
+): Promise<BigIntStats> {
+  try {
+    await parentGuard()
+    const openedStats = await handle.stat({ bigint: true })
+    await parentGuard()
+    const pathStats = await fs.lstat(lock, { bigint: true })
+    await parentGuard()
+    if (
+      !openedStats.isFile() ||
+      !pathStats.isFile() ||
+      pathStats.isSymbolicLink() ||
+      openedStats.dev !== pathStats.dev ||
+      openedStats.ino !== pathStats.ino
+    ) {
+      throw new Error('The opened lock does not match the lock path.')
+    }
+    return openedStats
+  } catch (error) {
+    const bindFailure = new Error(
+      `Primitree could not bind the output lock to its path: ${lock}\nLock binding error: ${errorMessage(error)}`,
+      { cause: error }
+    )
+    try {
+      await handle.close()
+    } catch (closeFailure) {
+      throw new Error(
+        `${bindFailure.message}\nCould not close output lock: ${lock}`,
+        { cause: new AggregateError([bindFailure, closeFailure]) }
+      )
+    }
+    throw bindFailure
+  }
+}
+
 async function locateRetainedPath(
   expectedStats: BigIntStats | undefined,
   candidates: readonly string[],
@@ -1342,10 +1380,20 @@ export async function installBuildOutput(
     }
     throw error
   })
-  const lockStats = await lockHandle.stat({ bigint: true })
+  const lockStats = await bindOutputLock(lockHandle, lock, guard)
   const runLockedInstall = async (): Promise<'written' | 'current'> => {
     await guard()
-    const interruptedBackups = await findInterruptedBackups(parent, name, guard)
+    const parentStats = await runGuardedPathOperation(guard, () =>
+      fs.lstat(parent, { bigint: true })
+    )
+    const backupScanGuard = createOutputRootGuard(parent, parentStats, guard)
+    await backupScanGuard()
+    const interruptedBackups = await findInterruptedBackups(
+      parent,
+      name,
+      backupScanGuard
+    )
+    await backupScanGuard()
     if (interruptedBackups.length > 0) {
       throw new Error(
         `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${interruptedBackups.join(', ')}`
