@@ -34,11 +34,17 @@ contains the selected files and `.primitree-manifest.json`.
 
 The output directory must stay under the config file's directory and cannot
 contain the source token file. Use a separate directory for generated files.
+Primitree allows up to 255 UTF-8 bytes in each intermediate output-directory
+segment, up to 200 UTF-8 bytes in its final directory name, and up to 255 UTF-8
+bytes in each generated-file path segment. The shorter final directory name
+keeps the lock, staging, and backup names portable.
 Primitree accepts a missing or empty directory for the first build. Later
 builds refuse a missing, changed, or unlisted path in an owned directory.
 
-`--check` reports missing, changed, and unexpected paths without writing. Exit
-code 0 means the files match. Exit code 1 means the files differ.
+`--check` reports missing, changed, and unexpected paths without writing. It
+also rechecks the output directory and its ancestors while it scans, and stops
+if one changes. Exit code 0 means the files match. Exit code 1 means the files
+differ.
 
 | Option            | Default               | Description                           |
 | ----------------- | --------------------- | ------------------------------------- |
