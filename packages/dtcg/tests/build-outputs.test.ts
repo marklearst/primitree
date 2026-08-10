@@ -5,7 +5,22 @@ import {
   type DTCGOutputSet,
 } from '../src/pipeline/build'
 import { createDTCGGraphFragment } from '../src/index'
+import {
+  applyResolverWithBudget,
+  flattenTokensWithBudget,
+  type ResolverWorkBudget,
+} from '../src/resolve'
 import type { DTCGDocument, ResolverDocument } from '../src/types'
+
+const OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE =
+  'DTCG output summary exceeds the 1,000,000-unit work limit.'
+
+function outputSummaryBudget(): ResolverWorkBudget {
+  return {
+    remaining: 1_000_000,
+    errorMessage: OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE,
+  }
+}
 
 const document = {
   primitive: {
@@ -40,6 +55,20 @@ const input: DTCGOutputSet = {
     resolutionOrder: [{ $ref: '#/sets/brand' }],
   },
   resolverFileName: 'tokens.resolver.json',
+}
+
+function buildTokenPathOutput(fileName: string) {
+  return buildDTCGOutputs(
+    {
+      ...input,
+      files: { [fileName]: document },
+      resolver: {
+        ...input.resolver,
+        sets: { brand: { sources: [{ $ref: fileName }] } },
+      },
+    },
+    { css: false, tailwind: false, typescript: false }
+  )
 }
 
 describe('buildDTCGOutputs', () => {
@@ -407,6 +436,76 @@ describe('buildDTCGOutputs', () => {
   })
 
   it.each([
+    [
+      'ASCII intermediate',
+      `${'a'.repeat(256)}/brand.tokens.json`,
+      'a'.repeat(256),
+      256,
+    ],
+    [
+      'ASCII final',
+      `${'a'.repeat(244)}.tokens.json`,
+      `${'a'.repeat(244)}.tokens.json`,
+      256,
+    ],
+    [
+      'multibyte intermediate',
+      `${'界'.repeat(86)}/brand.tokens.json`,
+      '界'.repeat(86),
+      258,
+    ],
+    [
+      'multibyte final',
+      `${'界'.repeat(81)}a.tokens.json`,
+      `${'界'.repeat(81)}a.tokens.json`,
+      256,
+    ],
+  ])(
+    'rejects a token output path segment over 255 UTF-8 bytes (%s)',
+    (_label, fileName, oversizedSegment, expectedBytes) => {
+      expect(new TextEncoder().encode(oversizedSegment).byteLength).toBe(
+        expectedBytes
+      )
+      expect(() => buildTokenPathOutput(fileName)).toThrow(
+        'The DTCG token file path segment can contain at most 255 UTF-8 bytes.'
+      )
+    }
+  )
+
+  it.each([
+    [
+      'ASCII intermediate',
+      `${'a'.repeat(255)}/brand.tokens.json`,
+      'a'.repeat(255),
+    ],
+    [
+      'ASCII final',
+      `${'a'.repeat(243)}.tokens.json`,
+      `${'a'.repeat(243)}.tokens.json`,
+    ],
+    [
+      'multibyte intermediate',
+      `${'界'.repeat(85)}/brand.tokens.json`,
+      '界'.repeat(85),
+    ],
+    [
+      'multibyte final',
+      `${'界'.repeat(80)}abc.tokens.json`,
+      `${'界'.repeat(80)}abc.tokens.json`,
+    ],
+  ])(
+    'accepts a token output path segment with exactly 255 UTF-8 bytes (%s)',
+    (_label, fileName, boundarySegment) => {
+      expect(new TextEncoder().encode(boundarySegment).byteLength).toBe(255)
+      const result = buildTokenPathOutput(fileName)
+
+      expect(result.files.map(file => file.path)).toContain(
+        `tokens/${fileName}`
+      )
+    }
+  )
+
+  it.each([
     ['axis', '\ud800', 'theme'],
     ['context', 'theme', '\udc00'],
   ])(
@@ -616,6 +715,45 @@ describe('buildDTCGOutputs', () => {
         { css: false, tailwind: false, typescript: false }
       )
     ).toThrow('DTCG output summary exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('shares one summary work budget across Resolver application and flattening', () => {
+    const tokens = Object.fromEntries(
+      Array.from({ length: 10_000 }, (_, index) => [
+        `g-${String(index).padStart(5, '0')}-${'x'.repeat(12)}`,
+        { value: { $type: 'number' as const, $value: index } },
+      ])
+    ) as DTCGDocument
+    const files = { 'brand.tokens.json': tokens }
+    const resolver = input.resolver
+
+    const applyOnlyBudget = outputSummaryBudget()
+    const merged = applyResolverWithBudget(files, resolver, {}, applyOnlyBudget)
+    expect(applyOnlyBudget.remaining).toBeGreaterThan(0)
+
+    const flattenOnlyBudget = outputSummaryBudget()
+    expect(() =>
+      flattenTokensWithBudget(merged, flattenOnlyBudget)
+    ).not.toThrow()
+    expect(flattenOnlyBudget.remaining).toBeGreaterThan(0)
+
+    const sharedBudget = outputSummaryBudget()
+    expect(() =>
+      flattenTokensWithBudget(
+        applyResolverWithBudget(files, resolver, {}, sharedBudget),
+        sharedBudget
+      )
+    ).toThrow(OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE)
+
+    expect(() =>
+      buildDTCGOutputs(
+        {
+          ...input,
+          files,
+        },
+        { css: false, tailwind: false, typescript: false }
+      )
+    ).toThrow(OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE)
   })
 
   it('keeps punctuation token paths distinct in generated output', () => {
