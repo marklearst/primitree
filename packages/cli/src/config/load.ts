@@ -12,6 +12,7 @@ import {
 } from '../build-output-paths'
 import type { PrimitreeOutputFormat } from '../config'
 import {
+  hasLoneUtf16Surrogate,
   isUnsafePortablePathSegment,
   portablePathComparisonKey,
 } from '../portable-path'
@@ -509,6 +510,9 @@ function resolveSourceFile(
     throw new Error(
       `Source "${sourceId}" file must be relative to the config file.`
     )
+  }
+  if (hasLoneUtf16Surrogate(configuredPath)) {
+    throw new Error(`Source "${sourceId}" file contains invalid Unicode.`)
   }
   return path.resolve(configDirectory, configuredPath)
 }
