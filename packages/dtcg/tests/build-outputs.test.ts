@@ -505,38 +505,52 @@ describe('buildDTCGOutputs', () => {
     }
   )
 
-  it('rejects token output paths above the reader directory-depth limit', () => {
-    const fileName = `${Array.from(
-      { length: 65 },
-      (_, index) => `d${index}`
-    ).join('/')}/deep.tokens.json`
-
-    expect(() => buildTokenPathOutput(fileName)).toThrow(
-      'The DTCG token file path can contain at most 64 nested directory levels.'
-    )
-  })
-
-  it('bounds total token output path text before splitting it', () => {
-    const directory = 'a'.repeat(255)
-    const finalSegment = `${'a'.repeat(243)}.tokens.json`
-    const fileName = `${Array.from({ length: 65 }, () => directory).join(
-      '/'
-    )}/${finalSegment}`
-
-    expect(new TextEncoder().encode(fileName).byteLength).toBe(16_895)
-    expect(() => buildTokenPathOutput(fileName)).toThrow(
-      'The DTCG token file path can contain at most 16,639 UTF-8 bytes.'
-    )
-  })
-
-  it('accepts token output paths at the reader directory-depth limit', () => {
+  it('rejects token paths whose emitted output exceeds the reader directory-depth limit', () => {
     const fileName = `${Array.from(
       { length: 64 },
       (_, index) => `d${index}`
     ).join('/')}/deep.tokens.json`
+
+    expect(() => buildTokenPathOutput(fileName)).toThrow(
+      'The emitted DTCG token file path can contain at most 64 nested directory levels.'
+    )
+  })
+
+  it('counts the emitted tokens prefix in the total output path limit', () => {
+    const directory = 'a'.repeat(255)
+    const finalSegment = 'a'.repeat(249)
+    const fileName = `${Array.from({ length: 64 }, () => directory).join(
+      '/'
+    )}/${finalSegment}`
+
+    expect(new TextEncoder().encode(`tokens/${fileName}`).byteLength).toBe(
+      16_640
+    )
+    expect(() => buildTokenPathOutput(fileName)).toThrow(
+      'The emitted DTCG token file path can contain at most 16,639 UTF-8 bytes.'
+    )
+  })
+
+  it('accepts token paths whose emitted output is at the reader directory-depth limit', () => {
+    const fileName = `${Array.from(
+      { length: 63 },
+      (_, index) => `d${index}`
+    ).join('/')}/deep.tokens.json`
     const result = buildTokenPathOutput(fileName)
 
-    expect(result.files.map(file => file.path)).toContain(`tokens/${fileName}`)
+    const emittedPath = `tokens/${fileName}`
+    expect(emittedPath.split('/')).toHaveLength(65)
+    expect(result.files.map(file => file.path)).toContain(emittedPath)
+  })
+
+  it('accepts the longest emitted token path allowed by depth and segment limits', () => {
+    const segment = 'a'.repeat(255)
+    const fileName = Array.from({ length: 64 }, () => segment).join('/')
+    const result = buildTokenPathOutput(fileName)
+    const emittedPath = `tokens/${fileName}`
+
+    expect(new TextEncoder().encode(emittedPath).byteLength).toBe(16_390)
+    expect(result.files.map(file => file.path)).toContain(emittedPath)
   })
 
   it.each([
