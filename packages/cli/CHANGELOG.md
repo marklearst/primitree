@@ -19,7 +19,8 @@ Initial release of `@primitree/cli`.
 - Unsafe-path checks for scaffold and generated file writes.
 - Configured output paths limit intermediate directory segments to 255 UTF-8
   bytes and the final directory name to 200 UTF-8 bytes. Generated file path
-  segments use the 255-byte limit.
+  segments use the 255-byte limit, with at most 64 directory levels and 16,639
+  UTF-8 bytes in total.
 - Portable path checks reject lone UTF-16 surrogates before filesystem encoding
   can replace them.
 - Positional input checks reject malformed UTF-8, symbolic links, and special nodes.

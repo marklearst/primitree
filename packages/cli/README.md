@@ -39,9 +39,10 @@ its hash changed and refuses any unlisted path.
 The output directory must stay under the config file's directory and cannot
 contain the source token file. Use a separate directory for generated files.
 Primitree allows up to 255 UTF-8 bytes in each intermediate output-directory
-segment, up to 200 UTF-8 bytes in its final directory name, and up to 255 UTF-8
-bytes in each generated-file path segment. The shorter final directory name
-keeps the lock, staging, and backup names portable.
+segment and up to 200 UTF-8 bytes in its final directory name. A generated-file
+path can use up to 64 directory levels, 16,639 UTF-8 bytes in total, and 255
+UTF-8 bytes in each segment. The shorter final directory name keeps the lock,
+staging, and backup names portable.
 
 `--check` compares the files in the output directory with the files Primitree
 would write. It reports missing, changed, and unexpected paths without writing.
