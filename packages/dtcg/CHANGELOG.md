@@ -27,9 +27,10 @@ Initial release of `@primitree/dtcg`.
 - CSS custom properties, Tailwind CSS v4 themes, and TypeScript token accessors.
 - `buildDTCGOutputs` for checked token files and a Resolver, with bounded JSON
   sorting, the required `tokens.resolver.json` name, lone-surrogate rejection,
-  a 255-byte UTF-8 limit for each path segment, output-path collision checks,
-  and one shared summary work limit across Resolver application and token
-  flattening.
+  up to 64 nested directory levels and 16,639 UTF-8 bytes per token file path,
+  a 255-byte UTF-8 limit for each path segment, linear output-path collision
+  checks, and one shared summary work limit across Resolver application and
+  token flattening.
 - CSS output for boolean values and font fallback lists. Tailwind names follow
   inherited and alias token types, and name collisions receive number suffixes.
 - CSS output for all 14 DTCG color spaces, missing color components, and alpha.
