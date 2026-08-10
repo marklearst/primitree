@@ -242,6 +242,30 @@ describe('configured build output paths', () => {
 })
 
 describe('configured build output replacement', () => {
+  it('keeps writer parent guards valid across a new install and replacement', async () => {
+    const output = path.join(directory, 'generated')
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+        'brand'
+      )
+    ).resolves.toBe('written')
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).resolves.toBe('written')
+
+    await expect(
+      fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('new\n')
+  })
+
   it.skipIf(process.platform === 'win32')(
     'matches new sibling directory permissions for new output',
     async () => {
@@ -343,10 +367,190 @@ describe('configured build output replacement', () => {
     })
 
     await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
-      `Primitree found changed build output while scanning: ${output}`
+      `Primitree found a changed build output path while inspecting: ${output}`
     )
 
     expect(swapped).toBe(true)
+  })
+
+  it('detects repeated output-root swap-open-restore scans', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.writeFile(path.join(output, 'keep.txt'), 'user data\n', 'utf8')
+    await fs.cp(output, outside, { recursive: true })
+    await fs.rm(path.join(outside, 'keep.txt'))
+    const openDirectory = fs.opendir.bind(fs)
+    let rootOpens = 0
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      if (String(target) !== output) {
+        return openDirectory(target, options)
+      }
+      rootOpens += 1
+      await fs.rename(output, heldOutput)
+      await fs.rename(outside, output)
+      const handle = await openDirectory(output, options)
+      await fs.rename(output, outside)
+      await fs.rename(heldOutput, output)
+      return handle
+    })
+
+    await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(rootOpens).toBeGreaterThan(0)
+    await expect(
+      fs.readFile(path.join(output, 'keep.txt'), 'utf8')
+    ).resolves.toBe('user data\n')
+  })
+
+  it('detects repeated nested-directory swap-open-restore scans', async () => {
+    const output = path.join(directory, 'generated')
+    const tokens = path.join(output, 'tokens')
+    const heldTokens = path.join(output, 'held-tokens')
+    const outsideTokens = path.join(directory, 'outside-tokens')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.writeFile(path.join(tokens, 'keep.txt'), 'user data\n', 'utf8')
+    await fs.cp(tokens, outsideTokens, { recursive: true })
+    await fs.rm(path.join(outsideTokens, 'keep.txt'))
+    const openDirectory = fs.opendir.bind(fs)
+    let nestedOpens = 0
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      if (String(target) !== tokens) {
+        return openDirectory(target, options)
+      }
+      nestedOpens += 1
+      await fs.rename(tokens, heldTokens)
+      await fs.rename(outsideTokens, tokens)
+      const handle = await openDirectory(tokens, options)
+      await fs.rename(tokens, outsideTokens)
+      await fs.rename(heldTokens, tokens)
+      return handle
+    })
+
+    await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(nestedOpens).toBeGreaterThan(0)
+    await expect(
+      fs.readFile(path.join(tokens, 'keep.txt'), 'utf8')
+    ).resolves.toBe('user data\n')
+  })
+
+  it('keeps a stable output check read-only', async () => {
+    const output = path.join(directory, 'generated')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])
+    await installBuildOutput(output, files, 'brand')
+    const before = await snapshotFiles(output)
+    const writeFile = vi.spyOn(fs, 'writeFile')
+    const makeDirectory = vi.spyOn(fs, 'mkdir')
+    const rename = vi.spyOn(fs, 'rename')
+    const remove = vi.spyOn(fs, 'rm')
+
+    await expect(inspectBuildOutput(output, files, directory)).resolves.toEqual(
+      {
+        status: 'current',
+        paths: [],
+      }
+    )
+
+    await expect(snapshotFiles(output)).resolves.toEqual(before)
+    expect(writeFile).not.toHaveBeenCalled()
+    expect(makeDirectory).not.toHaveBeenCalled()
+    expect(rename).not.toHaveBeenCalled()
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('verifies directory epochs with linearly growing path checks', async () => {
+    const measure = async (count: number): Promise<number> => {
+      const output = path.join(directory, `generated-${count}`)
+      const files = buildFiles([{ path: 'token.json', contents: 'value\n' }])
+      await installBuildOutput(output, files, 'brand')
+      await Promise.all(
+        Array.from({ length: count }, async (_, index) => {
+          const group = path.join(output, `group-${index}`)
+          await fs.mkdir(group)
+          await fs.writeFile(
+            path.join(group, 'keep.txt'),
+            'user data\n',
+            'utf8'
+          )
+        })
+      )
+      const lstat = fs.lstat.bind(fs)
+      let outputPathChecks = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (
+          String(target) === output ||
+          String(target).startsWith(`${output}${path.sep}`)
+        ) {
+          outputPathChecks += 1
+        }
+        return lstat(target, options)
+      })
+
+      const state = await inspectBuildOutput(output, files, directory)
+      expect(state.status).toBe('drift')
+      vi.mocked(fs.lstat).mockRestore()
+      return outputPathChecks
+    }
+
+    const small = await measure(16)
+    const large = await measure(32)
+
+    expect(large).toBeLessThan(small * 3)
+    expect(large).toBeLessThan(32 * 30)
+  })
+
+  it('preserves a directory close failure before an epoch failure', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])
+    await installBuildOutput(output, files, 'brand')
+    const closeFailure = new Error('Injected output directory close failure.')
+    const openDirectory = fs.opendir.bind(fs)
+    let changedDuringClose = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      const handle = await openDirectory(target, options)
+      if (!changedDuringClose && String(target) === output) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await fs.rename(output, heldOutput)
+          await fs.rename(heldOutput, output)
+          changedDuringClose = true
+          await close()
+          throw closeFailure
+        })
+      }
+      return handle
+    })
+
+    const failure = await inspectBuildOutput(output, files, directory).catch(
+      (error: unknown) => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output scanning to fail.')
+    }
+    expect(failure.message).toContain(
+      `Could not close build output directory: ${output}`
+    )
+    expect(failure.message).toContain(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both directory close and epoch failures.')
+    }
+    expect(failure.cause.errors[0]).toBe(closeFailure)
+    expect(failure.cause.errors[1]).toBeInstanceOf(Error)
+    expect(changedDuringClose).toBe(true)
   })
 
   it('rejects an oversized manifest before reading it', async () => {
