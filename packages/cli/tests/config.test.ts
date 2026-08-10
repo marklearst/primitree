@@ -617,6 +617,54 @@ describe('loadPrimitreeConfig', () => {
   })
 
   it.each([
+    ['ASCII', 'a'.repeat(256), 256],
+    ['multilingual', '界'.repeat(86), 258],
+  ])(
+    'rejects an intermediate output directory segment over 255 UTF-8 bytes (%s)',
+    async (_name, pathSegment, encodedBytes) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./${pathSegment}/generated` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory path segment is ${encodedBytes} UTF-8 bytes; use at most 255 UTF-8 bytes.`
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'.repeat(255)],
+    ['multilingual', '界'.repeat(85)],
+  ])(
+    'accepts an intermediate output directory segment with exactly 255 UTF-8 bytes (%s)',
+    async (_name, pathSegment) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./${pathSegment}/generated` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, pathSegment, 'generated')
+      )
+    }
+  )
+
+  it.each([
     ['ASCII', 'a'.repeat(201)],
     ['multilingual', '界'.repeat(67)],
   ])(

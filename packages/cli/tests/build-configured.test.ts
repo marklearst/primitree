@@ -577,6 +577,141 @@ describe('primitree build with a project config', () => {
     expect(await fs.readdir(outside)).toEqual([])
   })
 
+  it('rejects an output ancestor changed to a symbolic link before check inspection', async () => {
+    const configPath = await writeProject(
+      '{size.base}',
+      ['dtcg'],
+      'brand',
+      './generated/nested'
+    )
+    await runBuild(parseArgs(['--config', configPath]))
+    const sourceFile = path.join(directory, 'tokens.json')
+    const ancestor = path.join(directory, 'generated')
+    const output = path.join(ancestor, 'nested')
+    const outside = path.join(directory, 'outside')
+    await fs.cp(ancestor, outside, { recursive: true })
+    const outsideBefore = await snapshotFiles(outside)
+    vi.mocked(console.log).mockClear()
+    const open = fs.open.bind(fs)
+    let linkCreated = false
+    let outputFileOpened = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const targetPath = String(target)
+      if (linkCreated && targetPath.startsWith(output)) {
+        outputFileOpened = true
+      }
+      const handle = await open(target, flags, mode)
+      if (!linkCreated && targetPath === sourceFile) {
+        await fs.rm(ancestor, { recursive: true })
+        await fs.symlink(outside, ancestor, 'dir')
+        linkCreated = true
+      }
+      return handle
+    })
+
+    await expect(
+      runBuild(parseArgs(['--config', configPath, '--check']))
+    ).rejects.toThrow(
+      `Build output path cannot use a symbolic link: ${ancestor}`
+    )
+
+    expect(linkCreated).toBe(true)
+    expect(outputFileOpened).toBe(false)
+    expect((await fs.lstat(ancestor)).isSymbolicLink()).toBe(true)
+    expect(await snapshotFiles(outside)).toEqual(outsideBefore)
+  })
+
+  it('rejects an output ancestor changed while check mode opens the output directory', async () => {
+    const configPath = await writeProject(
+      '{size.base}',
+      ['dtcg'],
+      'brand',
+      './generated/nested'
+    )
+    await runBuild(parseArgs(['--config', configPath]))
+    const ancestor = path.join(directory, 'generated')
+    const heldAncestor = path.join(directory, 'held-generated')
+    const output = path.join(ancestor, 'nested')
+    const outside = path.join(directory, 'outside')
+    await fs.cp(ancestor, outside, { recursive: true })
+    const outsideBefore = await snapshotFiles(outside)
+    vi.mocked(console.log).mockClear()
+    const openDirectory = fs.opendir.bind(fs)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    let outputFileOpened = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async target => {
+      if (!swapped && String(target) === output) {
+        await fs.rename(ancestor, heldAncestor)
+        await fs.symlink(outside, ancestor, 'dir')
+        swapped = true
+      }
+      return openDirectory(target)
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (swapped && String(target).startsWith(output)) {
+        outputFileOpened = true
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      runBuild(parseArgs(['--config', configPath, '--check']))
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${ancestor}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(outputFileOpened).toBe(false)
+    expect(await snapshotFiles(outside)).toEqual(outsideBefore)
+  })
+
+  it('rejects an output ancestor changed while check mode inspects an expected file', async () => {
+    const configPath = await writeProject(
+      '{size.base}',
+      ['dtcg'],
+      'brand',
+      './generated/nested'
+    )
+    await runBuild(parseArgs(['--config', configPath]))
+    const ancestor = path.join(directory, 'generated')
+    const heldAncestor = path.join(directory, 'held-generated')
+    const output = path.join(ancestor, 'nested')
+    const tokenPath = path.join(output, 'tokens', 'source.tokens.json')
+    const outside = path.join(directory, 'outside')
+    await fs.cp(ancestor, outside, { recursive: true })
+    const outsideBefore = await snapshotFiles(outside)
+    vi.mocked(console.log).mockClear()
+    const lstat = fs.lstat.bind(fs)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    let outputFileOpened = false
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (!swapped && String(target) === tokenPath) {
+        await fs.rename(ancestor, heldAncestor)
+        await fs.symlink(outside, ancestor, 'dir')
+        swapped = true
+      }
+      return lstat(target, options)
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (swapped && String(target).startsWith(output)) {
+        outputFileOpened = true
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      runBuild(parseArgs(['--config', configPath, '--check']))
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${ancestor}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(outputFileOpened).toBe(false)
+    expect(await snapshotFiles(outside)).toEqual(outsideBefore)
+  })
+
   it('refuses to replace output owned by another configured source', async () => {
     let configPath = await writeProject()
     await runBuild(parseArgs(['--config', configPath]))

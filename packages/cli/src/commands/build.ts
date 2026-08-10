@@ -272,7 +272,11 @@ async function runConfiguredBuild(args: ParsedArgs): Promise<void> {
   )
 
   if (args.flags.check === true) {
-    const state = await inspectBuildOutput(outputs.directory, files)
+    const state = await inspectBuildOutput(
+      outputs.directory,
+      files,
+      path.dirname(configured.configPath)
+    )
     if (state.status === 'current') {
       console.log(
         `Build output is current for source "${configured.sourceName}".`

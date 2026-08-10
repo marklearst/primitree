@@ -9,6 +9,7 @@ import {
   buildOutputLockName,
   buildOutputStagePrefix,
   MAX_BUILD_OUTPUT_NAME_BYTES,
+  MAX_PORTABLE_PATH_SEGMENT_BYTES,
 } from '../build-output-paths'
 import type { PrimitreeOutputFormat } from '../config'
 import {
@@ -577,6 +578,18 @@ function normalizeOutputs(
   if (outputNameBytes > MAX_BUILD_OUTPUT_NAME_BYTES) {
     throw new Error(
       `Source "${sourceId}" output directory name is ${outputNameBytes} UTF-8 bytes; use at most ${MAX_BUILD_OUTPUT_NAME_BYTES} UTF-8 bytes so Primitree can create its lock, staging, and backup paths.`
+    )
+  }
+  const oversizedSegment = segments.find(
+    segment =>
+      segment !== '.' &&
+      segment !== '..' &&
+      Buffer.byteLength(segment, 'utf8') > MAX_PORTABLE_PATH_SEGMENT_BYTES
+  )
+  if (oversizedSegment !== undefined) {
+    const segmentBytes = Buffer.byteLength(oversizedSegment, 'utf8')
+    throw new Error(
+      `Source "${sourceId}" output directory path segment is ${segmentBytes} UTF-8 bytes; use at most ${MAX_PORTABLE_PATH_SEGMENT_BYTES} UTF-8 bytes.`
     )
   }
   const sourceFromOutput = path.relative(directory, sourceFile)
