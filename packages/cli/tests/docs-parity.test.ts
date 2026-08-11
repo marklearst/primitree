@@ -103,16 +103,20 @@ const publicMarkdownPaths = [
 ]
 
 describe('parity guard regressions', () => {
-  it('separates the variables download from the token output build in CLI metadata', () => {
-    const description =
-      /^description:[ \t]*(?<description>.+)$/mu.exec(cliOverview)?.groups
-        ?.description ?? ''
+  it('separates Figma downloads from token output builds in CLI metadata', () => {
+    const buildPurpose =
+      /^\|\s*`build`\s*\|\s*(?<purpose>[^|]+?)\s*\|$/mu.exec(cliOverview)
+        ?.groups?.purpose ?? ''
+    const exportPurpose =
+      /^\|\s*`export`\s*\|\s*(?<purpose>[^|]+?)\s*\|$/mu.exec(cliOverview)
+        ?.groups?.purpose ?? ''
 
-    expect(description).toMatch(/\bdownload(?:s|ing)? Figma variables JSON\b/iu)
-    expect(description).toMatch(/\bbuild(?:s|ing)? token outputs?\b/iu)
-    expect(description).not.toMatch(
-      /\bexport(?:s|ed|ing)? (?:design )?tokens?\b/iu
+    expect(buildPurpose).toContain('write DTCG')
+    expect(buildPurpose).toContain('files')
+    expect(exportPurpose).toContain(
+      'Download variables through the Figma REST API'
     )
+    expect(exportPurpose).not.toContain('token output')
   })
 
   it.each([
