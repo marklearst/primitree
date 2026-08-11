@@ -14,7 +14,6 @@ import type {
   DTCGDocument,
   DTCGGroup,
   DTCGToken,
-  DTCGTokenType,
   DTCGTokenValue,
   FigmaMetadataExtension,
   ResolverDocument,
@@ -44,8 +43,8 @@ export interface ToDTCGResult {
   files: Record<string, DTCGDocument>
   /** DTCG Resolver (2025.10) describing how modes combine. */
   resolver: ResolverDocument
-  /** Suggested file name for the resolver document. */
-  resolverFileName: string
+  /** Required file name for the Resolver document. */
+  resolverFileName: 'tokens.resolver.json'
   /** Conversion warnings. The converter still returns token files when this array is non-empty. */
   warnings: string[]
 }
@@ -72,6 +71,7 @@ function buildTokenPaths(
 ): Map<string, string[]> {
   const paths = new Map<string, string[]>()
   const claimed = new Set<string>()
+  const nextSuffix = new Map<string, number>()
 
   for (const variable of normalized.variables) {
     const collection = normalized.collectionsById[variable.collectionId]
@@ -86,10 +86,11 @@ function buildTokenPaths(
         `Token path collision for "${variable.name}" in collection ` +
           `"${collection.name}". Primitree appended a suffix.`
       )
-      let n = 2
+      let n = nextSuffix.get(key) ?? 2
       while (claimed.has(`${key}-${n}`)) {
         n += 1
       }
+      nextSuffix.set(key, n + 1)
       const last = segments[segments.length - 1] as string
       segments = [...segments.slice(0, -1), `${last}-${n}`]
       key = segments.join('.')
@@ -137,7 +138,7 @@ function referenceFor(
 function convertValue(
   ctx: EmitContext,
   variable: NormalizedVariable,
-  type: DTCGTokenType,
+  type: ReturnType<typeof inferTokenType>,
   value: VariableValue
 ): DTCGTokenValue | null {
   if (isVariableAlias(value)) {
@@ -262,14 +263,20 @@ function insertToken(
     }
 
     const existing = node[segment]
-    if (existing === undefined || isToken(existing)) {
+    if (
+      existing === undefined ||
+      isToken(existing) ||
+      typeof existing !== 'object' ||
+      existing === null ||
+      Array.isArray(existing)
+    ) {
       throw new Error(
         `Internal token path collision at "${segments
           .slice(0, i + 1)
           .join('.')}": token blocks a group after path allocation`
       )
     }
-    node = existing
+    node = existing as DTCGGroup
   }
   const leaf = segments[segments.length - 1] as string
   if (hasOwn(node, leaf)) {

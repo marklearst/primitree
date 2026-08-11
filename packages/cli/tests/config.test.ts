@@ -1,11 +1,19 @@
 import fs from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineConfig } from '../src/config'
+import {
+  buildOutputLongestDerivedFilePath,
+  buildOutputLongestSidecarName,
+  LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH,
+  MAX_BUILD_OUTPUT_DIRECTORY_PATH_COMPONENTS,
+  MAX_BUILD_RESOLVED_PATH_BYTES,
+} from '../src/build-output-paths'
 import { loadPrimitreeConfig } from '../src/config/load'
 import { loadConfiguredSourceGraph } from '../src/config/source'
-import * as io from '../src/io'
 
 const temporaryDirectories: string[] = []
 
@@ -41,6 +49,78 @@ async function writeConfig(
   return configPath
 }
 
+function outputPathWithResolvedBytes(
+  directory: string,
+  derivedPathBytes: number,
+  fill: string
+): string {
+  const separatorBytes = Buffer.byteLength(path.sep, 'utf8')
+  let remaining =
+    derivedPathBytes -
+    Buffer.byteLength(`${directory}${path.sep}`, 'utf8') -
+    Buffer.byteLength(
+      `${buildOutputLongestSidecarName('')}${path.sep}${LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH}`,
+      'utf8'
+    )
+  const segments: string[] = []
+  while (remaining > 200) {
+    const segmentBytes = Math.min(200, remaining - 1 - separatorBytes)
+    const fillBytes = Buffer.byteLength(fill, 'utf8')
+    const repeatedBytes = Math.floor(segmentBytes / fillBytes) * fillBytes
+    segments.push(
+      `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(segmentBytes - repeatedBytes)}`
+    )
+    remaining -= segmentBytes + separatorBytes
+  }
+  const fillBytes = Buffer.byteLength(fill, 'utf8')
+  const repeatedBytes = Math.floor(remaining / fillBytes) * fillBytes
+  segments.push(
+    `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(remaining - repeatedBytes)}`
+  )
+  return segments.join('/')
+}
+
+function absolutePathComponentCount(filePath: string): number {
+  const root = path.parse(filePath).root
+  return filePath
+    .slice(root.length)
+    .split(path.sep)
+    .filter(segment => segment.length > 0).length
+}
+
+function sourcePathWithAbsoluteComponents(
+  directory: string,
+  componentCount: number
+): string {
+  const remaining = componentCount - absolutePathComponentCount(directory)
+  if (remaining < 1) {
+    throw new Error('The source fixture needs at least one relative component.')
+  }
+  return Array.from({ length: remaining }, () => 'a').join('/')
+}
+
+function sourcePathWithResolvedBytes(
+  directory: string,
+  resolvedBytes: number,
+  fill: string
+): string {
+  const separatorBytes = Buffer.byteLength(path.sep, 'utf8')
+  let remaining =
+    resolvedBytes - Buffer.byteLength(`${directory}${path.sep}`, 'utf8')
+  const segments: string[] = []
+  while (remaining > 200) {
+    const segmentBytes = Math.min(200, remaining - 1 - separatorBytes)
+    const fillBytes = Buffer.byteLength(fill, 'utf8')
+    const repeatedBytes = Math.floor(segmentBytes / fillBytes) * fillBytes
+    segments.push(
+      `${fill.repeat(repeatedBytes / fillBytes)}${'a'.repeat(segmentBytes - repeatedBytes)}`
+    )
+    remaining -= segmentBytes + separatorBytes
+  }
+  segments.push('a'.repeat(remaining))
+  return segments.join('/')
+}
+
 const source = {
   type: 'dtcg',
   file: './tokens.json',
@@ -62,7 +142,202 @@ const source = {
   ownership: { default: ['design-systems'] },
 } as const
 
+const parseableJsonWithInvalidUtf8 = Buffer.concat([
+  Buffer.from('{"color":"'),
+  Buffer.from([0xc3, 0x28]),
+  Buffer.from('"}'),
+])
+
 describe('loadConfiguredSourceGraph', () => {
+  it('reads source metadata and contents from one opened file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    const original = {
+      color: { base: { $type: 'number', $value: 1 } },
+      semantic: {
+        action: { $type: 'number', $value: '{color.base}' },
+      },
+    }
+    await fs.writeFile(tokenPath, JSON.stringify(original), 'utf8')
+    const stat = fs.stat.bind(fs)
+    const open = fs.open.bind(fs)
+    let sourceStatCalls = 0
+    let sourceOpenCalls = 0
+    vi.spyOn(fs, 'stat').mockImplementation(async (target, options) => {
+      const stats = await stat(target, options)
+      if (String(target) === tokenPath) {
+        sourceStatCalls += 1
+      }
+      return stats
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target) === tokenPath) {
+        sourceOpenCalls += 1
+      }
+      return open(target, flags, mode)
+    })
+
+    const loaded = await loadConfiguredSourceGraph({ configPath })
+
+    expect(sourceOpenCalls).toBe(1)
+    expect(sourceStatCalls).toBe(1)
+    expect(loaded.document).toEqual(original)
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'opens a FIFO without waiting for a writer',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: source },
+      })
+      const tokenPath = path.join(directory, 'tokens.json')
+      execFileSync('mkfifo', [tokenPath])
+      const open = fs.open.bind(fs)
+      let usedNonblockingOpen = false
+      let closeCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) !== tokenPath) {
+          return open(target, flags, mode)
+        }
+        usedNonblockingOpen =
+          typeof flags === 'number' &&
+          (flags & fsConstants.O_NONBLOCK) === fsConstants.O_NONBLOCK
+        if (!usedNonblockingOpen) {
+          throw new Error('The FIFO open would wait for a writer.')
+        }
+        const handle = await open(target, flags, mode)
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+        })
+        return handle
+      })
+
+      await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+        'Could not read the file for source "brand".'
+      )
+      expect(usedNonblockingOpen).toBe(true)
+      expect(closeCalls).toBe(1)
+    }
+  )
+
+  it('stops before reading when the opened source grows after its first fstat', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(
+      tokenPath,
+      JSON.stringify({ color: { base: { $type: 'number', $value: 1 } } }),
+      'utf8'
+    )
+    const open = fs.open.bind(fs)
+    let openedHandle: Awaited<ReturnType<typeof fs.open>> | undefined
+    let grew = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        openedHandle = handle
+        const stat = handle.stat.bind(handle)
+        vi.spyOn(handle, 'stat').mockImplementation(async () => {
+          const stats = await stat()
+          if (!grew) {
+            grew = true
+            await fs.truncate(tokenPath, 10 * 1024 * 1024 + 1)
+          }
+          return stats
+        })
+      }
+      return handle
+    })
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      'The file for source "brand" changed before reading.'
+    )
+
+    expect(grew).toBe(true)
+    const closedHandle = openedHandle
+    if (closedHandle === undefined) {
+      throw new Error('The source file was not opened.')
+    }
+    await expect(closedHandle.stat()).rejects.toMatchObject({ code: 'EBADF' })
+  })
+
+  it('keeps the source error when closing the file also fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, '{}', 'utf8')
+    await fs.truncate(tokenPath, 10 * 1024 * 1024 + 1)
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw new Error('Injected source close failure.')
+        })
+      }
+      return handle
+    })
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(
+      `The file for source "brand" exceeds the 10 MiB file limit.\nCould not close file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+  })
+
+  it('names the source file when closing it fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(
+      tokenPath,
+      JSON.stringify({ color: { base: { $type: 'number', $value: 1 } } }),
+      'utf8'
+    )
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw new Error('Injected source close failure.')
+        })
+      }
+      return handle
+    })
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      `Could not close file: ${tokenPath}`
+    )
+  })
+
   it('keeps source file read errors', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
@@ -71,13 +346,95 @@ describe('loadConfiguredSourceGraph', () => {
     })
     const tokenPath = path.join(directory, 'tokens.json')
     await fs.writeFile(tokenPath, '{}', 'utf8')
-    vi.spyOn(io, 'readJsonFile').mockRejectedValue(
-      new Error(`Could not read file: ${tokenPath}`)
-    )
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target) === tokenPath) {
+        throw new Error('Injected source read failure.')
+      }
+      return open(target, flags, mode)
+    })
 
     await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
       `Could not read file: ${tokenPath}`
     )
+  })
+
+  it('reports invalid source JSON separately from read errors', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, '{', 'utf8')
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      `File is not valid JSON: ${tokenPath}`
+    )
+  })
+
+  it('rejects invalid UTF-8 before parsing source JSON', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, parseableJsonWithInvalidUtf8)
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(`File is not valid UTF-8: ${tokenPath}`)
+    expect(failure.cause).toBeInstanceOf(TypeError)
+  })
+
+  it('keeps an invalid UTF-8 error when closing the source also fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, parseableJsonWithInvalidUtf8)
+    const closeFailure = new Error('Injected source close failure.')
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw closeFailure
+        })
+      }
+      return handle
+    })
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(
+      `File is not valid UTF-8: ${tokenPath}\nCould not close file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected source failures to be combined.')
+    }
+    const [decodeFailure, combinedCloseFailure] = failure.cause.errors
+    expect(decodeFailure).toBeInstanceOf(Error)
+    expect((decodeFailure as Error).cause).toBeInstanceOf(TypeError)
+    expect(combinedCloseFailure).toBe(closeFailure)
   })
 })
 
@@ -106,6 +463,1359 @@ describe('defineConfig', () => {
 })
 
 describe('loadPrimitreeConfig', () => {
+  it('rejects a source file above the config directory', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: '../tokens.json' } },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" file must stay below the config directory.'
+    )
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a source symlink that resolves outside the config directory',
+    async () => {
+      const directory = await temporaryDirectory()
+      const outside = await temporaryDirectory()
+      await fs.writeFile(path.join(outside, 'tokens.json'), '{}\n', 'utf8')
+      await fs.symlink(
+        path.join(outside, 'tokens.json'),
+        path.join(directory, 'tokens.json')
+      )
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: source },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let outsideReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${outside}${path.sep}`)) {
+          outsideReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+        'The file for source "brand" changed before reading.'
+      )
+      expect(outsideReads).toBe(0)
+    }
+  )
+
+  it('loads source output settings relative to the config file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: {
+            directory: './generated/tokens',
+            formats: ['tailwind', 'dtcg'],
+          },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs).toEqual({
+      directory: path.join(directory, 'generated', 'tokens'),
+      formats: ['dtcg', 'tailwind'],
+    })
+  })
+
+  it('uses all first-party formats when outputs omit the format list', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs?.formats).toEqual([
+      'dtcg',
+      'css',
+      'typescript',
+      'tailwind',
+    ])
+  })
+
+  it.each([
+    [
+      'empty format list',
+      { directory: './generated', formats: [] },
+      'Source "brand" outputs need at least one format.',
+    ],
+    [
+      'duplicate format',
+      { directory: './generated', formats: ['dtcg', 'dtcg'] },
+      'Source "brand" repeats output format "dtcg".',
+    ],
+    [
+      'unknown format',
+      { directory: './generated', formats: ['json'] },
+      'Source "brand" has an unsupported output format: json.',
+    ],
+    [
+      'absolute directory',
+      { directory: '/tmp/generated' },
+      'Source "brand" output directory must stay below the config directory.',
+    ],
+    [
+      'parent traversal',
+      { directory: '../generated' },
+      'Source "brand" output directory must stay below the config directory.',
+    ],
+    [
+      'config directory',
+      { directory: '.' },
+      'Source "brand" output directory cannot be the config directory.',
+    ],
+  ])('rejects output settings with $name', async (_name, outputs, message) => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, outputs } },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+  })
+
+  it.each([
+    ['./build/CON', 'CON'],
+    ['./build/prn.txt', 'prn.txt'],
+    ['./build/COM1', 'COM1'],
+    ['./build/LPT³.cache', 'LPT³.cache'],
+    ['./build/name:stream', 'name:stream'],
+    ['./build/name?.json', 'name?.json'],
+    ['./build/name*', 'name*'],
+    ['./build/control-\u001f', 'control-\u001f'],
+    ['./build/control-\u007f', 'control-\u007f'],
+    ['./build/cache.', 'cache.'],
+    ['./build/cache ', 'cache '],
+  ])(
+    'rejects Windows-unsafe output directory segment %j',
+    async (configuredDirectory, unsafeSegment) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'accepts a derived output file path at exactly 1,023 UTF-8 bytes (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const physicalDirectory = await fs.realpath(directory)
+      const configuredDirectory = outputPathWithResolvedBytes(
+        physicalDirectory,
+        MAX_BUILD_RESOLVED_PATH_BYTES,
+        fill
+      )
+      for (const segment of configuredDirectory.split('/')) {
+        expect(Buffer.byteLength(segment, 'utf8')).toBeLessThanOrEqual(200)
+      }
+      expect(
+        Buffer.byteLength(
+          buildOutputLongestDerivedFilePath(
+            path.resolve(physicalDirectory, configuredDirectory),
+            LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH
+          ),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES)
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.resolve(directory, configuredDirectory)
+      )
+    }
+  )
+
+  it('rejects an output directory deeper than 64 normalized components before filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const configuredDirectory = Array.from({ length: 65 }, () => 'a').join('/')
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: configuredDirectory },
+        },
+      },
+    })
+    const lstat = fs.lstat.bind(fs)
+    let outputPathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}a`)) {
+        outputPathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      `Source "brand" output directory can contain at most ${MAX_BUILD_OUTPUT_DIRECTORY_PATH_COMPONENTS} path components.`
+    )
+    expect(outputPathReads).toBe(0)
+  })
+
+  it('accepts an output directory with exactly 64 normalized components', async () => {
+    const directory = await temporaryDirectory()
+    const configuredDirectory = Array.from({ length: 64 }, () => 'a').join('/')
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: configuredDirectory },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.outputs?.directory).toBe(
+      path.join(directory, configuredDirectory)
+    )
+  })
+
+  it('rejects a config with more than 64 named sources before source filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const sources = Object.fromEntries(
+      Array.from({ length: 65 }, (_, index) => [
+        `source-${index}`,
+        { ...source, file: `./source-${index}.json` },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourcePathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}source-`)) {
+        sourcePathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Primitree config can contain at most 64 named sources.'
+    )
+    expect(sourcePathReads).toBe(0)
+  })
+
+  it('accepts a config with exactly 64 named sources', async () => {
+    const directory = await temporaryDirectory()
+    const sources = Object.fromEntries(
+      Array.from({ length: 64 }, (_, index) => [
+        `source-${index}`,
+        { ...source, file: `./source-${index}.json` },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(Object.keys(loaded.sources)).toHaveLength(64)
+  })
+
+  it('rejects a configured source path with 65 absolute components before filesystem traversal', async () => {
+    const directory = await temporaryDirectory()
+    const configuredFile = sourcePathWithAbsoluteComponents(directory, 65)
+    expect(
+      absolutePathComponentCount(path.resolve(directory, configuredFile))
+    ).toBe(65)
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: configuredFile } },
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourcePathReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+      if (String(target).startsWith(`${directory}${path.sep}a`)) {
+        sourcePathReads += 1
+      }
+      return lstat(target, options)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" configured token file path can contain at most 64 components.'
+    )
+    expect(sourcePathReads).toBe(0)
+  })
+
+  it('accepts a configured source path with exactly 64 absolute components', async () => {
+    const directory = await temporaryDirectory()
+    const physicalDirectory = await fs.realpath(directory)
+    const configuredFile = sourcePathWithAbsoluteComponents(
+      physicalDirectory,
+      64
+    )
+    expect(
+      absolutePathComponentCount(
+        path.resolve(physicalDirectory, configuredFile)
+      )
+    ).toBe(64)
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: { ...source, file: configuredFile } },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.brand?.file).toBe(
+      path.resolve(directory, configuredFile)
+    )
+  })
+
+  it.each([
+    ['ASCII', 'a'.repeat(256), 256],
+    ['multibyte', '界'.repeat(86), 258],
+  ])(
+    'rejects a configured source path component over 255 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, configuredFile, encodedBytes) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let sourcePathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}`)) {
+          sourcePathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" configured token file path component is ${encodedBytes} UTF-8 bytes; use at most 255 UTF-8 bytes.`
+      )
+      expect(sourcePathReads).toBe(0)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'accepts a configured source path at exactly 1,023 UTF-8 bytes (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const physicalDirectory = await fs.realpath(directory)
+      const configuredFile = sourcePathWithResolvedBytes(
+        physicalDirectory,
+        1023,
+        fill
+      )
+      const resolved = path.resolve(directory, configuredFile)
+      expect(
+        Buffer.byteLength(
+          path.resolve(physicalDirectory, configuredFile),
+          'utf8'
+        )
+      ).toBe(1023)
+      for (const component of configuredFile.split('/')) {
+        expect(Buffer.byteLength(component, 'utf8')).toBeLessThanOrEqual(255)
+      }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.file).toBe(resolved)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a configured source path over 1,023 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const configuredFile = sourcePathWithResolvedBytes(directory, 1024, fill)
+      expect(
+        Buffer.byteLength(path.resolve(directory, configuredFile), 'utf8')
+      ).toBe(1024)
+      for (const component of configuredFile.split('/')) {
+        expect(Buffer.byteLength(component, 'utf8')).toBeLessThanOrEqual(255)
+      }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: { ...source, file: configuredFile } },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let sourcePathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}`)) {
+          sourcePathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" configured token file path is 1024 UTF-8 bytes; use at most 1023 UTF-8 bytes.'
+      )
+      expect(sourcePathReads).toBe(0)
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'],
+    ['multibyte', '界'],
+  ])(
+    'rejects a derived output file path over 1,023 UTF-8 bytes before filesystem traversal (%s)',
+    async (_name, fill) => {
+      const directory = await temporaryDirectory()
+      const configuredDirectory = outputPathWithResolvedBytes(
+        directory,
+        MAX_BUILD_RESOLVED_PATH_BYTES + 1,
+        fill
+      )
+      for (const segment of configuredDirectory.split('/')) {
+        expect(Buffer.byteLength(segment, 'utf8')).toBeLessThanOrEqual(200)
+      }
+      expect(
+        Buffer.byteLength(
+          buildOutputLongestDerivedFilePath(
+            path.resolve(directory, configuredDirectory),
+            LONGEST_REQUIRED_CONFIGURED_BUILD_FILE_PATH
+          ),
+          'utf8'
+        )
+      ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES + 1)
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+      const lstat = fs.lstat.bind(fs)
+      let outputPathReads = 0
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        if (String(target).startsWith(`${directory}${path.sep}${fill}`)) {
+          outputPathReads += 1
+        }
+        return lstat(target, options)
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" derived build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes.`
+      )
+      expect(outputPathReads).toBe(0)
+    }
+  )
+
+  it.each([
+    ['first high', '\ud800'],
+    ['last high', '\udbff'],
+    ['first low', '\udc00'],
+    ['last low', '\udfff'],
+  ])(
+    'rejects an output directory segment with a lone %s UTF-16 surrogate',
+    async (_name, surrogate) => {
+      const directory = await temporaryDirectory()
+      const unsafeSegment = `generated-${surrogate}`
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${unsafeSegment}` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
+      )
+    }
+  )
+
+  it.each([
+    ['lowest', '\ud800\udc00'],
+    ['highest', '\udbff\udfff'],
+  ])(
+    'accepts an output directory segment with the %s astral scalar',
+    async (_name, scalar) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/generated-${scalar}` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, `build/generated-${scalar}`)
+      )
+    }
+  )
+
+  it.each([
+    ['first high', '\ud800'],
+    ['last high', '\udbff'],
+    ['first low', '\udc00'],
+    ['last low', '\udfff'],
+  ])(
+    'rejects a source file segment with a lone %s UTF-16 surrogate',
+    async (_name, surrogate) => {
+      const directory = await temporaryDirectory()
+      const unsafeSegment = `tokens-${surrogate}.json`
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: { ...source, file: `./${unsafeSegment}` },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" file contains invalid Unicode.'
+      )
+    }
+  )
+
+  it.each([
+    ['lowest', '\ud800\udc00'],
+    ['highest', '\udbff\udfff'],
+  ])(
+    'accepts a source file segment with the %s astral scalar',
+    async (_name, scalar) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: { ...source, file: `./tokens-${scalar}.json` },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.file).toBe(
+        path.join(directory, `tokens-${scalar}.json`)
+      )
+    }
+  )
+
+  it('rejects a lone surrogate before output containment comparison', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          file: './generated-\ud800/tokens.json',
+          outputs: { directory: './generated-\ufffd' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" file contains invalid Unicode.'
+    )
+  })
+
+  it.each([
+    ['ASCII', 'a'.repeat(256), 256],
+    ['multilingual', '界'.repeat(86), 258],
+  ])(
+    'rejects an intermediate output directory segment over 255 UTF-8 bytes (%s)',
+    async (_name, pathSegment, encodedBytes) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./${pathSegment}/generated` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory path segment is ${encodedBytes} UTF-8 bytes; use at most 255 UTF-8 bytes.`
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'.repeat(255)],
+    ['multilingual', '界'.repeat(85)],
+  ])(
+    'accepts an intermediate output directory segment with exactly 255 UTF-8 bytes (%s)',
+    async (_name, pathSegment) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./${pathSegment}/generated` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, pathSegment, 'generated')
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'.repeat(201)],
+    ['multilingual', '界'.repeat(67)],
+  ])(
+    'rejects an output directory name over 200 UTF-8 bytes (%s)',
+    async (_name, outputName) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${outputName}` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" output directory name is 201 UTF-8 bytes; use at most 200 UTF-8 bytes so Primitree can create its lock, staging, and backup paths.'
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'.repeat(200)],
+    ['multilingual', `${'界'.repeat(66)}aa`],
+  ])(
+    'accepts an output directory name with exactly 200 UTF-8 bytes (%s)',
+    async (_name, outputName) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${outputName}` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, 'build', outputName)
+      )
+    }
+  )
+
+  it('rejects an output directory that contains its source file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          file: './generated/tokens.json',
+          outputs: { directory: './generated' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" output directory cannot contain its token file.'
+    )
+  })
+
+  it.each([
+    [
+      'a source declared before the output',
+      {
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'a source declared after the output',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'another source at the same path',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated',
+        },
+      },
+      'Source "builder" output directory "generated" cannot contain source "tokens" token file "generated".',
+    ],
+    [
+      'another source through portable case comparison',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './Generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated/tokens.json',
+        },
+      },
+      'Source "builder" output directory "Generated" cannot contain source "tokens" token file "generated/tokens.json".',
+    ],
+    [
+      'another source through portable Unicode comparison',
+      {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './GÉNÉRÉ' },
+        },
+        tokens: {
+          ...source,
+          file: './généré/tokens.json',
+        },
+      },
+      'Source "builder" output directory "GÉNÉRÉ" cannot contain source "tokens" token file "généré/tokens.json".',
+    ],
+    [
+      'an output below another source file',
+      {
+        tokens: {
+          ...source,
+          file: './tokens',
+        },
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './tokens/generated' },
+        },
+        distractor: {
+          ...source,
+          file: './tokens/0.tokens.json',
+        },
+      },
+      'Source "tokens" token file path "tokens" cannot contain source "builder" output directory "tokens/generated".',
+    ],
+  ])(
+    'rejects an output directory that conflicts with %s',
+    async (_name, sources, message) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources,
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+    }
+  )
+
+  it('allows output and source paths with matching name prefixes', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: {
+          ...source,
+          file: './generated-copy/tokens.json',
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.builder?.outputs?.directory).toBe(
+      path.join(directory, 'generated')
+    )
+    expect(loaded.sources.tokens?.file).toBe(
+      path.join(directory, 'generated-copy', 'tokens.json')
+    )
+  })
+
+  it('rejects a symbolic link in the output directory path', async () => {
+    const directory = await temporaryDirectory()
+    const outside = await temporaryDirectory()
+    await fs.symlink(outside, path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          outputs: { directory: './linked/generated' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" output directory cannot use a symbolic link.'
+    )
+  })
+
+  it('rejects a source reached through a directory link into an output', async () => {
+    const directory = await temporaryDirectory()
+    const generated = path.join(directory, 'generated')
+    await fs.mkdir(generated)
+    await fs.writeFile(path.join(generated, 'tokens.json'), '{}', 'utf8')
+    await fs.symlink('./generated', path.join(directory, 'linked-target'))
+    await fs.symlink('./linked-target', path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+    const writeFile = vi.spyOn(fs, 'writeFile')
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked/tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+    expect(writeFile).not.toHaveBeenCalled()
+  })
+
+  it('rejects a source file link that targets an output', async () => {
+    const directory = await temporaryDirectory()
+    const generated = path.join(directory, 'generated')
+    await fs.mkdir(generated)
+    const target = path.join(generated, 'tokens.json')
+    await fs.writeFile(target, '{}', 'utf8')
+    await fs.symlink(
+      './generated/tokens.json',
+      path.join(directory, 'linked.tokens.json')
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked.tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked.tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+  })
+
+  it('rejects a source link into an output before the target exists', async () => {
+    const directory = await temporaryDirectory()
+    await fs.symlink('./generated', path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file "linked/tokens.json" resolves inside source "builder" output directory "generated".'
+    )
+  })
+
+  it('allows a source link that does not target an output', async () => {
+    const directory = await temporaryDirectory()
+    const actual = path.join(directory, 'actual')
+    await fs.mkdir(actual)
+    await fs.writeFile(path.join(actual, 'tokens.json'), '{}', 'utf8')
+    await fs.symlink('./actual', path.join(directory, 'linked'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './linked/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+  })
+
+  it('rejects a source path with a symbolic link cycle', async () => {
+    const directory = await temporaryDirectory()
+    await fs.symlink('./second', path.join(directory, 'first'))
+    await fs.symlink('./first', path.join(directory, 'second'))
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        builder: {
+          ...source,
+          file: './builder.tokens.json',
+          outputs: { directory: './generated' },
+        },
+        tokens: { ...source, file: './first/tokens.json' },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "tokens" token file uses too many symbolic links.'
+    )
+  })
+
+  it.each([
+    [
+      'matching',
+      './generated',
+      './generated',
+      'Source "secondary" output directory "generated" overlaps source "primary" output directory "generated".',
+    ],
+    [
+      'nested',
+      './generated',
+      './generated/secondary',
+      'Source "secondary" output directory "generated/secondary" overlaps source "primary" output directory "generated".',
+    ],
+    [
+      'parent',
+      './generated/primary',
+      './generated',
+      'Source "secondary" output directory "generated" overlaps source "primary" output directory "generated/primary".',
+    ],
+    [
+      'case-insensitive',
+      './Generated',
+      './generated/secondary',
+      'Source "secondary" output directory "generated/secondary" overlaps source "primary" output directory "Generated".',
+    ],
+    [
+      'Unicode-normalized',
+      './généré',
+      './généré/secondary',
+      'Source "secondary" output directory "généré/secondary" overlaps source "primary" output directory "généré".',
+    ],
+    [
+      'Unicode-case',
+      './ΟΣ',
+      './Οσ/secondary',
+      'Source "secondary" output directory "Οσ/secondary" overlaps source "primary" output directory "ΟΣ".',
+    ],
+  ])(
+    'rejects %s output directories across sources',
+    async (_name, primaryDirectory, secondaryDirectory, message) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+    }
+  )
+
+  it('allows output directories with matching name prefixes', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        primary: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+        secondary: {
+          ...source,
+          outputs: { directory: './generated-copy' },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.primary?.outputs?.directory).toBe(
+      path.join(directory, 'generated')
+    )
+    expect(loaded.sources.secondary?.outputs?.directory).toBe(
+      path.join(directory, 'generated-copy')
+    )
+  })
+
+  it.each([
+    ['lock path', './generated', './.generated.primitree-lock'],
+    [
+      'path below the lock path',
+      './generated',
+      './.generated.primitree-lock/nested',
+    ],
+    ['staging path', './generated', './.generated.primitree-stage-owned'],
+    ['backup path', './generated', './.generated.primitree-backup-owned'],
+    ['cleanup path', './generated', './.generated.primitree-clean-owned'],
+    ['portable case match', './Generated', './.generated.primitree-lock'],
+    [
+      'portable Unicode match',
+      './ge\u0301ne\u0301re\u0301',
+      './.généré.primitree-lock',
+    ],
+    [
+      'reserved path declared first',
+      './.generated.primitree-stage-owned',
+      './generated',
+    ],
+  ])(
+    'rejects an output directory that uses another output %s',
+    async (_name, primaryDirectory, secondaryDirectory) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'uses a path reserved for source'
+      )
+    }
+  )
+
+  it('finds a reserved lock path after a near-prefix output', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        primary: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+        distractor: {
+          ...source,
+          outputs: { directory: './.generated.primitree-lock-copy' },
+        },
+        secondary: {
+          ...source,
+          outputs: { directory: './.generated.primitree-lock/nested' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "secondary" output directory ".generated.primitree-lock/nested" uses a path reserved for source "primary" output directory "generated".'
+    )
+  })
+
+  it.each([
+    ['./generated', './.generated.primitree-lock-copy'],
+    ['./generated', './.generated.primitree-stage'],
+    ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated.primitree-clean'],
+    ['./generated', './.generated-copy.primitree-lock'],
+  ])(
+    'allows output directories near reserved path names',
+    async (primaryDirectory, secondaryDirectory) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+    }
+  )
+
+  it.each([
+    ['lock path', './generated', './.generated.primitree-lock', false],
+    [
+      'path below the lock path',
+      './generated',
+      './.generated.primitree-lock/tokens.json',
+      false,
+    ],
+    [
+      'staging path',
+      './generated',
+      './.generated.primitree-stage-owned',
+      false,
+    ],
+    [
+      'backup path',
+      './generated',
+      './.generated.primitree-backup-owned',
+      false,
+    ],
+    [
+      'cleanup path',
+      './generated',
+      './.generated.primitree-clean-owned',
+      false,
+    ],
+    [
+      'portable case match',
+      './Generated',
+      './.generated.primitree-lock',
+      false,
+    ],
+    [
+      'portable Unicode match',
+      './ge\u0301ne\u0301re\u0301',
+      './.généré.primitree-lock',
+      false,
+    ],
+    [
+      'source declared first',
+      './generated',
+      './.generated.primitree-backup-owned',
+      true,
+    ],
+  ])(
+    'rejects a token file that uses an output %s',
+    async (_name, outputDirectory, sourceFile, sourceFirst) => {
+      const directory = await temporaryDirectory()
+      const builder = {
+        ...source,
+        file: './builder.tokens.json',
+        outputs: { directory: outputDirectory },
+      }
+      const tokens = { ...source, file: sourceFile }
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: sourceFirst ? { tokens, builder } : { builder, tokens },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "tokens" token file "${sourceFile.slice(2)}" uses a path reserved for source "builder" output directory "${outputDirectory.slice(2)}".`
+      )
+    }
+  )
+
+  it.each([
+    ['./generated', './.generated.primitree-lock-copy'],
+    ['./generated', './.generated.primitree-stage'],
+    ['./generated', './.generated.primitree-backup'],
+    ['./generated', './.generated.primitree-clean'],
+    ['./generated', './.generated-copy.primitree-lock'],
+  ])(
+    'allows token files near reserved path names',
+    async (outputDirectory, sourceFile) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          builder: {
+            ...source,
+            file: './builder.tokens.json',
+            outputs: { directory: outputDirectory },
+          },
+          tokens: { ...source, file: sourceFile },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+    }
+  )
+
+  it('loads many non-overlapping output directories', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+  })
+
+  it('limits source path reads while checking output conflicts', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          file: `./source-${index}.tokens.json`,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let activeSourceReads = 0
+    let peakSourceReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+      if (/source-\d+\.tokens\.json$/u.test(String(target))) {
+        activeSourceReads += 1
+        peakSourceReads = Math.max(peakSourceReads, activeSourceReads)
+        await new Promise(resolve => setTimeout(resolve, 20))
+        activeSourceReads -= 1
+      }
+      return lstat(target)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+
+    expect(peakSourceReads).toBeLessThanOrEqual(16)
+  })
+
+  it('stops source path reads before reporting a path error', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          file: `./source-${index}.tokens.json`,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const lstat = fs.lstat.bind(fs)
+    let sourceReads = 0
+    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+      const targetPath = String(target)
+      if (targetPath.endsWith('source-0.tokens.json')) {
+        throw new Error('Injected source path failure.')
+      }
+      if (/source-\d+\.tokens\.json$/u.test(targetPath)) {
+        sourceReads += 1
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
+      return lstat(target)
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Injected source path failure.'
+    )
+    const readsWhenRejected = sourceReads
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    expect(sourceReads).toBe(readsWhenRejected)
+  })
+
   it('loads the exact default file and resolves source paths from it', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {

@@ -50,7 +50,10 @@ describe('public CLI copy', () => {
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
     expect(copy).toContain(
-      'primitree: build design tokens from Figma variables'
+      'primitree: check and build design tokens from DTCG or Figma JSON'
+    )
+    expect(copy).toContain(
+      'build    Check a configured DTCG source or convert a Figma variables export'
     )
     expect(copy).toContain(
       'DTCG 2025.10 tokens plus the documented Primitree boolean extension'

@@ -120,6 +120,26 @@ function rootCollisionFixture(order: Array<'short' | 'long'>) {
   }
 }
 
+function duplicateTokenPathFixture(variableCount: number) {
+  return {
+    collections: [
+      {
+        id: 'theme',
+        name: 'Theme',
+        modes: [{ modeId: 'default', name: 'Default' }],
+        defaultModeId: 'default',
+      },
+    ],
+    variables: Array.from({ length: variableCount }, (_, index) => ({
+      id: `variable-${index}`,
+      name: 'duplicate',
+      collectionId: 'theme',
+      type: 'STRING' as const,
+      valuesByMode: { default: `value-${index}` },
+    })),
+  }
+}
+
 const hostileFixture = {
   collections: [
     {
@@ -168,9 +188,12 @@ function tokenAt(group: DTCGGroup, path: string): DTCGToken {
 
 function expectNullPrototypeGroups(group: DTCGGroup): void {
   expect(Object.getPrototypeOf(group)).toBeNull()
-  for (const value of Object.values(group)) {
+  for (const [key, value] of Object.entries(group)) {
+    if (key.startsWith('$') && key !== '$root') {
+      continue
+    }
     if (!isToken(value)) {
-      expectNullPrototypeGroups(value)
+      expectNullPrototypeGroups(value as DTCGGroup)
     }
   }
 }
@@ -365,6 +388,48 @@ describe('toDTCG', () => {
     }
     const output = toDTCG(broken)
     expect(output.warnings.some(w => w.includes('aliases missing'))).toBe(true)
+  })
+
+  it('allocates colliding token paths with linear membership work', () => {
+    const NativeSet = globalThis.Set
+    let membershipReads = 0
+    class BoundedSet<T> extends NativeSet<T> {
+      public override has(value: T): boolean {
+        if (
+          typeof value === 'string' &&
+          /^theme\.duplicate(?:-\d+)?$/u.test(value)
+        ) {
+          membershipReads += 1
+          if (membershipReads > 512) {
+            throw new Error(
+              'Token path collision allocation exceeded linear work'
+            )
+          }
+        }
+        return super.has(value)
+      }
+    }
+
+    let output: ReturnType<typeof toDTCG> | undefined
+    Reflect.set(globalThis, 'Set', BoundedSet)
+    try {
+      output = toDTCG(duplicateTokenPathFixture(128), {
+        includeFigmaExtensions: false,
+      })
+    } finally {
+      Reflect.set(globalThis, 'Set', NativeSet)
+    }
+
+    expect(output).toBeDefined()
+    if (output === undefined) {
+      throw new Error('Expected DTCG output.')
+    }
+    expect(
+      tokenAt(
+        output.files['theme.tokens.json'] as DTCGGroup,
+        'theme.duplicate-128'
+      ).$value
+    ).toBe('value-127')
   })
 
   it.each([

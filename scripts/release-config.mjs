@@ -68,7 +68,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/core/package.json',
     name: '@primitree/core',
     attwProfile: 'node16',
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: [
       'dist/index.d.ts',
       'dist/index.d.cts',
@@ -121,7 +121,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/dtcg/package.json',
     name: '@primitree/dtcg',
     attwProfile: 'strict',
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
     expectedExports: {
       '.': {
@@ -145,7 +145,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/cli/package.json',
     name: '@primitree/cli',
     attwProfile: null,
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/config.d.ts'],
     expectedExports: {
       './config': {
@@ -162,7 +162,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/hooks/package.json',
     name: '@primitree/hooks',
     attwProfile: 'strict',
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
     expectedExports: {
       '.': {
@@ -186,7 +186,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     manifestPath: 'packages/mcp/package.json',
     name: '@primitree/mcp',
     attwProfile: 'esm-only',
-    requiredFiles: ['dist'],
+    requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
     expectedExports: {
       '.': {

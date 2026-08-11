@@ -3,19 +3,20 @@ import {
   buildPipeline,
   toDTCG,
   applyResolver,
-  flattenTokens,
+  flattenTypedTokens,
   resolveTokenValuesSafe,
   listContexts,
-  cssValue,
+  typedCssValue,
   type BuildPipelineResult,
   type DTCGToken,
+  type DTCGTokenType,
   type DTCGTokenValue,
   type ToDTCGResult,
 } from '@primitree/dtcg'
 
 export interface PreviewToken {
   path: string
-  type: string | undefined
+  type: DTCGTokenType | undefined
   css: string | null
   value: DTCGTokenValue | undefined
   raw: DTCGToken
@@ -51,14 +52,14 @@ export function resolvePreview(
     preview.dtcg.resolver,
     selection
   )
-  const flat = flattenTokens(merged)
+  const flat = flattenTypedTokens(merged)
   const { values } = resolveTokenValuesSafe(flat)
-  return flat.map(({ path, token }) => {
+  return flat.map(({ path, token, type }) => {
     const value = values.get(path)
     return {
       path,
-      type: token.$type,
-      css: value === undefined ? null : cssValue(value),
+      type,
+      css: value === undefined ? null : typedCssValue(value, type),
       value,
       raw: token,
     }

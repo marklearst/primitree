@@ -1,7 +1,12 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import type { ReactNode } from 'react'
-import { toDTCG, type DTCGColorValue } from '@primitree/dtcg'
+import {
+  toDTCG,
+  type DTCGColorValue,
+  type DTCGDocument,
+  type ResolverDocument,
+} from '@primitree/dtcg'
 import { TokensProvider } from '../../src/tokens/TokensProvider'
 import { useToken } from '../../src/tokens/useToken'
 import { useTokens } from '../../src/tokens/useTokens'
@@ -76,12 +81,40 @@ const fixture = {
 
 const built = toDTCG(fixture)
 
+const plainTokens = {
+  brand: {
+    $type: 'color',
+    $value: {
+      colorSpace: 'srgb',
+      components: [1, 0, 0],
+      hex: '#ff0000',
+    },
+  },
+} satisfies DTCGDocument
+
+const typedTokens = {
+  weights: {
+    $type: 'fontWeight',
+    emphasis: { $value: 'semi-bold' },
+  },
+  semantic: {
+    emphasis: { $value: '{weights.emphasis}' },
+  },
+  labels: {
+    emphasis: { $type: 'string', $value: 'semi-bold' },
+  },
+} satisfies DTCGDocument
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <TokensProvider
     tokens={built.files}
     resolver={built.resolver}>
     {children}
   </TokensProvider>
+)
+
+const typedWrapper = ({ children }: { children: ReactNode }) => (
+  <TokensProvider tokens={typedTokens}>{children}</TokensProvider>
 )
 
 describe('TokensProvider + useToken', () => {
@@ -91,7 +124,7 @@ describe('TokensProvider + useToken', () => {
     })
     expect(result.current.exists).toBe(true)
     expect((result.current.value as DTCGColorValue).hex).toBe('#ffffff')
-    expect(result.current.css).toBe('#ffffff')
+    expect(result.current.css).toBe('color(srgb 1 1 1)')
     expect(result.current.cssVar).toBe('var(--theme-color-bg)')
   })
 
@@ -114,6 +147,88 @@ describe('TokensProvider + useToken', () => {
     })
     expect(result.current.theme.contexts.theme).toBe('dark')
     expect((result.current.token.value as DTCGColorValue).hex).toBe('#000000')
+  })
+
+  it('formats a token with its inherited group type', () => {
+    const { result } = renderHook(
+      () => ({ token: useToken('weights.emphasis'), tokens: useTokens() }),
+      { wrapper: typedWrapper }
+    )
+
+    expect(result.current.token.css).toBe('600')
+    expect(result.current.token.type).toBe('fontWeight')
+    expect(result.current.tokens.typesByPath.get('weights.emphasis')).toBe(
+      'fontWeight'
+    )
+    expect(
+      result.current.tokens.flat.find(
+        entry => entry.path === 'weights.emphasis'
+      )?.type
+    ).toBe('fontWeight')
+  })
+
+  it('formats an untyped alias with its target type', () => {
+    const { result } = renderHook(() => useToken('semantic.emphasis'), {
+      wrapper: typedWrapper,
+    })
+
+    expect(result.current.value).toBe('semi-bold')
+    expect(result.current.css).toBe('600')
+    expect(result.current.type).toBe('fontWeight')
+  })
+
+  it('keeps an explicit string token distinct from fontWeight', () => {
+    const { result } = renderHook(() => useToken('labels.emphasis'), {
+      wrapper: typedWrapper,
+    })
+
+    expect(result.current.type).toBe('string')
+    expect(result.current.css).toBe('semi-bold')
+  })
+
+  it('updates the effective type and CSS when a Resolver context changes', () => {
+    const files = {
+      'base.tokens.json': {
+        weight: { $type: 'string', $value: 'semi-bold' },
+      },
+    } satisfies Record<string, DTCGDocument>
+    const resolver = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: 'base.tokens.json' }] },
+      },
+      modifiers: {
+        theme: {
+          default: 'light',
+          contexts: {
+            light: [],
+            dark: [{ weight: { $type: 'fontWeight', $value: 'semi-bold' } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/theme' }],
+    } satisfies ResolverDocument
+    const contextual = ({ children }: { children: ReactNode }) => (
+      <TokensProvider
+        tokens={files}
+        resolver={resolver}>
+        {children}
+      </TokensProvider>
+    )
+    const { result } = renderHook(
+      () => ({ token: useToken('weight'), theme: useTheme() }),
+      { wrapper: contextual }
+    )
+
+    expect(result.current.token.css).toBe('semi-bold')
+    expect(result.current.token.type).toBe('string')
+
+    act(() => {
+      result.current.theme.setContext('theme', 'dark')
+    })
+
+    expect(result.current.token.css).toBe('600')
+    expect(result.current.token.type).toBe('fontWeight')
   })
 })
 
@@ -166,13 +281,10 @@ describe('useTokens', () => {
 
   it('works with a plain document and no resolver', () => {
     const plain = ({ children }: { children: ReactNode }) => (
-      <TokensProvider
-        tokens={{ brand: { $type: 'color', $value: '#ff0000' } as never }}>
-        {children}
-      </TokensProvider>
+      <TokensProvider tokens={plainTokens}>{children}</TokensProvider>
     )
     const { result } = renderHook(() => useToken('brand'), { wrapper: plain })
-    expect(result.current.css).toBe('#ff0000')
+    expect(result.current.css).toBe('color(srgb 1 0 0)')
   })
 
   it('merges an array of documents in order', () => {

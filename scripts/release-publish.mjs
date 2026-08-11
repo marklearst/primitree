@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -730,11 +731,58 @@ function smokeCommand(runCommand, command, args, options) {
   )
 }
 
+function readInstalledPackageDocument(
+  consumerDirectory,
+  packageName,
+  fileName
+) {
+  const documentPath = path.join(
+    consumerDirectory,
+    'node_modules',
+    ...packageName.split('/'),
+    fileName
+  )
+  try {
+    return readFileSync(documentPath, 'utf8')
+  } catch (error) {
+    throw new Error(`Could not read installed ${packageName}/${fileName}`, {
+      cause: error,
+    })
+  }
+}
+
+export function assertInstalledPackageDocumentation(consumerDirectory) {
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const readme = readInstalledPackageDocument(
+      consumerDirectory,
+      config.name,
+      'README.md'
+    )
+    const changelog = readInstalledPackageDocument(
+      consumerDirectory,
+      config.name,
+      'CHANGELOG.md'
+    )
+    if (readme.trim() === '') {
+      throw new Error(`installed ${config.name} README.md is empty`)
+    }
+    if (!readme.includes('](CHANGELOG.md)')) {
+      throw new Error(
+        `installed ${config.name} README.md must link to CHANGELOG.md`
+      )
+    }
+    if (changelog.trim() === '') {
+      throw new Error(`installed ${config.name} CHANGELOG.md is empty`)
+    }
+  }
+}
+
 function runInstalledPackageSmokeChecks({
   consumerDirectory,
   options,
   runCommand,
 }) {
+  assertInstalledPackageDocumentation(consumerDirectory)
   const esmSpecifiers = [
     '@primitree/core',
     '@primitree/core/policy',
@@ -858,34 +906,65 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
       file: './after.tokens.json',
       architecture: {
         layers: [
-          { id: 'base', roots: ['size'], values: 'literal' },
+          { id: 'base', roots: ['base'], values: 'literal' },
           {
-            id: 'meaning',
+            id: 'semantic',
             roots: ['semantic'],
             values: 'reference',
-            references: ['base', 'meaning'],
+            references: ['base', 'semantic'],
           },
         ],
       },
       ownership: { default: ['design-systems'] },
+      outputs: {
+        directory: './generated',
+        formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+      },
     },
   },
 }
 `
   )
-  const tokens = value => ({
-    size: { base: { $type: 'number', $value: value } },
+  const beforeValues = {
+    duration: { value: 100, unit: 'ms' },
+    family: ['Inter', 'sans-serif'],
+    weight: 'bold',
+  }
+  const afterValues = {
+    duration: { value: 0.2, unit: 's' },
+    family: ['Atkinson Hyperlegible', 'sans-serif'],
+    weight: 650.5,
+  }
+  const tokenDocument = values => ({
+    base: {
+      motion: {
+        quick: { $type: 'duration', $value: values.duration },
+      },
+      type: {
+        family: { $type: 'fontFamily', $value: values.family },
+        weight: { $type: 'fontWeight', $value: values.weight },
+      },
+    },
     semantic: {
-      action: { $type: 'number', $value: '{size.base}' },
+      motion: {
+        quick: { $type: 'duration', $value: '{base.motion.quick}' },
+        control: { $type: 'duration', $value: '{semantic.motion.quick}' },
+      },
+      type: {
+        family: { $type: 'fontFamily', $value: '{base.type.family}' },
+        body: { $type: 'fontFamily', $value: '{semantic.type.family}' },
+        weight: { $type: 'fontWeight', $value: '{base.type.weight}' },
+        emphasis: { $type: 'fontWeight', $value: '{semantic.type.weight}' },
+      },
     },
   })
   writeFileSync(
     path.join(consumerDirectory, 'before.tokens.json'),
-    `${JSON.stringify(tokens(4), null, 2)}\n`
+    `${JSON.stringify(tokenDocument(beforeValues), null, 2)}\n`
   )
   writeFileSync(
     path.join(consumerDirectory, 'after.tokens.json'),
-    `${JSON.stringify(tokens(8), null, 2)}\n`
+    `${JSON.stringify(tokenDocument(afterValues), null, 2)}\n`
   )
 
   const cli = path.join(consumerDirectory, 'node_modules', '.bin', 'primitree')
@@ -913,19 +992,53 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
     )
   }
 
-  const inspect = parseCliJson(
-    runCommand(cli, ['inspect', 'semantic.action', ...shared], options),
-    'packed primitree inspect'
-  )
-  if (
-    inspect.command !== 'inspect' ||
-    inspect.source !== 'brand' ||
-    inspect.resolvedValue !== 8 ||
-    inspect.token?.path?.join('.') !== 'semantic.action'
-  ) {
-    throw new Error(
-      'packed primitree inspect report did not match the expected command, source, value, and token path'
+  const inspections = [
+    {
+      path: 'semantic.motion.control',
+      type: 'duration',
+      value: afterValues.duration,
+      chain: [
+        'semantic.motion.control',
+        'semantic.motion.quick',
+        'base.motion.quick',
+      ],
+    },
+    {
+      path: 'semantic.type.body',
+      type: 'fontFamily',
+      value: afterValues.family,
+      chain: ['semantic.type.body', 'semantic.type.family', 'base.type.family'],
+    },
+    {
+      path: 'semantic.type.emphasis',
+      type: 'fontWeight',
+      value: afterValues.weight,
+      chain: [
+        'semantic.type.emphasis',
+        'semantic.type.weight',
+        'base.type.weight',
+      ],
+    },
+  ]
+  for (const expected of inspections) {
+    const inspect = parseCliJson(
+      runCommand(cli, ['inspect', expected.path, ...shared], options),
+      `packed primitree inspect ${expected.path}`
     )
+    const chain = inspect.aliasChain?.map(token => token?.path?.join('.'))
+    if (
+      inspect.command !== 'inspect' ||
+      inspect.source !== 'brand' ||
+      inspect.token?.path?.join('.') !== expected.path ||
+      inspect.token?.type !== expected.type ||
+      JSON.stringify(inspect.resolvedValue) !==
+        JSON.stringify(expected.value) ||
+      JSON.stringify(chain) !== JSON.stringify(expected.chain)
+    ) {
+      throw new Error(
+        `packed primitree inspect ${expected.path} did not return its type, value, and full alias chain`
+      )
+    }
   }
 
   const diff = parseCliJson(
@@ -936,23 +1049,110 @@ function runPackedCliUserPath({ consumerDirectory, options, runCommand }) {
     ),
     'packed primitree diff'
   )
-  const changedBase = diff.changes?.find(
-    change =>
-      change?.kind === 'changed' &&
-      change.token?.path?.join('.') === 'size.base'
-  )
+  const changes = diff.changes?.map(change => ({
+    kind: change?.kind,
+    path: change?.token?.path?.join('.'),
+    impacted: change?.impacted?.map(token => token?.path?.join('.')),
+  }))
+  const expectedChanges = [
+    {
+      kind: 'changed',
+      path: 'base.motion.quick',
+      impacted: ['semantic.motion.quick', 'semantic.motion.control'],
+    },
+    {
+      kind: 'changed',
+      path: 'base.type.family',
+      impacted: ['semantic.type.family', 'semantic.type.body'],
+    },
+    {
+      kind: 'changed',
+      path: 'base.type.weight',
+      impacted: ['semantic.type.weight', 'semantic.type.emphasis'],
+    },
+  ]
   if (
     diff.command !== 'diff' ||
     diff.source !== 'brand' ||
-    changedBase?.impacted?.some(
-      token => token?.path?.join('.') === 'semantic.action'
-    ) !== true ||
+    JSON.stringify(changes) !== JSON.stringify(expectedChanges) ||
     diff.findings?.added?.length !== 0 ||
     diff.findings?.resolved?.length !== 0
   ) {
     throw new Error(
-      'packed primitree diff report did not match the expected command, source, affected token, and findings'
+      'packed primitree diff did not return three changed values, two affected aliases for each value, and no added or resolved findings'
     )
+  }
+
+  const buildArgs = [
+    'build',
+    '--config',
+    'primitree.config.ts',
+    '--source',
+    'brand',
+  ]
+  requireCommandSuccess(
+    runCommand(cli, buildArgs, options),
+    'packed primitree build'
+  )
+  const generatedDirectory = path.join(consumerDirectory, 'generated')
+  const expectedOutputPaths = [
+    '.primitree-manifest.json',
+    'css/tokens.css',
+    'css/tokens.tailwind.css',
+    'tokens/source.tokens.json',
+    'tokens/tokens.resolver.json',
+    'ts/tokens.ts',
+  ]
+  const listOutputPaths = directory => {
+    const paths = []
+    const visit = (currentDirectory, relativeDirectory) => {
+      for (const entry of readdirSync(currentDirectory, {
+        withFileTypes: true,
+      })) {
+        const relativePath = path.posix.join(relativeDirectory, entry.name)
+        const absolutePath = path.join(currentDirectory, entry.name)
+        if (entry.isDirectory()) {
+          visit(absolutePath, relativePath)
+        } else if (entry.isFile()) {
+          paths.push(relativePath)
+        } else {
+          throw new Error(
+            `packed primitree build wrote an unsupported output entry: ${relativePath}`
+          )
+        }
+      }
+    }
+    visit(directory, '')
+    return paths.sort()
+  }
+  const outputPaths = listOutputPaths(generatedDirectory)
+  if (JSON.stringify(outputPaths) !== JSON.stringify(expectedOutputPaths)) {
+    throw new Error('packed primitree build did not write the expected files')
+  }
+  const outputBytes = new Map(
+    outputPaths.map(relativePath => [
+      relativePath,
+      readFileSync(path.join(generatedDirectory, relativePath)),
+    ])
+  )
+  requireCommandSuccess(
+    runCommand(cli, ['build', '--check', ...buildArgs.slice(1)], options),
+    'packed primitree build --check'
+  )
+  const checkedOutputPaths = listOutputPaths(generatedDirectory)
+  if (
+    JSON.stringify(checkedOutputPaths) !== JSON.stringify(expectedOutputPaths)
+  ) {
+    throw new Error('packed primitree build --check changed the output files')
+  }
+  for (const relativePath of expectedOutputPaths) {
+    const before = outputBytes.get(relativePath)
+    const after = readFileSync(path.join(generatedDirectory, relativePath))
+    if (before === undefined || !before.equals(after)) {
+      throw new Error(
+        `packed primitree build --check changed output file: ${relativePath}`
+      )
+    }
   }
 }
 

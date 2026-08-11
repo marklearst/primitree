@@ -13,6 +13,56 @@ npx @primitree/cli build variables.json
 
 ## `primitree build`
 
+### Configured DTCG source
+
+```sh
+primitree build [--config <path>] [--source <name>]
+primitree build --check [--config <path>] [--source <name>]
+```
+
+The command reads `./primitree.config.ts` by default. It checks the selected
+source and its layer and owner rules before it writes files. Add an `outputs`
+object to that source:
+
+```ts
+outputs: {
+  directory: './generated',
+  formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+}
+```
+
+The format list is optional and defaults to all four values. Primitree writes
+the selected files and `.primitree-manifest.json` into the dedicated output
+directory. A later build reads that manifest. It refuses a listed file when
+its hash changed and refuses any unlisted path.
+
+An interrupted install can leave a backup or cleanup sidecar beside the output
+directory. Primitree reports each matching path for that output and stops before
+it replaces any installed files. Inspect the retained paths and recover any
+needed files before removing them and running the build again. Primitree leaves
+them in place.
+
+The output directory must stay under the config file's directory and cannot
+contain the source token file. Use a separate directory for generated files.
+The output directory and every resolved file path under its output, staging,
+backup, and cleanup directories must fit within 1,023 UTF-8 bytes. Its
+normalized relative path can use up to 64 components. Each intermediate
+component can use up to 255 UTF-8 bytes, and the final directory name can use up
+to 200. A config can define up to 64 named sources. Each configured source path
+must stay below the config directory and can use up to 64 resolved absolute
+components and 1,023 UTF-8 bytes, including after symbolic-link resolution,
+with up to 255 UTF-8 bytes in each component. A generated-file path can use up
+to 64 directory levels, 16,639 UTF-8 bytes relative to its output, and 255 UTF-8
+bytes in each segment. The shorter final directory name keeps the transaction
+paths portable.
+
+`--check` compares the files in the output directory with the files Primitree
+would write. It reports missing, changed, and unexpected paths without writing.
+It also rechecks the output directory and its ancestors while it scans, and
+stops if one changes. Exit code 1 means the files differ.
+
+### Figma variables export
+
 ```sh
 primitree build <variables.json> [--out <dir>]
 ```
@@ -103,6 +153,10 @@ export default defineConfig({
         ],
       },
       ownership: { default: ['design-systems'] },
+      outputs: {
+        directory: './generated',
+        formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+      },
     },
   },
 })
@@ -110,11 +164,29 @@ export default defineConfig({
 
 Paths are relative to the config file. Primitree reads the named config file
 and does not search parent folders. It rejects unknown settings. Each source
-needs one to four layers.
+needs one to four layers. Configured source files must contain valid UTF-8 and
+be 10 MiB or smaller. Output-path validation records the identity of each
+existing regular source file it inspects. Primitree compares that identity with
+the file it opens. During the bounded read, it rejects changes to the opened
+file or configured path.
 
 The older path form still checks a Figma variables export or a built token
 directory. The command exits with code 1 for findings and code 2 for command,
 config, or input errors.
+
+Positional variables JSON must be 20 MiB or smaller. In a built token source,
+`tokens.resolver.json` and each `*.tokens.json` file must be 20 MiB or smaller,
+and their combined size cannot exceed 256 MiB. The source can contain at most
+1,000 token files, 100,000 directory entries, and 64 nested directory levels.
+Built sources support nested token files. Resolver references use paths
+relative to the directory containing `tokens.resolver.json`.
+
+Every positional JSON file must contain valid UTF-8. The variables input must
+be a regular file. A built source accepts directories and regular files; the
+check rejects symbolic links and special nodes. A built-source warning appears
+when a token has no effective type. A token's own `$type`, an inherited group
+`$type`, or a type reached through a whole-token alias counts as an effective
+type.
 
 ## `primitree inspect`
 

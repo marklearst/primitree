@@ -3,13 +3,20 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
+import { parse as parseCss } from 'postcss'
 import ts from 'typescript'
 import { parse as parseYaml } from 'yaml'
 import { toDTCG } from '../src/emit'
+import type {
+  DTCGColorValue,
+  DTCGCubicBezierValue,
+  DTCGDocument,
+  DTCGToken,
+} from '../src/types'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
 import { emitTypescript } from '../src/pipeline/typescript'
-import { buildPipeline } from '../src/pipeline/build'
+import { buildPipeline, DTCGOutputCapabilityError } from '../src/pipeline/build'
 
 const cliPackageManifest = JSON.parse(
   readFileSync(join(__dirname, '../../cli/package.json'), 'utf8')
@@ -23,6 +30,26 @@ const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
 )
 const { files, resolver } = toDTCG(fixture)
+const JSON_NUL = JSON.parse('"\\u0000"') as string
+
+const NON_CSS_FONT_WEIGHT_NAMES = [
+  ['thin', 100],
+  ['hairline', 100],
+  ['extra-light', 200],
+  ['ultra-light', 200],
+  ['light', 300],
+  ['regular', 400],
+  ['book', 400],
+  ['medium', 500],
+  ['semi-bold', 600],
+  ['demi-bold', 600],
+  ['extra-bold', 800],
+  ['ultra-bold', 800],
+  ['black', 900],
+  ['heavy', 900],
+  ['extra-black', 950],
+  ['ultra-black', 950],
+] as const
 
 describe('cssVarName / cssValue', () => {
   it('converts paths to custom property names', () => {
@@ -32,12 +59,66 @@ describe('cssVarName / cssValue', () => {
     expect(cssVarName('primitives.space.2')).toBe('--primitives-space-2')
   })
 
+  it.each([
+    ['accented Latin', 'Couleur.Arrière-plan', '--Couleur-Arrière_2d_plan'],
+    ['Arabic', 'ألوان.خلفية', '--ألوان-خلفية'],
+    ['Chinese', '颜色.背景', '--颜色-背景'],
+    ['Cyrillic', 'Цвет.Фон', '--Цвет-Фон'],
+    ['Devanagari', 'रंग.पृष्ठभूमि', '--रंग-पृष्ठभूमि'],
+  ])('keeps %s text in custom property names', (_name, path, expected) => {
+    expect(cssVarName(path)).toBe(expected)
+  })
+
+  it('keeps non-ASCII token names distinct in generated web output', () => {
+    const documents = {
+      'brand.tokens.json': {
+        色: {
+          背景: {
+            $type: 'dimension' as const,
+            $value: { value: 1, unit: 'px' as const },
+          },
+          文字: {
+            $type: 'dimension' as const,
+            $value: { value: 2, unit: 'px' as const },
+          },
+        },
+      },
+    }
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        brand: { sources: [{ $ref: 'brand.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/brand' }],
+    }
+    const cssOutput = emitCss(documents, tokenResolver)
+    const tailwindOutput = emitTailwind(documents, tokenResolver)
+    const typescriptOutput = emitTypescript(documents, tokenResolver)
+
+    expect(cssOutput).toContain('--色-背景: 1px;')
+    expect(cssOutput).toContain('--色-文字: 2px;')
+    expect(tailwindOutput).toContain('--spacing-背景: var(--色-背景);')
+    expect(tailwindOutput).toContain('--spacing-文字: var(--色-文字);')
+    expect(typescriptOutput).toContain('["色.背景"]: "var(--色-背景)",')
+    expect(typescriptOutput).toContain('["色.文字"]: "var(--色-文字)",')
+    expect(() => parseCss(cssOutput)).not.toThrow()
+    expect(() => parseCss(tailwindOutput)).not.toThrow()
+  })
+
   it('formats values for CSS', () => {
     expect(cssValue({ value: 4, unit: 'px' })).toBe('4px')
     expect(cssValue(0.4)).toBe('0.4')
     expect(cssValue('Inter')).toBe('Inter')
     expect(cssValue('Inter Display')).toBe("'Inter Display'")
-    expect(cssValue(true)).toBeNull()
+    expect(cssValue(true)).toBe('true')
+    expect(cssValue(['Inter Display', 'sans-serif'])).toBe(
+      "'Inter Display', sans-serif"
+    )
+    expect(cssValue([0.25, -1, 0.75, 2])).toBe(
+      'cubic-bezier(0.25, -1, 0.75, 2)'
+    )
+    expect(cssValue([-0.01, 0, 0.75, 1] as DTCGCubicBezierValue)).toBeNull()
+    expect(cssValue([0.25, 0, 0.75, Number.POSITIVE_INFINITY])).toBeNull()
     expect(cssValue('{primitives.color.blue.500}')).toBe(
       'var(--primitives-color-blue-500)'
     )
@@ -48,10 +129,81 @@ describe('cssVarName / cssValue', () => {
         alpha: 1,
         hex: '#3366ff',
       })
-    ).toBe('#3366ff')
+    ).toBe('color(srgb 0.2 0.4 1)')
     expect(
       cssValue({ colorSpace: 'srgb', components: [0, 0, 0], alpha: 0.5 })
-    ).toBe('rgb(0 0 0 / 0.5)')
+    ).toBe('color(srgb 0 0 0 / 0.5)')
+    expect(
+      cssValue({ colorSpace: 'srgb', components: [1, 0, 0], alpha: 0 })
+    ).toBe('color(srgb 1 0 0 / 0)')
+  })
+
+  it.each([
+    ['srgb', [0.123456, 'none', 1], 'color(srgb 0.123456 none 1 / 0.5)'],
+    ['srgb-linear', [0.2, 'none', 1], 'color(srgb-linear 0.2 none 1 / 0.5)'],
+    ['hsl', [240, 'none', 50], 'hsl(240 none 50% / 0.5)'],
+    ['hwb', [240, 10, 'none'], 'hwb(240 10% none / 0.5)'],
+    ['lab', ['none', -20, 30], 'lab(none -20 30 / 0.5)'],
+    ['lch', [50, 'none', 240], 'lch(50 none 240 / 0.5)'],
+    ['oklab', ['none', -0.1, 0.2], 'oklab(none -0.1 0.2 / 0.5)'],
+    ['oklch', [0.5, 'none', 240], 'oklch(0.5 none 240 / 0.5)'],
+    ['display-p3', [0.2, 'none', 1], 'color(display-p3 0.2 none 1 / 0.5)'],
+    ['a98-rgb', [0.2, 'none', 1], 'color(a98-rgb 0.2 none 1 / 0.5)'],
+    ['prophoto-rgb', [0.2, 'none', 1], 'color(prophoto-rgb 0.2 none 1 / 0.5)'],
+    ['rec2020', [0.2, 'none', 1], 'color(rec2020 0.2 none 1 / 0.5)'],
+    ['xyz-d65', [0.2, 'none', 1], 'color(xyz-d65 0.2 none 1 / 0.5)'],
+    ['xyz-d50', [0.2, 'none', 1], 'color(xyz-d50 0.2 none 1 / 0.5)'],
+  ] as const satisfies readonly (readonly [
+    DTCGColorValue['colorSpace'],
+    DTCGColorValue['components'],
+    string,
+  ])[])('formats %s colors for CSS', (colorSpace, components, expected) => {
+    const formatted = cssValue({ colorSpace, components, alpha: 0.5 })
+
+    expect(formatted).toBe(expected)
+    expect(() => parseCss(`:root { --value: ${formatted}; }`)).not.toThrow()
+  })
+
+  it('quotes CSS strings that contain declaration or block text', () => {
+    const value = "keep; }\nbody { content: 'safe'"
+    const formatted = cssValue(value)
+
+    expect(formatted).toBe("'keep; }\\a body { content: \\'safe\\''")
+    expect(() => parseCss(`:root { --value: ${formatted}; }`)).not.toThrow()
+    expect(cssValue('A,B')).toBe("'A,B'")
+    expect(cssValue('A)')).toBe("'A)'")
+    expect(cssValue('A\u0001B')).toBe("'A\\1 B'")
+  })
+
+  it.each([
+    ['string', JSON_NUL, '\ufffd', "'\ufffd'"],
+    [
+      'font family',
+      ['Inter', JSON_NUL],
+      ['Inter', '\ufffd'],
+      "Inter, '\ufffd'",
+    ],
+  ])(
+    'rejects a JSON NUL in a CSS %s value without rejecting U+FFFD',
+    (_label, nulValue, replacementValue, replacementCss) => {
+      expect(cssValue(nulValue)).toBeNull()
+      expect(cssValue(replacementValue)).toBe(replacementCss)
+    }
+  )
+
+  it.each([
+    'initial',
+    'inherit',
+    'unset',
+    'revert',
+    'revert-layer',
+    'INITIAL',
+    'INHERIT',
+    'UNSET',
+    'REVERT',
+    'REVERT-LAYER',
+  ])('quotes the CSS-wide keyword %s', keyword => {
+    expect(cssValue(keyword)).toBe(`'${keyword}'`)
   })
 })
 
@@ -60,7 +212,7 @@ describe('emitCss', () => {
 
   it('emits default values into :root with alias vars preserved', () => {
     expect(css).toContain(':root {')
-    expect(css).toContain('--primitives-color-blue-500: #3366ff;')
+    expect(css).toContain('--primitives-color-blue-500: color(srgb 0.2 0.4 1);')
     expect(css).toContain(
       '--semantic-color-bg-brand: var(--primitives-color-blue-500);'
     )
@@ -79,12 +231,1492 @@ describe('emitCss', () => {
     expect(darkBlock).not.toContain('--semantic-space-page')
   })
 
-  it('skips boolean tokens', () => {
-    expect(css).not.toContain('--primitives-feature-rounded')
+  it('writes boolean tokens as custom property values', () => {
+    expect(css).toContain('--primitives-feature-rounded: true;')
+  })
+
+  it.each(NON_CSS_FONT_WEIGHT_NAMES)(
+    'writes the DTCG font weight %s as %i',
+    (name, numericValue) => {
+      const documents = {
+        'type.tokens.json': {
+          weight: { $type: 'fontWeight', $value: name },
+        },
+      } satisfies Record<string, DTCGDocument>
+      const tokenResolver = {
+        version: '2025.10' as const,
+        sets: {
+          type: { sources: [{ $ref: 'type.tokens.json' }] },
+        },
+        resolutionOrder: [{ $ref: '#/sets/type' }],
+      }
+
+      expect(emitCss(documents, tokenResolver)).toContain(
+        `--weight: ${numericValue};`
+      )
+      expect(emitTypescript(documents, tokenResolver)).toContain(
+        `["weight"]: "${numericValue}",`
+      )
+    }
+  )
+
+  it('uses inherited and aliased fontWeight types without changing string tokens', () => {
+    const documents = {
+      'type.tokens.json': {
+        weights: {
+          $type: 'fontWeight',
+          base: { $value: 'semi-bold' },
+        },
+        semantic: {
+          weight: { $value: '{weights.base}' },
+        },
+        labels: {
+          weight: { $type: 'string', $value: 'semi-bold' },
+        },
+      },
+    } satisfies Record<string, DTCGDocument>
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        type: { sources: [{ $ref: 'type.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/type' }],
+    }
+
+    const css = emitCss(documents, tokenResolver)
+    expect(css).toContain('--weights-base: 600;')
+    expect(css).toContain('--labels-weight: semi-bold;')
+    const typescript = emitTypescript(documents, tokenResolver)
+    expect(typescript).toContain('["semantic.weight"]: "600",')
+    expect(typescript).toContain('["labels.weight"]: "semi-bold",')
+  })
+
+  it('ignores a token type found only through its prototype across outputs', () => {
+    const inheritedTypeToken = Object.assign(
+      Object.create({ $type: 'fontWeight' }),
+      { $value: 'semi-bold' }
+    ) as DTCGToken
+    const documents = {
+      'type.tokens.json': { weight: inheritedTypeToken },
+    }
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        type: { sources: [{ $ref: 'type.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/type' }],
+    }
+
+    expect(emitCss(documents, tokenResolver)).toContain('--weight: semi-bold;')
+    expect(emitTypescript(documents, tokenResolver)).toContain(
+      '["weight"]: "semi-bold",'
+    )
+    expect(emitTailwind(documents, tokenResolver)).not.toContain(
+      '--font-weight-weight:'
+    )
+  })
+
+  it('writes Resolver axes as lowercase HTML-safe data attributes', () => {
+    const axis = 'Semantic theme!'
+    const hostileContext = "dark'] {\nbody { color: red; }\n/*"
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'string', $value: 'base' },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          [axis]: {
+            default: 'light',
+            contexts: {
+              light: [],
+              [hostileContext]: [
+                {
+                  value: { $type: 'string', $value: 'changed' },
+                },
+              ],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: `#/modifiers/${axis}` },
+        ],
+      }
+    )
+
+    expect(output).toContain('data-_53_emantic_20_theme_21_=')
+    expect(output).not.toContain('\nbody { color: red; }')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it.each([
+    ['lone high surrogate', '\ud800'],
+    ['lone low surrogate', '\udc00'],
+  ])('rejects a %s in a Resolver context name', (_label, context) => {
+    const run = () =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ value: { $type: 'string', $value: 'default' } }],
+            },
+          },
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [],
+                [context]: [{ value: { $type: 'string', $value: 'selected' } }],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/theme' },
+          ],
+        }
+      )
+
+    let failure: unknown
+    try {
+      run()
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({
+      format: 'css',
+      tokenPath: 'resolver context',
+    })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent the string value at "resolver context".'
+    )
+  })
+
+  it('rejects distinct Resolver contexts that would collapse to the same UTF-8 replacement bytes', () => {
+    const contexts = ['\ud800', '\ud801']
+    expect(new TextEncoder().encode(contexts[0])).toEqual(
+      new TextEncoder().encode(contexts[1])
+    )
+
+    for (const context of contexts) {
+      expect(() =>
+        emitCss(
+          {},
+          {
+            version: '2025.10',
+            modifiers: {
+              theme: {
+                default: 'light',
+                contexts: {
+                  light: [],
+                  [context]: [{ value: { $type: 'number', $value: 1 } }],
+                },
+              },
+            },
+            resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+          }
+        )
+      ).toThrow(DTCGOutputCapabilityError)
+    }
+  })
+
+  it('rejects a JSON NUL in a Resolver context without rejecting U+FFFD', () => {
+    const emitContext = (context: string) =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [],
+                [context]: [{ value: { $type: 'string', $value: 'selected' } }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+
+    expect(() => emitContext(JSON_NUL)).toThrow(DTCGOutputCapabilityError)
+    const replacementOutput = emitContext('\ufffd')
+    expect(replacementOutput).toContain("[data-theme='\ufffd']")
+    expect(() => parseCss(replacementOutput)).not.toThrow()
+  })
+
+  it('keeps valid astral pairs and non-English CSS text intact', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [{ value: { $type: 'string', $value: '日本語 😀' } }],
+          },
+        },
+        modifiers: {
+          '语义😀': {
+            default: '明るい☀️',
+            contexts: {
+              '明るい☀️': [],
+              '暗い🌙': [{ value: { $type: 'string', $value: 'café 🌍' } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/语义😀' },
+        ],
+      }
+    )
+
+    expect(output).toContain("='暗い🌙']")
+    expect(output).toContain("--value: '日本語 😀';")
+    expect(output).toContain("--value: 'café 🌍';")
+    expect(
+      new TextDecoder('utf-8', { fatal: true }).decode(
+        new TextEncoder().encode(output)
+      )
+    ).toBe(output)
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it.each([
+    ['string', { $type: 'string' as const, $value: '\ud800' }],
+    [
+      'font family',
+      { $type: 'fontFamily' as const, $value: ['Inter', '\udc00'] },
+    ],
+  ])('rejects a lone surrogate in a CSS %s value', (_label, token) => {
+    const run = () =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ value: token }] } },
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      `The CSS output cannot represent the ${token.$type} value at "value".`
+    )
+  })
+
+  it('rejects a lone surrogate in a custom CSS banner', () => {
+    const run = () =>
+      emitCss(
+        {},
+        { version: '2025.10', resolutionOrder: [] },
+        { banner: 'Brand \ud800 tokens' }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The CSS output cannot represent the string value at "banner".'
+    )
+  })
+
+  it('rejects a JSON NUL in a custom CSS banner without rejecting U+FFFD', () => {
+    const run = (banner: string) =>
+      emitCss({}, { version: '2025.10', resolutionOrder: [] }, { banner })
+
+    expect(() => run(`Brand ${JSON_NUL} tokens`)).toThrow(
+      DTCGOutputCapabilityError
+    )
+    const replacementOutput = run('Brand \ufffd tokens')
+    expect(replacementOutput).toMatch(/^\/\* Brand \ufffd tokens \*\//u)
+    expect(() => parseCss(replacementOutput)).not.toThrow()
+  })
+
+  it('rejects a custom CSS banner that closes the header comment', () => {
+    const run = () =>
+      emitCss(
+        {},
+        { version: '2025.10', resolutionOrder: [] },
+        { banner: 'Brand */\nbody { color: red; }\n/* tokens' }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The CSS output cannot represent the string value at "banner".'
+    )
+  })
+
+  it('keeps a safe custom CSS banner valid', () => {
+    const output = emitCss(
+      {},
+      { version: '2025.10', resolutionOrder: [] },
+      { banner: 'Brand / tokens * 2026 😀' }
+    )
+
+    expect(output).toMatch(/^\/\* Brand \/ tokens \* 2026 😀 \*\//u)
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('keeps hyphens in Resolver axis data attributes', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: {
+          'color-scheme': {
+            default: 'light',
+            contexts: {
+              light: [],
+              dark: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+        },
+        resolutionOrder: [{ $ref: '#/modifiers/color-scheme' }],
+      }
+    )
+
+    expect(output).toContain("[data-color-scheme='dark']")
+    expect(output).not.toContain('data-color_2d_scheme')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('emits a context value when its effective type changes CSS formatting', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                weight: { $type: 'string', $value: 'semi-bold' },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          theme: {
+            default: 'light',
+            contexts: {
+              light: [],
+              dark: [
+                {
+                  weight: { $type: 'fontWeight', $value: 'semi-bold' },
+                },
+              ],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/theme' },
+        ],
+      }
+    )
+
+    expect(output).toContain(':root {\n  --weight: semi-bold;\n}')
+    expect(output).toContain("[data-theme='dark'] {\n  --weight: 600;\n}")
+  })
+
+  it('keeps ASCII-case Resolver axes as distinct data attributes', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: {
+          Mode: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          mode: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 2 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/modifiers/Mode' },
+          { $ref: '#/modifiers/mode' },
+        ],
+      }
+    )
+
+    expect(output).toContain("[data-_4d_ode='on']")
+    expect(output).toContain("[data-mode='on']")
+    expect(output).not.toContain('[data-Mode=')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('rejects a token path that becomes a group', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ branch: { $type: 'number', $value: 1 } }],
+            },
+          },
+          modifiers: {
+            shape: {
+              default: 'token',
+              contexts: {
+                token: [],
+                group: [
+                  {
+                    branch: {
+                      leaf: { $type: 'number', $value: 2 },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/shape' },
+          ],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'branch' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a group path that becomes a token', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [
+                {
+                  branch: {
+                    leaf: { $type: 'number', $value: 1 },
+                  },
+                },
+              ],
+            },
+          },
+          modifiers: {
+            shape: {
+              default: 'group',
+              contexts: {
+                group: [],
+                token: [{ branch: { $type: 'number', $value: 2 } }],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/shape' },
+          ],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'branch' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a selected context that drops a default token', () => {
+    let failure: unknown
+    try {
+      emitCss(
+        {
+          'light.tokens.json': {
+            light: { $type: 'number', $value: 1 },
+          },
+          'dark.tokens.json': {
+            dark: { $type: 'number', $value: 2 },
+          },
+        },
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [{ $ref: 'light.tokens.json' }],
+                dark: [{ $ref: 'dark.tokens.json' }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({ format: 'css', tokenPath: 'light' })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "light" because it changes shape or disappears between Resolver states.'
+    )
+  })
+
+  it('uses Resolver merge precedence in single and combined selectors', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          second: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 2 } }],
+            },
+          },
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    const rules = parseCss(output).nodes.filter(node => node.type === 'rule')
+    const first = rules.find(rule => rule.selector === "[data-first='on']")
+    const second = rules.find(rule => rule.selector === "[data-second='on']")
+    const combined = rules.find(
+      rule =>
+        rule.selector.includes("[data-first='on']") &&
+        rule.selector.includes("[data-second='on']")
+    )
+
+    expect(first?.toString()).toContain('--value: 1')
+    expect(second?.toString()).toContain('--value: 2')
+    expect(combined?.toString()).toContain('--value: 2')
+  })
+
+  it('emits combined modifier values for non-orthogonal contexts', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          second: {
+            default: 'off',
+            contexts: {
+              off: [{ value: { $type: 'number', $value: 2 } }],
+              on: [],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    expect(output).toContain(
+      "[data-first='on'][data-second='on'] {\n  --value: 1;\n}"
+    )
+  })
+
+  it('resets a combined modifier value to the root value', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                value: { $type: 'number', $value: 0 },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          first: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+          second: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ value: { $type: 'number', $value: 0 } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/first' },
+          { $ref: '#/modifiers/second' },
+        ],
+      }
+    )
+
+    expect(output).toContain("[data-first='on'] {\n  --value: 1;\n}")
+    expect(output).toContain(
+      "[data-first='on'][data-second='on'] {\n  --value: 0;\n}"
+    )
+  })
+
+  it('ignores an inherited default context when writing CSS', () => {
+    const theme = Object.assign(Object.create({ default: 'dark' }), {
+      contexts: {
+        light: [{ value: { $type: 'number' as const, $value: 1 } }],
+        dark: [{ value: { $type: 'number' as const, $value: 2 } }],
+      },
+    })
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: { theme },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      }
+    )
+
+    expect(output).toContain(':root {\n  --value: 1;\n}')
+    expect(output).toContain("[data-theme='dark'] {\n  --value: 2;\n}")
+  })
+
+  it('keeps punctuation paths distinct across Resolver contexts', () => {
+    const output = emitCss(
+      {
+        'light.tokens.json': {
+          theme: {
+            'foo bar': { $type: 'number', $value: 1 },
+            'foo@bar': { $type: 'number', $value: 2 },
+          },
+        },
+        'dark.tokens.json': {
+          theme: {
+            'foo bar': { $type: 'number', $value: 3 },
+            'foo@bar': { $type: 'number', $value: 4 },
+          },
+        },
+      },
+      {
+        version: '2025.10',
+        modifiers: {
+          theme: {
+            default: 'light',
+            contexts: {
+              light: [{ $ref: 'light.tokens.json' }],
+              dark: [{ $ref: 'dark.tokens.json' }],
+            },
+          },
+        },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      }
+    )
+
+    expect(output).toContain('--theme-foo_20_bar: 1;')
+    expect(output).toContain('--theme-foo_40_bar: 2;')
+    expect(output).toContain('--theme-foo_20_bar: 3;')
+    expect(output).toContain('--theme-foo_40_bar: 4;')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('bounds Resolver work shared across CSS contexts', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'number' as const, $value: index },
+      ])
+    )
+    const sourceFiles = Object.fromEntries(
+      Array.from({ length: 101 }, (_, index) => [
+        `part-${index}.tokens.json`,
+        { shared },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 1_000 }, (_, index) => [`mode-${index}`, []])
+    )
+
+    expect(() =>
+      emitCss(sourceFiles, {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: Object.keys(sourceFiles).map(file => ({ $ref: file })),
+          },
+        },
+        modifiers: {
+          mode: {
+            default: 'mode-0',
+            contexts,
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/mode' },
+        ],
+      })
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('bounds Resolver file reference text before copying it', () => {
+    const reference = `${'x'.repeat(1_000_001)}.tokens.json`
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ $ref: reference }] } },
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('bounds Resolver context names before writing selectors', () => {
+    const context = 'x'.repeat(1_000_001)
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              contexts: {
+                [context]: [],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('charges selector text when a context emits no declarations', () => {
+    const context = `mode-${'x'.repeat(220_000)}`
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'default',
+              contexts: {
+                default: [],
+                [context]: [],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('counts token text across CSS contexts', () => {
+    const value = 'x'.repeat(20_000)
+    const contexts = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `mode-${index}`,
+        [
+          {
+            value: {
+              $type: 'string' as const,
+              $value: `${value}-${index}`,
+            },
+          },
+        ],
+      ])
+    )
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            mode: {
+              default: 'mode-0',
+              contexts,
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('does not enumerate unused Resolver modifiers for CSS output', () => {
+    const contexts = Object.fromEntries(
+      Array.from({ length: 32 }, (_, index) => [`unused-${index}`, []])
+    )
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `unused-${index}`,
+        { contexts },
+      ])
+    )
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ accent: { $type: 'color', $value: '#3366ff' } }],
+            },
+          },
+          modifiers,
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).not.toThrow()
+  })
+
+  it('stops before CSS output exceeds 20 MiB', () => {
+    const banner = 'é'.repeat(10 * 1024 * 1024 + 1)
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          resolutionOrder: [],
+        },
+        { banner }
+      )
+    ).toThrow('CSS output can contain at most 20 MiB.')
+  })
+
+  it('bounds group nesting for direct CSS output', () => {
+    let nested: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { source: { sources: [nested] } },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
+        }
+      )
+    ).toThrow('CSS output can read at most 64 token-group levels.')
+  })
+
+  it('uses inherited and alias token types in Tailwind names', () => {
+    const primitive: DTCGDocument = {
+      brand: { $value: '#3366ff' },
+    }
+    Reflect.set(primitive, '$type', 'color')
+    const inherited = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                primitive,
+                semantic: {
+                  action: { $value: '{primitive.brand}' },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(inherited).toContain('--color-brand: var(--primitive-brand);')
+    expect(inherited).toContain('--color-action: var(--semantic-action);')
+  })
+
+  it.each([
+    [
+      'lowercase path segment',
+      'radius',
+      '--radius-sm: var(--primitives-radius-sm);',
+    ],
+    [
+      'camel-case path segment',
+      'borderRadius',
+      '--radius-borderRadius-sm: var(--primitives-borderRadius-sm);',
+    ],
+    [
+      'unrelated path text',
+      'coloration',
+      '--spacing-coloration-sm: var(--primitives-coloration-sm);',
+    ],
+  ])('classifies a %s', (_label, segment, expected) => {
+    const output = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                primitives: {
+                  [segment]: {
+                    sm: {
+                      $type: 'dimension',
+                      $value: { value: 4, unit: 'px' },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(output).toContain(expected)
+  })
+
+  it('adds a suffix when Tailwind names collide', () => {
+    const collision = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                'brand palette': {
+                  color: {
+                    brand: { $type: 'color', $value: '#3366ff' },
+                    color: {
+                      brand: { $type: 'color', $value: '#3355ee' },
+                    },
+                  },
+                  colors: {
+                    brand: { $type: 'color', $value: '#2244cc' },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(collision).toContain(
+      '--color-brand: var(--brand_20_palette-color-brand);'
+    )
+    expect(collision).toContain(
+      '--color-brand_20_palette-brand: var(--brand_20_palette-color-color-brand);'
+    )
+    expect(collision).toContain(
+      '--color-brand_20_palette-brand-2: var(--brand_20_palette-colors-brand);'
+    )
+  })
+
+  it('bounds group nesting before Tailwind traversal', () => {
+    let nested: DTCGDocument = {
+      brand: { $type: 'color', $value: '#3366ff' },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: { source: { sources: [nested] } },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
+        }
+      )
+    ).toThrow('Tailwind output can read at most 64 token-group levels.')
+  })
+})
+
+describe('DTCGOutputCapabilityError', () => {
+  it('reports coherent CSS and Tailwind capability failures', () => {
+    expect(
+      new DTCGOutputCapabilityError('css', 'type.family', 'fontFamily')
+    ).toMatchObject({
+      format: 'css',
+      tokenPath: 'type.family',
+      message:
+        'The CSS output cannot represent the fontFamily value at "type.family".',
+    })
+    expect(
+      new DTCGOutputCapabilityError('css', 'branch', 'token', 'token-state')
+    ).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+    expect(
+      new DTCGOutputCapabilityError(
+        'tailwind',
+        'theme.accent',
+        'color',
+        'tailwind-namespace'
+      )
+    ).toMatchObject({
+      format: 'tailwind',
+      tokenPath: 'theme.accent',
+      message:
+        'The Tailwind output cannot represent token path "theme.accent" because its theme namespace changes or disappears between Resolver states.',
+    })
+  })
+
+  it.each([
+    ['css', 'tailwind-namespace'],
+    ['tailwind', 'value'],
+    ['tailwind', 'token-state'],
+  ])('rejects the %s format with the %s reason', (format, reason) => {
+    expect(() =>
+      Reflect.construct(DTCGOutputCapabilityError, [
+        format,
+        'theme.accent',
+        'color',
+        reason,
+      ])
+    ).toThrow(
+      `The ${String(reason)} capability reason is not valid for ${String(format)} output.`
+    )
+  })
+
+  it('rejects a Tailwind capability error without a Tailwind reason', () => {
+    expect(() =>
+      Reflect.construct(DTCGOutputCapabilityError, [
+        'tailwind',
+        'theme.accent',
+        'color',
+      ])
+    ).toThrow('The value capability reason is not valid for tailwind output.')
   })
 })
 
 describe('emitTailwind', () => {
+  it('bounds Resolver work before reading the merged token tree', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        { 'shared.tokens.json': { shared } },
+        {
+          version: '2025.10',
+          sets: {
+            repeated: {
+              sources: Array.from({ length: 4_000 }, () => ({
+                $ref: 'shared.tokens.json',
+              })),
+            },
+          },
+          resolutionOrder: [{ $ref: '#/sets/repeated' }],
+        }
+      )
+    ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('shares the Tailwind work budget across effective contexts', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [`mode-${index}`, []])
+    )
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ shared }] } },
+          modifiers: {
+            mode: { default: 'mode-0', contexts },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/mode' },
+          ],
+        }
+      )
+    ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('does not apply the effective default context twice', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        { 'shared.tokens.json': { shared } },
+        {
+          version: '2025.10',
+          sets: {
+            repeated: {
+              sources: Array.from({ length: 1_500 }, () => ({
+                $ref: 'shared.tokens.json',
+              })),
+            },
+          },
+          modifiers: {
+            mode: {
+              default: 'only',
+              contexts: { only: [] },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/repeated' },
+            { $ref: '#/modifiers/mode' },
+          ],
+        }
+      )
+    ).not.toThrow()
+  })
+
+  it('does not enumerate unused Resolver modifiers for Tailwind output', () => {
+    const contexts = Object.fromEntries(
+      Array.from({ length: 32 }, (_, index) => [`unused-${index}`, []])
+    )
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `unused-${index}`,
+        { contexts },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ accent: { $type: 'color', $value: '#3366ff' } }],
+            },
+          },
+          modifiers,
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).not.toThrow()
+  })
+
+  it.each([
+    {
+      name: 'an unsupported string becomes a color',
+      base: { $type: 'string' as const, $value: 'brand' },
+      override: { $type: 'color' as const, $value: '#3366ff' },
+    },
+    {
+      name: 'a color becomes a dimension',
+      base: { $type: 'color' as const, $value: '#3366ff' },
+      override: {
+        $type: 'dimension' as const,
+        $value: { value: 4, unit: 'px' as const },
+      },
+    },
+  ])('rejects a Resolver context where $name', ({ base, override }) => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: { sources: [{ theme: { value: base } }] },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [{ theme: { value: override } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    const run = () => emitTailwind({}, contextualResolver)
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects context-varying inherited types', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: {
+          sources: [
+            {
+              theme: {
+                $type: 'color' as const,
+                value: { $value: '#3366ff' },
+              },
+            },
+          ],
+        },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [
+              {
+                theme: {
+                  $type: 'dimension' as const,
+                  value: { $value: { value: 4, unit: 'px' as const } },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects context-varying alias-derived types', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: {
+          sources: [
+            {
+              theme: {
+                colorSource: {
+                  $type: 'color' as const,
+                  $value: '#3366ff',
+                },
+                dimensionSource: {
+                  $type: 'dimension' as const,
+                  $value: { value: 4, unit: 'px' as const },
+                },
+                value: { $value: '{theme.colorSource}' },
+              },
+            },
+          ],
+        },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [
+              {
+                theme: {
+                  value: { $value: '{theme.dimensionSource}' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token that exists only in a non-default context', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [{ label: { $type: 'string' as const, $value: 'brand' } }],
+            changed: [
+              {
+                label: { $type: 'string' as const, $value: 'brand' },
+                accent: { $type: 'color' as const, $value: '#3366ff' },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "accent" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token that disappears in a non-default context', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            changed: [{ label: { $type: 'string' as const, $value: 'brand' } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "accent" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token path that becomes a group', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'token',
+          contexts: {
+            token: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            group: [
+              {
+                accent: {
+                  strong: { $type: 'color' as const, $value: '#2244cc' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    let failure: unknown
+    try {
+      emitTailwind({}, contextualResolver)
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({
+      format: 'tailwind',
+      tokenPath: 'accent',
+    })
+  })
+
+  it('keeps a mapping when every context uses the same Tailwind namespace', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'light',
+          contexts: {
+            light: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            dark: [{ accent: { $type: 'color' as const, $value: '#88aaff' } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(emitTailwind({}, contextualResolver)).toContain(
+      '--color-default: var(--accent);'
+    )
+  })
+
   const tailwind = emitTailwind(files, resolver)
 
   it('maps tokens onto Tailwind v4 namespaces referencing css vars', () => {
@@ -118,7 +1750,9 @@ describe('emitTypescript', () => {
     expect(source).toContain(
       '["semantic.color.bg.brand"]: "var(--semantic-color-bg-brand)",'
     )
-    expect(source).toContain('["primitives.color.blue.500"]: "#3366ff",')
+    expect(source).toContain(
+      '["primitives.color.blue.500"]: "color(srgb 0.2 0.4 1)",'
+    )
     expect(source).toContain('["density.control.height"]: "40px",')
     expect(source).toContain('["primitives.feature.rounded"]: true,')
     expect(source).not.toContain('["primitives.feature.rounded"]: "true",')
@@ -231,7 +1865,9 @@ describe('emitTypescript', () => {
     runInNewContext(compiled.outputText, { exports: generated })
 
     expect(Object.hasOwn(generated.tokenVars ?? {}, prototypePath)).toBe(true)
-    expect(generated.tokenVars?.[prototypePath]).toBe('var(--proto)')
+    expect(generated.tokenVars?.[prototypePath]).toBe(
+      'var(--_5f__5f_proto_5f__5f_)'
+    )
     expect(Object.hasOwn(generated.tokenValues ?? {}, prototypePath)).toBe(true)
     expect(generated.tokenValues?.[prototypePath]).toBe(prototypeValue)
   })

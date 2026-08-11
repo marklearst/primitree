@@ -2,7 +2,7 @@
 
 # 🌳 Primitree
 
-Turn a Figma variables export into commit-ready token files for review.
+Check a local DTCG source against project rules and build files for apps.
 
 [![CI](https://github.com/marklearst/primitree/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/primitree/actions/workflows/ci.yml)
 [![DTCG](https://img.shields.io/badge/DTCG-2025.10-5F7F2F)](https://www.designtokens.org)
@@ -11,28 +11,35 @@ Turn a Figma variables export into commit-ready token files for review.
 </div>
 
 ```sh
-npx @primitree/cli build variables.json
+npx @primitree/cli check
+npx @primitree/cli build
 ```
 
-The command writes a design-token pipeline:
+Configured builds can write this file set:
 
 ```text
-design-tokens/
+generated/
 ├── tokens/
-│   ├── primitives.tokens.json
-│   ├── semantic.tokens.json
-│   ├── semantic.dark.tokens.json
+│   ├── source.tokens.json
 │   └── tokens.resolver.json
 ├── css/
 │   ├── tokens.css
 │   └── tokens.tailwind.css
 ├── ts/tokens.ts
-├── style-dictionary.config.mjs
-├── design-tokens.workflow.yml
-└── README.md
+└── .primitree-manifest.json
 ```
 
-The token output follows DTCG 2025.10 plus a documented boolean extension.
+Set the source, layer rules, owner rules, output directory, and formats in
+`primitree.config.ts`. See [the CLI package guide](packages/cli) for a full
+config example.
+
+The older Figma form remains available:
+
+```sh
+npx @primitree/cli build variables.json
+```
+
+Its token output follows DTCG 2025.10 plus a documented boolean extension.
 Aliases remain token references. The converter maps Figma modes to Resolver
 contexts. Figma IDs, scopes, and code syntax live under
 `$extensions['com.primitree']`.
@@ -85,9 +92,16 @@ Check one source or explain one exact token path:
 
 ```sh
 primitree check --source brand
+primitree build --source brand
+primitree build --source brand --check
 primitree inspect semantic.action --source brand
 primitree diff backup.tokens.json tokens.json --config primitree.config.ts
 ```
+
+Set `outputs.directory` on the source to choose its generated folder. The
+optional `outputs.formats` list accepts `dtcg`, `css`, `typescript`, and
+`tailwind`. A build checks the source rules before it writes. Check mode reports
+missing, changed, and unexpected files without writing.
 
 The inspection report includes the token ID, resolved value, alias chain,
 owners, direct dependents, and source location.

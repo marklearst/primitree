@@ -52,6 +52,14 @@ describe('uniqueSlugs', () => {
     expect(slugs.get('theme')).toBe('theme-2')
     expect(slugs.get('Theme!')).toBe('theme-3')
   })
+
+  it('avoids a slug that another input already claims', () => {
+    const slugs = uniqueSlugs(['Theme', 'theme-2', 'Theme!'])
+
+    expect(slugs.get('Theme')).toBe('theme')
+    expect(slugs.get('theme-2')).toBe('theme-2')
+    expect(slugs.get('Theme!')).toBe('theme-3')
+  })
 })
 
 describe('allocateUniqueSlugs', () => {
