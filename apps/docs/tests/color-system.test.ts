@@ -23,6 +23,68 @@ async function read(relativePath: string) {
   return readFile(new URL(relativePath, import.meta.url), 'utf8')
 }
 
+function relativeLuminance(hex: string) {
+  const channels = hex
+    .slice(1)
+    .match(/.{2}/gu)
+    ?.map(channel => Number.parseInt(channel, 16) / 255)
+
+  assert.equal(channels?.length, 3, `expected a six-digit hex color: ${hex}`)
+
+  const [red = 0, green = 0, blue = 0] = (channels ?? []).map(channel =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  )
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const foregroundLuminance = relativeLuminance(foreground)
+  const backgroundLuminance = relativeLuminance(background)
+
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  )
+}
+
+function compositeHex(foreground: string, background: string, alpha: number) {
+  const channels = (value: string) =>
+    value
+      .slice(1)
+      .match(/.{2}/gu)
+      ?.map(channel => Number.parseInt(channel, 16)) ?? []
+  const foregroundChannels = channels(foreground)
+  const backgroundChannels = channels(background)
+  assert.equal(foregroundChannels.length, 3)
+  assert.equal(backgroundChannels.length, 3)
+
+  return `#${foregroundChannels
+    .map((channel, index) =>
+      Math.round(
+        channel * alpha + (backgroundChannels[index] ?? 0) * (1 - alpha)
+      )
+        .toString(16)
+        .padStart(2, '0')
+    )
+    .join('')}`
+}
+
+function themeHex(theme: string, variable: string) {
+  const match = theme.match(new RegExp(`--${variable}: (#[0-9a-f]{6});`, 'u'))
+  assert.ok(match?.[1], `missing --${variable}`)
+  return match[1]
+}
+
+function flatCssRules(theme: string) {
+  return [...theme.matchAll(/([^{}]+)\{([^{}]*)\}/gu)].map(
+    ([, selectors = '', declarations = '']) => ({
+      declarations,
+      selectors,
+    })
+  )
+}
+
 test('documentation theme exposes the approved Lichen palette', async () => {
   const theme = await read('../app/global.css')
 
@@ -40,6 +102,75 @@ test('documentation theme exposes the approved Lichen palette', async () => {
     theme,
     /::selection\s*\{\s*background: rgb\(168 201 95 \/ 25%\);/u
   )
+})
+
+test('documentation dim text clears AA contrast on every landing surface', async () => {
+  const theme = await read('../app/global.css')
+  const dim = themeHex(theme, 'color-primitree-dim')
+  const backgrounds = [
+    themeHex(theme, 'color-primitree-bg'),
+    themeHex(theme, 'color-primitree-surface'),
+    compositeHex(
+      themeHex(theme, 'color-primitree-accent'),
+      themeHex(theme, 'color-primitree-bg'),
+      0.1
+    ),
+  ]
+
+  for (const background of backgrounds) {
+    assert.ok(
+      contrastRatio(dim, background) >= 4.5,
+      `${dim} must clear 4.5:1 against ${background}`
+    )
+  }
+})
+
+test('living canopy never fades text-bearing stages or graph nodes', async () => {
+  const theme = await read('../app/global.css')
+  const textBearingSelector =
+    /\.canopy-(?:source|token|dependent|output)-node|\.canopy-stage-track\s*>\s*li/u
+
+  const fadedTextRules = flatCssRules(theme).filter(
+    ({ declarations, selectors }) =>
+      textBearingSelector.test(selectors) && /\bopacity\s*:/u.test(declarations)
+  )
+
+  assert.deepEqual(
+    fadedTextRules,
+    [],
+    'stage emphasis must change connectors and borders, never text opacity'
+  )
+})
+
+test('living canopy provides a legible compact graph below tablet width', async () => {
+  const [theme, canopy] = await Promise.all([
+    read('../app/global.css'),
+    read('../components/landing/living-canopy.tsx'),
+  ])
+
+  assert.match(canopy, /className='canopy-mobile-graph'/u)
+  assert.match(theme, /\.canopy-mobile-graph\s*\{[\s\S]*?display: none;/u)
+  assert.match(
+    theme,
+    /@media \(max-width: 719px\)[\s\S]*?\.canopy-svg\s*\{\s*display: none;\s*\}/u
+  )
+  assert.match(
+    theme,
+    /@media \(max-width: 719px\)[\s\S]*?\.canopy-mobile-graph\s*\{[\s\S]*?display: grid;/u
+  )
+  assert.match(
+    theme,
+    /@media \(max-width: 719px\)[\s\S]*?\.canopy-stage-track strong\s*\{\s*font-size: 12px;\s*\}/u
+  )
+
+  const mobileNodeRule = flatCssRules(theme).find(({ selectors }) =>
+    selectors.trim().startsWith('.canopy-mobile-node')
+  )
+  const fontSize = mobileNodeRule?.declarations.match(
+    /font-size:\s*([0-9.]+)px/u
+  )?.[1]
+  assert.ok(fontSize, 'compact graph nodes must set a CSS-pixel font size')
+  assert.ok(Number(fontSize) >= 12, 'compact graph text must be at least 12px')
 })
 
 test('documentation shell maps Fumadocs to the Lichen theme', async () => {
@@ -62,7 +193,7 @@ test('documentation shell maps Fumadocs to the Lichen theme', async () => {
 test('documentation brand files contain no former Primitree purple treatment', async () => {
   const sources = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/animated-mark.tsx'),
+    read('../components/landing/living-canopy.tsx'),
     read('../components/playground/playground.css'),
     read('../public/favicon.svg'),
     read('../public/primitree-icon.svg'),
@@ -74,30 +205,31 @@ test('documentation brand files contain no former Primitree purple treatment', a
   }
 })
 
-test('documentation mark uses a white body with Lichen nodes and neutral rings', async () => {
-  const [theme, mark] = await Promise.all([
+test('living canopy makes the Bone mark a structural Lichen root', async () => {
+  const [theme, canopy] = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/animated-mark.tsx'),
+    read('../components/landing/living-canopy.tsx'),
   ])
 
-  assert.doesNotMatch(mark, /id='mark-fill'/u)
-  assert.doesNotMatch(mark, /fill='url\(#mark-fill\)'/u)
-  assert.match(mark, /className='mark-body'\s+d=\{MARK_PATH\}\s+fill='white'/u)
+  assert.match(canopy, /className='canopy-logo'/u)
+  assert.match(
+    canopy,
+    /className='canopy-logo-body'\s+d=\{MARK_PATH\}\s+fill='var\(--color-primitree-text\)'/u
+  )
+  assert.match(canopy, /className='canopy-root-node'/u)
+  assert.doesNotMatch(canopy, /(?:linear|radial)Gradient|filter=|pointermove/u)
+  assert.doesNotMatch(canopy, /\binfinite\b/u)
   assert.match(
     theme,
-    /\.mark-glow\s*\{[\s\S]*rgb\(168 201 95 \/ 10%\)[\s\S]*\}/u
+    /\.canopy-logo-body\s*\{\s*fill: var\(--color-primitree-text\);\s*\}/u
   )
   assert.match(
     theme,
-    /\.mark-ring\s*\{[\s\S]*border: 1px solid rgb\(255 255 255 \/ 8%\);/u
+    /\.canopy-source-swatch,\s*\.canopy-root-node\s*\{\s*fill: var\(--color-primitree-accent\);\s*\}/u
   )
   assert.match(
     theme,
-    /\.mark-ring-2\s*\{[\s\S]*border-color: rgb\(255 255 255 \/ 4%\);/u
-  )
-  assert.match(
-    theme,
-    /\.mark-node-dot\s*\{[\s\S]*fill: var\(--color-primitree-accent\);/u
+    /\.canopy-trunk\s*\{[\s\S]*stroke: var\(--color-primitree-accent\);/u
   )
 })
 
@@ -131,6 +263,17 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
     /\.mobile-nav a\[aria-current='page'\]\s*\{\s*background: var\(--color-primitree-accent-wash\);\s*color: var\(--color-primitree-accent\);/u
   )
   assert.match(chrome, /bg-primitree-accent-wash text-primitree-accent/u)
+  assert.match(
+    chrome,
+    /import \{ SearchTrigger \} from 'fumadocs-ui\/layouts\/shared\/slots\/search-trigger'/u
+  )
+  assert.match(chrome, /function GithubMark\(\)/u)
+  assert.match(chrome, /fill='currentColor'/u)
+  assert.match(chrome, /aria-label='Primitree on GitHub'/u)
+  assert.match(
+    theme,
+    /\.site-icon-control\s*\{[\s\S]*width: 44px !important;[\s\S]*height: 44px !important;/u
+  )
 })
 
 test('documentation static mark stays white and favicon uses the light-surface Lichen accent', async () => {

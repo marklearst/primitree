@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-13T00:00:00.000Z",
+  "title": "Design System: Primitree Living Governance",
+  "extensions": {
+    "colorMeta": {
+      "root-black": {
+        "role": "neutral",
+        "displayName": "Root Black",
+        "canonical": "#030304",
+        "tonalRamp": [
+          "#030304",
+          "#08080A",
+          "#0F0F12",
+          "#16161A",
+          "#7A818C",
+          "#9CA3AF",
+          "#DDE9B9",
+          "#FAFAFA"
+        ]
+      },
+      "lichen": {
+        "role": "primary",
+        "displayName": "Electric Lichen",
+        "canonical": "#A8C95F",
+        "tonalRamp": [
+          "#141A0A",
+          "#263614",
+          "#3F561F",
+          "#5F7F2F",
+          "#829F46",
+          "#A8C95F",
+          "#DDE9B9",
+          "#F3F8E8"
+        ]
+      },
+      "blocked": {
+        "role": "secondary",
+        "displayName": "Blocked Coral",
+        "canonical": "#F27575",
+        "tonalRamp": [
+          "#260E0E",
+          "#4C1C1C",
+          "#792E2E",
+          "#A84545",
+          "#D25D5D",
+          "#F27575",
+          "#FAB0B0",
+          "#FDE1E1"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The homepage claim only."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Proof and explanation capped near 65 characters."
+      },
+      "label": {
+        "displayName": "Evidence Label",
+        "purpose": "Real token paths, states, controls, and commands."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-change",
+        "value": "220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Finite branch selection and evidence replacement."
+      },
+      {
+        "name": "path-trace",
+        "value": "520ms cubic-bezier(0.33, 1, 0.68, 1)",
+        "purpose": "Trace the active causal path after an explicit action."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1024px" },
+      { "name": "wide", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single quickstart action.",
+      "html": "<a class=\"ds-btn-primary\" href=\"/docs/getting-started\">Run the quickstart</a>",
+      "css": ".ds-btn-primary{display:inline-flex;min-height:48px;align-items:center;justify-content:center;border:1px solid #A8C95F;border-radius:6px;background:#A8C95F;color:#030304;padding:14px 18px;font:520 12px/1.4 ui-monospace,monospace;text-decoration:none;transition:background 220ms cubic-bezier(.22,1,.36,1)}.ds-btn-primary:hover{background:#DDE9B9}.ds-btn-primary:focus-visible{outline:2px solid #FAFAFA;outline-offset:3px}"
+    },
+    {
+      "name": "Branch Control",
+      "kind": "button",
+      "description": "Selects Govern, Trace, or Ship evidence.",
+      "html": "<button class=\"ds-branch\" role=\"tab\" aria-selected=\"true\">Govern</button>",
+      "css": ".ds-branch{min-height:44px;border:0;border-bottom:1px solid rgba(255,255,255,.1);background:transparent;color:#9CA3AF;padding:10px 4px;font:520 12px/1.4 ui-monospace,monospace}.ds-branch[aria-selected=true]{border-color:#A8C95F;color:#FAFAFA}.ds-branch:focus-visible{outline:2px solid #FAFAFA;outline-offset:3px}"
+    },
+    {
+      "name": "Evidence Surface",
+      "kind": "custom",
+      "description": "A rooted proof surface attached to an active branch.",
+      "html": "<section class=\"ds-evidence\"><code>semantic.color.action.primary</code><strong>Allowed</strong></section>",
+      "css": ".ds-evidence{display:grid;gap:12px;border:1px solid rgba(255,255,255,.1);border-left-color:#A8C95F;background:#08080A;color:#FAFAFA;padding:20px}.ds-evidence code{color:#9CA3AF;font:520 12px/1.4 ui-monospace,monospace}.ds-evidence strong{font:540 20px/1.15 Inter,system-ui,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Living Specification",
+    "overview": "One rooted token change branches into policy, dependency, and build evidence. Motion is finite and stateful, and the mark is the graph root rather than decoration.",
+    "keyCharacteristics": [
+      "One dominant living graph",
+      "Asymmetric editorial scale",
+      "Thin structural rules and rare lichen emphasis",
+      "Real governance language",
+      "Touch, keyboard, screen-reader, and reduced-motion parity"
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rule",
+        "body": "Electric Lichen occupies less than ten percent of a screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Consequence Rule",
+        "body": "Coral means blocked or unsafe and is never decorative.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Claim Rule",
+        "body": "Only one display-scale statement appears in a viewport.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rooted Surface Rule",
+        "body": "Every evidence panel touches a branch, rule, or parent surface.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do make every animated path correspond to a selected dependency or policy result.",
+      "Do use the same token change to explain Govern, Trace, and Ship.",
+      "Do preserve touch, keyboard, and reduced-motion parity."
+    ],
+    "donts": [
+      "Don't recreate the generic dark dev-tool template.",
+      "Don't draw an ornamental tree that does not explain governance.",
+      "Don't animate continuously."
+    ]
+  }
+}

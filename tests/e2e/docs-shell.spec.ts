@@ -1,4 +1,4 @@
-import { devices, expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
 const widths = [320, 375] as const
@@ -125,54 +125,14 @@ for (const width of acceptanceWidths) {
   })
 }
 
-test('marketing shell applies the approved Lichen roles', async ({ page }) => {
+test('marketing shell applies the approved Lichen background', async ({
+  page,
+}) => {
   await page.goto('/')
 
   await expect(page.locator('body')).toHaveCSS(
     'background-color',
     'rgb(3, 3, 4)'
-  )
-  await expect(page.locator('.hero-title-accent')).toHaveCSS(
-    'color',
-    'rgb(168, 201, 95)'
-  )
-  await expect(page.locator('.hero-eyebrow-dot')).toHaveCSS(
-    'background-color',
-    'rgb(69, 201, 139)'
-  )
-  const primary = page.getByRole('link', { name: 'Read the docs' })
-  await expect(primary).toHaveCSS('background-color', 'rgb(250, 250, 250)')
-  await expect(primary).toHaveCSS('color', 'rgb(9, 9, 11)')
-})
-
-test('homepage mark keeps a white body with Lichen nodes and neutral rings', async ({
-  page,
-}) => {
-  await page.goto('/')
-
-  await expect(page.locator('.mark-body')).toHaveCSS(
-    'fill',
-    'rgb(255, 255, 255)'
-  )
-  await expect(page.locator('.mark-node-dot').first()).toHaveCSS(
-    'fill',
-    'rgb(168, 201, 95)'
-  )
-  await expect(page.locator('.mark-node-pulse').first()).toHaveCSS(
-    'stroke',
-    'rgb(168, 201, 95)'
-  )
-  await expect(page.locator('.mark-glow')).toHaveCSS(
-    'background-image',
-    /rgba\(168, 201, 95, 0\.1\)/u
-  )
-  await expect(page.locator('.mark-ring-1')).toHaveCSS(
-    'border-color',
-    'rgba(255, 255, 255, 0.08)'
-  )
-  await expect(page.locator('.mark-ring-2')).toHaveCSS(
-    'border-color',
-    'rgba(255, 255, 255, 0.04)'
   )
 })
 
@@ -239,58 +199,4 @@ test('mobile shell exposes the neutral focus treatment', async ({ page }) => {
   await expectNeutralFocusOutline(
     page.locator('details[aria-label="Navigation"] summary')
   )
-})
-
-test('touch contexts exclude fine-pointer hover enhancements', async ({
-  baseURL,
-  browser,
-}) => {
-  if (!baseURL) {
-    throw new Error('Playwright baseURL is required')
-  }
-
-  const context = await browser.newContext({
-    ...devices['iPhone 13'],
-    baseURL,
-  })
-
-  try {
-    const page = await context.newPage()
-    await page.goto('/')
-    expect(
-      await page.evaluate(
-        () => matchMedia('(hover: hover) and (pointer: fine)').matches
-      )
-    ).toBe(false)
-
-    const primary = page.getByRole('link', { name: 'Read the docs' })
-    await primary.hover({ force: true })
-    await expect(primary).toHaveCSS('transform', 'none')
-  } finally {
-    await context.close()
-  }
-})
-
-test('reduced motion collapses decorative animation and transform', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/')
-
-  const motion = await page.locator('.hero-eyebrow-dot').evaluate(element => {
-    const style = getComputedStyle(element)
-    const toMilliseconds = (value: string) =>
-      value.endsWith('ms')
-        ? Number.parseFloat(value)
-        : Number.parseFloat(value) * 1000
-
-    return {
-      durations: style.animationDuration.split(',').map(toMilliseconds),
-      iterations: style.animationIterationCount.split(','),
-    }
-  })
-
-  expect(motion.durations.every(duration => duration <= 0.01)).toBe(true)
-  expect(motion.iterations.every(iteration => iteration === '1')).toBe(true)
-  await expect(page.locator('.mark-stage')).toHaveCSS('transform', 'none')
 })
