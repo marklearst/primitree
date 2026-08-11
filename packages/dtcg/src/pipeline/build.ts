@@ -114,7 +114,9 @@ function sortJsonValue(
   value: unknown,
   active: WeakSet<object>,
   budget: JsonSortBudget,
-  depth: number
+  depth: number,
+  path: readonly string[],
+  preserveResolverContextOrder: boolean
 ): unknown {
   if (depth > MAX_OUTPUT_JSON_DEPTH) {
     throw new TypeError('DTCG output data can contain at most 64 levels.')
@@ -134,7 +136,16 @@ function sortJsonValue(
           'DTCG output data can contain at most 100,000 items.'
         )
       }
-      return value.map(item => sortJsonValue(item, active, budget, depth + 1))
+      return value.map((item, index) =>
+        sortJsonValue(
+          item,
+          active,
+          budget,
+          depth + 1,
+          [...path, String(index)],
+          preserveResolverContextOrder
+        )
+      )
     }
     const sorted = Object.create(null) as Record<string, unknown>
     const keys = Object.keys(value)
@@ -143,13 +154,21 @@ function sortJsonValue(
       keys.length,
       keys.reduce((total, key) => total + key.length, 0)
     )
-    for (const key of keys.sort()) {
+    const isResolverContextMap =
+      preserveResolverContextOrder &&
+      path.length === 3 &&
+      path[0] === 'modifiers' &&
+      path[2] === 'contexts'
+    const orderedKeys = isResolverContextMap ? keys : keys.sort()
+    for (const key of orderedKeys) {
       Object.defineProperty(sorted, key, {
         value: sortJsonValue(
           Reflect.get(value as Record<string, unknown>, key),
           active,
           budget,
-          depth + 1
+          depth + 1,
+          [...path, key],
+          preserveResolverContextOrder
         ),
         enumerable: true,
         configurable: true,
@@ -162,9 +181,20 @@ function sortJsonValue(
   }
 }
 
-function serializeSorted(value: unknown, budget: JsonSortBudget): string {
+function serializeSorted(
+  value: unknown,
+  budget: JsonSortBudget,
+  preserveResolverContextOrder = false
+): string {
   const text = `${JSON.stringify(
-    sortJsonValue(value, new WeakSet(), budget, 0),
+    sortJsonValue(
+      value,
+      new WeakSet(),
+      budget,
+      0,
+      [],
+      preserveResolverContextOrder
+    ),
     null,
     2
   )}\n`
@@ -730,7 +760,7 @@ export function buildDTCGOutputs(
   }
   files.push({
     path: `tokens/${input.resolverFileName}`,
-    contents: serializeSorted(input.resolver, jsonBudget),
+    contents: serializeSorted(input.resolver, jsonBudget, true),
   })
 
   if (options.css !== false) {

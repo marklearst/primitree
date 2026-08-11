@@ -202,6 +202,22 @@ describe('DTCG font family values', () => {
     }
   )
 
+  it('rejects an empty fallback list at the value path', () => {
+    expect(
+      requireFailure(
+        createDTCGGraphFragment(
+          { token: { $type: 'fontFamily', $value: [] } },
+          { source: 'brand' }
+        )
+      )
+    ).toEqual({
+      phase: 'source',
+      code: 'dtcg.invalid-document',
+      message: 'A DTCG token value does not match type "fontFamily".',
+      path: ['token', '$value'],
+    })
+  })
+
   it('reports the invalid fallback entry', () => {
     expect(
       requireFailure(

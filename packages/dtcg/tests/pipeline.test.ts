@@ -108,12 +108,20 @@ describe('cssVarName / cssValue', () => {
     expect(cssValue('A\u0001B')).toBe("'A\\1 B'")
   })
 
-  it.each(['initial', 'inherit', 'unset', 'revert', 'revert-layer'])(
-    'quotes the CSS-wide keyword %s',
-    keyword => {
-      expect(cssValue(keyword)).toBe(`'${keyword}'`)
-    }
-  )
+  it.each([
+    'initial',
+    'inherit',
+    'unset',
+    'revert',
+    'revert-layer',
+    'INITIAL',
+    'INHERIT',
+    'UNSET',
+    'REVERT',
+    'REVERT-LAYER',
+  ])('quotes the CSS-wide keyword %s', keyword => {
+    expect(cssValue(keyword)).toBe(`'${keyword}'`)
+  })
 })
 
 describe('emitCss', () => {

@@ -5,7 +5,7 @@ import {
   type DTCGOutputSet,
 } from '../src/pipeline/build'
 import { createDTCGGraphFragment } from '../src/index'
-import type { DTCGDocument } from '../src/types'
+import type { DTCGDocument, ResolverDocument } from '../src/types'
 
 const document = {
   primitive: {
@@ -81,6 +81,51 @@ describe('buildDTCGOutputs', () => {
 
     expect(text?.indexOf('"alpha"')).toBeLessThan(text?.indexOf('"zebra"') ?? 0)
     expect(text).toContain('[\n      "z",\n      "a"\n    ]')
+  })
+
+  it('keeps Resolver context order when generated output is read again', () => {
+    const contextInput: DTCGOutputSet = {
+      files: {
+        'zeta.tokens.json': {
+          value: { $type: 'number', $value: 2 },
+        },
+        'alpha.tokens.json': {
+          value: { $type: 'number', $value: 1 },
+        },
+      },
+      resolver: {
+        version: '2025.10',
+        modifiers: {
+          theme: {
+            contexts: {
+              zeta: [{ $ref: 'zeta.tokens.json' }],
+              alpha: [{ $ref: 'alpha.tokens.json' }],
+            },
+          },
+        },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      },
+      resolverFileName: 'tokens.resolver.json',
+    }
+    const first = buildDTCGOutputs(contextInput)
+    const resolverText = first.files.find(
+      file => file.path === 'tokens/tokens.resolver.json'
+    )?.contents
+    const writtenResolver = JSON.parse(resolverText ?? '') as ResolverDocument
+
+    expect(
+      Object.keys(writtenResolver.modifiers?.theme?.contexts ?? {})
+    ).toEqual(['zeta', 'alpha'])
+
+    const second = buildDTCGOutputs({
+      ...contextInput,
+      resolver: writtenResolver,
+    })
+    for (const path of ['css/tokens.css', 'ts/tokens.ts']) {
+      expect(second.files.find(file => file.path === path)?.contents).toBe(
+        first.files.find(file => file.path === path)?.contents
+      )
+    }
   })
 
   it('can emit Tailwind without emitting Primitree CSS', () => {
