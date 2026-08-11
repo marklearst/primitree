@@ -234,6 +234,9 @@ export async function collectDeclarationFiles(root) {
 }
 
 const EXPECTED_API_FILES = [
+  'cli-config.mdx',
+  'core-policy.mdx',
+  'core-types.mdx',
   'core.mdx',
   'dtcg.mdx',
   'hooks.mdx',
