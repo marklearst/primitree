@@ -20,13 +20,24 @@ Install the CLI. Add a local DTCG file and `primitree.config.ts`. Run:
 ```bash
 pnpm add -D @primitree/cli
 pnpm exec primitree check --source brand
+pnpm exec primitree inspect semantic.motion.control --source brand
+cp tokens.json before.tokens.json
+```
+
+Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
+Compare the files and build the output:
+
+```bash
+pnpm exec primitree diff before.tokens.json tokens.json --source brand
 pnpm exec primitree build --source brand
 pnpm exec primitree build --source brand --check
 ```
 
-`check` reports source findings. `build` writes the configured files. `build
---check` reports output changes without writing. See [Getting started](/docs/getting-started)
-for the token file, config, commands, and generated files.
+`check` reports source findings. `inspect` explains one token. `diff` compares
+the saved file with the edited file. `build` writes the configured files.
+`build --check` reports output changes without writing. See
+[Getting started](/docs/getting-started) for the token file, config, commands,
+and generated files.
 
 ## Figma export
 

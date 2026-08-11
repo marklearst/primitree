@@ -110,7 +110,25 @@ pnpm exec primitree inspect semantic.motion.control --source brand
 references, and cycles. `inspect` reports the resolved value and the alias
 chain for one token.
 
-## 5. Build the files
+## 5. Compare a change
+
+Save a copy of the source file:
+
+```bash
+cp tokens.json before.tokens.json
+```
+
+Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
+Compare the files:
+
+```bash
+pnpm exec primitree diff before.tokens.json tokens.json --source brand
+```
+
+`diff` reports the tokens that changed between the saved file and the edited
+file.
+
+## 6. Build the files
 
 ```bash
 pnpm exec primitree build --source brand
@@ -128,7 +146,7 @@ generated/
 └── ts/tokens.ts
 ```
 
-## 6. Check generated files in CI
+## 7. Check generated files in CI
 
 ```bash
 pnpm exec primitree build --source brand --check
