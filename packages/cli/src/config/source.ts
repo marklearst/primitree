@@ -29,6 +29,7 @@ export interface ConfiguredSource {
 }
 
 export interface ConfiguredSourceGraph {
+  readonly configPath: string
   readonly sourceName: string
   readonly source: LoadedDTCGSourceConfig
   readonly document: unknown
@@ -110,6 +111,7 @@ export async function buildConfiguredSourceGraph(
   }
 
   return Object.freeze({
+    configPath: configured.configPath,
     sourceName: configured.sourceName,
     source: configured.source,
     document,

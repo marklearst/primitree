@@ -4,6 +4,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createSourceId } from '@primitree/core'
 import { createPolicy, type Policy } from '@primitree/core/policy'
+import type { PrimitreeOutputFormat } from '../config'
 
 interface LoadPrimitreeConfigOptions {
   readonly cwd?: string
@@ -17,6 +18,10 @@ export interface LoadedDTCGSourceConfig {
     readonly layers: Policy['layers']
   }
   readonly ownership: Policy['ownership']
+  readonly outputs?: {
+    readonly directory: string
+    readonly formats: readonly PrimitreeOutputFormat[]
+  }
 }
 
 export interface LoadedPrimitreeConfig {
@@ -44,6 +49,47 @@ function rejectUnknownFields(
 }
 
 const PATH_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/u
+const OUTPUT_FORMAT_ORDER = [
+  'dtcg',
+  'css',
+  'typescript',
+  'tailwind',
+] as const satisfies readonly PrimitreeOutputFormat[]
+
+function isMissing(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  )
+}
+
+async function rejectOutputSymlinks(
+  sourceId: string,
+  configDirectory: string,
+  outputDirectory: string
+): Promise<void> {
+  const relative = path.relative(configDirectory, outputDirectory)
+  let current = configDirectory
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment)
+    const stats = await fs.lstat(current).catch(error => {
+      if (isMissing(error)) {
+        return undefined
+      }
+      throw error
+    })
+    if (stats === undefined) {
+      return
+    }
+    if (stats.isSymbolicLink()) {
+      throw new Error(
+        `Source "${sourceId}" output directory cannot use a symbolic link.`
+      )
+    }
+  }
+}
 
 function resolveSourceFile(
   configuredPath: unknown,
@@ -70,6 +116,93 @@ function resolveSourceFile(
   return path.resolve(configDirectory, configuredPath)
 }
 
+function normalizeOutputs(
+  value: unknown,
+  sourceId: string,
+  configDirectory: string,
+  sourceFile: string
+): LoadedDTCGSourceConfig['outputs'] {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!isRecord(value)) {
+    throw new Error(`Source "${sourceId}" outputs must be an object.`)
+  }
+  rejectUnknownFields(
+    value,
+    ['directory', 'formats'],
+    `Source "${sourceId}" outputs`
+  )
+  const configuredDirectory = value.directory
+  if (
+    typeof configuredDirectory !== 'string' ||
+    configuredDirectory.trim().length === 0
+  ) {
+    throw new Error(`Source "${sourceId}" outputs need a directory.`)
+  }
+  if (
+    configuredDirectory.includes('\u0000') ||
+    configuredDirectory.includes('\\') ||
+    path.isAbsolute(configuredDirectory) ||
+    configuredDirectory.startsWith('//') ||
+    PATH_SCHEME_PATTERN.test(configuredDirectory)
+  ) {
+    throw new Error(
+      `Source "${sourceId}" output directory must stay below the config directory.`
+    )
+  }
+  const segments = configuredDirectory.split('/')
+  if (segments.some(segment => segment === '..')) {
+    throw new Error(
+      `Source "${sourceId}" output directory must stay below the config directory.`
+    )
+  }
+  const directory = path.resolve(configDirectory, configuredDirectory)
+  if (directory === configDirectory) {
+    throw new Error(
+      `Source "${sourceId}" output directory cannot be the config directory.`
+    )
+  }
+  const sourceFromOutput = path.relative(directory, sourceFile)
+  if (
+    sourceFromOutput === '' ||
+    (!sourceFromOutput.startsWith(`..${path.sep}`) &&
+      sourceFromOutput !== '..' &&
+      !path.isAbsolute(sourceFromOutput))
+  ) {
+    throw new Error(
+      `Source "${sourceId}" output directory cannot contain its token file.`
+    )
+  }
+
+  const configuredFormats = value.formats ?? OUTPUT_FORMAT_ORDER
+  if (!Array.isArray(configuredFormats) || configuredFormats.length === 0) {
+    throw new Error(`Source "${sourceId}" outputs need at least one format.`)
+  }
+  const selected = new Set<PrimitreeOutputFormat>()
+  for (const format of configuredFormats) {
+    if (
+      typeof format !== 'string' ||
+      !OUTPUT_FORMAT_ORDER.includes(format as PrimitreeOutputFormat)
+    ) {
+      throw new Error(
+        `Source "${sourceId}" has an unsupported output format: ${String(format)}.`
+      )
+    }
+    if (selected.has(format as PrimitreeOutputFormat)) {
+      throw new Error(`Source "${sourceId}" repeats output format "${format}".`)
+    }
+    selected.add(format as PrimitreeOutputFormat)
+  }
+
+  return Object.freeze({
+    directory,
+    formats: Object.freeze(
+      OUTPUT_FORMAT_ORDER.filter(format => selected.has(format))
+    ),
+  })
+}
+
 function normalizeSource(
   sourceId: string,
   value: unknown,
@@ -83,7 +216,7 @@ function normalizeSource(
   }
   rejectUnknownFields(
     value,
-    ['type', 'file', 'architecture', 'ownership'],
+    ['type', 'file', 'architecture', 'ownership', 'outputs'],
     `Source "${sourceId}"`
   )
   if (value.type !== 'dtcg') {
@@ -135,11 +268,19 @@ function normalizeSource(
       `Source "${sourceId}" is invalid: ${policy.diagnostics[0].message}`
     )
   }
+  const sourceFile = resolveSourceFile(value.file, sourceId, configDirectory)
+  const outputs = normalizeOutputs(
+    value.outputs,
+    sourceId,
+    configDirectory,
+    sourceFile
+  )
   return Object.freeze({
     type: 'dtcg',
-    file: resolveSourceFile(value.file, sourceId, configDirectory),
+    file: sourceFile,
     architecture: Object.freeze({ layers: policy.value.layers }),
     ownership: policy.value.ownership,
+    ...(outputs === undefined ? {} : { outputs }),
   })
 }
 
@@ -194,8 +335,16 @@ export async function loadPrimitreeConfig(
 
   const sources: Record<string, LoadedDTCGSourceConfig> = Object.create(null)
   for (const [sourceId, value] of Object.entries(config.sources)) {
+    const source = normalizeSource(sourceId, value, path.dirname(configPath))
+    if (source.outputs !== undefined) {
+      await rejectOutputSymlinks(
+        sourceId,
+        path.dirname(configPath),
+        source.outputs.directory
+      )
+    }
     Object.defineProperty(sources, sourceId, {
-      value: normalizeSource(sourceId, value, path.dirname(configPath)),
+      value: source,
       enumerable: true,
     })
   }
