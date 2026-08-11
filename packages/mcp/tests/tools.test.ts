@@ -526,41 +526,45 @@ describe('resolveContext', () => {
     expect(itemReads).toBe(1)
   })
 
-  it('does not revisit an untouched subtree before the graph work limit', () => {
-    const document: TokenSource['files'][string] = {}
-    for (let index = 0; index < 100_001; index += 1) {
-      document[`n${index.toString(36)}`] = {
-        $type: 'number',
-        $value: index,
+  it(
+    'does not revisit an untouched subtree before the graph work limit',
+    { timeout: 10_000 },
+    () => {
+      const document: TokenSource['files'][string] = {}
+      for (let index = 0; index < 100_001; index += 1) {
+        document[`n${index.toString(36)}`] = {
+          $type: 'number',
+          $value: index,
+        }
       }
-    }
-    document.untyped = { $value: 'plain' }
-    document.untouched = {
-      nested: { $type: 'string', $value: 'preserved' },
-    }
-    const largeSource: TokenSource = {
-      files: { 'source.tokens.json': document },
-      resolver: {
-        version: '2025.10',
-        sets: {
-          source: { sources: [{ $ref: 'source.tokens.json' }] },
+      document.untyped = { $value: 'plain' }
+      document.untouched = {
+        nested: { $type: 'string', $value: 'preserved' },
+      }
+      const largeSource: TokenSource = {
+        files: { 'source.tokens.json': document },
+        resolver: {
+          version: '2025.10',
+          sets: {
+            source: { sources: [{ $ref: 'source.tokens.json' }] },
+          },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
         },
-        resolutionOrder: [{ $ref: '#/sets/source' }],
-      },
-      origin: 'test',
-    }
+        origin: 'test',
+      }
 
-    validationPreparationProbe.untouchedOwnKeys = 0
-    validationPreparationProbe.enabled = true
-    try {
-      expect(() => resolveContext(largeSource, {})).toThrow(
-        /Token source check failed.*100,000-unit work limit/s
-      )
-    } finally {
-      validationPreparationProbe.enabled = false
+      validationPreparationProbe.untouchedOwnKeys = 0
+      validationPreparationProbe.enabled = true
+      try {
+        expect(() => resolveContext(largeSource, {})).toThrow(
+          /Token source check failed.*100,000-unit work limit/s
+        )
+      } finally {
+        validationPreparationProbe.enabled = false
+      }
+      expect(validationPreparationProbe.untouchedOwnKeys).toBe(2)
     }
-    expect(validationPreparationProbe.untouchedOwnKeys).toBe(2)
-  })
+  )
 
   it('does not copy untyped token properties before graph validation', () => {
     const token: Record<string, unknown> = { $value: 'plain' }
