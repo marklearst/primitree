@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { SearchTrigger } from 'fumadocs-ui/layouts/shared/slots/search-trigger'
+import {
+  FullSearchTrigger,
+  SearchTrigger,
+} from 'fumadocs-ui/layouts/shared/slots/search-trigger'
 import { BrandLogo } from '@/components/brand-logo'
 import { links } from '@/lib/shared'
 import { cn } from '@/lib/cn'
@@ -79,6 +82,10 @@ export function SiteHeader({
                 {item.label}
               </Link>
             ))}
+            <FullSearchTrigger
+              className='mobile-search-control'
+              aria-label='Open Search'
+            />
             <Link href='/docs/getting-started'>Run the quickstart</Link>
             <Link
               href={links.github}

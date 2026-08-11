@@ -95,12 +95,23 @@ for (const width of widths) {
     const docsLink = menu.getByRole('link', { name: 'Docs' })
     const playgroundLink = menu.getByRole('link', { name: 'Playground' })
     const githubLink = menu.getByRole('link', { name: 'GitHub' })
+    const searchButton = menu.getByRole('button', {
+      name: 'Open Search',
+      exact: true,
+    })
     await expect(docsLink).toBeVisible()
     await expect(playgroundLink).toBeVisible()
+    await expect(searchButton).toBeVisible()
     await expect(githubLink).toHaveAttribute('target', '_blank')
     expect((await githubLink.getAttribute('rel'))?.split(/\s+/).sort()).toEqual(
       ['noopener', 'noreferrer']
     )
+    await searchButton.click()
+    const searchDialog = page.getByRole('dialog')
+    await expect(searchDialog).toBeVisible()
+    await expect(searchDialog.getByRole('textbox')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(searchDialog).toBeHidden()
     await expectVisibleTouchTargets(page)
     await expectNoDocumentOverflow(page)
   })
