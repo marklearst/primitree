@@ -161,6 +161,181 @@ function registryConfigResult(args, options = {}) {
   return undefined
 }
 
+const PACKED_CLI_BUILD_FILES = [
+  ['.primitree-manifest.json', '{"files":[]}\n'],
+  ['css/tokens.css', ':root {}\n'],
+  ['css/tokens.tailwind.css', '@theme {}\n'],
+  ['tokens/source.tokens.json', '{}\n'],
+  ['tokens/tokens.resolver.json', '{}\n'],
+  ['ts/tokens.ts', 'export {}\n'],
+]
+
+function writePackedCliBuildFiles(directory) {
+  for (const [relativePath, contents] of PACKED_CLI_BUILD_FILES) {
+    const filePath = path.join(directory, relativePath)
+    mkdirSync(path.dirname(filePath), { recursive: true })
+    writeFileSync(filePath, contents)
+  }
+}
+
+function packedCliUserPathResult(
+  command,
+  args,
+  options,
+  { onBuildCheck = () => {}, onCliCall = () => {} } = {}
+) {
+  if (!command.endsWith('/node_modules/.bin/primitree')) return undefined
+  onCliCall(args, options)
+  if (args[0] === 'check') {
+    return {
+      status: 0,
+      stdout: `${JSON.stringify({
+        schemaVersion: 1,
+        command: 'check',
+        source: 'brand',
+        summary: { active: 0, baseline: 0 },
+        findings: [],
+      })}\n`,
+      stderr: '',
+    }
+  }
+  if (args[0] === 'inspect') {
+    const reports = {
+      'semantic.motion.control': {
+        type: 'duration',
+        value: { value: 0.2, unit: 's' },
+        chain: [
+          'semantic.motion.control',
+          'semantic.motion.quick',
+          'base.motion.quick',
+        ],
+      },
+      'semantic.type.body': {
+        type: 'fontFamily',
+        value: ['Atkinson Hyperlegible', 'sans-serif'],
+        chain: [
+          'semantic.type.body',
+          'semantic.type.family',
+          'base.type.family',
+        ],
+      },
+      'semantic.type.emphasis': {
+        type: 'fontWeight',
+        value: 650.5,
+        chain: [
+          'semantic.type.emphasis',
+          'semantic.type.weight',
+          'base.type.weight',
+        ],
+      },
+    }
+    const report = reports[args[1]]
+    assert.ok(report)
+    return {
+      status: 0,
+      stdout: `${JSON.stringify({
+        schemaVersion: 1,
+        command: 'inspect',
+        source: 'brand',
+        token: { path: args[1].split('.'), type: report.type },
+        resolvedValue: report.value,
+        aliasChain: report.chain.map(tokenPath => ({
+          path: tokenPath.split('.'),
+        })),
+      })}\n`,
+      stderr: '',
+    }
+  }
+  if (args[0] === 'diff') {
+    return {
+      status: 0,
+      stdout: `${JSON.stringify({
+        schemaVersion: 1,
+        command: 'diff',
+        source: 'brand',
+        changes: [
+          {
+            kind: 'changed',
+            token: { path: ['base', 'motion', 'quick'] },
+            impacted: [
+              { path: ['semantic', 'motion', 'quick'] },
+              { path: ['semantic', 'motion', 'control'] },
+            ],
+          },
+          {
+            kind: 'changed',
+            token: { path: ['base', 'type', 'family'] },
+            impacted: [
+              { path: ['semantic', 'type', 'family'] },
+              { path: ['semantic', 'type', 'body'] },
+            ],
+          },
+          {
+            kind: 'changed',
+            token: { path: ['base', 'type', 'weight'] },
+            impacted: [
+              { path: ['semantic', 'type', 'weight'] },
+              { path: ['semantic', 'type', 'emphasis'] },
+            ],
+          },
+        ],
+        findings: { added: [], resolved: [] },
+      })}\n`,
+      stderr: '',
+    }
+  }
+  if (args[0] === 'build') {
+    const generatedDirectory = path.join(options.cwd, 'generated')
+    if (args.includes('--check')) {
+      onBuildCheck(generatedDirectory)
+    } else {
+      writePackedCliBuildFiles(generatedDirectory)
+    }
+  }
+  return { status: 0, stdout: '', stderr: '' }
+}
+
+function assertPackedCliBuildCheckFailure(onBuildCheck, expectedError) {
+  const fixture = fixtureArtifacts()
+  try {
+    assert.throws(
+      () =>
+        runPackedCliTarballConsumer({
+          artifactDirectory: fixture.directory,
+          runCommand(command, args, options = {}) {
+            const configResult = registryConfigResult(args, options)
+            if (configResult !== undefined) return configResult
+            if (command === 'npm' && args[0] === 'install') {
+              for (const name of [
+                '@primitree/core',
+                '@primitree/dtcg',
+                '@primitree/cli',
+              ]) {
+                const packageDirectory = path.join(
+                  options.cwd,
+                  'node_modules',
+                  ...name.split('/')
+                )
+                mkdirSync(packageDirectory, { recursive: true })
+                writeFileSync(
+                  path.join(packageDirectory, 'package.json'),
+                  `${JSON.stringify({ name, version: VERSION })}\n`
+                )
+              }
+            }
+            const cliResult = packedCliUserPathResult(command, args, options, {
+              onBuildCheck,
+            })
+            return cliResult ?? { status: 0, stdout: '', stderr: '' }
+          },
+        }),
+      expectedError
+    )
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+}
+
 test('requires the exact npm release version', () => {
   assert.equal(REQUIRED_NPM_VERSION, '11.18.0')
   assert.doesNotThrow(() => assertNpmVersion('11.18.0\n'))
@@ -1091,6 +1266,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
   const seenOptions = []
   let npmrcPath
   let globalNpmrcPath
+  let configuredCliDirectory
   try {
     const result = runPackedTarballConsumer({
       artifactDirectory: fixture.directory,
@@ -1152,107 +1328,24 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
             }
           }
         }
-        if (command.endsWith('/node_modules/.bin/primitree')) {
-          if (args[0] === 'check') {
-            return {
-              status: 0,
-              stdout: `${JSON.stringify({
-                schemaVersion: 1,
-                command: 'check',
-                source: 'brand',
-                summary: { active: 0, baseline: 0 },
-                findings: [],
-              })}\n`,
-              stderr: '',
+        const cliResult = packedCliUserPathResult(command, args, options, {
+          onCliCall(cliArgs, cliOptions) {
+            if (cliArgs[0] === 'check' && cliArgs.includes('--config')) {
+              configuredCliDirectory = cliOptions.cwd
             }
-          }
-          if (args[0] === 'inspect') {
-            const reports = {
-              'semantic.motion.control': {
-                type: 'duration',
-                value: { value: 0.2, unit: 's' },
-                chain: [
-                  'semantic.motion.control',
-                  'semantic.motion.quick',
-                  'base.motion.quick',
-                ],
-              },
-              'semantic.type.body': {
-                type: 'fontFamily',
-                value: ['Atkinson Hyperlegible', 'sans-serif'],
-                chain: [
-                  'semantic.type.body',
-                  'semantic.type.family',
-                  'base.type.family',
-                ],
-              },
-              'semantic.type.emphasis': {
-                type: 'fontWeight',
-                value: 650.5,
-                chain: [
-                  'semantic.type.emphasis',
-                  'semantic.type.weight',
-                  'base.type.weight',
-                ],
-              },
+            if (cliArgs[0] === 'build') {
+              assert.equal(cliOptions.cwd, configuredCliDirectory)
+              assert.match(
+                readFileSync(
+                  path.join(cliOptions.cwd, 'primitree.config.ts'),
+                  'utf8'
+                ),
+                /outputs: \{\n        directory: '\.\/generated',\n        formats: \['dtcg', 'css', 'typescript', 'tailwind'\],/u
+              )
             }
-            const report = reports[args[1]]
-            assert.ok(report)
-            return {
-              status: 0,
-              stdout: `${JSON.stringify({
-                schemaVersion: 1,
-                command: 'inspect',
-                source: 'brand',
-                token: { path: args[1].split('.'), type: report.type },
-                resolvedValue: report.value,
-                aliasChain: report.chain.map(tokenPath => ({
-                  path: tokenPath.split('.'),
-                })),
-              })}\n`,
-              stderr: '',
-            }
-          }
-          if (args[0] === 'diff') {
-            return {
-              status: 0,
-              stdout: `${JSON.stringify({
-                schemaVersion: 1,
-                command: 'diff',
-                source: 'brand',
-                changes: [
-                  {
-                    kind: 'changed',
-                    token: { path: ['base', 'motion', 'quick'] },
-                    impacted: [
-                      { path: ['semantic', 'motion', 'quick'] },
-                      { path: ['semantic', 'motion', 'control'] },
-                    ],
-                  },
-                  {
-                    kind: 'changed',
-                    token: { path: ['base', 'type', 'family'] },
-                    impacted: [
-                      { path: ['semantic', 'type', 'family'] },
-                      { path: ['semantic', 'type', 'body'] },
-                    ],
-                  },
-                  {
-                    kind: 'changed',
-                    token: { path: ['base', 'type', 'weight'] },
-                    impacted: [
-                      { path: ['semantic', 'type', 'weight'] },
-                      { path: ['semantic', 'type', 'emphasis'] },
-                    ],
-                  },
-                ],
-                findings: { added: [], resolved: [] },
-              })}\n`,
-              stderr: '',
-            }
-          }
-        }
-        return { status: 0, stdout: '', stderr: '' }
+          },
+        })
+        return cliResult ?? { status: 0, stdout: '', stderr: '' }
       },
     })
 
@@ -1397,6 +1490,15 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
           '--format',
           'json',
         ],
+        ['build', '--config', 'primitree.config.ts', '--source', 'brand'],
+        [
+          'build',
+          '--check',
+          '--config',
+          'primitree.config.ts',
+          '--source',
+          'brand',
+        ],
         ['--help'],
         ['check', '--format', 'json'],
       ]
@@ -1417,6 +1519,21 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true })
   }
+})
+
+test('fails packed CLI checks that change generated paths', () => {
+  assertPackedCliBuildCheckFailure(generatedDirectory => {
+    writeFileSync(path.join(generatedDirectory, 'unexpected.txt'), 'changed\n')
+  }, /packed primitree build --check changed the output files/u)
+})
+
+test('fails packed CLI checks that change generated bytes', () => {
+  assertPackedCliBuildCheckFailure(generatedDirectory => {
+    writeFileSync(
+      path.join(generatedDirectory, 'css', 'tokens.css'),
+      'changed\n'
+    )
+  }, /packed primitree build --check changed output file: css\/tokens\.css/u)
 })
 
 test('creates a hermetic public-registry consumer with exact installs and signature audit', async () => {
