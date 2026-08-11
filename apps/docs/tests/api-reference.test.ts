@@ -26,10 +26,12 @@ test('TypeDoc resolves workspace imports from source', async () => {
   assert.equal(config.compilerOptions.baseUrl, undefined)
   assert.deepEqual(config.compilerOptions.paths, {
     '@primitree/core': ['../../packages/core/src/index.ts'],
+    '@primitree/core/policy': ['../../packages/core/src/policy/index.ts'],
     '@primitree/core/types': ['../../packages/core/src/types/index.ts'],
     '@primitree/dtcg': ['../../packages/dtcg/src/index.ts'],
   })
   assert.deepEqual(config.include, [
+    '../../packages/cli/src/config.ts',
     '../../packages/core/src',
     '../../packages/dtcg/src',
     '../../packages/hooks/src',
@@ -60,7 +62,7 @@ test('docs and release scripts run the prose checks at the right build boundary'
   assert.ok(turbo.tasks.build.outputs.includes('content/docs/api/**'))
 })
 
-test('API reference generation writes the four public modules and an index', async () => {
+test('API reference generation writes the seven public entry points and an index', async () => {
   const outputDirectory = await mkdtemp(
     path.join(tmpdir(), 'primitree-api-reference-')
   )
@@ -70,6 +72,9 @@ test('API reference generation writes the four public modules and an index', asy
     await generateApiReference({ outputDirectory })
 
     assert.deepEqual((await readdir(outputDirectory)).sort(), [
+      'cli-config.mdx',
+      'core-policy.mdx',
+      'core-types.mdx',
       'core.mdx',
       'dtcg.mdx',
       'hooks.mdx',
@@ -87,7 +92,10 @@ test('API reference generation writes the four public modules and an index', asy
     })
 
     const expectedExports = {
+      'cli-config.mdx': 'defineConfig',
       'core.mdx': 'normalizeVariables',
+      'core-policy.mdx': 'createPolicy',
+      'core-types.mdx': 'FigmaVariable',
       'dtcg.mdx': 'toDTCG',
       'hooks.mdx': 'TokensProvider',
       'mcp.mdx': 'createServer',
@@ -113,8 +121,13 @@ test('API reference generation writes the four public modules and an index', asy
       index,
       /^description: "Functions and types from the Primitree packages\."$/mu
     )
-    assert.match(index, /\[Core API\]\(\.\/core\)/u)
-    assert.match(index, /\[MCP API\]\(\.\/mcp\)/u)
+    assert.match(index, /\[Core API\]\(\/docs\/api\/core\)/u)
+    assert.match(index, /\[Core policy API\]\(\/docs\/api\/core-policy\)/u)
+    assert.match(index, /\[Core types API\]\(\/docs\/api\/core-types\)/u)
+    assert.match(index, /\[CLI config API\]\(\/docs\/api\/cli-config\)/u)
+    assert.match(index, /\[DTCG API\]\(\/docs\/api\/dtcg\)/u)
+    assert.match(index, /\[React hooks API\]\(\/docs\/api\/hooks\)/u)
+    assert.match(index, /\[MCP API\]\(\/docs\/api\/mcp\)/u)
 
     const hooks = await readFile(
       path.join(outputDirectory, 'hooks.mdx'),
@@ -125,8 +138,28 @@ test('API reference generation writes the four public modules and an index', asy
       hooks,
       /^description: "@primitree\/hooks React providers and hooks\."$/mu
     )
-    assert.match(hooks, /\]\(\.\/core#[^)]+\)/u)
-    assert.match(hooks, /\]\(\.\/dtcg#[^)]+\)/u)
+    assert.match(hooks, /\]\(\/docs\/api\/core#[^)]+\)/u)
+    assert.match(hooks, /\]\(\/docs\/api\/dtcg#[^)]+\)/u)
+    assert.match(
+      hooks,
+      /Re-exports \[ResolvedType\]\(\/docs\/api\/core#resolvedtype-6\)/u
+    )
+
+    const cliConfig = await readFile(
+      path.join(outputDirectory, 'cli-config.mdx'),
+      'utf8'
+    )
+    assert.match(cliConfig, /\]\(\/docs\/api\/core-policy#[^)]+\)/u)
+
+    const corePolicy = await readFile(
+      path.join(outputDirectory, 'core-policy.mdx'),
+      'utf8'
+    )
+    assert.match(
+      corePolicy,
+      /^description: "Governance policy functions and types from @primitree\/core\/policy\."$/mu
+    )
+    assert.match(corePolicy, /\[`TokenId`\]\(\/docs\/api\/core#tokenid-5\)/u)
 
     const dtcg = await readFile(path.join(outputDirectory, 'dtcg.mdx'), 'utf8')
     assert.match(dtcg, /\bcreateDTCGGraphFragment\b/u)
