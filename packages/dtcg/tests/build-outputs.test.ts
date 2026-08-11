@@ -235,6 +235,25 @@ describe('buildDTCGOutputs', () => {
     ).toThrow(`Unsafe DTCG token file path: "${fileName}".`)
   })
 
+  it.each([
+    'CON.tokens.json',
+    'nested/COM¹.tokens.json',
+    'nested/name:stream.tokens.json',
+    'nested/trailing.',
+    'nested/trailing ',
+    'nested/question?.tokens.json',
+  ])('rejects the Windows-incompatible token path %s', fileName => {
+    expect(() =>
+      buildDTCGOutputs({
+        ...input,
+        files: {
+          'brand.tokens.json': document,
+          [fileName]: document,
+        },
+      })
+    ).toThrow(`Unsafe DTCG token file path: "${fileName}".`)
+  })
+
   it('requires the Resolver file name to be a basename', () => {
     expect(() =>
       buildDTCGOutputs({
@@ -242,6 +261,15 @@ describe('buildDTCGOutputs', () => {
         resolverFileName: 'config/tokens.resolver.json',
       })
     ).toThrow('The DTCG Resolver file name cannot contain path segments.')
+  })
+
+  it('rejects a Windows-reserved Resolver file name', () => {
+    expect(() =>
+      buildDTCGOutputs({
+        ...input,
+        resolverFileName: 'CON.tokens.json',
+      })
+    ).toThrow('Unsafe DTCG Resolver file path: "CON.tokens.json".')
   })
 
   it('rejects token and Resolver paths that collide by case', () => {
@@ -254,6 +282,26 @@ describe('buildDTCGOutputs', () => {
       'DTCG output paths collide: "TOKENS.RESOLVER.JSON" and "tokens.resolver.json".'
     )
   })
+
+  it.each([
+    ['parent', ['themes', 'THEMES/dark.tokens.json']],
+    ['child', ['THEMES/dark.tokens.json', 'themes']],
+  ])(
+    'rejects a file and directory output collision when the %s comes first',
+    (_first, names) => {
+      expect(() =>
+        buildDTCGOutputs({
+          ...input,
+          files: Object.fromEntries([
+            ['brand.tokens.json', document],
+            ...names.map(name => [name, document]),
+          ]) as Record<string, DTCGDocument>,
+        })
+      ).toThrow(
+        'DTCG output paths collide: "themes" and "THEMES/dark.tokens.json".'
+      )
+    }
+  )
 
   it('does not change the checked input', () => {
     const frozen = Object.freeze({
