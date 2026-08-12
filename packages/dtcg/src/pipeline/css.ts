@@ -83,14 +83,19 @@ function escapeCssCustomPropertySegment(segment: string): string {
   return result
 }
 
-function quoteCssString(value: string): string {
+function isCssTextRepresentable(value: string): boolean {
+  return !value.includes('\u0000') && !hasLoneUtf16Surrogate(value)
+}
+
+function quoteCssString(value: string): string | null {
+  if (!isCssTextRepresentable(value)) {
+    return null
+  }
   let result = "'"
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index)
     const character = value[index] as string
-    if (code === 0) {
-      result += '\\fffd '
-    } else if (code <= 0x1f || code === 0x7f) {
+    if (code <= 0x1f || code === 0x7f) {
       result += `\\${code.toString(16)} `
     } else if (character === "'" || character === '\\') {
       result += `\\${character}`
@@ -101,7 +106,7 @@ function quoteCssString(value: string): string {
   return `${result}'`
 }
 
-function cssTextValue(value: string): string {
+function cssTextValue(value: string): string | null {
   return /^-?[a-zA-Z_][a-zA-Z0-9_-]*$/u.test(value) &&
     !CSS_WIDE_KEYWORDS.has(value.toLowerCase())
     ? value
@@ -251,7 +256,7 @@ function formatCssValue(
         return String(numericValue)
       }
     }
-    return hasLoneUtf16Surrogate(value) ? null : cssTextValue(value)
+    return cssTextValue(value)
   }
   if (Array.isArray(value)) {
     const curve = formatCssCubicBezier(value)
@@ -264,9 +269,15 @@ function formatCssValue(
     ) {
       return null
     }
-    return value.some(hasLoneUtf16Surrogate)
-      ? null
-      : value.map(cssTextValue).join(', ')
+    const items: string[] = []
+    for (const item of value) {
+      const formatted = cssTextValue(item)
+      if (formatted === null) {
+        return null
+      }
+      items.push(formatted)
+    }
+    return items.join(', ')
   }
   if ('colorSpace' in value) {
     return formatCssColor(value)
@@ -591,8 +602,8 @@ export interface EmitCssOptions {
  * limit counts active Resolver contexts, token merges, value comparisons,
  * declarations, token paths, and token text. The emitter rejects token paths
  * that map to the same CSS custom property name.
- * The emitter also rejects CSS comment terminators in custom banners and lone
- * UTF-16 surrogates in raw CSS text.
+ * The emitter also rejects CSS comment terminators in custom banners, U+0000,
+ * and lone UTF-16 surrogates in raw CSS text.
  *
  * @param files - Token files keyed by their path from the Resolver file.
  * @param resolver - Resolver that selects files and default contexts.
@@ -620,7 +631,7 @@ export function emitCss(
   if (banner.length > MAX_CSS_OUTPUT_BYTES) {
     throw new TypeError(CSS_OUTPUT_LIMIT_MESSAGE)
   }
-  if (hasLoneUtf16Surrogate(banner) || banner.includes('*/')) {
+  if (!isCssTextRepresentable(banner) || banner.includes('*/')) {
     throw new DTCGOutputCapabilityError('css', 'banner', 'string')
   }
 
@@ -671,14 +682,15 @@ export function emitCss(
       .map(([axis, context]) => {
         chargeCssText(axis, budget)
         chargeCssText(context, budget)
-        if (hasLoneUtf16Surrogate(context)) {
+        const quotedContext = quoteCssString(context)
+        if (quotedContext === null) {
           throw new DTCGOutputCapabilityError(
             'css',
             'resolver context',
             'string'
           )
         }
-        return `[${resolverAxisDataAttribute(axis)}=${quoteCssString(context)}]`
+        return `[${resolverAxisDataAttribute(axis)}=${quotedContext}]`
       })
       .join('')
     if (selector.length === 0) {

@@ -30,6 +30,7 @@ const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
 )
 const { files, resolver } = toDTCG(fixture)
+const JSON_NUL = JSON.parse('"\\u0000"') as string
 
 const NON_CSS_FONT_WEIGHT_NAMES = [
   ['thin', 100],
@@ -173,6 +174,22 @@ describe('cssVarName / cssValue', () => {
     expect(cssValue('A)')).toBe("'A)'")
     expect(cssValue('A\u0001B')).toBe("'A\\1 B'")
   })
+
+  it.each([
+    ['string', JSON_NUL, '\ufffd', "'\ufffd'"],
+    [
+      'font family',
+      ['Inter', JSON_NUL],
+      ['Inter', '\ufffd'],
+      "Inter, '\ufffd'",
+    ],
+  ])(
+    'rejects a JSON NUL in a CSS %s value without rejecting U+FFFD',
+    (_label, nulValue, replacementValue, replacementCss) => {
+      expect(cssValue(nulValue)).toBeNull()
+      expect(cssValue(replacementValue)).toBe(replacementCss)
+    }
+  )
 
   it.each([
     'initial',
@@ -415,6 +432,31 @@ describe('emitCss', () => {
     }
   })
 
+  it('rejects a JSON NUL in a Resolver context without rejecting U+FFFD', () => {
+    const emitContext = (context: string) =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [],
+                [context]: [{ value: { $type: 'string', $value: 'selected' } }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+
+    expect(() => emitContext(JSON_NUL)).toThrow(DTCGOutputCapabilityError)
+    const replacementOutput = emitContext('\ufffd')
+    expect(replacementOutput).toContain("[data-theme='\ufffd']")
+    expect(() => parseCss(replacementOutput)).not.toThrow()
+  })
+
   it('keeps valid astral pairs and non-English CSS text intact', () => {
     const output = emitCss(
       {},
@@ -487,6 +529,18 @@ describe('emitCss', () => {
     expect(run).toThrow(
       'The CSS output cannot represent the string value at "banner".'
     )
+  })
+
+  it('rejects a JSON NUL in a custom CSS banner without rejecting U+FFFD', () => {
+    const run = (banner: string) =>
+      emitCss({}, { version: '2025.10', resolutionOrder: [] }, { banner })
+
+    expect(() => run(`Brand ${JSON_NUL} tokens`)).toThrow(
+      DTCGOutputCapabilityError
+    )
+    const replacementOutput = run('Brand \ufffd tokens')
+    expect(replacementOutput).toMatch(/^\/\* Brand \ufffd tokens \*\//u)
+    expect(() => parseCss(replacementOutput)).not.toThrow()
   })
 
   it('rejects a custom CSS banner that closes the header comment', () => {
