@@ -335,6 +335,27 @@ describe('primitree build with a project config', () => {
     expect(console.log).toHaveBeenCalledWith('changed css/tokens.css')
   })
 
+  it('reports a directory at an expected file path without changing it', async () => {
+    const configPath = await writeProject('{size.base}', ['css'])
+    await runBuild(parseArgs(['--config', configPath]))
+    const output = path.join(directory, 'generated')
+    const cssPath = path.join(output, 'css', 'tokens.css')
+    await fs.rm(cssPath)
+    await fs.mkdir(cssPath)
+    const before = await snapshotFiles(output)
+    vi.mocked(console.log).mockClear()
+    process.exitCode = undefined
+
+    await runBuild(parseArgs(['--config', configPath, '--check']))
+
+    expect(process.exitCode).toBe(1)
+    expect(console.log).toHaveBeenCalledWith('missing css/tokens.css')
+    expect(console.log).toHaveBeenCalledWith('unexpected css/tokens.css/')
+    expect((await fs.lstat(cssPath)).isDirectory()).toBe(true)
+    expect(await fs.readdir(cssPath)).toEqual([])
+    expect(await snapshotFiles(output)).toEqual(before)
+  })
+
   it('reports an unexpected file without deleting it in check mode', async () => {
     const configPath = await writeProject()
     await runBuild(parseArgs(['--config', configPath]))
