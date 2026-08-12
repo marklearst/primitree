@@ -22,6 +22,28 @@ const source: TokenSource = {
   variablesJson: fixture,
 }
 
+const namedWeightSource: TokenSource = {
+  files: {
+    'source.tokens.json': {
+      explicitWeight: { $type: 'fontWeight', $value: 'semi-bold' },
+      inheritedWeights: {
+        $type: 'fontWeight',
+        base: { $value: 'semi-bold' },
+      },
+      aliasWeight: { $value: '{inheritedWeights.base}' },
+      stringValue: { $type: 'string', $value: 'semi-bold' },
+    },
+  },
+  resolver: {
+    version: '2025.10',
+    sets: {
+      source: { sources: [{ $ref: 'source.tokens.json' }] },
+    },
+    resolutionOrder: [{ $ref: '#/sets/source' }],
+  },
+  origin: 'test',
+}
+
 describe('listCollections', () => {
   it('lists collection groups with counts and contexts', () => {
     const result = listCollections(source)
@@ -62,6 +84,14 @@ describe('getToken', () => {
   it('reports missing tokens', () => {
     expect(getToken(source, 'nope').found).toBe(false)
   })
+
+  it('formats an explicit named font weight as CSS', () => {
+    expect(getToken(namedWeightSource, 'explicitWeight').css).toBe('600')
+  })
+
+  it('preserves an ordinary string that resembles a font weight', () => {
+    expect(getToken(namedWeightSource, 'stringValue').css).toBe('semi-bold')
+  })
 })
 
 describe('resolveContext', () => {
@@ -83,6 +113,16 @@ describe('resolveContext', () => {
     const result = resolveContext(source, {}, 3)
     expect(result.tokens).toHaveLength(3)
     expect(result.truncated).toBe(true)
+  })
+
+  it('formats a group-inherited named font weight as CSS', () => {
+    const result = resolveContext(namedWeightSource, {})
+
+    expect(result.tokens).toContainEqual({
+      path: 'inheritedWeights.base',
+      type: 'fontWeight',
+      css: '600',
+    })
   })
 
   it('reports group-inherited and alias-inferred token types', () => {
@@ -253,6 +293,16 @@ describe('searchTokens', () => {
     expect(colors.results.every(r => r.type === 'color')).toBe(true)
     const dimensions = searchTokens(source, '', 'dimension')
     expect(dimensions.results.map(r => r.path)).toContain('primitives.space.2')
+  })
+
+  it('formats an alias-inferred named font weight as CSS', () => {
+    expect(searchTokens(namedWeightSource, 'aliasWeight').results).toEqual([
+      {
+        path: 'aliasWeight',
+        type: 'fontWeight',
+        css: '600',
+      },
+    ])
   })
 })
 
