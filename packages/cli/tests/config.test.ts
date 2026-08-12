@@ -450,6 +450,54 @@ describe('loadPrimitreeConfig', () => {
     }
   )
 
+  it.each([
+    ['ASCII', 'a'.repeat(201)],
+    ['multilingual', '界'.repeat(67)],
+  ])(
+    'rejects an output directory name over 200 UTF-8 bytes (%s)',
+    async (_name, outputName) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${outputName}` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" output directory name is 201 UTF-8 bytes; use at most 200 UTF-8 bytes so Primitree can create its lock, staging, and backup paths.'
+      )
+    }
+  )
+
+  it.each([
+    ['ASCII', 'a'.repeat(200)],
+    ['multilingual', `${'界'.repeat(66)}aa`],
+  ])(
+    'accepts an output directory name with exactly 200 UTF-8 bytes (%s)',
+    async (_name, outputName) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${outputName}` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, 'build', outputName)
+      )
+    }
+  )
+
   it('rejects an output directory that contains its source file', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
