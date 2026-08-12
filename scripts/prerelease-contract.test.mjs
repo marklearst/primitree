@@ -15,6 +15,14 @@ const packageNames = [
   '@primitree/mcp',
   'primitree',
 ]
+const packageManifestPaths = [
+  'packages/core/package.json',
+  'packages/dtcg/package.json',
+  'packages/cli/package.json',
+  'packages/hooks/package.json',
+  'packages/mcp/package.json',
+  'packages/primitree/package.json',
+]
 
 function readJson(relativePath) {
   return JSON.parse(readFileSync(new URL(relativePath, root), 'utf8'))
@@ -32,7 +40,7 @@ function readLaunchChangeset() {
   ].map(match => ({ name: match[1], type: match[2] }))
 }
 
-test('coordinates the first next prerelease through Changesets', () => {
+test('coordinates the next prerelease train through Changesets', () => {
   const rootManifest = readJson('package.json')
   const changesets = readJson('.changeset/config.json')
   const prerelease = readJson('.changeset/pre.json')
@@ -42,7 +50,15 @@ test('coordinates the first next prerelease through Changesets', () => {
   assert.deepEqual(changesets.fixed, [packageNames])
   assert.equal(prerelease.mode, 'pre')
   assert.equal(prerelease.tag, 'next')
-  assert.deepEqual(prerelease.changesets, ['primitree-one'])
+  assert.ok(Array.isArray(prerelease.changesets))
+  assert.ok(prerelease.changesets.includes('primitree-one'))
+  assert.equal(
+    new Set(prerelease.changesets).size,
+    prerelease.changesets.length
+  )
+  assert.ok(
+    prerelease.changesets.every(id => typeof id === 'string' && id.length > 0)
+  )
   assert.deepEqual(
     Object.keys(prerelease.initialVersions).sort(),
     [...packageNames].sort()
@@ -52,16 +68,15 @@ test('coordinates the first next prerelease through Changesets', () => {
       version => version === '0.0.0'
     )
   )
-  for (const relativePath of [
-    'packages/core/package.json',
-    'packages/dtcg/package.json',
-    'packages/cli/package.json',
-    'packages/hooks/package.json',
-    'packages/mcp/package.json',
-    'packages/primitree/package.json',
-  ]) {
-    assert.equal(readJson(relativePath).version, '1.0.0-next.0')
-  }
+  const packageVersions = packageManifestPaths.map(
+    relativePath => readJson(relativePath).version
+  )
+  assert.equal(new Set(packageVersions).size, 1)
+  const [version] = packageVersions
+  assert.equal(typeof version, 'string')
+  assert.match(version, /^1\.0\.0-next\.(0|[1-9]\d*)$/u)
+  assert.equal(releaseChannelForVersion(version), 'next')
+  assert.equal(isPrereleaseVersion(version), true)
   assert.deepEqual(
     releases,
     packageNames.map(name => ({ name, type: 'major' }))
