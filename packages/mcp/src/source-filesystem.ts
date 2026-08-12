@@ -271,11 +271,24 @@ export async function inspectSelectedRoot(
   directory: string,
   identity: DirectoryIdentity
 ): Promise<BigIntStats> {
-  const stats = await fs.lstat(directory, { bigint: true })
+  let stats: BigIntStats
+  let realPath: string
+  let statsAfterRealPath: BigIntStats
+  try {
+    stats = await fs.lstat(directory, { bigint: true })
+    realPath = await fs.realpath(directory)
+    statsAfterRealPath = await fs.lstat(directory, { bigint: true })
+  } catch (error) {
+    throw new Error('Token source directory changed while reading: .', {
+      cause: error,
+    })
+  }
   if (
     !stats.isDirectory() ||
     !sameDirectory(identity, stats) ||
-    (await fs.realpath(directory)) !== identity.realPath
+    !statsAfterRealPath.isDirectory() ||
+    !sameDirectory(identity, statsAfterRealPath) ||
+    realPath !== identity.realPath
   ) {
     throw new Error('Token source directory changed while reading: .')
   }

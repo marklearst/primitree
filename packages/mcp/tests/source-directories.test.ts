@@ -342,6 +342,231 @@ describe('loadTokenSource', () => {
     expect(added).toBe(true)
   })
 
+  it('rejects a root Resolver added while reading the fallback source', async () => {
+    const dir = path.join(tmpDir, 'added-root-resolver-build')
+    const tokenDirectory = path.join(dir, 'tokens')
+    const nestedToken = path.join(tokenDirectory, 'source.tokens.json')
+    await fs.mkdir(tokenDirectory, { recursive: true })
+    await fs.writeFile(
+      path.join(tokenDirectory, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(nestedToken, '{}')
+    const open = fs.open.bind(fs)
+    let added = false
+    const openFile = vi
+      .spyOn(fs, 'open')
+      .mockImplementation(async (target, flags, mode) => {
+        const handle = await open(target, flags, mode)
+        if (String(target) === nestedToken && !added) {
+          await fs.writeFile(
+            path.join(dir, 'tokens.resolver.json'),
+            JSON.stringify({ version: '2025.10' })
+          )
+          added = true
+        }
+        return handle
+      })
+
+    try {
+      await expect(loadTokenSource(dir)).rejects.toThrow(
+        'Token source directory changed while reading: .'
+      )
+    } finally {
+      openFile.mockRestore()
+    }
+
+    expect(added).toBe(true)
+  })
+
+  it('rejects the outer source root replaced while reading the fallback', async () => {
+    const dir = path.join(tmpDir, 'replaced-fallback-root-build')
+    const original = `${dir}.original`
+    const replacement = `${dir}.replacement`
+    const tokenDirectory = path.join(dir, 'tokens')
+    const nestedToken = path.join(tokenDirectory, 'source.tokens.json')
+    await fs.mkdir(tokenDirectory, { recursive: true })
+    await fs.writeFile(
+      path.join(tokenDirectory, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(nestedToken, '{}')
+    await fs.mkdir(replacement)
+    const open = fs.open.bind(fs)
+    let swapped = false
+    const openFile = vi
+      .spyOn(fs, 'open')
+      .mockImplementation(async (target, flags, mode) => {
+        const handle = await open(target, flags, mode)
+        if (String(target) === nestedToken && !swapped) {
+          await fs.rename(dir, original)
+          await fs.rename(replacement, dir)
+          swapped = true
+        }
+        return handle
+      })
+
+    try {
+      await expect(loadTokenSource(dir)).rejects.toThrow(
+        'Token source directory changed while reading: .'
+      )
+    } finally {
+      openFile.mockRestore()
+      if (swapped) {
+        await fs.rename(dir, replacement)
+        await fs.rename(original, dir)
+        await fs.rm(replacement, { recursive: true, force: true })
+      }
+    }
+
+    expect(swapped).toBe(true)
+  })
+
+  it('rechecks the outer root after confirming fallback precedence', async () => {
+    const dir = path.join(tmpDir, 'rechecked-fallback-root-build')
+    const original = `${dir}.original`
+    const replacement = `${dir}.replacement`
+    const tokenDirectory = path.join(dir, 'tokens')
+    const rootResolver = path.join(dir, 'tokens.resolver.json')
+    await fs.mkdir(tokenDirectory, { recursive: true })
+    await fs.writeFile(
+      path.join(tokenDirectory, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(path.join(tokenDirectory, 'source.tokens.json'), '{}')
+    await fs.mkdir(replacement)
+    const lstat = fs.lstat.bind(fs)
+    let resolverChecks = 0
+    let swapped = false
+    const inspectPath = vi
+      .spyOn(fs, 'lstat')
+      .mockImplementation(async (target, options) => {
+        if (String(target) === rootResolver) {
+          resolverChecks += 1
+          if (resolverChecks === 2) {
+            await fs.rename(dir, original)
+            await fs.rename(replacement, dir)
+            swapped = true
+          }
+        }
+        return lstat(target, options)
+      })
+
+    try {
+      await expect(loadTokenSource(dir)).rejects.toThrow(
+        'Token source directory changed while reading: .'
+      )
+    } finally {
+      inspectPath.mockRestore()
+      if (swapped) {
+        await fs.rename(dir, replacement)
+        await fs.rename(original, dir)
+        await fs.rm(replacement, { recursive: true, force: true })
+      }
+    }
+
+    expect(resolverChecks).toBe(2)
+    expect(swapped).toBe(true)
+  })
+
+  it('rejects the outer root replaced during the final realpath check', async () => {
+    const dir = path.join(tmpDir, 'realpath-replaced-fallback-root-build')
+    const original = `${dir}.original`
+    const replacement = `${dir}.replacement`
+    const tokenDirectory = path.join(dir, 'tokens')
+    await fs.mkdir(tokenDirectory, { recursive: true })
+    await fs.writeFile(
+      path.join(tokenDirectory, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(path.join(tokenDirectory, 'source.tokens.json'), '{}')
+    await fs.mkdir(replacement)
+    await fs.writeFile(
+      path.join(replacement, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(path.join(replacement, 'root.tokens.json'), '{}')
+    const rootResolver = path.join(dir, 'tokens.resolver.json')
+    const lstat = fs.lstat.bind(fs)
+    const realpath = fs.realpath.bind(fs)
+    let resolverChecks = 0
+    let swapped = false
+    const inspectPath = vi
+      .spyOn(fs, 'lstat')
+      .mockImplementation(async (target, options) => {
+        if (String(target) === rootResolver) {
+          resolverChecks += 1
+        }
+        return lstat(target, options)
+      })
+    const resolvePath = vi
+      .spyOn(fs, 'realpath')
+      .mockImplementation(async target => {
+        if (String(target) === dir && resolverChecks === 2 && !swapped) {
+          await fs.rename(dir, original)
+          await fs.rename(replacement, dir)
+          swapped = true
+        }
+        return realpath(target)
+      })
+
+    try {
+      await expect(loadTokenSource(dir)).rejects.toThrow(
+        'Token source directory changed while reading: .'
+      )
+    } finally {
+      resolvePath.mockRestore()
+      inspectPath.mockRestore()
+      if (swapped) {
+        await fs.rename(dir, replacement)
+        await fs.rename(original, dir)
+        await fs.rm(replacement, { recursive: true, force: true })
+      }
+    }
+
+    expect(resolverChecks).toBe(2)
+    expect(swapped).toBe(true)
+  })
+
+  it('propagates a final fallback Resolver inspection failure', async () => {
+    const dir = path.join(tmpDir, 'fallback-resolver-inspection-build')
+    const tokenDirectory = path.join(dir, 'tokens')
+    const rootResolver = path.join(dir, 'tokens.resolver.json')
+    const failure = Object.assign(
+      new Error('Injected fallback Resolver inspection failure.'),
+      { code: 'EACCES' }
+    )
+    await fs.mkdir(tokenDirectory, { recursive: true })
+    await fs.writeFile(
+      path.join(tokenDirectory, 'tokens.resolver.json'),
+      JSON.stringify({ version: '2025.10' })
+    )
+    await fs.writeFile(path.join(tokenDirectory, 'source.tokens.json'), '{}')
+    const lstat = fs.lstat.bind(fs)
+    let resolverChecks = 0
+    const inspectPath = vi
+      .spyOn(fs, 'lstat')
+      .mockImplementation(async (target, options) => {
+        if (String(target) === rootResolver) {
+          resolverChecks += 1
+          if (resolverChecks === 2) {
+            throw failure
+          }
+        }
+        return lstat(target, options)
+      })
+
+    let caught: unknown
+    try {
+      caught = await loadTokenSource(dir).catch(error => error)
+    } finally {
+      inspectPath.mockRestore()
+    }
+
+    expect(caught).toBe(failure)
+    expect(resolverChecks).toBe(2)
+  })
+
   it('preserves directory guard and close failures', async () => {
     const dir = path.join(tmpDir, 'directory-close-failure-build')
     const nested = path.join(dir, 'themes')

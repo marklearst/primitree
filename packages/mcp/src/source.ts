@@ -105,7 +105,16 @@ export async function loadTokenSource(
     )
   }
 
+  const sourceRealPath = await fs.realpath(resolved)
+  const sourceIdentity: DirectoryIdentity = {
+    dev: stat.dev,
+    ino: stat.ino,
+    realPath: sourceRealPath,
+  }
+  await inspectSelectedRoot(resolved, sourceIdentity)
+
   let dir = resolved
+  let selectedFallback = false
   const resolverDirectoryStats = async (
     d: string
   ): Promise<BigIntStats | null> => {
@@ -141,6 +150,7 @@ export async function loadTokenSource(
     const nestedDirectoryStats = await resolverDirectoryStats(nested)
     if (nestedDirectoryStats !== null) {
       dir = nested
+      selectedFallback = true
       selectedDirectoryStats = nestedDirectoryStats
     } else {
       throw new Error(
@@ -254,5 +264,20 @@ export async function loadTokenSource(
     await verifyReadFile(path.join(dir, relativePath), relativePath, identity)
   }
   await inspectSelectedRoot(dir, rootIdentity)
+  if (selectedFallback) {
+    await inspectSelectedRoot(resolved, sourceIdentity)
+    try {
+      await fs.lstat(path.join(resolved, 'tokens.resolver.json'), {
+        bigint: true,
+      })
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        await inspectSelectedRoot(resolved, sourceIdentity)
+        return { files, resolver, origin: dir }
+      }
+      throw error
+    }
+    throw new Error('Token source directory changed while reading: .')
+  }
   return { files, resolver, origin: dir }
 }
