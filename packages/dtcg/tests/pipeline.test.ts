@@ -340,6 +340,180 @@ describe('emitCss', () => {
     expect(() => parseCss(output)).not.toThrow()
   })
 
+  it.each([
+    ['lone high surrogate', '\ud800'],
+    ['lone low surrogate', '\udc00'],
+  ])('rejects a %s in a Resolver context name', (_label, context) => {
+    const run = () =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ value: { $type: 'string', $value: 'default' } }],
+            },
+          },
+          modifiers: {
+            theme: {
+              default: 'light',
+              contexts: {
+                light: [],
+                [context]: [{ value: { $type: 'string', $value: 'selected' } }],
+              },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/theme' },
+          ],
+        }
+      )
+
+    let failure: unknown
+    try {
+      run()
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({
+      format: 'css',
+      tokenPath: 'resolver context',
+    })
+    expect(failure).toHaveProperty(
+      'message',
+      'The CSS output cannot represent the string value at "resolver context".'
+    )
+  })
+
+  it('rejects distinct Resolver contexts that would collapse to the same UTF-8 replacement bytes', () => {
+    const contexts = ['\ud800', '\ud801']
+    expect(new TextEncoder().encode(contexts[0])).toEqual(
+      new TextEncoder().encode(contexts[1])
+    )
+
+    for (const context of contexts) {
+      expect(() =>
+        emitCss(
+          {},
+          {
+            version: '2025.10',
+            modifiers: {
+              theme: {
+                default: 'light',
+                contexts: {
+                  light: [],
+                  [context]: [{ value: { $type: 'number', $value: 1 } }],
+                },
+              },
+            },
+            resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+          }
+        )
+      ).toThrow(DTCGOutputCapabilityError)
+    }
+  })
+
+  it('keeps valid astral pairs and non-English CSS text intact', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [{ value: { $type: 'string', $value: '日本語 😀' } }],
+          },
+        },
+        modifiers: {
+          '语义😀': {
+            default: '明るい☀️',
+            contexts: {
+              '明るい☀️': [],
+              '暗い🌙': [{ value: { $type: 'string', $value: 'café 🌍' } }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/语义😀' },
+        ],
+      }
+    )
+
+    expect(output).toContain("='暗い🌙']")
+    expect(output).toContain("--value: '日本語 😀';")
+    expect(output).toContain("--value: 'café 🌍';")
+    expect(
+      new TextDecoder('utf-8', { fatal: true }).decode(
+        new TextEncoder().encode(output)
+      )
+    ).toBe(output)
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it.each([
+    ['string', { $type: 'string' as const, $value: '\ud800' }],
+    [
+      'font family',
+      { $type: 'fontFamily' as const, $value: ['Inter', '\udc00'] },
+    ],
+  ])('rejects a lone surrogate in a CSS %s value', (_label, token) => {
+    const run = () =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ value: token }] } },
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      `The CSS output cannot represent the ${token.$type} value at "value".`
+    )
+  })
+
+  it('rejects a lone surrogate in a custom CSS banner', () => {
+    const run = () =>
+      emitCss(
+        {},
+        { version: '2025.10', resolutionOrder: [] },
+        { banner: 'Brand \ud800 tokens' }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The CSS output cannot represent the string value at "banner".'
+    )
+  })
+
+  it('rejects a custom CSS banner that closes the header comment', () => {
+    const run = () =>
+      emitCss(
+        {},
+        { version: '2025.10', resolutionOrder: [] },
+        { banner: 'Brand */\nbody { color: red; }\n/* tokens' }
+      )
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The CSS output cannot represent the string value at "banner".'
+    )
+  })
+
+  it('keeps a safe custom CSS banner valid', () => {
+    const output = emitCss(
+      {},
+      { version: '2025.10', resolutionOrder: [] },
+      { banner: 'Brand / tokens * 2026 😀' }
+    )
+
+    expect(output).toMatch(/^\/\* Brand \/ tokens \* 2026 😀 \*\//u)
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
   it('keeps hyphens in Resolver axis data attributes', () => {
     const output = emitCss(
       {},
@@ -825,6 +999,29 @@ describe('emitCss', () => {
           modifiers: {
             theme: {
               contexts: {
+                [context]: [],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('charges selector text when a context emits no declarations', () => {
+    const context = `mode-${'x'.repeat(220_000)}`
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              default: 'default',
+              contexts: {
+                default: [],
                 [context]: [],
               },
             },

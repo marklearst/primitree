@@ -26,7 +26,7 @@ describe('resolvePreview', () => {
           },
           resolutionOrder: [{ $ref: '#/sets/base' }],
         },
-        resolverFileName: 'resolver.json',
+        resolverFileName: 'tokens.resolver.json',
         warnings: [],
       },
       pipeline: {

@@ -19,6 +19,7 @@ import {
   type ResolverWorkBudget,
   type TypedFlatToken,
 } from '../resolve'
+import { hasLoneUtf16Surrogate } from './unicode'
 
 const CSS_WIDE_KEYWORDS = new Set([
   'initial',
@@ -250,16 +251,22 @@ function formatCssValue(
         return String(numericValue)
       }
     }
-    return cssTextValue(value)
+    return hasLoneUtf16Surrogate(value) ? null : cssTextValue(value)
   }
   if (Array.isArray(value)) {
     const curve = formatCssCubicBezier(value)
     if (curve !== null) {
       return curve
     }
-    return value.length > 0 && value.every(item => typeof item === 'string')
-      ? value.map(cssTextValue).join(', ')
-      : null
+    if (
+      value.length === 0 ||
+      !value.every((item): item is string => typeof item === 'string')
+    ) {
+      return null
+    }
+    return value.some(hasLoneUtf16Surrogate)
+      ? null
+      : value.map(cssTextValue).join(', ')
   }
   if ('colorSpace' in value) {
     return formatCssColor(value)
@@ -584,6 +591,8 @@ export interface EmitCssOptions {
  * limit counts active Resolver contexts, token merges, value comparisons,
  * declarations, token paths, and token text. The emitter rejects token paths
  * that map to the same CSS custom property name.
+ * The emitter also rejects CSS comment terminators in custom banners and lone
+ * UTF-16 surrogates in raw CSS text.
  *
  * @param files - Token files keyed by their path from the Resolver file.
  * @param resolver - Resolver that selects files and default contexts.
@@ -593,7 +602,8 @@ export interface EmitCssOptions {
  * @throws `TypeError` - A call exceeds 1,000 active-context permutations,
  * 1,000,000 work units, 64 token-group levels, or 20 MiB of CSS.
  * @throws {@link DTCGOutputCapabilityError} - The CSS writer cannot format a
- * token value or keep a token path across Resolver states.
+ * token value, custom banner, Resolver context name, or token path across
+ * Resolver states.
  * @throws `Error` - Two token paths map to the same CSS custom property name.
  *
  * @public
@@ -606,6 +616,13 @@ export function emitCss(
   const banner =
     options.banner ??
     '@primitree/dtcg CSS output. :root contains default contexts. Set data attributes to switch themes, for example <html data-semantic="dark">.'
+
+  if (banner.length > MAX_CSS_OUTPUT_BYTES) {
+    throw new TypeError(CSS_OUTPUT_LIMIT_MESSAGE)
+  }
+  if (hasLoneUtf16Surrogate(banner) || banner.includes('*/')) {
+    throw new DTCGOutputCapabilityError('css', 'banner', 'string')
+  }
 
   const lines: string[] = []
   const output: CssOutputState = { bytes: 0 }
@@ -651,10 +668,18 @@ export function emitCss(
       ([axis, context]) => context !== contextStates.defaultSelection[axis]
     )
     const selector = selectedContexts
-      .map(
-        ([axis, context]) =>
-          `[${resolverAxisDataAttribute(axis)}=${quoteCssString(context)}]`
-      )
+      .map(([axis, context]) => {
+        chargeCssText(axis, budget)
+        chargeCssText(context, budget)
+        if (hasLoneUtf16Surrogate(context)) {
+          throw new DTCGOutputCapabilityError(
+            'css',
+            'resolver context',
+            'string'
+          )
+        }
+        return `[${resolverAxisDataAttribute(axis)}=${quoteCssString(context)}]`
+      })
       .join('')
     if (selector.length === 0) {
       continue

@@ -14,6 +14,7 @@ import {
   type DTCGTokenType,
   type DTCGTokenValue,
   type ResolverContextValidation,
+  type ToDTCGResult,
   type TypedFlatToken,
 } from '../src/index'
 
@@ -75,6 +76,20 @@ void curveType
 void curveValue
 
 declare const outputSet: DTCGOutputSet
+const resolverFileName: DTCGOutputSet['resolverFileName'] =
+  'tokens.resolver.json'
+const convertedResolverFileName: ToDTCGResult['resolverFileName'] =
+  'tokens.resolver.json'
+void resolverFileName
+void convertedResolverFileName
+// @ts-expect-error Primitree readers require this Resolver name.
+const customResolverFileName: DTCGOutputSet['resolverFileName'] =
+  'brand.resolver.json'
+// @ts-expect-error Conversion always returns the required Resolver name.
+const customConvertedResolverFileName: ToDTCGResult['resolverFileName'] =
+  'brand.resolver.json'
+void customResolverFileName
+void customConvertedResolverFileName
 const output = buildDTCGOutputs(outputSet, {
   css: true,
   tailwind: true,
