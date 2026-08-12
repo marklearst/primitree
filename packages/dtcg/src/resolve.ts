@@ -21,13 +21,13 @@ export interface FlatToken {
  * lookup.
  *
  * @remarks
- * `type` is `undefined` when the token has no declaration, inherits no group
+ * `type` stays `undefined` when the token has no declaration, inherits no group
  * declaration, and its whole-token alias chain reaches no typed token.
  *
  * @public
  */
 export interface TypedFlatToken extends FlatToken {
-  /** Effective token type, or `undefined` when no type can be found. */
+  /** Effective token type, or `undefined` without a declaration or typed alias. */
   type: DTCGTokenType | undefined
 }
 
@@ -196,7 +196,7 @@ function publicResolverBudget(
  * @param document - Token document to flatten.
  * @returns Tokens with their dot-joined paths and effective types.
  *
- * @throws {@link ReferenceResolutionError} - The document is malformed.
+ * @throws {@link ReferenceResolutionError} - Invalid document structure.
  * @throws `TypeError` - The call exceeds its depth or work limit.
  *
  * @public
