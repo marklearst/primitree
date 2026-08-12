@@ -5,6 +5,7 @@ describe('DTCG graph public API', () => {
     expect(dtcgExports()).toContain('createDTCGGraphFragment')
     expect(dtcgExports()).toContain('buildDTCGOutputs')
     expect(dtcgExports()).toContain('DTCGOutputCapabilityError')
+    expect(dtcgExports()).toContain('typedCssValue')
     expect(dtcgExports()).not.toContain('toGraphFragment')
 
     const result = dtcg.createDTCGGraphFragment(
@@ -17,6 +18,11 @@ describe('DTCG graph public API', () => {
     )
 
     expect(result.ok).toBe(true)
+  })
+
+  it('formats resolved values with their effective token type', () => {
+    expect(dtcg.typedCssValue('semi-bold', 'fontWeight')).toBe('600')
+    expect(dtcg.typedCssValue('semi-bold', 'string')).toBe('semi-bold')
   })
 })
 

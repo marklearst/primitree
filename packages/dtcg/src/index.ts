@@ -32,7 +32,7 @@ export {
   uniqueSlugs,
 } from './naming'
 
-export { emitCss, cssVarName, cssValue } from './pipeline/css'
+export { emitCss, cssVarName, cssValue, typedCssValue } from './pipeline/css'
 export type { EmitCssOptions } from './pipeline/css'
 export { emitTailwind } from './pipeline/tailwind'
 export { emitTypescript } from './pipeline/typescript'

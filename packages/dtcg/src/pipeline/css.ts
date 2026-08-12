@@ -300,6 +300,30 @@ export function cssValue(value: DTCGTokenValue): string | null {
   return formatCssValue(value)
 }
 
+/**
+ * Format a DTCG token value as CSS using its effective token type.
+ *
+ * @remarks
+ * Most token values format the same way regardless of type. DTCG font-weight
+ * names that CSS does not accept need the effective `fontWeight` type to
+ * produce numeric equivalents. The type can come from the token, a parent
+ * group, or an alias target.
+ *
+ * @param value - Resolved token value to format.
+ * @param type - Effective token type after inheritance and alias resolution.
+ * @returns CSS text, or `null` when CSS output cannot represent the value.
+ *
+ * @example
+ * ```ts
+ * const weight = typedCssValue('semi-bold', 'fontWeight')
+ * // weight is "600"
+ *
+ * const label = typedCssValue('semi-bold', 'string')
+ * // label is "semi-bold"
+ * ```
+ *
+ * @public
+ */
 export function typedCssValue(
   value: DTCGTokenValue,
   type: DTCGTokenType | undefined
