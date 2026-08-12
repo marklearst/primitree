@@ -427,7 +427,7 @@ describe('configured build output replacement', () => {
         'brand'
       )
     ).rejects.toThrow(
-      `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${backup}`
+      `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${backup}\nPrimitree could not release the output lock: ${lock}`
     )
 
     expect(cleanupCalls).toEqual(['close', 'remove'])
