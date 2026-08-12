@@ -400,6 +400,32 @@ async function findInterruptedBackups(
   return backups.sort()
 }
 
+async function restorePriorOutput(
+  backup: string,
+  directory: string,
+  operationFailure: unknown
+): Promise<never> {
+  try {
+    await fs.rename(backup, directory)
+  } catch (restoreFailure) {
+    const operationMessage =
+      operationFailure instanceof Error
+        ? operationFailure.message
+        : String(operationFailure)
+    const restoreMessage =
+      restoreFailure instanceof Error
+        ? restoreFailure.message
+        : String(restoreFailure)
+    throw new Error(
+      `${operationMessage}\nPrimitree could not restore the prior build output.\nRestore error: ${restoreMessage}\nCheck this path before running the build again: ${backup}`,
+      {
+        cause: new AggregateError([operationFailure, restoreFailure]),
+      }
+    )
+  }
+  throw operationFailure
+}
+
 function expectedDirectories(paths: readonly string[]): Set<string> {
   const directories = new Set<string>()
   for (const filePath of paths) {
@@ -646,24 +672,14 @@ export async function installBuildOutput(
           await verifyOwnedOutput(backup, sourceId)
         }
       } catch (error) {
-        await fs.rename(backup, directory).catch(() => {
-          throw new Error(
-            `Primitree could not restore the prior build output. Check this path before running the build again: ${backup}`
-          )
-        })
-        throw error
+        return restorePriorOutput(backup, directory, error)
       }
       try {
         await setOutputDirectoryMode(stage, outputMode)
         await fs.rename(stage, directory)
         stageExists = false
       } catch (error) {
-        await fs.rename(backup, directory).catch(() => {
-          throw new Error(
-            `Primitree could not restore the prior build output. Check this path before running the build again: ${backup}`
-          )
-        })
-        throw error
+        return restorePriorOutput(backup, directory, error)
       }
       await fs.rm(backup, { recursive: true }).catch(() => {
         throw new Error(

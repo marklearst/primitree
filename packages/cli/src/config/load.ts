@@ -364,6 +364,7 @@ async function rejectOutputSymlinks(
 }
 
 const MAX_SOURCE_LINKS = 40
+const MAX_SOURCE_PATH_RESOLUTION_CONCURRENCY = 16
 
 async function resolveSourceComparisonPath(
   sourceId: string,
@@ -427,6 +428,58 @@ async function resolveSourceComparisonPath(
   throw new Error(
     `Source "${sourceId}" token file uses too many symbolic links.`
   )
+}
+
+async function resolveSourceComparisonPaths(
+  configDirectory: string,
+  comparisonConfigDirectory: string,
+  sourceFiles: readonly SourceFileEntry[]
+): Promise<readonly SourceFileEntry[]> {
+  const compared = [...sourceFiles]
+  let nextIndex = 0
+  let failed = false
+  let failure: unknown
+  const workers = Array.from(
+    {
+      length: Math.min(
+        MAX_SOURCE_PATH_RESOLUTION_CONCURRENCY,
+        sourceFiles.length
+      ),
+    },
+    async () => {
+      while (!failed && nextIndex < sourceFiles.length) {
+        const index = nextIndex
+        nextIndex += 1
+        const sourceFile = sourceFiles[index]
+        if (sourceFile === undefined) {
+          continue
+        }
+        try {
+          const resolved = await resolveSourceComparisonPath(
+            sourceFile.sourceId,
+            configDirectory,
+            comparisonConfigDirectory,
+            sourceFile.file
+          )
+          compared[index] = {
+            ...sourceFile,
+            comparisonFile: resolved.path,
+            followedLink: resolved.followedLink,
+          }
+        } catch (error) {
+          if (!failed) {
+            failed = true
+            failure = error
+          }
+        }
+      }
+    }
+  )
+  await Promise.all(workers)
+  if (failed) {
+    throw failure
+  }
+  return compared
 }
 
 function resolveSourceFile(
@@ -716,20 +769,10 @@ export async function loadPrimitreeConfig(
   const comparedSourceFiles =
     outputDirectories.length === 0
       ? sourceFiles
-      : await Promise.all(
-          sourceFiles.map(async sourceFile => {
-            const resolved = await resolveSourceComparisonPath(
-              sourceFile.sourceId,
-              configDirectory,
-              comparisonConfigDirectory,
-              sourceFile.file
-            )
-            return {
-              ...sourceFile,
-              comparisonFile: resolved.path,
-              followedLink: resolved.followedLink,
-            }
-          })
+      : await resolveSourceComparisonPaths(
+          configDirectory,
+          comparisonConfigDirectory,
+          sourceFiles
         )
   rejectOverlappingOutputDirectories(configDirectory, outputDirectories)
   rejectReservedOutputPaths(
