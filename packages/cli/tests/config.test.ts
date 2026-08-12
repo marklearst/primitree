@@ -83,47 +83,29 @@ describe('loadConfiguredSourceGraph', () => {
         action: { $type: 'number', $value: '{color.base}' },
       },
     }
-    const replacement = {
-      color: { base: { $type: 'number', $value: 2 } },
-      semantic: {
-        action: { $type: 'number', $value: '{color.base}' },
-      },
-    }
     await fs.writeFile(tokenPath, JSON.stringify(original), 'utf8')
     const stat = fs.stat.bind(fs)
     const open = fs.open.bind(fs)
-    let replaced = false
     let sourceStatCalls = 0
-    const replacePath = async () => {
-      if (replaced) {
-        return
-      }
-      replaced = true
-      await fs.rename(tokenPath, `${tokenPath}.original`)
-      await fs.writeFile(tokenPath, JSON.stringify(replacement), 'utf8')
-    }
-    vi.spyOn(fs, 'stat').mockImplementation(async target => {
-      const stats = await stat(target)
+    let sourceOpenCalls = 0
+    vi.spyOn(fs, 'stat').mockImplementation(async (target, options) => {
+      const stats = await stat(target, options)
       if (String(target) === tokenPath) {
         sourceStatCalls += 1
-        if (!replaced) {
-          await replacePath()
-        }
       }
       return stats
     })
     vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
-      const handle = await open(target, flags, mode)
-      if (!replaced && String(target) === tokenPath) {
-        await replacePath()
+      if (String(target) === tokenPath) {
+        sourceOpenCalls += 1
       }
-      return handle
+      return open(target, flags, mode)
     })
 
     const loaded = await loadConfiguredSourceGraph({ configPath })
 
-    expect(replaced).toBe(true)
-    expect(sourceStatCalls).toBe(0)
+    expect(sourceOpenCalls).toBe(1)
+    expect(sourceStatCalls).toBe(1)
     expect(loaded.document).toEqual(original)
   })
 

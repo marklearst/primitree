@@ -18,6 +18,11 @@ Initial release of `@primitree/cli`.
 - `primitree export` for Enterprise Variables REST API access.
 - Unsafe-path checks for scaffold and generated file writes.
 - Positional input checks reject malformed UTF-8, symbolic links, and special nodes.
+- Configured builds compare regular source files inspected during output-path
+  validation with the files they open. They reject opened-file or
+  configured-path changes during the bounded snapshot read.
+- Built-source scans recheck directory identity after resolving each selected
+  root path.
 - Positional variables JSON can be up to 20 MiB. Built token sources can contain up to 1,000 token files, 100,000 directory entries, and 64 nested directory levels. Each built-source JSON file can be up to 20 MiB, with a 256 MiB combined limit that includes the Resolver.
 - Built sources support nested token files with Resolver-relative paths. Checks warn for tokens without an explicit, inherited, or alias-derived type.
 
