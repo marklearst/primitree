@@ -17,6 +17,8 @@ Initial release of `@primitree/cli`.
 - `primitree init` for token repository scaffolding.
 - `primitree export` for Enterprise Variables REST API access.
 - Unsafe-path checks for scaffold and generated file writes.
+- Portable path checks reject lone UTF-16 surrogates before filesystem encoding
+  can replace them.
 - Positional input checks reject malformed UTF-8, symbolic links, and special nodes.
 - Configured builds compare regular source files inspected during output-path
   validation with the files they open. They reject opened-file or

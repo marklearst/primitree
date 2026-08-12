@@ -503,6 +503,120 @@ describe('loadPrimitreeConfig', () => {
   )
 
   it.each([
+    ['first high', '\ud800'],
+    ['last high', '\udbff'],
+    ['first low', '\udc00'],
+    ['last low', '\udfff'],
+  ])(
+    'rejects an output directory segment with a lone %s UTF-16 surrogate',
+    async (_name, surrogate) => {
+      const directory = await temporaryDirectory()
+      const unsafeSegment = `generated-${surrogate}`
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/${unsafeSegment}` },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
+      )
+    }
+  )
+
+  it.each([
+    ['lowest', '\ud800\udc00'],
+    ['highest', '\udbff\udfff'],
+  ])(
+    'accepts an output directory segment with the %s astral scalar',
+    async (_name, scalar) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: `./build/generated-${scalar}` },
+          },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.outputs?.directory).toBe(
+        path.join(directory, `build/generated-${scalar}`)
+      )
+    }
+  )
+
+  it.each([
+    ['first high', '\ud800'],
+    ['last high', '\udbff'],
+    ['first low', '\udc00'],
+    ['last low', '\udfff'],
+  ])(
+    'rejects a source file segment with a lone %s UTF-16 surrogate',
+    async (_name, surrogate) => {
+      const directory = await temporaryDirectory()
+      const unsafeSegment = `tokens-${surrogate}.json`
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: { ...source, file: `./${unsafeSegment}` },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        'Source "brand" file contains invalid Unicode.'
+      )
+    }
+  )
+
+  it.each([
+    ['lowest', '\ud800\udc00'],
+    ['highest', '\udbff\udfff'],
+  ])(
+    'accepts a source file segment with the %s astral scalar',
+    async (_name, scalar) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: { ...source, file: `./tokens-${scalar}.json` },
+        },
+      })
+
+      const loaded = await loadPrimitreeConfig({ configPath })
+
+      expect(loaded.sources.brand?.file).toBe(
+        path.join(directory, `tokens-${scalar}.json`)
+      )
+    }
+  )
+
+  it('rejects a lone surrogate before output containment comparison', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        brand: {
+          ...source,
+          file: './generated-\ud800/tokens.json',
+          outputs: { directory: './generated-\ufffd' },
+        },
+      },
+    })
+
+    await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+      'Source "brand" file contains invalid Unicode.'
+    )
+  })
+
+  it.each([
     ['ASCII', 'a'.repeat(201)],
     ['multilingual', '界'.repeat(67)],
   ])(
