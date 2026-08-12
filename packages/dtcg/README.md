@@ -159,9 +159,12 @@ limit counts Resolver reads and token merges.
 CSS output reads up to 64 token-group levels and returns up to 20 MiB. Its
 1,000,000-unit work limit counts Resolver reads, token merges, value comparisons,
 declarations, token paths, and token text. CSS strings and selectors escape text
-that would break the file. CSS and TypeScript output reject token paths that map
-to the same CSS custom property name. Tailwind applies the same check to the
-values it emits.
+that would break the file. CSS and Tailwind custom property names keep
+non-ASCII token text. TypeScript accessors use the same CSS names. CSS and
+TypeScript output reject token paths that map to the same CSS custom property
+name. Tailwind applies the same check to the values it emits. Tailwind reads at
+most 64 token-group levels and 100,000 items. Its 1,000,000-unit work limit
+counts Resolver reads and token merges.
 
 Use `buildPipeline` when the input is a Figma variables response:
 

@@ -25,14 +25,21 @@ const CSS_WIDE_KEYWORDS = new Set([
   'revert-layer',
 ])
 
-/** Convert a dot path to a CSS custom property name. @public */
+/**
+ * Convert a dot path to a CSS custom property name.
+ *
+ * Non-ASCII characters remain in the name.
+ *
+ * @public
+ */
 export function cssVarName(path: string): string {
   return `--${path
     .split('.')
     .map(segment =>
       segment
         .trim()
-        .replace(/[^a-zA-Z0-9-]+/g, '-')
+        .normalize('NFC')
+        .replace(/[^a-zA-Z0-9\u0080-\u{10FFFF}-]+/gu, '-')
         .replace(/^-+|-+$/g, '')
         .toLowerCase()
     )

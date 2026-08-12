@@ -6,8 +6,8 @@ import type {
   ResolverDocument,
 } from '../types'
 import { isReferenceValue, isToken } from '../types'
-import { applyResolver } from '../resolve'
-import { claimCssVarName } from './css'
+import { applyResolverWithBudget, type ResolverWorkBudget } from '../resolve'
+import { claimCssVarName, cssVarName } from './css'
 
 const NAMESPACE_NOISE: Record<string, Set<string>> = {
   color: new Set(['color', 'colors']),
@@ -26,6 +26,11 @@ interface TypedFlatToken {
 
 const MAX_TAILWIND_GROUP_DEPTH = 64
 const MAX_TAILWIND_ITEMS = 100_000
+const MAX_TAILWIND_WORK = 1_000_000
+const TAILWIND_WORK_LIMIT_MESSAGE =
+  'Tailwind output exceeds the 1,000,000-unit work limit.'
+const TAILWIND_DEPTH_LIMIT_MESSAGE =
+  'Tailwind output can read at most 64 token-group levels.'
 
 function flattenTypedTokens(document: DTCGDocument): TypedFlatToken[] {
   const entries: Array<{
@@ -42,9 +47,7 @@ function flattenTypedTokens(document: DTCGDocument): TypedFlatToken[] {
     depth: number
   ): void {
     if (depth > MAX_TAILWIND_GROUP_DEPTH) {
-      throw new TypeError(
-        'Tailwind output can read at most 64 token-group levels.'
-      )
+      throw new TypeError(TAILWIND_DEPTH_LIMIT_MESSAGE)
     }
     const groupType = Reflect.get(group, '$type')
     const type =
@@ -128,12 +131,7 @@ function tailwindName(path: string, namespace: string): string {
     rest = rest.slice(1)
   }
   const slug = rest
-    .map(s =>
-      s
-        .replace(/[^a-zA-Z0-9-]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase()
-    )
+    .map(segment => cssVarName(segment).slice(2))
     .filter(s => s.length > 0)
     .join('-')
   return slug.length > 0 ? slug : 'default'
@@ -150,13 +148,33 @@ function tailwindName(path: string, namespace: string): string {
  * `--font-*`; `fontWeight` → `--font-weight-*`; `cubicBezier` → `--ease-*`.
  * The emitter skips types without a Tailwind namespace.
  *
+ * One call reads at most 64 token-group levels and 100,000 items. Its
+ * 1,000,000-unit work limit counts Resolver reads and token merges.
+ *
+ * @param files - Token files keyed by their path from the Resolver file.
+ * @param resolver - Resolver that selects files and default contexts.
+ * @returns Tailwind CSS v4 theme variables linked to generated CSS variables.
+ *
+ * @throws `TypeError` - A call exceeds 1,000,000 work units, 64 token-group
+ * levels, or 100,000 items.
+ * @throws `Error` - Two emitted token paths map to the same CSS custom property
+ * name.
+ *
  * @public
  */
 export function emitTailwind(
   files: Record<string, DTCGDocument>,
   resolver: ResolverDocument
 ): string {
-  const flat = flattenTypedTokens(applyResolver(files, resolver))
+  const budget: ResolverWorkBudget = {
+    remaining: MAX_TAILWIND_WORK,
+    errorMessage: TAILWIND_WORK_LIMIT_MESSAGE,
+    maxDepth: MAX_TAILWIND_GROUP_DEPTH,
+    depthErrorMessage: TAILWIND_DEPTH_LIMIT_MESSAGE,
+  }
+  const flat = flattenTypedTokens(
+    applyResolverWithBudget(files, resolver, {}, budget)
+  )
   const cssNames = new Map<string, string>()
   const used = new Set<string>()
   const lines: string[] = [
@@ -197,7 +215,7 @@ export function emitTailwind(
     let name = `--${namespace}-${tailwindName(path, namespace)}`
     if (used.has(name)) {
       const collection = path.split('.')[0] ?? 'tokens'
-      name = `--${namespace}-${collection}-${tailwindName(path, namespace)}`
+      name = `--${namespace}-${cssVarName(collection).slice(2)}-${tailwindName(path, namespace)}`
     }
     if (used.has(name)) {
       const base = name
