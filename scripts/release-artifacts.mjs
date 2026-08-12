@@ -158,7 +158,9 @@ function parseManifest(bytes) {
     typeof manifest.version !== 'string' ||
     !RELEASE_VERSION_PATTERN.test(manifest.version)
   ) {
-    throw new Error('manifest version must use MAJOR.MINOR.PATCH')
+    throw new Error(
+      'manifest version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
+    )
   }
   if (!Array.isArray(manifest.artifacts)) {
     throw new Error('manifest artifacts must be an array')
@@ -173,7 +175,9 @@ function parseManifest(bytes) {
 
 export function expectedArtifacts(version) {
   if (typeof version !== 'string' || !RELEASE_VERSION_PATTERN.test(version)) {
-    throw new Error('release version must use MAJOR.MINOR.PATCH')
+    throw new Error(
+      'release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
+    )
   }
   return PUBLIC_RELEASE_PACKAGES.map(config => ({
     name: config.name,
@@ -365,7 +369,9 @@ function repositoryReleaseVersion() {
     typeof version !== 'string' ||
     !RELEASE_VERSION_PATTERN.test(version)
   ) {
-    throw new Error('public package versions must share one MAJOR.MINOR.PATCH')
+    throw new Error(
+      'public package versions must share one MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
+    )
   }
   return version
 }
@@ -863,12 +869,6 @@ export function verifyReleaseArtifacts({ artifactDirectory } = {}) {
       throw new Error(`unexpected artifact directory entry ${entry.name}`)
     }
   }
-  if (directoryEntries.length !== PUBLIC_RELEASE_PACKAGES.length + 2) {
-    throw new Error(
-      `artifact directory must contain exactly ${expectedEntries.size} entries`
-    )
-  }
-
   if (checksumBytes.toString('utf8') !== canonicalChecksums(artifacts)) {
     throw new Error(
       'SHA256SUMS bytes do not match the required artifact order and format'

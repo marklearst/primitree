@@ -519,7 +519,9 @@ export function validateReleaseManifests(options) {
   if (versions.size !== 1 || typeof version !== 'string') {
     errors.push('all public packages must use one version')
   } else if (!RELEASE_VERSION_PATTERN.test(version)) {
-    errors.push(`package version ${version} must use MAJOR.MINOR.PATCH`)
+    errors.push(
+      `package version ${version} must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N`
+    )
   }
 
   for (const input of privatePackages) {
@@ -564,7 +566,9 @@ export function validateReleaseManifests(options) {
           : tag === null
             ? '<null>'
             : `<${typeof tag}>`
-      errors.push(`release tag ${tagDescription} must use vMAJOR.MINOR.PATCH`)
+      errors.push(
+        `release tag ${tagDescription} must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N`
+      )
     } else if (typeof version === 'string' && tag !== `v${version}`) {
       errors.push(`tag ${tag} does not match package version ${version}`)
     }

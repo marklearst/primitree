@@ -266,7 +266,7 @@ function assertWorkflowTrustPolicy(source) {
       './packages/cli/coverage/lcov.info',
       './packages/hooks/coverage/lcov.info',
       './packages/mcp/coverage/lcov.info',
-    ].join(', '),
+    ].join(','),
     disable_search: true,
     fail_ci_if_error: true,
   })
@@ -1212,11 +1212,11 @@ test('rejects wrong names, license copies, versions, and tags', () => {
         })),
         tag: undefined,
       }),
-    /must use MAJOR\.MINOR\.PATCH/
+    /must use MAJOR\.MINOR\.PATCH or MAJOR\.MINOR\.PATCH-next\.N/
   )
   assert.throws(
     () => validate({ tag: 'release-1.0.0' }),
-    /vMAJOR\.MINOR\.PATCH/
+    /vMAJOR\.MINOR\.PATCH or vMAJOR\.MINOR\.PATCH-next\.N/
   )
   assert.throws(() => validate({ tag: 'v5.0.1' }), /does not match/)
 })
@@ -1439,6 +1439,10 @@ test('runs the focused release workflow helpers in the root test command', () =>
     'node --test scripts/release-publish.test.mjs scripts/github-release.test.mjs'
   )
   assert.match(rootManifest.scripts.test, /pnpm run test:release-workflow/)
+  assert.match(
+    rootManifest.scripts.test,
+    /scripts\/prerelease-contract\.test\.mjs/
+  )
 })
 
 test('versions packages and proves the synchronized lockfile without lifecycle scripts', () => {
@@ -2050,7 +2054,11 @@ test('documents exact contributor and version pull request boundaries', () => {
   )
   assert.match(
     versionPullRequests,
-    /initial `1\.0\.0-next\.0`[\s\S]*reviewed launch changeset/i
+    /launcher pull request[\s\S]*initial versioned release candidate/i
+  )
+  assert.match(
+    versionPullRequests,
+    /no second initial Changesets version[\s\S]*pull request/i
   )
   assert.match(
     versionPullRequests,
@@ -3369,7 +3377,7 @@ test('documents stable and next channels with the exact eight-file artifact boun
   assert.match(semantics, /tag\s+must be the exact version prefixed with `v`/i)
   assert.match(semantics, /`latest` dist-tag/)
   assert.match(semantics, /`-next\.N` use `next`/i)
-  assert.match(semantics, /removes[\s\S]*accidental `latest`/i)
+  assert.match(semantics, /removes[\s\S]*unexpected `latest`/i)
 
   const artifactBoundary = extractMarkdownSection(
     releaseRunbook,

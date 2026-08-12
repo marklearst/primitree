@@ -505,8 +505,14 @@ test('derives the expected artifacts in dependency order', async () => {
           : `primitree-${name.slice('@primitree/'.length)}-1.0.0-next.0.tgz`,
     }))
   )
-  assert.throws(() => expectedArtifacts('v1.0.0'), /MAJOR\.MINOR\.PATCH/)
-  assert.throws(() => expectedArtifacts('1.0.0-beta.1'), /MAJOR\.MINOR\.PATCH/)
+  assert.throws(
+    () => expectedArtifacts('v1.0.0'),
+    /or MAJOR\.MINOR\.PATCH-next\.N/
+  )
+  assert.throws(
+    () => expectedArtifacts('1.0.0-beta.1'),
+    /or MAJOR\.MINOR\.PATCH-next\.N/
+  )
 })
 
 test('constructs stable public npm publish dry-run arguments', async () => {
@@ -914,7 +920,7 @@ test('rejects malformed manifest metadata', async t => {
         f.manifest.version = 5
         f.rewriteManifest()
       },
-      /version.*MAJOR\.MINOR\.PATCH/i,
+      /version.*or MAJOR\.MINOR\.PATCH-next\.N/i,
     ],
     [
       'missing version value',
@@ -922,7 +928,7 @@ test('rejects malformed manifest metadata', async t => {
         f.manifest.version = ''
         f.rewriteManifest()
       },
-      /version.*MAJOR\.MINOR\.PATCH/i,
+      /version.*or MAJOR\.MINOR\.PATCH-next\.N/i,
     ],
     [
       'invalid version',
@@ -930,7 +936,7 @@ test('rejects malformed manifest metadata', async t => {
         f.manifest.version = '5.0'
         f.rewriteManifest()
       },
-      /version.*MAJOR\.MINOR\.PATCH/i,
+      /version.*or MAJOR\.MINOR\.PATCH-next\.N/i,
     ],
     [
       'unsupported prerelease version',
@@ -938,7 +944,7 @@ test('rejects malformed manifest metadata', async t => {
         f.manifest.version = '1.0.0-beta.1'
         f.rewriteManifest()
       },
-      /version.*MAJOR\.MINOR\.PATCH/i,
+      /version.*or MAJOR\.MINOR\.PATCH-next\.N/i,
     ],
     [
       'missing artifacts',

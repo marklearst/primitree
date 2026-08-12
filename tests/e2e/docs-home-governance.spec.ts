@@ -338,6 +338,10 @@ test('forbidden proposal reports the real policy result', async ({ page }) => {
   await expect(proposal).toHaveCount(1)
   await expect(proposal).toHaveAttribute('aria-pressed', 'false')
   await expect(status).toHaveText('PASS · 0 findings')
+  await expect(page.locator('.canopy-root')).toHaveAttribute(
+    'data-stage',
+    'ship'
+  )
 
   await proposal.click()
   await expect(proposal).toHaveAttribute('aria-pressed', 'true')
