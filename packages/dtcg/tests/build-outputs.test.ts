@@ -417,7 +417,7 @@ describe('buildDTCGOutputs', () => {
     ).toThrow('DTCG output summary exceeds the 1,000,000-unit work limit.')
   })
 
-  it('rejects token paths that share one CSS custom property name', () => {
+  it('keeps punctuation token paths distinct in generated output', () => {
     const collidingPaths = {
       theme: {
         'foo bar': {
@@ -431,17 +431,17 @@ describe('buildDTCGOutputs', () => {
       },
     } satisfies DTCGDocument
 
-    expect(() =>
-      buildDTCGOutputs({
-        ...input,
-        files: { 'brand.tokens.json': collidingPaths },
-      })
-    ).toThrow(
-      'DTCG token paths "theme.foo bar" and "theme.foo@bar" both map to CSS custom property "--theme-foo-bar".'
-    )
+    const output = buildDTCGOutputs({
+      ...input,
+      files: { 'brand.tokens.json': collidingPaths },
+    })
+
+    const css = output.files.find(file => file.path === 'css/tokens.css')
+    expect(css?.contents).toContain('--theme-foo_20_bar: 1;')
+    expect(css?.contents).toContain('--theme-foo_40_bar: 2;')
   })
 
-  it('rejects CSS custom property name collisions for Tailwind-only output', () => {
+  it('keeps CSS custom property names distinct for Tailwind-only output', () => {
     const collidingPaths = {
       theme: {
         'foo bar': {
@@ -455,17 +455,19 @@ describe('buildDTCGOutputs', () => {
       },
     } satisfies DTCGDocument
 
-    expect(() =>
-      buildDTCGOutputs(
-        {
-          ...input,
-          files: { 'brand.tokens.json': collidingPaths },
-        },
-        { css: false, tailwind: true, typescript: false }
-      )
-    ).toThrow(
-      'DTCG token paths "theme.foo bar" and "theme.foo@bar" both map to CSS custom property "--theme-foo-bar".'
+    const output = buildDTCGOutputs(
+      {
+        ...input,
+        files: { 'brand.tokens.json': collidingPaths },
+      },
+      { css: false, tailwind: true, typescript: false }
     )
+
+    const tailwind = output.files.find(
+      file => file.path === 'css/tokens.tailwind.css'
+    )
+    expect(tailwind?.contents).toContain('var(--theme-foo_20_bar)')
+    expect(tailwind?.contents).toContain('var(--theme-foo_40_bar)')
   })
 
   it('ignores CSS name collisions for values omitted from Tailwind', () => {
@@ -496,7 +498,7 @@ describe('buildDTCGOutputs', () => {
     ).toContain('@theme inline {\n}')
   })
 
-  it('rejects CSS custom property name collisions for TypeScript-only output', () => {
+  it('keeps CSS custom property names distinct for TypeScript-only output', () => {
     const collidingPaths = {
       theme: {
         'foo bar': {
@@ -510,17 +512,17 @@ describe('buildDTCGOutputs', () => {
       },
     } satisfies DTCGDocument
 
-    expect(() =>
-      buildDTCGOutputs(
-        {
-          ...input,
-          files: { 'brand.tokens.json': collidingPaths },
-        },
-        { css: false, tailwind: false, typescript: true }
-      )
-    ).toThrow(
-      'DTCG token paths "theme.foo bar" and "theme.foo@bar" both map to CSS custom property "--theme-foo-bar".'
+    const output = buildDTCGOutputs(
+      {
+        ...input,
+        files: { 'brand.tokens.json': collidingPaths },
+      },
+      { css: false, tailwind: false, typescript: true }
     )
+
+    const typescript = output.files.find(file => file.path === 'ts/tokens.ts')
+    expect(typescript?.contents).toContain('var(--theme-foo_20_bar)')
+    expect(typescript?.contents).toContain('var(--theme-foo_40_bar)')
   })
 
   it('reports CSS and the token path when output cannot represent a checked value', () => {

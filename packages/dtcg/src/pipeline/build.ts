@@ -102,21 +102,61 @@ const OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE =
 
 interface JsonSortBudget {
   items: number
-  text: number
+  textBytes: number
+}
+
+function utf8ByteLengthWithin(value: string, maxBytes: number): number {
+  if (value.length > maxBytes) {
+    return maxBytes + 1
+  }
+
+  let bytes = 0
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+    if (codeUnit <= 0x7f) {
+      bytes += 1
+    } else if (codeUnit <= 0x7ff) {
+      bytes += 2
+    } else if (
+      codeUnit >= 0xd800 &&
+      codeUnit <= 0xdbff &&
+      index + 1 < value.length
+    ) {
+      const nextCodeUnit = value.charCodeAt(index + 1)
+      if (nextCodeUnit >= 0xdc00 && nextCodeUnit <= 0xdfff) {
+        bytes += 4
+        index += 1
+      } else {
+        bytes += 3
+      }
+    } else {
+      bytes += 3
+    }
+
+    if (bytes > maxBytes) {
+      return maxBytes + 1
+    }
+  }
+  return bytes
 }
 
 function chargeJsonBudget(
   budget: JsonSortBudget,
   items: number,
-  text: number
+  text?: string
 ): void {
   budget.items += items
-  budget.text += text
   if (budget.items > MAX_OUTPUT_JSON_ITEMS) {
     throw new TypeError('DTCG output data can contain at most 100,000 items.')
   }
-  if (budget.text > MAX_OUTPUT_JSON_TEXT) {
-    throw new TypeError('DTCG output text can contain at most 20 MiB.')
+
+  if (text !== undefined) {
+    const remainingBytes = MAX_OUTPUT_JSON_TEXT - budget.textBytes
+    const addedBytes = utf8ByteLengthWithin(text, remainingBytes)
+    if (addedBytes > remainingBytes) {
+      throw new TypeError('DTCG output text can contain at most 20 MiB.')
+    }
+    budget.textBytes += addedBytes
   }
 }
 
@@ -131,7 +171,7 @@ function sortJsonValue(
   if (depth > MAX_OUTPUT_JSON_DEPTH) {
     throw new TypeError('DTCG output data can contain at most 64 levels.')
   }
-  chargeJsonBudget(budget, 1, typeof value === 'string' ? value.length : 0)
+  chargeJsonBudget(budget, 1, typeof value === 'string' ? value : undefined)
   if (value === null || typeof value !== 'object') {
     return value
   }
@@ -159,11 +199,10 @@ function sortJsonValue(
     }
     const sorted = Object.create(null) as Record<string, unknown>
     const keys = Object.keys(value)
-    chargeJsonBudget(
-      budget,
-      keys.length,
-      keys.reduce((total, key) => total + key.length, 0)
-    )
+    chargeJsonBudget(budget, keys.length)
+    for (const key of keys) {
+      chargeJsonBudget(budget, 0, key)
+    }
     const isResolverContextMap =
       preserveResolverContextOrder &&
       path.length === 3 &&
@@ -208,7 +247,7 @@ function serializeSorted(
     null,
     2
   )}\n`
-  if (text.length > MAX_OUTPUT_JSON_TEXT) {
+  if (utf8ByteLengthWithin(text, MAX_OUTPUT_JSON_TEXT) > MAX_OUTPUT_JSON_TEXT) {
     throw new TypeError('A DTCG output file can contain at most 20 MiB.')
   }
   return text
@@ -702,11 +741,13 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
  * limit counts Resolver reads and token merges.
  *
- * CSS output reads at most 64 token-group levels and returns at most 20 MiB.
- * Its 1,000,000-unit work limit counts Resolver reads, token merges, value
- * comparisons, declarations, token paths, and token text. CSS and TypeScript
- * output reject token paths that map to the same CSS custom property name.
- * Tailwind applies the same check to the values it emits.
+ * CSS, Tailwind, and TypeScript read at most 64 token-group levels. Tailwind
+ * reads at most 100,000 items. CSS and TypeScript return at most 20 MiB. Each
+ * output has a 1,000,000-unit work limit. CSS counts Resolver reads, token
+ * merges, value comparisons, declarations, token paths, and token text.
+ * Tailwind counts Resolver reads and token merges. TypeScript also counts
+ * flattening, reference resolution, token paths, sorting, and value
+ * serialization.
  *
  * @param input - Checked token files and their Resolver.
  * @param options - CSS, Tailwind, and TypeScript files to include.
@@ -719,8 +760,9 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * with directory segments, output path collisions, and CSS name collisions.
  *
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
- * The summary and CSS output reject calls above their work or group-depth
- * limits. CSS also rejects text above its limit.
+ * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
+ * their work limits or read more than 64 token-group levels. CSS and TypeScript
+ * reject output above 20 MiB. Tailwind rejects input above 100,000 items.
  *
  * @example
  * ```ts
@@ -761,7 +803,7 @@ export function buildDTCGOutputs(
   validateDTCGOutputPaths(input)
   const files: PipelineFile[] = []
   const tokenFileNames = Object.keys(input.files).sort()
-  const jsonBudget: JsonSortBudget = { items: 0, text: 0 }
+  const jsonBudget: JsonSortBudget = { items: 0, textBytes: 0 }
 
   for (const name of tokenFileNames) {
     const document = input.files[name]

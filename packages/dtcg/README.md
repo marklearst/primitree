@@ -153,18 +153,23 @@ requires a Resolver basename and rejects names that collide after lowercasing
 and Unicode normalization. Its JSON sorter accepts up to 1,000 token files, 64
 levels, 100,000 items, and 20 MiB of names and text values.
 
-The result summary reads up to 64 token-group levels. Its 1,000,000-unit work
-limit counts Resolver reads and token merges.
+The result summary stops at 64 token-group levels and 1,000,000 work units.
+Resolver reads and token merges spend those units. A Resolver can return at
+most 1,000 context permutations. Reading contexts and copying selections has a
+separate 1,000,000-unit work limit.
 
 CSS output reads up to 64 token-group levels and returns up to 20 MiB. Its
 1,000,000-unit work limit counts Resolver reads, token merges, value comparisons,
 declarations, token paths, and token text. CSS strings and selectors escape text
-that would break the file. CSS and Tailwind custom property names keep
-non-ASCII token text. TypeScript accessors use the same CSS names. CSS and
-TypeScript output reject token paths that map to the same CSS custom property
-name. Tailwind applies the same check to the values it emits. Tailwind reads at
-most 64 token-group levels and 100,000 items. Its 1,000,000-unit work limit
-counts Resolver reads and token merges.
+that would break the file. CSS names keep token case and non-ASCII code points. ASCII
+punctuation uses lowercase hex markers, such as `_3f_` for `?`. Tailwind and
+TypeScript references use the same CSS names. Tailwind reads at most 64
+token-group levels and 100,000 items. Its
+1,000,000-unit work limit counts Resolver reads and token merges.
+
+For TypeScript, the limits are 64 token-group levels, 20 MiB of output, and
+1,000,000 work units. Work includes Resolver reads, token merges, token
+flattening, reference resolution, token paths, sorting, and value serialization.
 
 Use `buildPipeline` when the input is a Figma variables response:
 

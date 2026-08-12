@@ -148,6 +148,13 @@ describe('DTCG duration values', () => {
     }
   )
 
+  it('keeps a negative value allowed by DTCG 2025.10', () => {
+    expect(readLiteral('duration', { value: -100, unit: 'ms' })).toEqual({
+      kind: 'literal',
+      value: { value: -100, unit: 'ms' },
+    })
+  })
+
   it.each([
     ['value', { value: '100', unit: 'ms' }, ['token', '$value', 'value']],
     ['unit', { value: 100, unit: 'minutes' }, ['token', '$value', 'unit']],
