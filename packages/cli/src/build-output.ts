@@ -23,6 +23,7 @@ export type BuildOutputState =
 const MAX_OUTPUT_ENTRIES = 100_000
 const MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 const READ_BUFFER_BYTES = 64 * 1024
+const DIRECTORY_PERMISSION_BITS = 0o777
 const WINDOWS_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu
 
 function hasControlText(value: string): boolean {
@@ -61,6 +62,15 @@ function isAlreadyExists(error: unknown): boolean {
     'code' in error &&
     error.code === 'EEXIST'
   )
+}
+
+async function setOutputDirectoryMode(
+  directory: string,
+  mode: number
+): Promise<void> {
+  if (process.platform !== 'win32') {
+    await fs.chmod(directory, mode & DIRECTORY_PERMISSION_BITS)
+  }
 }
 
 function validateBuildFiles(files: readonly PipelineFile[]): void {
@@ -613,6 +623,10 @@ export async function installBuildOutput(
         throw error
       })
       if (stats === undefined) {
+        await setOutputDirectoryMode(
+          stage,
+          DIRECTORY_PERMISSION_BITS & ~process.umask()
+        )
         await fs.rename(stage, directory)
         stageExists = false
         return 'written'
@@ -625,7 +639,9 @@ export async function installBuildOutput(
         `.${name}.primitree-backup-${randomUUID()}`
       )
       await fs.rename(directory, backup)
+      let outputMode: number
       try {
+        outputMode = (await fs.lstat(backup)).mode
         if (!(await isEmptyOutputDirectory(backup))) {
           await verifyOwnedOutput(backup, sourceId)
         }
@@ -638,6 +654,7 @@ export async function installBuildOutput(
         throw error
       }
       try {
+        await setOutputDirectoryMode(stage, outputMode)
         await fs.rename(stage, directory)
         stageExists = false
       } catch (error) {

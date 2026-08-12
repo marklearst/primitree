@@ -261,6 +261,117 @@ describe('loadPrimitreeConfig', () => {
     )
   })
 
+  it.each([
+    [
+      'matching',
+      './generated',
+      './generated',
+      'Source "secondary" output directory "generated" overlaps source "primary" output directory "generated".',
+    ],
+    [
+      'nested',
+      './generated',
+      './generated/secondary',
+      'Source "secondary" output directory "generated/secondary" overlaps source "primary" output directory "generated".',
+    ],
+    [
+      'parent',
+      './generated/primary',
+      './generated',
+      'Source "secondary" output directory "generated" overlaps source "primary" output directory "generated/primary".',
+    ],
+    [
+      'case-insensitive',
+      './Generated',
+      './generated/secondary',
+      'Source "secondary" output directory "generated/secondary" overlaps source "primary" output directory "Generated".',
+    ],
+    [
+      'Unicode-normalized',
+      './généré',
+      './généré/secondary',
+      'Source "secondary" output directory "généré/secondary" overlaps source "primary" output directory "généré".',
+    ],
+    [
+      'Unicode-case',
+      './ΟΣ',
+      './Οσ/secondary',
+      'Source "secondary" output directory "Οσ/secondary" overlaps source "primary" output directory "ΟΣ".',
+    ],
+  ])(
+    'rejects %s output directories across sources',
+    async (_name, primaryDirectory, secondaryDirectory, message) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          primary: {
+            ...source,
+            outputs: { directory: primaryDirectory },
+          },
+          secondary: {
+            ...source,
+            outputs: { directory: secondaryDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
+    }
+  )
+
+  it('allows output directories with matching name prefixes', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: {
+        primary: {
+          ...source,
+          outputs: { directory: './generated' },
+        },
+        secondary: {
+          ...source,
+          outputs: { directory: './generated-copy' },
+        },
+      },
+    })
+
+    const loaded = await loadPrimitreeConfig({ configPath })
+
+    expect(loaded.sources.primary?.outputs?.directory).toBe(
+      path.join(directory, 'generated')
+    )
+    expect(loaded.sources.secondary?.outputs?.directory).toBe(
+      path.join(directory, 'generated-copy')
+    )
+  })
+
+  it('bounds output overlap comparisons as source count grows', async () => {
+    const directory = await temporaryDirectory()
+    const sourceCount = 64
+    const sources = Object.fromEntries(
+      Array.from({ length: sourceCount }, (_, index) => [
+        `source-${index}`,
+        {
+          ...source,
+          outputs: { directory: `./generated/${index}` },
+        },
+      ])
+    )
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources,
+    })
+    const relative = path.relative.bind(path)
+    const relativeCalls = vi
+      .spyOn(path, 'relative')
+      .mockImplementation((from, to) => relative(from, to))
+
+    await expect(loadPrimitreeConfig({ configPath })).resolves.toBeDefined()
+
+    expect(relativeCalls.mock.calls.length).toBeLessThan(sourceCount * 10)
+  })
+
   it('loads the exact default file and resolves source paths from it', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
