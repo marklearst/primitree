@@ -868,6 +868,34 @@ describe('emitCss', () => {
     ).toThrow('CSS output exceeds the 1,000,000-unit work limit.')
   })
 
+  it('does not enumerate unused Resolver modifiers for CSS output', () => {
+    const contexts = Object.fromEntries(
+      Array.from({ length: 32 }, (_, index) => [`unused-${index}`, []])
+    )
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `unused-${index}`,
+        { contexts },
+      ])
+    )
+
+    expect(() =>
+      emitCss(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ accent: { $type: 'color', $value: '#3366ff' } }],
+            },
+          },
+          modifiers,
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).not.toThrow()
+  })
+
   it('stops before CSS output exceeds 20 MiB', () => {
     const banner = 'é'.repeat(10 * 1024 * 1024 + 1)
 
@@ -1036,6 +1064,65 @@ describe('emitCss', () => {
   })
 })
 
+describe('DTCGOutputCapabilityError', () => {
+  it('reports coherent CSS and Tailwind capability failures', () => {
+    expect(
+      new DTCGOutputCapabilityError('css', 'type.family', 'fontFamily')
+    ).toMatchObject({
+      format: 'css',
+      tokenPath: 'type.family',
+      message:
+        'The CSS output cannot represent the fontFamily value at "type.family".',
+    })
+    expect(
+      new DTCGOutputCapabilityError('css', 'branch', 'token', 'token-state')
+    ).toHaveProperty(
+      'message',
+      'The CSS output cannot represent token path "branch" because it changes shape or disappears between Resolver states.'
+    )
+    expect(
+      new DTCGOutputCapabilityError(
+        'tailwind',
+        'theme.accent',
+        'color',
+        'tailwind-namespace'
+      )
+    ).toMatchObject({
+      format: 'tailwind',
+      tokenPath: 'theme.accent',
+      message:
+        'The Tailwind output cannot represent token path "theme.accent" because its theme namespace changes or disappears between Resolver states.',
+    })
+  })
+
+  it.each([
+    ['css', 'tailwind-namespace'],
+    ['tailwind', 'value'],
+    ['tailwind', 'token-state'],
+  ])('rejects the %s format with the %s reason', (format, reason) => {
+    expect(() =>
+      Reflect.construct(DTCGOutputCapabilityError, [
+        format,
+        'theme.accent',
+        'color',
+        reason,
+      ])
+    ).toThrow(
+      `The ${String(reason)} capability reason is not valid for ${String(format)} output.`
+    )
+  })
+
+  it('rejects a Tailwind capability error without a Tailwind reason', () => {
+    expect(() =>
+      Reflect.construct(DTCGOutputCapabilityError, [
+        'tailwind',
+        'theme.accent',
+        'color',
+      ])
+    ).toThrow('The value capability reason is not valid for tailwind output.')
+  })
+})
+
 describe('emitTailwind', () => {
   it('bounds Resolver work before reading the merged token tree', () => {
     const shared = Object.fromEntries(
@@ -1061,6 +1148,322 @@ describe('emitTailwind', () => {
         }
       )
     ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('shares the Tailwind work budget across effective contexts', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [`mode-${index}`, []])
+    )
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: { base: { sources: [{ shared }] } },
+          modifiers: {
+            mode: { default: 'mode-0', contexts },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/base' },
+            { $ref: '#/modifiers/mode' },
+          ],
+        }
+      )
+    ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
+  })
+
+  it('does not apply the effective default context twice', () => {
+    const shared = Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `value-${index}`,
+        { $type: 'color' as const, $value: '#3366ff' },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        { 'shared.tokens.json': { shared } },
+        {
+          version: '2025.10',
+          sets: {
+            repeated: {
+              sources: Array.from({ length: 1_500 }, () => ({
+                $ref: 'shared.tokens.json',
+              })),
+            },
+          },
+          modifiers: {
+            mode: {
+              default: 'only',
+              contexts: { only: [] },
+            },
+          },
+          resolutionOrder: [
+            { $ref: '#/sets/repeated' },
+            { $ref: '#/modifiers/mode' },
+          ],
+        }
+      )
+    ).not.toThrow()
+  })
+
+  it('does not enumerate unused Resolver modifiers for Tailwind output', () => {
+    const contexts = Object.fromEntries(
+      Array.from({ length: 32 }, (_, index) => [`unused-${index}`, []])
+    )
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `unused-${index}`,
+        { contexts },
+      ])
+    )
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            base: {
+              sources: [{ accent: { $type: 'color', $value: '#3366ff' } }],
+            },
+          },
+          modifiers,
+          resolutionOrder: [{ $ref: '#/sets/base' }],
+        }
+      )
+    ).not.toThrow()
+  })
+
+  it.each([
+    {
+      name: 'an unsupported string becomes a color',
+      base: { $type: 'string' as const, $value: 'brand' },
+      override: { $type: 'color' as const, $value: '#3366ff' },
+    },
+    {
+      name: 'a color becomes a dimension',
+      base: { $type: 'color' as const, $value: '#3366ff' },
+      override: {
+        $type: 'dimension' as const,
+        $value: { value: 4, unit: 'px' as const },
+      },
+    },
+  ])('rejects a Resolver context where $name', ({ base, override }) => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: { sources: [{ theme: { value: base } }] },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [{ theme: { value: override } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    const run = () => emitTailwind({}, contextualResolver)
+
+    expect(run).toThrow(DTCGOutputCapabilityError)
+    expect(run).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects context-varying inherited types', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: {
+          sources: [
+            {
+              theme: {
+                $type: 'color' as const,
+                value: { $value: '#3366ff' },
+              },
+            },
+          ],
+        },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [
+              {
+                theme: {
+                  $type: 'dimension' as const,
+                  value: { $value: { value: 4, unit: 'px' as const } },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects context-varying alias-derived types', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      sets: {
+        base: {
+          sources: [
+            {
+              theme: {
+                colorSource: {
+                  $type: 'color' as const,
+                  $value: '#3366ff',
+                },
+                dimensionSource: {
+                  $type: 'dimension' as const,
+                  $value: { value: 4, unit: 'px' as const },
+                },
+                value: { $value: '{theme.colorSource}' },
+              },
+            },
+          ],
+        },
+      },
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [],
+            changed: [
+              {
+                theme: {
+                  value: { $value: '{theme.dimensionSource}' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }, { $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "theme.value" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token that exists only in a non-default context', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [{ label: { $type: 'string' as const, $value: 'brand' } }],
+            changed: [
+              {
+                label: { $type: 'string' as const, $value: 'brand' },
+                accent: { $type: 'color' as const, $value: '#3366ff' },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "accent" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token that disappears in a non-default context', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'base',
+          contexts: {
+            base: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            changed: [{ label: { $type: 'string' as const, $value: 'brand' } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(() => emitTailwind({}, contextualResolver)).toThrow(
+      'The Tailwind output cannot represent token path "accent" because its theme namespace changes or disappears between Resolver states.'
+    )
+  })
+
+  it('rejects a Tailwind token path that becomes a group', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'token',
+          contexts: {
+            token: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            group: [
+              {
+                accent: {
+                  strong: { $type: 'color' as const, $value: '#2244cc' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    let failure: unknown
+    try {
+      emitTailwind({}, contextualResolver)
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeInstanceOf(DTCGOutputCapabilityError)
+    expect(failure).toMatchObject({
+      format: 'tailwind',
+      tokenPath: 'accent',
+    })
+  })
+
+  it('keeps a mapping when every context uses the same Tailwind namespace', () => {
+    const contextualResolver = {
+      version: '2025.10' as const,
+      modifiers: {
+        mode: {
+          default: 'light',
+          contexts: {
+            light: [{ accent: { $type: 'color' as const, $value: '#3366ff' } }],
+            dark: [{ accent: { $type: 'color' as const, $value: '#88aaff' } }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/mode' }],
+    }
+
+    expect(emitTailwind({}, contextualResolver)).toContain(
+      '--color-default: var(--accent);'
+    )
   })
 
   const tailwind = emitTailwind(files, resolver)

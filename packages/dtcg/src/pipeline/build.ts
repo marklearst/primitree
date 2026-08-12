@@ -743,20 +743,23 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
  * limit counts Resolver reads and token merges.
  *
- * CSS, Tailwind, and TypeScript read at most 64 token-group levels and return
- * at most 20 MiB. Tailwind reads at most 100,000 items. Each output has a
- * 1,000,000-unit work limit. CSS counts Resolver reads, token merges, value
- * comparisons, declarations, token paths, and token text. Tailwind counts
- * Resolver reads, token merges, token walking, alias type resolution, token
- * paths, name allocation, and output text. TypeScript also counts flattening,
- * reference resolution, token paths, sorting, and value serialization.
+ * CSS and Tailwind evaluate at most 1,000 active-context permutations. CSS,
+ * Tailwind, and TypeScript read at most 64 token-group levels and return at
+ * most 20 MiB. Tailwind reads at most 100,000 items per context. Each output
+ * has a 1,000,000-unit work limit. CSS counts active Resolver contexts, token
+ * merges, value comparisons, declarations, token paths, and token text.
+ * Tailwind counts active Resolver contexts, token merges, token walking, alias
+ * type resolution, namespace checks, token paths, name allocation, and output
+ * text. TypeScript also counts flattening, reference resolution, token paths,
+ * sorting, and value serialization.
  *
  * @param input - Checked token files and their Resolver.
  * @param options - CSS, Tailwind, and TypeScript files to include.
  * @returns Candidate files, counts, contexts, and an empty warning list.
  *
- * @throws {@link DTCGOutputCapabilityError} - CSS rejects a checked color or
- * font-family value that it cannot represent.
+ * @throws {@link DTCGOutputCapabilityError} - CSS rejects a checked value or
+ * Resolver state that it cannot represent, or a token path changes Tailwind
+ * namespace between Resolver states.
  *
  * @throws `Error` - The builder rejects unsafe file names, a Resolver file name
  * with directory segments, output path collisions, and CSS name collisions.
@@ -764,7 +767,9 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
  * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
  * their work limits or read more than 64 token-group levels. CSS and TypeScript
- * reject output above 20 MiB. Tailwind rejects input above 100,000 items.
+ * reject output above 20 MiB. CSS and Tailwind reject more than 1,000 active
+ * context permutations. Tailwind rejects input above 100,000 items per
+ * context.
  *
  * @example
  * ```ts

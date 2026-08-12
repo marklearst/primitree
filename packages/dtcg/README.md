@@ -164,20 +164,23 @@ fallback when `default` is absent.
 
 The result summary stops at 64 token-group levels and 1,000,000 work units.
 Resolver reads and token merges spend those units. A Resolver can return at
-most 1,000 context permutations. Reading contexts and copying selections has a
-separate 1,000,000-unit work limit.
+most 1,000 context permutations. Reading declared contexts and copying public
+permutations has a separate 1,000,000-unit work limit.
 
 CSS output reads up to 64 token-group levels and returns up to 20 MiB. It writes
 a compound selector when two or more Resolver axes use non-default contexts.
-Its 1,000,000-unit work limit counts Resolver reads, token merges, value
-comparisons, declarations, token paths, and token text. CSS strings and
+Its 1,000,000-unit work limit counts active Resolver contexts, token merges,
+value comparisons, declarations, token paths, and token text. CSS strings and
 selectors escape text that would break the file. CSS names keep
 token case and non-ASCII code points. ASCII punctuation uses lowercase hex
 markers, such as `_3f_` for `?`. Tailwind and TypeScript references use the same
-CSS names. Tailwind reads at most 64 token-group levels and 100,000 items, and
-returns up to 20 MiB. Its
-1,000,000-unit work limit counts Resolver reads, token merges, token walking,
-alias type resolution, token paths, name allocation, and output text.
+CSS names. Tailwind reads at most 64 token-group levels and 100,000 items per
+context, and returns up to 20 MiB. Its
+1,000,000-unit work limit counts active Resolver contexts, token merges, token
+walking, alias type resolution, namespace checks, token paths, name allocation,
+and output text. CSS and Tailwind evaluate at most 1,000 active-context
+permutations. Declared modifiers outside `resolutionOrder` do not affect those
+outputs.
 
 For TypeScript, the limits are 64 token-group levels, 20 MiB of output, and
 1,000,000 work units. Work includes Resolver reads, token merges, token
