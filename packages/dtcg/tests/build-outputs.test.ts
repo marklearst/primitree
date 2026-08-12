@@ -128,6 +128,71 @@ describe('buildDTCGOutputs', () => {
     }
   })
 
+  it('keeps Resolver modifier order when generated output is read again', () => {
+    const modifierInput: DTCGOutputSet = {
+      files: {
+        'base.tokens.json': {
+          color: { $type: 'string', $value: 'base' },
+        },
+        'zebra.tokens.json': {
+          color: { $type: 'string', $value: 'zebra' },
+        },
+        'alpha.tokens.json': {
+          color: { $type: 'string', $value: 'alpha' },
+        },
+      },
+      resolver: {
+        version: '2025.10',
+        sets: {
+          base: { sources: [{ $ref: 'base.tokens.json' }] },
+        },
+        modifiers: {
+          zebra: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ $ref: 'zebra.tokens.json' }],
+            },
+          },
+          alpha: {
+            default: 'off',
+            contexts: {
+              off: [],
+              on: [{ $ref: 'alpha.tokens.json' }],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/zebra' },
+          { $ref: '#/modifiers/alpha' },
+        ],
+      },
+      resolverFileName: 'tokens.resolver.json',
+    }
+    const first = buildDTCGOutputs(modifierInput, {
+      tailwind: false,
+      typescript: false,
+    })
+    const resolverText = first.files.find(
+      file => file.path === 'tokens/tokens.resolver.json'
+    )?.contents
+    const writtenResolver = JSON.parse(resolverText ?? '') as ResolverDocument
+
+    expect(Object.keys(writtenResolver.modifiers ?? {})).toEqual([
+      'zebra',
+      'alpha',
+    ])
+
+    const second = buildDTCGOutputs(
+      { ...modifierInput, resolver: writtenResolver },
+      { tailwind: false, typescript: false }
+    )
+    expect(
+      second.files.find(file => file.path === 'css/tokens.css')?.contents
+    ).toBe(first.files.find(file => file.path === 'css/tokens.css')?.contents)
+  })
+
   it('can emit Tailwind without emitting Primitree CSS', () => {
     const result = buildDTCGOutputs(input, {
       css: false,
