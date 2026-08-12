@@ -14,7 +14,11 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { verifyReleaseArtifacts } from './release-artifacts.mjs'
-import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
+import {
+  PUBLIC_RELEASE_PACKAGES,
+  isPrereleaseVersion,
+  releaseChannelForVersion,
+} from './release-config.mjs'
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org/'
 export const REQUIRED_NPM_VERSION = '11.18.0'
@@ -84,8 +88,10 @@ export function verifyExactMain({
   githubSha,
   runCommand = defaultRunCommand,
 }) {
-  if (!/^refs\/tags\/v\d+\.\d+\.\d+$/.test(githubRef ?? '')) {
-    throw new Error('release ref must be a stable vMAJOR.MINOR.PATCH tag')
+  if (!/^refs\/tags\/v\d+\.\d+\.\d+(?:-next\.\d+)?$/.test(githubRef ?? '')) {
+    throw new Error(
+      'release ref must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N'
+    )
   }
   if (!/^[a-f0-9]{40}$/.test(githubSha ?? '')) {
     throw new Error('GITHUB_SHA must be a full lowercase commit SHA')
@@ -226,12 +232,21 @@ function validateRegistryMetadata({ artifactPath, metadata, expected }) {
     attestations?.provenance,
     `${label}: provenance metadata is invalid`
   )
+  const releaseChannel = releaseChannelForVersion(expected.version)
   complete =
     validateAvailableField(
-      distTags?.latest,
+      distTags?.[releaseChannel],
       expected.version,
-      `${label}: latest dist-tag mismatch`
+      `${label}: ${releaseChannel} dist-tag mismatch`
     ) && complete
+  if (
+    expected.forbidPrereleaseLatest === true &&
+    distTags?.latest === expected.version
+  ) {
+    throw new Error(
+      `${label}: prerelease must not remain on the latest dist-tag`
+    )
+  }
   complete =
     validateAvailableField(
       dist?.integrity,
@@ -492,6 +507,7 @@ async function inspectRegistryPackage({
   runCommand,
   tagRef,
   version,
+  forbidPrereleaseLatest = false,
 }) {
   const result = runCommand(
     'npm',
@@ -516,6 +532,7 @@ async function inspectRegistryPackage({
     tagRef,
     commitSha,
     registry,
+    forbidPrereleaseLatest,
   }
   const metadataState = validateRegistryMetadata({
     artifactPath: artifact.path,
@@ -570,13 +587,13 @@ function requireReleaseContext(version, githubRef, githubSha) {
   }
 }
 
-function publishArguments(artifactPath, registry) {
+export function releasePublishArguments(artifactPath, registry, version) {
   return [
     'publish',
     artifactPath,
     '--provenance',
     '--access=public',
-    '--tag=latest',
+    `--tag=${releaseChannelForVersion(version)}`,
     '--ignore-scripts',
     `--registry=${registry}`,
     '--fetch-retries=0',
@@ -652,7 +669,11 @@ export async function runReleasePublish({
           requireCommandSuccess(
             runCommand(
               'npm',
-              publishArguments(artifact.path, registry),
+              releasePublishArguments(
+                artifact.path,
+                registry,
+                verified.version
+              ),
               commandOptions(commandContext, PUBLISH_COMMAND_TIMEOUT_MS)
             ),
             `npm publish ${artifact.name}@${verified.version}`
@@ -668,6 +689,44 @@ export async function runReleasePublish({
       }
     }
 
+    if (isPrereleaseVersion(verified.version)) {
+      for (const artifact of verified.artifacts) {
+        const state = await inspectRegistryPackage({
+          artifact,
+          commandContext,
+          commitSha: githubSha,
+          fetchJson,
+          registry,
+          runCommand,
+          tagRef: githubRef,
+          version: verified.version,
+        })
+        if (state.kind !== 'present') {
+          throw new Error(
+            `prerelease dist-tag inspection failed for ${artifact.name}: ${state.kind}`
+          )
+        }
+        if (state.metadata?.['dist-tags']?.latest === verified.version) {
+          requireCommandSuccess(
+            runCommand(
+              'npm',
+              [
+                'dist-tag',
+                'rm',
+                artifact.name,
+                'latest',
+                `--registry=${registry}`,
+                '--fetch-retries=0',
+                `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+              ],
+              commandOptions(commandContext)
+            ),
+            `npm dist-tag rm ${artifact.name} latest`
+          )
+        }
+      }
+    }
+
     for (const artifact of verified.artifacts) {
       const state = await inspectRegistryPackage({
         artifact,
@@ -678,6 +737,7 @@ export async function runReleasePublish({
         runCommand,
         tagRef: githubRef,
         version: verified.version,
+        forbidPrereleaseLatest: isPrereleaseVersion(verified.version),
       })
       if (state.kind !== 'present') {
         throw new Error(
@@ -1305,9 +1365,7 @@ export async function runPublicRegistryConsumer({
   registry = PUBLIC_NPM_REGISTRY,
   runCommand = defaultRunCommand,
 }) {
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version ?? '')) {
-    throw new Error('public consumer version must be stable MAJOR.MINOR.PATCH')
-  }
+  releaseChannelForVersion(version)
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,

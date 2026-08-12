@@ -12,7 +12,8 @@ import {
   RELEASE_REPOSITORY_TYPE,
 } from './release-config.mjs'
 
-const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+const RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-next\.(0|[1-9]\d*))?$/
 const EXPECTED_AUTHOR = 'Mark Learst'
 const EXPECTED_LICENSE = 'MIT'
 const FORMER_PACKAGE_SCOPES = ['@figma-vars/', '@figmavars/']
@@ -589,8 +590,8 @@ export function validateWorkspaceRootManifest(manifest) {
       `Workspace root manifest check failed:\n- ${errors.join('\n- ')}`
     )
   }
-  if (manifest.name !== 'primitree') {
-    errors.push('Workspace root must be named primitree')
+  if (manifest.name !== 'primitree-workspace') {
+    errors.push('Workspace root must be named primitree-workspace')
   }
   if (manifest.private !== true) {
     errors.push('Workspace root must be private')

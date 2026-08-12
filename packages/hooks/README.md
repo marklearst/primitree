@@ -10,7 +10,7 @@ React hooks for built design tokens and the Figma Variables REST API.
 </div>
 
 ```sh
-npm install @primitree/hooks react swr
+npm install @primitree/hooks@next react swr
 ```
 
 ## Requirements
@@ -21,7 +21,7 @@ npm install @primitree/hooks react swr
 
 ## Read built tokens
 
-Run `npx @primitree/cli build variables.json`. Pass the generated token
+Run `npx primitree@next build variables.json`. Pass the generated token
 documents and Resolver to `TokensProvider`.
 
 ```tsx
@@ -202,7 +202,7 @@ Replace `@figma-vars/hooks` with `@primitree/hooks` in dependencies and imports.
 The legacy npm package ends at version 4.0.0.
 
 Read the [migration guide](https://primitree.com/docs/hooks/migration) and the
-[1.0.0 changelog](CHANGELOG.md).
+[1.0.0-next.0 changelog](CHANGELOG.md).
 
 ## License
 

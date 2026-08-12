@@ -65,6 +65,10 @@ const v1ReleaseNotesUrl = new URL('../docs/launch/v1.0.0.md', import.meta.url)
 const v1ReleaseNotes = existsSync(v1ReleaseNotesUrl)
   ? readFileSync(v1ReleaseNotesUrl, 'utf8')
   : ''
+const nextReleaseNotes = readFileSync(
+  new URL('../docs/launch/v1.0.0-next.0.md', import.meta.url),
+  'utf8'
+)
 const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
 const releaseRunbook = existsSync(releaseRunbookUrl)
   ? readFileSync(releaseRunbookUrl, 'utf8')
@@ -137,6 +141,7 @@ const RELEASE_PUBLISH_PACKAGES = [
   { name: '@primitree/cli', stem: 'cli' },
   { name: '@primitree/hooks', stem: 'hooks' },
   { name: '@primitree/mcp', stem: 'mcp' },
+  { name: 'primitree', stem: 'primitree' },
 ]
 const TRUST_COMMANDS = RELEASE_PUBLISH_PACKAGES.map(
   ({ name }) =>
@@ -581,6 +586,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       '@primitree/cli',
       '@primitree/hooks',
       '@primitree/mcp',
+      'primitree',
     ]
   )
   assert.deepEqual(
@@ -649,6 +655,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
         requiredBin: 'primitree',
         requiredBinTarget: './dist/index.js',
         exportSignatures: [
+          './bin=./dist/index.js',
           './config:types=./dist/config.d.ts',
           './config:import=./dist/config.js',
         ],
@@ -680,6 +687,15 @@ test('exports one immutable dependency-ordered release inventory', () => {
           '.:import:default=./dist/index.js',
         ],
       },
+      {
+        name: 'primitree',
+        attwProfile: null,
+        requiredFiles: ['bin', 'CHANGELOG.md'],
+        requiredDeclarationFiles: [],
+        requiredBin: 'primitree',
+        requiredBinTarget: './bin/primitree.js',
+        exportSignatures: [],
+      },
     ]
   )
   assert.deepEqual(
@@ -705,6 +721,11 @@ test('exports one immutable dependency-ordered release inventory', () => {
         'packages/mcp',
         'packages/mcp/package.json',
         ['@primitree/core', '@primitree/dtcg'],
+      ],
+      [
+        'packages/primitree',
+        'packages/primitree/package.json',
+        ['@primitree/cli'],
       ],
     ]
   )
@@ -948,16 +969,30 @@ test('requires private workspaces and the workspace root to omit versions', () =
   )
 
   assert.doesNotThrow(() =>
-    validateWorkspaceRootManifest({ name: 'primitree', private: true })
+    validateWorkspaceRootManifest({
+      name: 'primitree-workspace',
+      private: true,
+    })
   )
   assert.throws(
     () =>
       validateWorkspaceRootManifest({
-        name: 'primitree',
+        name: 'primitree-workspace',
         private: true,
         version: '1.0.0',
       }),
     /must not declare a version/
+  )
+})
+
+test('accepts a coordinated next prerelease version and matching tag', () => {
+  const publicPackages = makePublicPackages()
+  for (const pkg of publicPackages) pkg.manifest.version = '1.0.0-next.0'
+
+  assert.doesNotThrow(() => validate({ publicPackages, tag: 'v1.0.0-next.0' }))
+  assert.throws(
+    () => validate({ publicPackages, tag: 'v1.0.0' }),
+    /does not match package version/u
   )
 })
 
@@ -1085,7 +1120,7 @@ test('rejects circular manifest data without recursing forever', () => {
   )
 })
 
-test('rejects missing, duplicate, and sixth public workspaces', () => {
+test('rejects missing, duplicate, and unexpected public workspaces', () => {
   const missing = makePublicPackages().slice(1)
   assert.throws(
     () => validate({ publicPackages: missing }),
@@ -1099,8 +1134,8 @@ test('rejects missing, duplicate, and sixth public workspaces', () => {
     /duplicate public workspace packages\/core\/package\.json/
   )
 
-  const sixth = makePublicPackages()
-  sixth.push({
+  const unexpected = makePublicPackages()
+  unexpected.push({
     path: 'packages/experimental',
     manifestPath: 'packages/experimental/package.json',
     manifest: {
@@ -1111,7 +1146,7 @@ test('rejects missing, duplicate, and sixth public workspaces', () => {
     licenseText,
   })
   assert.throws(
-    () => validate({ publicPackages: sixth }),
+    () => validate({ publicPackages: unexpected }),
     /unexpected public workspace packages\/experimental\/package\.json/
   )
 })
@@ -1295,7 +1330,7 @@ test('repository validation is independent of the process cwd', () => {
     assert.equal(result.status, 0, result.stderr)
     assert.match(
       result.stdout,
-      /Release metadata valid for 5 public packages at 1\.0\.0/
+      /Release metadata valid for 6 public packages at 1\.0\.0-next\.0/
     )
   } finally {
     rmSync(cwd, { recursive: true, force: true })
@@ -1324,8 +1359,10 @@ test('requires Node 24 for the source workspace, public packages, and Node build
     Array(PUBLIC_RELEASE_PACKAGES.length).fill('>=24.0.0')
   )
   assert.deepEqual(
-    publicManifests.map(manifest => manifest.devDependencies?.['@types/node']),
-    Array(PUBLIC_RELEASE_PACKAGES.length).fill('^24.13.3')
+    publicManifests
+      .filter(manifest => manifest.name !== 'primitree')
+      .map(manifest => manifest.devDependencies?.['@types/node']),
+    Array(PUBLIC_RELEASE_PACKAGES.length - 1).fill('^24.13.3')
   )
   assert.match(cliTsupConfig, /target: 'node24'/)
   assert.match(mcpTsupConfig, /target: 'node24'/)
@@ -1800,7 +1837,10 @@ test('builds and uploads one exact release artifact in quality', () => {
     'quality job'
   )
   assert.match(quality, /if: github\.ref_type == 'tag'/)
-  assert.match(quality, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/)
+  assert.match(
+    quality,
+    /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\(-next\\\.\[0-9\]\+\)\?\$/
+  )
   assert.match(quality, /path: packages\/\*\/coverage\//)
   for (const packageName of ['core', 'dtcg', 'cli', 'hooks', 'mcp']) {
     assert.match(
@@ -1952,6 +1992,15 @@ test('keeps reviewed v1 release notes project-focused', () => {
   assert.doesNotMatch(v1ReleaseNotes, /—/)
 })
 
+test('documents the unscoped launcher and next channel in prerelease notes', () => {
+  assert.match(nextReleaseNotes, /^# Primitree 1\.0\.0-next\.0$/m)
+  assert.match(nextReleaseNotes, /npx primitree@next check/)
+  assert.match(nextReleaseNotes, /forwards to `@primitree\/cli`/)
+  assert.match(nextReleaseNotes, /`latest` does not point to the prerelease/)
+  assert.match(nextReleaseNotes, /blob\/v1\.0\.0-next\.0\/README\.md/)
+  assert.doesNotMatch(nextReleaseNotes, /—/)
+})
+
 test('dates public release copy before creating a tag', () => {
   const external = extractMarkdownSection(
     releaseRunbook,
@@ -1959,11 +2008,11 @@ test('dates public release copy before creating a tag', () => {
   )
   const tagPhase = extractMarkdownSection(
     external,
-    '### 5. Tag, publish, and create the GitHub Release'
+    '### 5. Tag, publish, and create the GitHub prerelease'
   )
 
-  assert.match(tagPhase, /five package\s+changelogs/i)
-  assert.match(tagPhase, /`1\.0\.0 \(Unreleased\)`/)
+  assert.match(tagPhase, /all six package changelogs/i)
+  assert.match(tagPhase, /`1\.0\.0-next\.0`/)
   assert.match(tagPhase, /`Status: Released YYYY-MM-DD\.`/)
   assert.match(tagPhase, /tag-mode metadata check rejects[\s\S]*Unreleased/i)
   assert.match(
@@ -2001,13 +2050,16 @@ test('documents exact contributor and version pull request boundaries', () => {
   )
   assert.match(
     versionPullRequests,
-    /initial 1\.0\.0[\s\S]*already carry 1\.0\.0[\s\S]*no pending changeset/i
+    /initial `1\.0\.0-next\.0`[\s\S]*reviewed launch changeset/i
   )
   assert.match(
     versionPullRequests,
-    /do not fabricate[\s\S]*version pull request/i
+    /keep prerelease mode active[\s\S]*later `next` releases/i
   )
-  assert.match(versionPullRequests, /later releases/i)
+  assert.match(
+    versionPullRequests,
+    /exit prerelease mode[\s\S]*stable `1\.0\.0`/i
+  )
   assert.match(
     versionPullRequests,
     /GitHub\s+Actions[\s\S]*create and approve pull requests/i
@@ -2049,8 +2101,8 @@ test('freezes the launch administration order and credential boundaries', () => 
       '### 2. Merge and bind exact main',
       '### 3. Verify the automatic main deployment',
       '### 4. Create the bootstrap credential and protected environment',
-      '### 5. Tag, publish, and create the GitHub Release',
-      '### 6. Configure all five trusted publishers',
+      '### 5. Tag, publish, and create the GitHub prerelease',
+      '### 6. Configure all six trusted publishers',
       '### 7. Delete the GitHub environment secret',
       '### 8. Revoke the exact bootstrap token',
       '### 9. Require package MFA and disallow token publishing',
@@ -3169,7 +3221,7 @@ test('requires exact automatic main verification before legacy deprecation', () 
       'PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"',
       `test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" =`,
       'wait_for_verified_public_site',
-      'npm view "@primitree/core@1.0.0"',
+      'npm view "@primitree/core@1.0.0-next.0"',
       LEGACY_DEPRECATION_COMMAND,
     ],
     'automatic production and deprecation'
@@ -3244,7 +3296,7 @@ test('requires exact automatic main verification before legacy deprecation', () 
   )
   assert.match(
     external,
-    /five replacement packages[\s\S]*production documentation site[\s\S]*migration page[\s\S]*before deprecation/i
+    /six replacement packages[\s\S]*production documentation site[\s\S]*migration page[\s\S]*before deprecation/i
   )
   assert.doesNotMatch(external, /npm deprecate[^\n]*@(?:\*|[^"\s]+@\*)/)
 })
@@ -3307,24 +3359,17 @@ test('freezes the exact local preflight and supported toolchain boundaries', () 
   assert.match(preflight, /npm 11\.18\.0[\s\S]*publish/i)
 })
 
-test('documents stable-only semantics and the exact seven-file artifact boundary', () => {
+test('documents stable and next channels with the exact eight-file artifact boundary', () => {
   const semantics = extractMarkdownSection(
     releaseRunbook,
-    '## Stable release semantics'
+    '## Release channel semantics'
   )
-  assert.match(semantics, /sole release mode is stable/i)
-  assert.match(
-    semantics,
-    /five public packages\s+must share\s+the same strict `MAJOR\.MINOR\.PATCH` version/i
-  )
+  assert.match(semantics, /all six public packages share one version/i)
   assert.doesNotMatch(semantics, /public and private workspaces/i)
-  assert.match(
-    semantics,
-    /accepted release\s+tag must\s+equal `vMAJOR\.MINOR\.PATCH`/
-  )
-  assert.match(semantics, /dist-tag `latest`/)
-  assert.match(semantics, /does not support prerelease versions/i)
-  assert.match(semantics, /future[\s\S]*separate design/i)
+  assert.match(semantics, /tag\s+must be the exact version prefixed with `v`/i)
+  assert.match(semantics, /`latest` dist-tag/)
+  assert.match(semantics, /`-next\.N` use `next`/i)
+  assert.match(semantics, /removes[\s\S]*accidental `latest`/i)
 
   const artifactBoundary = extractMarkdownSection(
     releaseRunbook,
@@ -3336,13 +3381,14 @@ test('documents stable-only semantics and the exact seven-file artifact boundary
     'primitree-cli-$VERSION.tgz',
     'primitree-hooks-$VERSION.tgz',
     'primitree-mcp-$VERSION.tgz',
+    'primitree-$VERSION.tgz',
     'manifest.json',
     'SHA256SUMS',
   ]
   assert.deepEqual(extractOrderedCodeList(artifactBoundary), expectedFiles)
   assert.match(
     artifactBoundary,
-    /contains these seven regular,[\s\S]*non-symlink files and no others/i
+    /contains these eight regular,[\s\S]*non-symlink files and no others/i
   )
   assert.match(
     artifactBoundary,
@@ -3362,7 +3408,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   const tagPhase = extractMarkdownSubsection(
     external,
-    '### 5. Tag, publish, and create the GitHub Release'
+    '### 5. Tag, publish, and create the GitHub prerelease'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
@@ -3378,16 +3424,16 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   assert.match(
     tagPhase,
-    /^- \[ \] Create `v1\.0\.0` at the final verified commit and no other commit, push the single intended tag, and approve publication\.$/m
+    /^- \[ \] Create `v1\.0\.0-next\.0` at the final verified commit and no other commit, push the single intended tag, and approve publication\.$/m
   )
   assert.doesNotMatch(tagPhase, /^- \[ \] Recreate `v1\.0\.0`/m)
   for (const phrase of [
     '@primitree ownership, 2FA, and new-package rights',
     'token-authenticated publish',
-    'trusted publishing for all five packages',
+    'trusted publishing for all six packages',
     'protected npm and GitHub environments and rulesets',
     'GitHub environment `npm`',
-    '`v1.0.0` at the final verified commit and no other commit',
+    '`v1.0.0-next.0` at the final verified commit and no other commit',
     'single intended tag',
     'immutable releases',
     'release tag updates and deletions',
@@ -3432,13 +3478,13 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
     releaseRunbook,
     '## Partial publication recovery'
   )
-  const viewCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
-    packageName =>
-      `npm view "@primitree/${packageName}@$VERSION" version --registry=https://registry.npmjs.org`
+  const viewCommands = RELEASE_PUBLISH_PACKAGES.map(
+    ({ name }) =>
+      `npm view "${name}@$VERSION" version --registry=https://registry.npmjs.org`
   )
-  const publishCommands = ['core', 'dtcg', 'cli', 'hooks', 'mcp'].map(
-    packageName =>
-      `npm publish "$ARTIFACT_DIR/primitree-${packageName}-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts`
+  const publishCommands = RELEASE_PUBLISH_PACKAGES.map(
+    ({ stem }) =>
+      `npm publish "$ARTIFACT_DIR/primitree-${stem === 'primitree' ? '' : `${stem}-`}$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts`
   )
 
   assertInOrder(recovery, viewCommands, 'partial publication queries')
@@ -3473,8 +3519,8 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
   )
   for (const command of [
     'npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org',
-    'npm dist-tag add "@primitree/core@$VERSION" latest --registry=https://registry.npmjs.org',
-    'npm dist-tag rm "@primitree/core" next --registry=https://registry.npmjs.org',
+    'npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npmjs.org',
+    'npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org',
     'npm deprecate "@primitree/core@$VERSION" "Use 1.0.1; this release contains invalid package contents" --registry=https://registry.npmjs.org',
     'RUN_ID=123456789',
     'COMMIT_SHA=0123456789abcdef0123456789abcdef01234567',
@@ -3510,7 +3556,7 @@ test('preserves tag and provenance boundaries during recovery', () => {
   assert.match(recovery, /git push origin ":refs\/tags\/v\$VERSION"/)
   assert.match(
     recovery,
-    /pushed wrong tag[\s\S]*publish job never started[\s\S]*all five/i
+    /pushed wrong tag[\s\S]*publish job never started[\s\S]*all six/i
   )
   assert.match(recovery, /started publish job[\s\S]*blocks tag movement/i)
   assert.match(recovery, /preserve provenance/i)

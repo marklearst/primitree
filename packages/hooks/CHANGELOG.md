@@ -1,10 +1,31 @@
 # Changelog
 
+## 1.0.0-next.0
+
+### Major Changes
+
+- Launch the Primitree 1.0 package family.
+
+  - `@primitree/core` normalizes Figma variables, resolves aliases, compares
+    revisions, and evaluates token policy.
+  - `@primitree/dtcg` reads DTCG 2025.10 tokens and builds DTCG, Resolver, CSS,
+    Tailwind CSS, and TypeScript output.
+  - `@primitree/cli` checks, inspects, compares, and builds configured token
+    projects.
+  - `@primitree/hooks` reads generated token output in React applications.
+  - `@primitree/mcp` exposes loaded token graphs to MCP clients.
+  - `primitree` provides the unscoped `primitree` command through
+    `@primitree/cli`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @primitree/core@1.0.0-next.0
+  - @primitree/dtcg@1.0.0-next.0
+
 npm records 24 published versions of the legacy `@figma-vars/hooks` package.
 Each published section uses its UTC timestamp from the public registry.
 Published entries appear in reverse registry order.
-
-## 1.0.0 (Unreleased)
 
 Version 1 moves the React package to `@primitree/hooks` and releases it with
 the other Primitree packages.

@@ -1,6 +1,6 @@
 {
   "name": "@primitree/hooks",
-  "version": "1.0.0",
+  "version": "1.0.0-next.0",
   "description": "React 19 hooks for built Primitree tokens and the Figma Variables REST API.",
   "author": "Mark Learst",
   "license": "MIT",

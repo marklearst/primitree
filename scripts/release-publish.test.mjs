@@ -20,6 +20,7 @@ import {
   runPackedTarballConsumer,
   runPublicRegistryConsumer,
   runReleasePublish,
+  releasePublishArguments,
   validatePublishedPackage,
   verifyExactMain,
 } from './release-publish.mjs'
@@ -30,6 +31,12 @@ const SHA = '0123456789abcdef0123456789abcdef01234567'
 const TAG_REF = `refs/tags/v${VERSION}`
 const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
+
+function artifactFile(name, version = VERSION) {
+  return name === 'primitree'
+    ? `primitree-${version}.tgz`
+    : `primitree-${name.slice('@primitree/'.length)}-${version}.tgz`
+}
 
 function writeInstalledPackageDocumentation(consumerDirectory, packageName) {
   const packageDirectory = path.join(
@@ -46,12 +53,11 @@ function writeInstalledPackageDocumentation(consumerDirectory, packageName) {
   return packageDirectory
 }
 
-function fixtureArtifacts() {
+function fixtureArtifacts(version = VERSION) {
   const directory = mkdtempSync(path.join(tmpdir(), 'primitree-publish-'))
   const artifacts = PUBLIC_RELEASE_PACKAGES.map(config => {
-    const stem = config.name.slice('@primitree/'.length)
-    const file = `primitree-${stem}-${VERSION}.tgz`
-    const bytes = Buffer.from(`${config.name} ${VERSION}\n`)
+    const file = artifactFile(config.name, version)
+    const bytes = Buffer.from(`${config.name} ${version}\n`)
     writeFileSync(path.join(directory, file), bytes)
     return {
       name: config.name,
@@ -61,7 +67,7 @@ function fixtureArtifacts() {
   })
   writeFileSync(
     path.join(directory, 'manifest.json'),
-    `${JSON.stringify({ version: VERSION, artifacts }, null, 2)}\n`
+    `${JSON.stringify({ version, artifacts }, null, 2)}\n`
   )
   writeFileSync(
     path.join(directory, 'SHA256SUMS'),
@@ -70,12 +76,13 @@ function fixtureArtifacts() {
   return { artifacts, directory }
 }
 
-function statementFor(name, bytes, overrides = {}) {
+function statementFor(name, bytes, overrides = {}, version = VERSION) {
+  const tagRef = `refs/tags/v${version}`
   const statement = {
     _type: 'https://in-toto.io/Statement/v1',
     subject: [
       {
-        name: `pkg:npm/${name.replace('@', '%40')}@${VERSION}`,
+        name: `pkg:npm/${name.replace('@', '%40')}@${version}`,
         digest: {
           sha512: createHash('sha512').update(bytes).digest('hex'),
         },
@@ -88,12 +95,12 @@ function statementFor(name, bytes, overrides = {}) {
           workflow: {
             repository: REPOSITORY,
             path: WORKFLOW_PATH,
-            ref: TAG_REF,
+            ref: tagRef,
           },
         },
         resolvedDependencies: [
           {
-            uri: `git+${REPOSITORY}@${TAG_REF}`,
+            uri: `git+${REPOSITORY}@${tagRef}`,
             digest: { gitCommit: SHA },
           },
         ],
@@ -104,8 +111,8 @@ function statementFor(name, bytes, overrides = {}) {
   return statement
 }
 
-function attestationFor(name, bytes, overrides = {}) {
-  const statement = statementFor(name, bytes, overrides)
+function attestationFor(name, bytes, overrides = {}, version = VERSION) {
+  const statement = statementFor(name, bytes, overrides, version)
   return {
     attestations: [
       {
@@ -121,30 +128,41 @@ function attestationFor(name, bytes, overrides = {}) {
   }
 }
 
-function metadataFor(name, bytes, registry = PUBLIC_NPM_REGISTRY) {
+function metadataFor(
+  name,
+  bytes,
+  registry = PUBLIC_NPM_REGISTRY,
+  version = VERSION,
+  distTags = { latest: version }
+) {
   const encodedName = name.replace('/', '%2f')
   return {
     name,
-    version: VERSION,
-    'dist-tags': { latest: VERSION },
+    version,
+    'dist-tags': distTags,
     dist: {
       integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
       attestations: {
-        url: `${registry}-/npm/v1/attestations/${encodedName}@${VERSION}`,
+        url: `${registry}-/npm/v1/attestations/${encodedName}@${version}`,
         provenance: { predicateType: 'https://slsa.dev/provenance/v1' },
       },
     },
   }
 }
 
-function fakePublishedPackage(directory, name) {
-  const stem = name.slice('@primitree/'.length)
-  const artifactPath = path.join(directory, `primitree-${stem}-${VERSION}.tgz`)
+function fakePublishedPackage(
+  directory,
+  name,
+  version = VERSION,
+  distTags = { latest: version }
+) {
+  const file = artifactFile(name, version)
+  const artifactPath = path.join(directory, file)
   const bytes = readFileSync(artifactPath)
   return {
     artifactPath,
-    attestation: attestationFor(name, bytes),
-    metadata: metadataFor(name, bytes),
+    attestation: attestationFor(name, bytes, {}, version),
+    metadata: metadataFor(name, bytes, PUBLIC_NPM_REGISTRY, version, distTags),
   }
 }
 
@@ -481,6 +499,105 @@ test('freshly fetches origin main and requires tag, main, and GITHUB_SHA equalit
       }),
     /origin\/main.*GITHUB_SHA/
   )
+})
+
+test('uses the npm channel selected by the exact release version', () => {
+  const artifactPath = path.join(tmpdir(), 'primitree-1.0.0-next.0.tgz')
+
+  assert.ok(
+    releasePublishArguments(
+      artifactPath,
+      PUBLIC_NPM_REGISTRY,
+      '1.0.0-next.0'
+    ).includes('--tag=next')
+  )
+  assert.ok(
+    releasePublishArguments(
+      artifactPath,
+      PUBLIC_NPM_REGISTRY,
+      '1.0.0'
+    ).includes('--tag=latest')
+  )
+})
+
+test('removes an accidental latest tag before accepting a first prerelease', async () => {
+  const version = '1.0.0-next.0'
+  const fixture = fixtureArtifacts(version)
+  const metadataByName = new Map()
+  const attestationByUrl = new Map()
+  const calls = []
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const published = fakePublishedPackage(
+      fixture.directory,
+      config.name,
+      version,
+      { latest: version, next: version }
+    )
+    metadataByName.set(config.name, published.metadata)
+    attestationByUrl.set(
+      published.metadata.dist.attestations.url,
+      published.attestation
+    )
+  }
+
+  try {
+    const result = await runReleasePublish({
+      artifactDirectory: fixture.directory,
+      environment: { ...process.env, NPM_TOKEN: 'bootstrap-token' },
+      githubRef: `refs/tags/v${version}`,
+      githubSha: SHA,
+      retryDelayMs: 0,
+      sleep: async () => {},
+      fetchJson: async url => ({
+        status: 200,
+        value: attestationByUrl.get(url),
+      }),
+      runCommand(command, args, options = {}) {
+        calls.push([command, ...args])
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
+        if (args[0] === '--version') {
+          return { status: 0, stdout: '11.18.0\n', stderr: '' }
+        }
+        if (args[0] === 'view') {
+          const spec = args[1]
+          const name = spec.slice(0, spec.lastIndexOf('@'))
+          return {
+            status: 0,
+            stdout: JSON.stringify(metadataByName.get(name)),
+            stderr: '',
+          }
+        }
+        if (args[0] === 'dist-tag' && args[1] === 'rm') {
+          delete metadataByName.get(args[2])['dist-tags'].latest
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        throw new Error(`unexpected command ${command} ${args.join(' ')}`)
+      },
+    })
+
+    assert.equal(result.mode, 'bootstrap')
+    assert.deepEqual(
+      calls
+        .filter(call => call[1] === 'dist-tag')
+        .map(call => call.slice(1, 5)),
+      PUBLIC_RELEASE_PACKAGES.map(config => [
+        'dist-tag',
+        'rm',
+        config.name,
+        'latest',
+      ])
+    )
+    assert.equal(
+      calls.some(call => call[1] === 'publish'),
+      false
+    )
+    for (const metadata of metadataByName.values()) {
+      assert.deepEqual(metadata['dist-tags'], { next: version })
+    }
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
 })
 
 test('validates one exact identity-aware SLSA provenance statement', () => {

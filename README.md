@@ -11,8 +11,8 @@ Check a local DTCG source against project rules and build files for apps.
 </div>
 
 ```sh
-npx @primitree/cli check
-npx @primitree/cli build
+npx primitree@next check
+npx primitree@next build
 ```
 
 Configured builds can write this file set:
@@ -36,7 +36,7 @@ config example.
 The older Figma form remains available:
 
 ```sh
-npx @primitree/cli build variables.json
+npx primitree@next build variables.json
 ```
 
 Its token output follows DTCG 2025.10 plus a documented boolean extension.
@@ -53,6 +53,7 @@ REST API.
 
 | Package                                  | Purpose                                                                              |
 | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| [`primitree`](packages/primitree)        | Run the CLI through the short, unscoped package name                                 |
 | [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API              |
 | [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                |
 | [`@primitree/cli`](packages/cli)         | Check and inspect local DTCG sources; convert Figma exports; scaffold token projects |
@@ -165,6 +166,7 @@ apps/
 ├── figma-plugin/         Figma export plugin
 └── playground/           Standalone browser playground
 packages/
+├── primitree/            Unscoped CLI launcher
 ├── core/                 Shared normalization, diff, API, and types
 ├── dtcg/                 Token conversion and emitters
 ├── cli/                  Command-line package
