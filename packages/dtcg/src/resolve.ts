@@ -3,6 +3,7 @@ import type {
   DTCGGroup,
   DTCGRef,
   DTCGToken,
+  DTCGTokenType,
   DTCGTokenValue,
   ResolverDocument,
 } from './types'
@@ -13,6 +14,10 @@ import { isReferenceValue, isToken } from './types'
 export interface FlatToken {
   path: string
   token: DTCGToken
+}
+
+export interface TypedFlatToken extends FlatToken {
+  type: DTCGTokenType | undefined
 }
 
 /** @internal */
@@ -41,6 +46,118 @@ function assertResolverDepth(
   if (budget?.maxDepth !== undefined && depth > budget.maxDepth) {
     throw new TypeError(budget.depthErrorMessage ?? budget.errorMessage)
   }
+}
+
+export function flattenTypedTokensWithBudget(
+  document: DTCGDocument,
+  budget: ResolverWorkBudget,
+  options: {
+    readonly maxItems?: number
+    readonly itemLimitMessage?: string
+    readonly sort?: boolean
+  } = {}
+): TypedFlatToken[] {
+  const entries: Array<{
+    readonly path: string
+    readonly token: DTCGToken
+    readonly declaredType: DTCGTokenType | undefined
+  }> = []
+  let items = 0
+
+  function walk(
+    group: DTCGGroup,
+    prefix: string,
+    inheritedType: DTCGTokenType | undefined,
+    depth: number
+  ): void {
+    assertResolverDepth(budget, depth)
+    const groupType = hasOwn(group, '$type')
+      ? Reflect.get(group, '$type')
+      : undefined
+    const type =
+      typeof groupType === 'string'
+        ? (groupType as DTCGTokenType)
+        : inheritedType
+    const groupEntries = Object.entries(group)
+    chargeResolverWork(budget, groupEntries.length)
+    for (const [key, value] of groupEntries) {
+      items += 1
+      if (options.maxItems !== undefined && items > options.maxItems) {
+        throw new TypeError(options.itemLimitMessage ?? budget.errorMessage)
+      }
+      if (key.startsWith('$') && key !== '$root') {
+        continue
+      }
+      const pathLength =
+        prefix.length === 0 ? key.length : prefix.length + key.length + 1
+      chargeResolverWork(budget, pathLength + 1)
+      const path = prefix.length === 0 ? key : `${prefix}.${key}`
+      if (isToken(value)) {
+        entries.push({
+          path,
+          token: value,
+          declaredType: hasOwn(value, '$type') ? value.$type : type,
+        })
+      } else {
+        walk(value as DTCGGroup, path, type, depth + 1)
+      }
+    }
+  }
+
+  walk(document, '', undefined, 0)
+  chargeResolverWork(budget, entries.length)
+  const byPath = new Map(entries.map(entry => [entry.path, entry]))
+  const resolved = new Map<string, DTCGTokenType | undefined>()
+
+  function resolveType(
+    start: (typeof entries)[number]
+  ): DTCGTokenType | undefined {
+    const active = new Set<string>()
+    const trail: string[] = []
+    let entry: (typeof entries)[number] | undefined = start
+    let type: DTCGTokenType | undefined
+
+    while (entry !== undefined) {
+      chargeResolverWork(budget)
+      if (entry.declaredType !== undefined) {
+        type = entry.declaredType
+        break
+      }
+      if (resolved.has(entry.path)) {
+        type = resolved.get(entry.path)
+        break
+      }
+      if (active.has(entry.path) || !isReferenceValue(entry.token.$value)) {
+        break
+      }
+      chargeResolverWork(budget, entry.token.$value.length + 1)
+      active.add(entry.path)
+      trail.push(entry.path)
+      entry = byPath.get(entry.token.$value.slice(1, -1))
+    }
+
+    chargeResolverWork(budget, trail.length)
+    for (const path of trail) {
+      resolved.set(path, type)
+    }
+    return type
+  }
+
+  const typed = entries.map(entry => ({
+    path: entry.path,
+    token: entry.token,
+    type: resolveType(entry),
+  }))
+  if (options.sort === true && typed.length > 1) {
+    chargeResolverWork(
+      budget,
+      typed.length * Math.ceil(Math.log2(typed.length))
+    )
+    typed.sort((left, right) =>
+      left.path === right.path ? 0 : left.path < right.path ? -1 : 1
+    )
+  }
+  return typed
 }
 
 function publicResolverBudget(
@@ -739,7 +856,20 @@ function readResolutionOrderTarget(
 }
 
 function refToFileName(ref: string, path: string): string {
-  return decodeUriText(ref.replace(/^\.\//, ''), path, decodeURI)
+  return ref
+    .replace(/^\.\//, '')
+    .split('/')
+    .map(segment => {
+      const decoded = decodeUriText(segment, path, decodeURIComponent)
+      if (decoded.includes('/') || decoded.includes('\\')) {
+        throw new ReferenceResolutionError(
+          `Resolver reference at "${path}" contains an encoded path separator`,
+          path
+        )
+      }
+      return decoded
+    })
+    .join('/')
 }
 
 /**

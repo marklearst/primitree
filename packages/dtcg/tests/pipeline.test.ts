@@ -11,6 +11,7 @@ import type {
   DTCGColorValue,
   DTCGCubicBezierValue,
   DTCGDocument,
+  DTCGToken,
 } from '../src/types'
 import { emitCss, cssVarName, cssValue } from '../src/pipeline/css'
 import { emitTailwind } from '../src/pipeline/tailwind'
@@ -29,6 +30,25 @@ const fixture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/local-variables.json'), 'utf8')
 )
 const { files, resolver } = toDTCG(fixture)
+
+const NON_CSS_FONT_WEIGHT_NAMES = [
+  ['thin', 100],
+  ['hairline', 100],
+  ['extra-light', 200],
+  ['ultra-light', 200],
+  ['light', 300],
+  ['regular', 400],
+  ['book', 400],
+  ['medium', 500],
+  ['semi-bold', 600],
+  ['demi-bold', 600],
+  ['extra-bold', 800],
+  ['ultra-bold', 800],
+  ['black', 900],
+  ['heavy', 900],
+  ['extra-black', 950],
+  ['ultra-black', 950],
+] as const
 
 describe('cssVarName / cssValue', () => {
   it('converts paths to custom property names', () => {
@@ -198,6 +218,87 @@ describe('emitCss', () => {
     expect(css).toContain('--primitives-feature-rounded: true;')
   })
 
+  it.each(NON_CSS_FONT_WEIGHT_NAMES)(
+    'writes the DTCG font weight %s as %i',
+    (name, numericValue) => {
+      const documents = {
+        'type.tokens.json': {
+          weight: { $type: 'fontWeight', $value: name },
+        },
+      } satisfies Record<string, DTCGDocument>
+      const tokenResolver = {
+        version: '2025.10' as const,
+        sets: {
+          type: { sources: [{ $ref: 'type.tokens.json' }] },
+        },
+        resolutionOrder: [{ $ref: '#/sets/type' }],
+      }
+
+      expect(emitCss(documents, tokenResolver)).toContain(
+        `--weight: ${numericValue};`
+      )
+      expect(emitTypescript(documents, tokenResolver)).toContain(
+        `["weight"]: "${numericValue}",`
+      )
+    }
+  )
+
+  it('uses inherited and aliased fontWeight types without changing string tokens', () => {
+    const documents = {
+      'type.tokens.json': {
+        weights: {
+          $type: 'fontWeight',
+          base: { $value: 'semi-bold' },
+        },
+        semantic: {
+          weight: { $value: '{weights.base}' },
+        },
+        labels: {
+          weight: { $type: 'string', $value: 'semi-bold' },
+        },
+      },
+    } satisfies Record<string, DTCGDocument>
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        type: { sources: [{ $ref: 'type.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/type' }],
+    }
+
+    const css = emitCss(documents, tokenResolver)
+    expect(css).toContain('--weights-base: 600;')
+    expect(css).toContain('--labels-weight: semi-bold;')
+    const typescript = emitTypescript(documents, tokenResolver)
+    expect(typescript).toContain('["semantic.weight"]: "600",')
+    expect(typescript).toContain('["labels.weight"]: "semi-bold",')
+  })
+
+  it('ignores a token type found only through its prototype across outputs', () => {
+    const inheritedTypeToken = Object.assign(
+      Object.create({ $type: 'fontWeight' }),
+      { $value: 'semi-bold' }
+    ) as DTCGToken
+    const documents = {
+      'type.tokens.json': { weight: inheritedTypeToken },
+    }
+    const tokenResolver = {
+      version: '2025.10' as const,
+      sets: {
+        type: { sources: [{ $ref: 'type.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/type' }],
+    }
+
+    expect(emitCss(documents, tokenResolver)).toContain('--weight: semi-bold;')
+    expect(emitTypescript(documents, tokenResolver)).toContain(
+      '["weight"]: "semi-bold",'
+    )
+    expect(emitTailwind(documents, tokenResolver)).not.toContain(
+      '--font-weight-weight:'
+    )
+  })
+
   it('writes Resolver axes as lowercase HTML-safe data attributes', () => {
     const axis = 'Semantic theme!'
     const hostileContext = "dark'] {\nbody { color: red; }\n/*"
@@ -237,6 +338,67 @@ describe('emitCss', () => {
     expect(output).toContain('data-_53_emantic_20_theme_21_=')
     expect(output).not.toContain('\nbody { color: red; }')
     expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('keeps hyphens in Resolver axis data attributes', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        modifiers: {
+          'color-scheme': {
+            default: 'light',
+            contexts: {
+              light: [],
+              dark: [{ value: { $type: 'number', $value: 1 } }],
+            },
+          },
+        },
+        resolutionOrder: [{ $ref: '#/modifiers/color-scheme' }],
+      }
+    )
+
+    expect(output).toContain("[data-color-scheme='dark']")
+    expect(output).not.toContain('data-color_2d_scheme')
+    expect(() => parseCss(output)).not.toThrow()
+  })
+
+  it('emits a context value when its effective type changes CSS formatting', () => {
+    const output = emitCss(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          base: {
+            sources: [
+              {
+                weight: { $type: 'string', $value: 'semi-bold' },
+              },
+            ],
+          },
+        },
+        modifiers: {
+          theme: {
+            default: 'light',
+            contexts: {
+              light: [],
+              dark: [
+                {
+                  weight: { $type: 'fontWeight', $value: 'semi-bold' },
+                },
+              ],
+            },
+          },
+        },
+        resolutionOrder: [
+          { $ref: '#/sets/base' },
+          { $ref: '#/modifiers/theme' },
+        ],
+      }
+    )
+
+    expect(output).toContain(':root {\n  --weight: semi-bold;\n}')
+    expect(output).toContain("[data-theme='dark'] {\n  --weight: 600;\n}")
   })
 
   it('keeps ASCII-case Resolver axes as distinct data attributes', () => {
@@ -768,6 +930,50 @@ describe('emitCss', () => {
 
     expect(inherited).toContain('--color-brand: var(--primitive-brand);')
     expect(inherited).toContain('--color-action: var(--semantic-action);')
+  })
+
+  it.each([
+    [
+      'lowercase path segment',
+      'radius',
+      '--radius-sm: var(--primitives-radius-sm);',
+    ],
+    [
+      'camel-case path segment',
+      'borderRadius',
+      '--radius-borderRadius-sm: var(--primitives-borderRadius-sm);',
+    ],
+    [
+      'unrelated path text',
+      'coloration',
+      '--spacing-coloration-sm: var(--primitives-coloration-sm);',
+    ],
+  ])('classifies a %s', (_label, segment, expected) => {
+    const output = emitTailwind(
+      {},
+      {
+        version: '2025.10',
+        sets: {
+          source: {
+            sources: [
+              {
+                primitives: {
+                  [segment]: {
+                    sm: {
+                      $type: 'dimension',
+                      $value: { value: 4, unit: 'px' },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      }
+    )
+
+    expect(output).toContain(expected)
   })
 
   it('adds a suffix when Tailwind names collide', () => {

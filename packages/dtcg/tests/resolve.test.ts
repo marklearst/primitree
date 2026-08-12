@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { toDTCG } from '../src/emit'
 import {
   applyResolver,
+  flattenTypedTokensWithBudget,
   flattenTokens,
   listContexts,
   listPermutations,
@@ -213,6 +214,25 @@ describe('flattenTokens', () => {
       true
     )
     expect(isToken({ $value: 'own', hasOwnProperty: () => false })).toBe(true)
+  })
+
+  it('ignores a group type found only through its prototype', () => {
+    const group = Object.assign(Object.create({ $type: 'fontWeight' }), {
+      weight: { $value: 'semi-bold' },
+    }) as DTCGGroup
+
+    expect(
+      flattenTypedTokensWithBudget(
+        { group },
+        { remaining: 100, errorMessage: 'test work limit' }
+      )
+    ).toEqual([
+      {
+        path: 'group.weight',
+        token: { $value: 'semi-bold' },
+        type: undefined,
+      },
+    ])
   })
 
   it('rejects a non-group child allowed by group metadata types', () => {
@@ -590,11 +610,27 @@ describe('applyResolver + resolveTokenValues', () => {
     ).toEqual([{ path: 'value', token: { $type: 'number', $value: 1 } }])
   })
 
-  it('keeps an escaped slash in a local source file name', () => {
+  it('rejects an encoded slash in a local source reference', () => {
     const encodedRefResolver: ResolverDocument = {
       version: '2025.10',
       sets: {
         base: { sources: [{ $ref: './folder%2Ftokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, encodedRefResolver),
+      '#/sets/base/sources/0',
+      /encoded path separator/i
+    )
+  })
+
+  it('decodes a double-escaped slash as literal file-name text', () => {
+    const encodedRefResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './folder%252Ftokens.json' }] },
       },
       resolutionOrder: [{ $ref: '#/sets/base' }],
     }
@@ -606,9 +642,6 @@ describe('applyResolver + resolveTokenValues', () => {
             'folder%2Ftokens.json': {
               selected: { $type: 'string', $value: 'encoded file name' },
             },
-            'folder/tokens.json': {
-              selected: { $type: 'string', $value: 'nested path' },
-            },
           },
           encodedRefResolver
         )
@@ -619,6 +652,50 @@ describe('applyResolver + resolveTokenValues', () => {
         token: { $type: 'string', $value: 'encoded file name' },
       },
     ])
+  })
+
+  it('decodes an escaped number sign in a local source file name', () => {
+    const encodedRefResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './%23theme.tokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expect(
+      flattenTokens(
+        applyResolver(
+          {
+            '#theme.tokens.json': {
+              selected: { $type: 'string', $value: 'number sign' },
+            },
+          },
+          encodedRefResolver
+        )
+      )
+    ).toEqual([
+      {
+        path: 'selected',
+        token: { $type: 'string', $value: 'number sign' },
+      },
+    ])
+  })
+
+  it('rejects an encoded backslash in a local source reference', () => {
+    const encodedRefResolver: ResolverDocument = {
+      version: '2025.10',
+      sets: {
+        base: { sources: [{ $ref: './folder%5Ctokens.json' }] },
+      },
+      resolutionOrder: [{ $ref: '#/sets/base' }],
+    }
+
+    expectResolutionFailure(
+      () => applyResolver({}, encodedRefResolver),
+      '#/sets/base/sources/0',
+      /encoded path separator/i
+    )
   })
 
   it('rejects malformed URI text in a local source reference', () => {

@@ -293,6 +293,10 @@ function validateRelativeOutputPath(value: string, label: string): void {
   }
 }
 
+function portablePathComparisonKey(value: string): string {
+  return value.normalize('NFC').toLowerCase().toUpperCase().normalize('NFC')
+}
+
 function validateDTCGOutputPaths(input: DTCGOutputSet): void {
   const tokenFileNames = Object.keys(input.files)
   if (tokenFileNames.length > MAX_OUTPUT_TOKEN_FILES) {
@@ -307,7 +311,7 @@ function validateDTCGOutputPaths(input: DTCGOutputSet): void {
     if (name !== input.resolverFileName || Object.hasOwn(input.files, name)) {
       validateRelativeOutputPath(name, 'token file')
     }
-    const key = name.normalize('NFC').toLowerCase()
+    const key = portablePathComparisonKey(name)
     const existing = claimed.get(key)
     if (existing !== undefined) {
       throw new Error(`DTCG output paths collide: "${existing}" and "${name}".`)

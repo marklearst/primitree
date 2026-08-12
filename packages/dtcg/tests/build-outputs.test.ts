@@ -394,6 +394,25 @@ describe('buildDTCGOutputs', () => {
   })
 
   it.each([
+    ['sharp s', 'straße.tokens.json', 'STRASSE.tokens.json'],
+    ['capital sharp s', 'ẞ.tokens.json', 'ß.tokens.json'],
+    ['Greek sigma', 'σ.tokens.json', 'ς.tokens.json'],
+  ])(
+    'rejects token paths that collide through portable %s comparison',
+    (_label, first, second) => {
+      expect(() =>
+        buildDTCGOutputs({
+          ...input,
+          files: {
+            [first]: document,
+            [second]: document,
+          },
+        })
+      ).toThrow(`DTCG output paths collide: "${first}" and "${second}".`)
+    }
+  )
+
+  it.each([
     ['parent', ['themes', 'THEMES/dark.tokens.json']],
     ['child', ['THEMES/dark.tokens.json', 'themes']],
   ])(
