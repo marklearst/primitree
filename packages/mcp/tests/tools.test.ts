@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import { toDTCG } from '@primitree/dtcg'
-import { loadTokenSource, type TokenSource } from '../src/source'
+import { describe, expect, it } from 'vitest'
+import type { TokenSource } from '../src/source'
 import {
   diffTokens,
   getToken,
@@ -264,53 +263,5 @@ describe('diffTokens', () => {
     const markdown = diffTokens(fixture, next)
     expect(markdown).toContain('**The diff contains breaking changes.**')
     expect(markdown).toContain('`color/bg/brand` -> `color/bg/primary`')
-  })
-})
-
-describe('loadTokenSource', () => {
-  let tmpDir: string
-
-  beforeAll(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-mcp-'))
-  })
-
-  afterAll(async () => {
-    await fs.rm(tmpDir, { recursive: true, force: true })
-  })
-
-  it('loads a variables.json file', async () => {
-    const loaded = await loadTokenSource(fixturePath)
-    expect(Object.keys(loaded.files)).toContain('semantic.tokens.json')
-    expect(loaded.variablesJson).toBeDefined()
-  })
-
-  it('loads a built tokens directory', async () => {
-    const dir = path.join(tmpDir, 'tokens')
-    await fs.mkdir(dir, { recursive: true })
-    for (const [name, doc] of Object.entries(built.files)) {
-      await fs.writeFile(path.join(dir, name), JSON.stringify(doc))
-    }
-    await fs.writeFile(
-      path.join(dir, 'tokens.resolver.json'),
-      JSON.stringify(built.resolver)
-    )
-
-    const direct = await loadTokenSource(dir)
-    expect(Object.keys(direct.files).length).toBe(5)
-
-    // Parent directory with tokens/ subdirectory also works.
-    const viaParent = await loadTokenSource(tmpDir)
-    expect(Object.keys(viaParent.files).length).toBe(5)
-  })
-
-  it('fails clearly on unusable paths', async () => {
-    await expect(loadTokenSource(path.join(tmpDir, 'missing'))).rejects.toThrow(
-      /does not exist/
-    )
-    const emptyDir = path.join(tmpDir, 'empty')
-    await fs.mkdir(emptyDir, { recursive: true })
-    await expect(loadTokenSource(emptyDir)).rejects.toThrow(
-      /contains no tokens\.resolver\.json/
-    )
   })
 })

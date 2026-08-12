@@ -26,6 +26,12 @@ Protocol.
 - a directory containing `tokens.resolver.json` and `*.tokens.json`
 - a `primitree build` output directory with those files under `tokens/`
 
+For a directory, the loader reads root-level and nested `*.tokens.json` files.
+`TokenSource.files` uses slash-separated keys relative to
+`tokens.resolver.json`. A source may contain up to 64 nested directory levels,
+100,000 scanned entries, and 1,000 token files. Each JSON file may contain up to
+20 MiB, with a 256 MiB total across the source.
+
 Set `PRIMITREE_TOKENS` when you prefer an environment variable over the
 `--tokens` flag.
 
