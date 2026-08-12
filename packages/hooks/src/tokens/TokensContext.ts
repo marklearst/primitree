@@ -2,8 +2,9 @@ import { createContext } from 'react'
 import type {
   DTCGDocument,
   DTCGToken,
+  DTCGTokenType,
   DTCGTokenValue,
-  FlatToken,
+  TypedFlatToken,
 } from '@primitree/dtcg'
 
 /**
@@ -14,10 +15,12 @@ import type {
 export interface TokensContextValue {
   /** The merged document for the active contexts. */
   document: DTCGDocument
-  /** Flattened tokens of the merged document. */
-  flat: FlatToken[]
+  /** Flattened tokens and their effective types in the merged document. */
+  flat: TypedFlatToken[]
   /** Token lookup by dot path. */
   tokensByPath: Map<string, DTCGToken>
+  /** Effective token type by dot path. */
+  typesByPath: Map<string, DTCGTokenType | undefined>
   /** Reference-resolved values by dot path. */
   valuesByPath: Map<string, DTCGTokenValue>
   /** Active context per modifier axis (e.g. `{ semantic: 'dark' }`). */

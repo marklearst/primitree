@@ -12,9 +12,15 @@ the other Primitree packages.
 ### Added
 
 - `TokensProvider` for DTCG documents and Resolver output from `primitree build`.
-- `useToken` for one token, its resolved value, CSS value, and `var()` accessor.
-- `useTokens` for flattened tokens under active contexts.
+- `useToken` for one token, its resolved value, effective type, CSS value, and
+  `var()` accessor.
+- `useTokens` for typed flattened tokens and path lookups under active contexts.
 - `useTheme` for reading and changing Resolver contexts.
+
+### Fixed
+
+- Local token hooks keep group-inherited and alias-derived types when formatting
+  CSS and recompute those types after Resolver context changes.
 
 ### Changed
 
