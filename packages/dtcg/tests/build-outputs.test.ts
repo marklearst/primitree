@@ -390,6 +390,33 @@ describe('buildDTCGOutputs', () => {
     ).toThrow('DTCG output data can contain at most 64 levels.')
   })
 
+  it('bounds Resolver work when only token JSON is selected', () => {
+    const tokens = Object.fromEntries(
+      Array.from({ length: 1_000 }, (_, index) => [
+        `value${index}`,
+        { $type: 'number', $value: index },
+      ])
+    ) as DTCGDocument
+    const repeatedSources = Array.from({ length: 400 }, () => ({
+      $ref: 'brand.tokens.json',
+    }))
+
+    expect(() =>
+      buildDTCGOutputs(
+        {
+          ...input,
+          files: { 'brand.tokens.json': tokens },
+          resolver: {
+            version: '2025.10',
+            sets: { brand: { sources: repeatedSources } },
+            resolutionOrder: [{ $ref: '#/sets/brand' }],
+          },
+        },
+        { css: false, tailwind: false, typescript: false }
+      )
+    ).toThrow('DTCG output summary exceeds the 1,000,000-unit work limit.')
+  })
+
   it('rejects token paths that share one CSS custom property name', () => {
     const collidingPaths = {
       theme: {

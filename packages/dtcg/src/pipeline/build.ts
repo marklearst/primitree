@@ -1,5 +1,10 @@
 import { toDTCG, type ToDTCGOptions } from '../emit'
-import { applyResolver, flattenTokens, listContexts } from '../resolve'
+import {
+  applyResolverWithBudget,
+  flattenTokens,
+  listContextsWithBudget,
+  type ResolverWorkBudget,
+} from '../resolve'
 import type { DTCGDocument, ResolverDocument } from '../types'
 import { emitCss } from './css'
 import { emitTailwind } from './tailwind'
@@ -89,6 +94,11 @@ const MAX_OUTPUT_TOKEN_FILES = 1_000
 const MAX_OUTPUT_JSON_DEPTH = 64
 const MAX_OUTPUT_JSON_ITEMS = 100_000
 const MAX_OUTPUT_JSON_TEXT = 20 * 1024 * 1024
+const MAX_OUTPUT_SUMMARY_WORK = 1_000_000
+const OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE =
+  'DTCG output summary exceeds the 1,000,000-unit work limit.'
+const OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE =
+  'DTCG output summary can read at most 64 token-group levels.'
 
 interface JsonSortBudget {
   items: number
@@ -689,6 +699,9 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * levels, 100,000 items, or 20 MiB of names and string values. These limits
  * apply before the function creates CSS or TypeScript text.
  *
+ * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
+ * limit counts Resolver reads and token merges.
+ *
  * CSS output reads at most 64 token-group levels and returns at most 20 MiB.
  * Its 1,000,000-unit work limit counts Resolver reads, token merges, value
  * comparisons, declarations, token paths, and token text. CSS and TypeScript
@@ -706,7 +719,8 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * with directory segments, output path collisions, and CSS name collisions.
  *
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
- * CSS output rejects calls above its work, group-depth, or text limit.
+ * The summary and CSS output reject calls above their work or group-depth
+ * limits. CSS also rejects text above its limit.
  *
  * @example
  * ```ts
@@ -782,11 +796,20 @@ export function buildDTCGOutputs(
     })
   }
 
+  const summaryBudget: ResolverWorkBudget = {
+    remaining: MAX_OUTPUT_SUMMARY_WORK,
+    errorMessage: OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE,
+    maxDepth: MAX_OUTPUT_JSON_DEPTH,
+    depthErrorMessage: OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE,
+  }
+
   const summary: PipelineSummary = {
     collections: Object.keys(input.resolver.sets ?? {}).length,
-    variables: flattenTokens(applyResolver(input.files, input.resolver)).length,
+    variables: flattenTokens(
+      applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget)
+    ).length,
     tokenFiles: tokenFileNames.length + 1,
-    contexts: listContexts(input.resolver),
+    contexts: listContextsWithBudget(input.resolver, summaryBudget),
     files: files.map(file => file.path),
   }
 
