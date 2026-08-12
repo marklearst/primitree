@@ -44,6 +44,16 @@ function isMissing(error: unknown): boolean {
   )
 }
 
+function isMissingExpectedFile(error: unknown): boolean {
+  return (
+    isMissing(error) ||
+    (error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'ENOTDIR')
+  )
+}
+
 function isAlreadyExists(error: unknown): boolean {
   return (
     error !== null &&
@@ -492,7 +502,7 @@ export async function inspectBuildOutput(
   )) {
     const filePath = path.join(directory, ...file.path.split('/'))
     const fileStats = await fs.lstat(filePath).catch(error => {
-      if (isMissing(error)) {
+      if (isMissingExpectedFile(error)) {
         return undefined
       }
       throw error

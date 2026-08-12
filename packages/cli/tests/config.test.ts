@@ -192,6 +192,38 @@ describe('loadPrimitreeConfig', () => {
     await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(message)
   })
 
+  it.each([
+    ['./build/CON', 'CON'],
+    ['./build/prn.txt', 'prn.txt'],
+    ['./build/COM1', 'COM1'],
+    ['./build/LPT³.cache', 'LPT³.cache'],
+    ['./build/name:stream', 'name:stream'],
+    ['./build/name?.json', 'name?.json'],
+    ['./build/name*', 'name*'],
+    ['./build/control-\u001f', 'control-\u001f'],
+    ['./build/control-\u007f', 'control-\u007f'],
+    ['./build/cache.', 'cache.'],
+    ['./build/cache ', 'cache '],
+  ])(
+    'rejects Windows-unsafe output directory segment %j',
+    async (configuredDirectory, unsafeSegment) => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: {
+          brand: {
+            ...source,
+            outputs: { directory: configuredDirectory },
+          },
+        },
+      })
+
+      await expect(loadPrimitreeConfig({ configPath })).rejects.toThrow(
+        `Source "brand" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
+      )
+    }
+  )
+
   it('rejects an output directory that contains its source file', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {

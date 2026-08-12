@@ -185,6 +185,24 @@ describe('configured build output paths', () => {
 })
 
 describe('configured build output replacement', () => {
+  it('reports a file that blocks an expected directory as output drift', async () => {
+    const output = path.join(directory, 'generated')
+    const files = buildFiles([
+      { path: 'css/tokens.css', contents: ':root {}\n' },
+    ])
+    await installBuildOutput(output, files, 'brand')
+    await fs.rm(path.join(output, 'css'), { recursive: true })
+    await fs.writeFile(path.join(output, 'css'), 'blocking file\n', 'utf8')
+
+    await expect(inspectBuildOutput(output, files)).resolves.toEqual({
+      status: 'drift',
+      paths: [
+        { path: 'css', kind: 'unexpected' },
+        { path: 'css/tokens.css', kind: 'missing' },
+      ],
+    })
+  })
+
   it('iterates output entries without loading each directory at once', async () => {
     const output = path.join(directory, 'generated')
     const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])

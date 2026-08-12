@@ -49,12 +49,35 @@ function rejectUnknownFields(
 }
 
 const PATH_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/u
+const WINDOWS_INVALID_PATH_CHARACTER = /[<>:"|?*]/u
+const WINDOWS_DEVICE_NAME =
+  /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu
 const OUTPUT_FORMAT_ORDER = [
   'dtcg',
   'css',
   'typescript',
   'tailwind',
 ] as const satisfies readonly PrimitreeOutputFormat[]
+
+function hasControlText(value: string): boolean {
+  for (const character of value) {
+    const code = character.charCodeAt(0)
+    if (code <= 31 || code === 127) {
+      return true
+    }
+  }
+  return false
+}
+
+function isUnsafeOutputSegment(segment: string): boolean {
+  return (
+    WINDOWS_INVALID_PATH_CHARACTER.test(segment) ||
+    WINDOWS_DEVICE_NAME.test(segment) ||
+    hasControlText(segment) ||
+    segment.endsWith('.') ||
+    segment.endsWith(' ')
+  )
+}
 
 function isMissing(error: unknown): boolean {
   return (
@@ -141,17 +164,24 @@ function normalizeOutputs(
     throw new Error(`Source "${sourceId}" outputs need a directory.`)
   }
   if (
-    configuredDirectory.includes('\u0000') ||
     configuredDirectory.includes('\\') ||
     path.isAbsolute(configuredDirectory) ||
-    configuredDirectory.startsWith('//') ||
-    PATH_SCHEME_PATTERN.test(configuredDirectory)
+    configuredDirectory.startsWith('//')
   ) {
     throw new Error(
       `Source "${sourceId}" output directory must stay below the config directory.`
     )
   }
   const segments = configuredDirectory.split('/')
+  const unsafeSegment = segments.find(
+    segment =>
+      segment !== '.' && segment !== '..' && isUnsafeOutputSegment(segment)
+  )
+  if (unsafeSegment !== undefined) {
+    throw new Error(
+      `Source "${sourceId}" output directory has an unsafe path segment: ${JSON.stringify(unsafeSegment)}.`
+    )
+  }
   if (segments.some(segment => segment === '..')) {
     throw new Error(
       `Source "${sourceId}" output directory must stay below the config directory.`
