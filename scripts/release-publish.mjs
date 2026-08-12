@@ -731,36 +731,49 @@ function smokeCommand(runCommand, command, args, options) {
   )
 }
 
-function readInstalledDTCGDocument(consumerDirectory, fileName) {
+function readInstalledPackageDocument(
+  consumerDirectory,
+  packageName,
+  fileName
+) {
   const documentPath = path.join(
     consumerDirectory,
     'node_modules',
-    '@primitree',
-    'dtcg',
+    ...packageName.split('/'),
     fileName
   )
   try {
     return readFileSync(documentPath, 'utf8')
   } catch (error) {
-    throw new Error(`Could not read installed @primitree/dtcg/${fileName}`, {
+    throw new Error(`Could not read installed ${packageName}/${fileName}`, {
       cause: error,
     })
   }
 }
 
-export function assertInstalledDTCGDocumentation(consumerDirectory) {
-  const readme = readInstalledDTCGDocument(consumerDirectory, 'README.md')
-  const changelog = readInstalledDTCGDocument(consumerDirectory, 'CHANGELOG.md')
-  if (readme.trim() === '') {
-    throw new Error('installed @primitree/dtcg README.md is empty')
-  }
-  if (!readme.includes('](CHANGELOG.md)')) {
-    throw new Error(
-      'installed @primitree/dtcg README.md must link to CHANGELOG.md'
+export function assertInstalledPackageDocumentation(consumerDirectory) {
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const readme = readInstalledPackageDocument(
+      consumerDirectory,
+      config.name,
+      'README.md'
     )
-  }
-  if (changelog.trim() === '') {
-    throw new Error('installed @primitree/dtcg CHANGELOG.md is empty')
+    const changelog = readInstalledPackageDocument(
+      consumerDirectory,
+      config.name,
+      'CHANGELOG.md'
+    )
+    if (readme.trim() === '') {
+      throw new Error(`installed ${config.name} README.md is empty`)
+    }
+    if (!readme.includes('](CHANGELOG.md)')) {
+      throw new Error(
+        `installed ${config.name} README.md must link to CHANGELOG.md`
+      )
+    }
+    if (changelog.trim() === '') {
+      throw new Error(`installed ${config.name} CHANGELOG.md is empty`)
+    }
   }
 }
 
@@ -769,7 +782,7 @@ function runInstalledPackageSmokeChecks({
   options,
   runCommand,
 }) {
-  assertInstalledDTCGDocumentation(consumerDirectory)
+  assertInstalledPackageDocumentation(consumerDirectory)
   const esmSpecifiers = [
     '@primitree/core',
     '@primitree/core/policy',

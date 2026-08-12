@@ -14,7 +14,7 @@ import test from 'node:test'
 import {
   PUBLIC_NPM_REGISTRY,
   REQUIRED_NPM_VERSION,
-  assertInstalledDTCGDocumentation,
+  assertInstalledPackageDocumentation,
   assertNpmVersion,
   runPackedCliTarballConsumer,
   runPackedTarballConsumer,
@@ -30,6 +30,21 @@ const SHA = '0123456789abcdef0123456789abcdef01234567'
 const TAG_REF = `refs/tags/v${VERSION}`
 const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
+
+function writeInstalledPackageDocumentation(consumerDirectory, packageName) {
+  const packageDirectory = path.join(
+    consumerDirectory,
+    'node_modules',
+    ...packageName.split('/')
+  )
+  mkdirSync(packageDirectory, { recursive: true })
+  writeFileSync(
+    path.join(packageDirectory, 'README.md'),
+    'Read the [changelog](CHANGELOG.md).\n'
+  )
+  writeFileSync(path.join(packageDirectory, 'CHANGELOG.md'), '# Changelog\n')
+  return packageDirectory
+}
 
 function fixtureArtifacts() {
   const directory = mkdtempSync(path.join(tmpdir(), 'primitree-publish-'))
@@ -342,56 +357,81 @@ test('requires the exact npm release version', () => {
   assert.throws(() => assertNpmVersion('11.18.1\n'), /npm 11\.18\.0/)
 })
 
-test('requires installed DTCG package documentation', t => {
+test('requires documentation for every installed public package', t => {
   const consumerDirectory = mkdtempSync(
-    path.join(tmpdir(), 'primitree-dtcg-docs-')
+    path.join(tmpdir(), 'primitree-package-docs-')
   )
   t.after(() => rmSync(consumerDirectory, { recursive: true, force: true }))
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    writeInstalledPackageDocumentation(consumerDirectory, config.name)
+  }
+  assert.doesNotThrow(() =>
+    assertInstalledPackageDocumentation(consumerDirectory)
+  )
+
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const packageDirectory = path.join(
+      consumerDirectory,
+      'node_modules',
+      ...config.name.split('/')
+    )
+    const changelogPath = path.join(packageDirectory, 'CHANGELOG.md')
+    rmSync(changelogPath)
+    assert.throws(
+      () => assertInstalledPackageDocumentation(consumerDirectory),
+      error => {
+        assert.equal(
+          error.message,
+          `Could not read installed ${config.name}/CHANGELOG.md`
+        )
+        assert.equal(error.cause?.code, 'ENOENT')
+        return true
+      }
+    )
+    writeFileSync(changelogPath, '# Changelog\n')
+  }
+})
+
+test('rejects missing, empty, and unlinked package documentation', t => {
+  const consumerDirectory = mkdtempSync(
+    path.join(tmpdir(), 'primitree-package-doc-content-')
+  )
+  t.after(() => rmSync(consumerDirectory, { recursive: true, force: true }))
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    writeInstalledPackageDocumentation(consumerDirectory, config.name)
+  }
+
   const packageDirectory = path.join(
     consumerDirectory,
     'node_modules',
     '@primitree',
-    'dtcg'
+    'core'
   )
-  mkdirSync(packageDirectory, { recursive: true })
-
-  writeFileSync(
-    path.join(packageDirectory, 'README.md'),
-    'Read the [changelog](CHANGELOG.md).\n'
-  )
-  writeFileSync(path.join(packageDirectory, 'CHANGELOG.md'), '# Changelog\n')
-  assert.doesNotThrow(() => assertInstalledDTCGDocumentation(consumerDirectory))
-
-  rmSync(path.join(packageDirectory, 'README.md'))
+  const readmePath = path.join(packageDirectory, 'README.md')
+  const changelogPath = path.join(packageDirectory, 'CHANGELOG.md')
+  rmSync(readmePath)
   assert.throws(
-    () => assertInstalledDTCGDocumentation(consumerDirectory),
-    error => {
-      assert.match(
-        error.message,
-        /Could not read installed @primitree\/dtcg\/README\.md/u
-      )
-      assert.equal(error.cause?.code, 'ENOENT')
-      return true
-    }
+    () => assertInstalledPackageDocumentation(consumerDirectory),
+    /Could not read installed @primitree\/core\/README\.md/u
   )
 
-  writeFileSync(
-    path.join(packageDirectory, 'README.md'),
-    'Read the [changelog](CHANGELOG.md).\n'
-  )
-  assert.throws(() => {
-    writeFileSync(path.join(packageDirectory, 'README.md'), '# DTCG\n')
-    assertInstalledDTCGDocumentation(consumerDirectory)
-  }, /README\.md must link to CHANGELOG\.md/u)
-
-  writeFileSync(
-    path.join(packageDirectory, 'README.md'),
-    'Read the [changelog](CHANGELOG.md).\n'
-  )
-  rmSync(path.join(packageDirectory, 'CHANGELOG.md'))
+  writeFileSync(readmePath, '')
   assert.throws(
-    () => assertInstalledDTCGDocumentation(consumerDirectory),
-    /Could not read installed @primitree\/dtcg\/CHANGELOG\.md/u
+    () => assertInstalledPackageDocumentation(consumerDirectory),
+    /installed @primitree\/core README\.md is empty/u
+  )
+
+  writeFileSync(readmePath, '# Core\n')
+  assert.throws(
+    () => assertInstalledPackageDocumentation(consumerDirectory),
+    /installed @primitree\/core README\.md must link to CHANGELOG\.md/u
+  )
+
+  writeFileSync(readmePath, 'Read the [changelog](CHANGELOG.md).\n')
+  writeFileSync(changelogPath, '')
+  assert.throws(
+    () => assertInstalledPackageDocumentation(consumerDirectory),
+    /installed @primitree\/core CHANGELOG\.md is empty/u
   )
 })
 
@@ -1316,16 +1356,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
               path.join(packageDirectory, 'package.json'),
               `${JSON.stringify({ name: config.name, version: VERSION })}\n`
             )
-            if (config.name === '@primitree/dtcg') {
-              writeFileSync(
-                path.join(packageDirectory, 'README.md'),
-                'Read the [changelog](CHANGELOG.md).\n'
-              )
-              writeFileSync(
-                path.join(packageDirectory, 'CHANGELOG.md'),
-                '# Changelog\n'
-              )
-            }
+            writeInstalledPackageDocumentation(options.cwd, config.name)
           }
         }
         const cliResult = packedCliUserPathResult(command, args, options, {
@@ -1597,16 +1628,7 @@ test('creates a hermetic public-registry consumer with exact installs and signat
             path.join(packageDirectory, 'package.json'),
             `${JSON.stringify({ name: config.name, version: VERSION })}\n`
           )
-          if (config.name === '@primitree/dtcg') {
-            writeFileSync(
-              path.join(packageDirectory, 'README.md'),
-              'Read the [changelog](CHANGELOG.md).\n'
-            )
-            writeFileSync(
-              path.join(packageDirectory, 'CHANGELOG.md'),
-              '# Changelog\n'
-            )
-          }
+          writeInstalledPackageDocumentation(options.cwd, config.name)
         }
       }
       return { status: 0, stdout: '', stderr: '' }

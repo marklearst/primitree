@@ -597,7 +597,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       {
         name: '@primitree/core',
         attwProfile: 'node16',
-        requiredFiles: ['dist'],
+        requiredFiles: ['dist', 'CHANGELOG.md'],
         requiredDeclarationFiles: [
           'dist/index.d.ts',
           'dist/index.d.cts',
@@ -644,7 +644,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       {
         name: '@primitree/cli',
         attwProfile: null,
-        requiredFiles: ['dist'],
+        requiredFiles: ['dist', 'CHANGELOG.md'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/config.d.ts'],
         requiredBin: 'primitree',
         requiredBinTarget: './dist/index.js',
@@ -656,7 +656,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       {
         name: '@primitree/hooks',
         attwProfile: 'strict',
-        requiredFiles: ['dist'],
+        requiredFiles: ['dist', 'CHANGELOG.md'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/index.d.cts'],
         requiredBin: undefined,
         requiredBinTarget: undefined,
@@ -671,7 +671,7 @@ test('exports one immutable dependency-ordered release inventory', () => {
       {
         name: '@primitree/mcp',
         attwProfile: 'esm-only',
-        requiredFiles: ['dist'],
+        requiredFiles: ['dist', 'CHANGELOG.md'],
         requiredDeclarationFiles: ['dist/index.d.ts', 'dist/cli.d.ts'],
         requiredBin: 'primitree-mcp',
         requiredBinTarget: './dist/cli.js',
