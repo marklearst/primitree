@@ -651,12 +651,13 @@ export function applyResolverWithBudget(
     if (setMatch) {
       const name = setMatch[1] as string
       if (sets && hasOwn(sets, name)) {
-        ordered.push(
-          ...sourcesToDocuments(
-            setSources(sets[name], name, budget),
-            `#/sets/${name}/sources`
-          )
+        const documents = sourcesToDocuments(
+          setSources(sets[name], name, budget),
+          `#/sets/${name}/sources`
         )
+        for (const document of documents) {
+          ordered.push(document)
+        }
       }
       continue
     }
@@ -680,12 +681,13 @@ export function applyResolverWithBudget(
           ref
         )
       }
-      ordered.push(
-        ...sourcesToDocuments(
-          modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>,
-          `${ref}/contexts/${chosen}`
-        )
+      const documents = sourcesToDocuments(
+        modifier.contexts[chosen] as Array<DTCGRef | DTCGDocument>,
+        `${ref}/contexts/${chosen}`
       )
+      for (const document of documents) {
+        ordered.push(document)
+      }
     }
   }
 

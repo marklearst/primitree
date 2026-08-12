@@ -39,6 +39,30 @@ function repeatedSourceFixture(sourceCount: number): {
 }
 
 describe('emitTypescript work bounds', () => {
+  it('resolves 200,000 empty sources within the work budget', () => {
+    const reference = { $ref: 'empty.tokens.json' } as const
+    const resolver = {
+      version: '2025.10',
+      sets: {
+        repeated: {
+          sources: Array(200_000).fill(reference),
+        },
+      },
+      resolutionOrder: [{ $ref: '#/sets/repeated' }],
+    } satisfies ResolverDocument
+
+    let output: string | undefined
+    let failure: unknown
+    try {
+      output = emitTypescript({ 'empty.tokens.json': {} }, resolver)
+    } catch (error) {
+      failure = error
+    }
+
+    expect(failure).toBeUndefined()
+    expect(output).toContain('export type TokenPath = never')
+  })
+
   it('rejects more than 64 token-group levels', () => {
     let nested: DTCGDocument = {
       value: { $type: 'number', $value: 1 },
@@ -220,6 +244,33 @@ describe('emitTailwind collision bounds', () => {
 
     expect(failure).toBeUndefined()
     expect(output).toContain('--color-brand_20_palette-brand-127:')
+  })
+})
+
+describe('emitTailwind text bounds', () => {
+  it('counts token path text in the shared work budget', () => {
+    const tokenName = 'x'.repeat(1_000_001)
+
+    expect(() =>
+      emitTailwind(
+        {},
+        {
+          version: '2025.10',
+          sets: {
+            source: {
+              sources: [
+                {
+                  palette: {
+                    [tokenName]: { $type: 'color', $value: '#ffffff' },
+                  },
+                },
+              ],
+            },
+          },
+          resolutionOrder: [{ $ref: '#/sets/source' }],
+        }
+      )
+    ).toThrow('Tailwind output exceeds the 1,000,000-unit work limit.')
   })
 })
 
