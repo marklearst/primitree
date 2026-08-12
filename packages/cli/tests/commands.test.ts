@@ -210,6 +210,120 @@ describe('primitree check', () => {
     await runCheck(parseArgs([out]))
     expect(process.exitCode).toBeUndefined()
   })
+
+  it('warns only when a built token has no effective type', async () => {
+    const dir = path.join(tmpDir, 'effective-types')
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(
+      path.join(dir, 'tokens.resolver.json'),
+      JSON.stringify({
+        version: '2025.10',
+        sets: {
+          source: { sources: [{ $ref: 'source.tokens.json' }] },
+        },
+        resolutionOrder: [{ $ref: '#/sets/source' }],
+      })
+    )
+    await fs.writeFile(
+      path.join(dir, 'source.tokens.json'),
+      JSON.stringify({
+        weights: {
+          $type: 'fontWeight',
+          inherited: { $value: 'semi-bold' },
+          target: { $type: 'fontWeight', $value: 600 },
+        },
+        alias: { $value: '{weights.target}' },
+        untyped: { $value: 'plain text' },
+      })
+    )
+
+    await runCheck(parseArgs([dir]))
+
+    expect(console.warn).toHaveBeenCalledTimes(1)
+    expect(console.warn).toHaveBeenCalledWith(
+      'warning: Token "untyped" has no $type (context: default)'
+    )
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('uses context-specific inherited and alias types when checking warnings', async () => {
+    const dir = path.join(tmpDir, 'context-effective-types')
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(
+      path.join(dir, 'tokens.resolver.json'),
+      JSON.stringify({
+        version: '2025.10',
+        modifiers: {
+          theme: {
+            default: 'light',
+            contexts: {
+              light: [{ $ref: 'light.tokens.json' }],
+              dark: [{ $ref: 'dark.tokens.json' }],
+            },
+          },
+        },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      })
+    )
+    await fs.writeFile(
+      path.join(dir, 'light.tokens.json'),
+      JSON.stringify({
+        weights: {
+          $type: 'fontWeight',
+          current: { $value: 400 },
+        },
+        alias: { $value: '{weights.current}' },
+      })
+    )
+    await fs.writeFile(
+      path.join(dir, 'dark.tokens.json'),
+      JSON.stringify({
+        weights: {
+          $type: 'fontWeight',
+          current: { $value: 700 },
+        },
+        alias: { $value: '{weights.current}' },
+      })
+    )
+
+    await runCheck(parseArgs([dir]))
+
+    expect(console.warn).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('shares one work limit across every built token context', async () => {
+    const dir = path.join(tmpDir, 'bounded-contexts')
+    const document = Object.fromEntries(
+      Array.from({ length: 300 }, (_, index) => [
+        `token-${index}-${'x'.repeat(500)}`,
+        { $type: 'string', $value: 'value' },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `context-${index}`,
+        [{ $ref: 'repeated.tokens.json' }],
+      ])
+    )
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(
+      path.join(dir, 'tokens.resolver.json'),
+      JSON.stringify({
+        version: '2025.10',
+        modifiers: { theme: { contexts } },
+        resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+      })
+    )
+    await fs.writeFile(
+      path.join(dir, 'repeated.tokens.json'),
+      JSON.stringify(document)
+    )
+
+    await expect(runCheck(parseArgs([dir]))).rejects.toThrow(
+      'Resolver context validation exceeds the 1,000,000-unit work limit.'
+    )
+  })
 })
 
 describe('primitree export', () => {
