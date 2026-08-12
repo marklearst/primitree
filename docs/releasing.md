@@ -178,20 +178,348 @@ publication, so the ruleset covers the draft and asset-upload window.
 
 - [ ] Merge the reviewed branch and bind the release to the exact `main` commit.
 
+Before merging, prove that Vercel links the docs project to the intended GitHub
+repository and production branch. `autoAssignCustomDomains` must be `true`.
+Record the current production deployment before merging so the launch has one
+verified rollback target:
+
+```bash
+set -euo pipefail
+PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
+PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.name' <<<"$PROJECT_JSON")" = primitree
+test "$(jq -r '.rootDirectory' <<<"$PROJECT_JSON")" = apps/docs
+test "$(jq -r '.sourceFilesOutsideRootDirectory' <<<"$PROJECT_JSON")" = true
+test "$(jq -r '.link.type' <<<"$PROJECT_JSON")" = github
+test "$(jq -r '.link.org' <<<"$PROJECT_JSON")" = marklearst
+test "$(jq -r '.link.repo' <<<"$PROJECT_JSON")" = primitree
+test "$(jq -r '.link.productionBranch' <<<"$PROJECT_JSON")" = main
+test "$(jq -r '.autoAssignCustomDomains' <<<"$PROJECT_JSON")" = true
+
+PREVIOUS_PRODUCTION_SUMMARY=$(vercel inspect primitree.com --format=json --scope marklearst)
+PREVIOUS_PRODUCTION_ID=$(jq -er '.id | strings | select(startswith("dpl_"))' <<<"$PREVIOUS_PRODUCTION_SUMMARY")
+PREVIOUS_PRODUCTION_JSON=$(vercel api "/v13/deployments/$PREVIOUS_PRODUCTION_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PREVIOUS_PRODUCTION_ID"
+test "$(jq -r '.projectId' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.name' <<<"$PREVIOUS_PRODUCTION_JSON")" = primitree
+test "$(jq -r '.readyState' <<<"$PREVIOUS_PRODUCTION_JSON")" = READY
+test "$(jq -r '.target' <<<"$PREVIOUS_PRODUCTION_JSON")" = production
+
+PREVIOUS_PRODUCTION_HOME=$(curl --fail --silent --show-error https://primitree.com/)
+grep -F '<title>Primitree' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
+grep -F 'name="description"' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
+grep -F 'property="og:title"' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
+curl --fail --silent --show-error https://primitree.com/docs >/dev/null
+curl --fail --silent --show-error https://primitree.com/playground >/dev/null
+curl --fail --silent --show-error \
+  https://primitree.com/docs/hooks/migration >/dev/null
+PREVIOUS_PRODUCTION_SEARCH=$(
+  curl --fail --silent --show-error \
+    'https://primitree.com/api/search?query=figma'
+)
+grep -F '"url":"/docs/concepts/figma-mcp"' \
+  <<<"$PREVIOUS_PRODUCTION_SEARCH" >/dev/null
+POST_HEALTH_PRODUCTION_SUMMARY=$(
+  vercel inspect primitree.com --format=json --scope marklearst
+)
+test "$(jq -r '.id' <<<"$POST_HEALTH_PRODUCTION_SUMMARY")" = \
+  "$PREVIOUS_PRODUCTION_ID"
+printf 'Previous production deployment ID: %s\n' "$PREVIOUS_PRODUCTION_ID"
+```
+
 After every required review and check passes, merge, switch to `main`, and
 record the exact commit. The initial release may proceed without a fabricated
 version pull request because the public manifests are already at 1.0.0.
 
 ```bash
+set -euo pipefail
 git switch main
 git fetch origin main --tags
 git pull --ff-only origin main
 FINAL_COMMIT=$(git rev-parse 'origin/main^{commit}')
 test "$(git rev-parse 'HEAD^{commit}')" = "$FINAL_COMMIT"
 test -z "$(git status --short)"
+printf 'Final main commit: %s\n' "$FINAL_COMMIT"
 ```
 
-### 3. Create the bootstrap credential and protected environment
+### 3. Verify the automatic main deployment
+
+- [ ] Verify that the exact merged `main` commit owns the production domain and passes every public route check.
+
+Successful Vercel deployments from the configured `main` production branch
+assign the production domains. Use the full commit SHA and previous production
+deployment ID recorded in step 2. The production domain must resolve to the
+exact deployment ID for the exact merged commit before the release can
+continue. Complete this verification before creating credentials, tagging, or
+publishing.
+
+The health verifier accepts content changes across releases, so it can validate
+a rollback. The release verifier adds copy checks for the current release.
+Restore the exact recorded previous production deployment and stop the launch
+when Vercel does not assign the exact commit or a public check fails.
+
+```bash
+set -euo pipefail
+
+verify_public_health() {
+  local body
+  body=$(curl --fail --silent --show-error https://primitree.com/) || return 1
+  grep -F '<title>Primitree' <<<"$body" >/dev/null || return 1
+  grep -F 'name="description"' <<<"$body" >/dev/null || return 1
+  grep -F 'property="og:title"' <<<"$body" >/dev/null || return 1
+  curl --fail --silent --show-error https://primitree.com/docs >/dev/null ||
+    return 1
+  curl --fail --silent --show-error https://primitree.com/playground >/dev/null ||
+    return 1
+  curl --fail --silent --show-error \
+    https://primitree.com/docs/hooks/migration >/dev/null || return 1
+  body=$(
+    curl --fail --silent --show-error \
+      'https://primitree.com/api/search?query=figma'
+  ) || return 1
+  grep -F '"url":"/docs/concepts/figma-mcp"' <<<"$body" >/dev/null || return 1
+  return 0
+}
+
+verify_public_site() {
+  local body
+  verify_public_health || return 1
+  body=$(curl --fail --silent --show-error https://primitree.com/) || return 1
+  grep -F 'Govern token change. Know every consequence.' \
+    <<<"$body" >/dev/null || return 1
+  body=$(curl --fail --silent --show-error https://primitree.com/docs) ||
+    return 1
+  grep -F 'Primitree checks a local DTCG token file' \
+    <<<"$body" >/dev/null || return 1
+  body=$(curl --fail --silent --show-error https://primitree.com/playground) ||
+    return 1
+  grep -F 'This page calls the same build function as' <<<"$body" >/dev/null ||
+    return 1
+  body=$(
+    curl --fail --silent --show-error \
+      https://primitree.com/docs/hooks/migration
+  ) || return 1
+  grep -F 'Primitree 1.0 moves the hooks package from' <<<"$body" >/dev/null ||
+    return 1
+  return 0
+}
+
+require_release_main_unchanged() {
+  local current_main
+  git fetch origin main || return 1
+  current_main=$(git rev-parse 'origin/main^{commit}') || return 1
+  if [[ "$current_main" != "$FINAL_COMMIT" ]]; then
+    printf '%s\n' \
+      'The main branch advanced after this release began. Stop without changing production.' \
+      >&2
+    return 1
+  fi
+  return 0
+}
+
+verify_previous_production_identity() {
+  local previous_json
+  previous_json=$(
+    vercel api "/v13/deployments/$PREVIOUS_PRODUCTION_ID" \
+      --scope marklearst --raw
+  ) || return 1
+  [[ "$(jq -r '.id' <<<"$previous_json")" == "$PREVIOUS_PRODUCTION_ID" ]] ||
+    return 1
+  [[ "$(jq -r '.projectId' <<<"$previous_json")" == "$PROJECT_ID" ]] ||
+    return 1
+  [[ "$(jq -r '.name' <<<"$previous_json")" == primitree ]] || return 1
+  [[ "$(jq -r '.readyState' <<<"$previous_json")" == READY ]] || return 1
+  [[ "$(jq -r '.target' <<<"$previous_json")" == production ]] || return 1
+  return 0
+}
+
+verify_current_release_identity() {
+  local current_id="$1"
+  local current_json
+  current_json=$(
+    vercel api "/v13/deployments/$current_id" --scope marklearst --raw
+  ) || return 1
+  [[ "$(jq -r '.id' <<<"$current_json")" == "$current_id" ]] || return 1
+  [[ "$(jq -r '.projectId' <<<"$current_json")" == "$PROJECT_ID" ]] ||
+    return 1
+  [[ "$(jq -r '.name' <<<"$current_json")" == primitree ]] || return 1
+  [[ "$(jq -r '.target' <<<"$current_json")" == production ]] || return 1
+  [[ "$(jq -r '.meta.githubCommitSha' <<<"$current_json")" == \
+    "$FINAL_COMMIT" ]] || return 1
+  return 0
+}
+
+verify_production_domain_id() {
+  local summary
+  local current_id
+  summary=$(
+    vercel inspect primitree.com --format=json --scope marklearst
+  ) || return 1
+  current_id=$(jq -r '.id // empty' <<<"$summary") || return 1
+  [[ "$current_id" == "$PRODUCTION_DEPLOYMENT_ID" ]]
+}
+
+wait_for_verified_public_site() {
+  local attempt
+  for attempt in {1..12}; do
+    if verify_public_site && verify_production_domain_id; then
+      return 0
+    fi
+    if ((attempt < 12)); then
+      sleep 5
+    fi
+  done
+  return 1
+}
+
+restore_previous_production() {
+  local attempt
+  local current_summary
+  local current_id
+  if current_summary=$(
+    vercel inspect primitree.com --format=json --scope marklearst
+  ); then
+    current_id=$(jq -r '.id // empty' <<<"$current_summary") || current_id=
+  else
+    current_id=
+  fi
+
+  require_release_main_unchanged || return 1
+  verify_previous_production_identity || return 1
+  if [[ "$current_id" != "$PREVIOUS_PRODUCTION_ID" ]]; then
+    if ! verify_current_release_identity "$current_id"; then
+      printf 'Rollback refused for unexpected production deployment: %s\n' \
+        "${current_id:-unknown}" >&2
+      return 1
+    fi
+    require_release_main_unchanged || return 1
+    current_summary=$(
+      vercel inspect primitree.com --format=json --scope marklearst
+    ) || return 1
+    [[ "$(jq -r '.id // empty' <<<"$current_summary")" == "$current_id" ]] ||
+      return 1
+    vercel rollback "$PREVIOUS_PRODUCTION_ID" \
+      --scope marklearst \
+      --yes \
+      --timeout 3m || return 1
+  fi
+
+  for attempt in {1..12}; do
+    if current_summary=$(
+      vercel inspect primitree.com --format=json --scope marklearst
+    ); then
+      current_id=$(jq -r '.id // empty' <<<"$current_summary") || current_id=
+      if [[ "$current_id" == "$PREVIOUS_PRODUCTION_ID" ]] &&
+        verify_public_health; then
+        return 0
+      fi
+    fi
+    if ((attempt < 12)); then
+      sleep 5
+    fi
+  done
+  return 1
+}
+
+FINAL_COMMIT='<full main commit SHA recorded in step 2>'
+PREVIOUS_PRODUCTION_ID='<deployment ID recorded before merge>'
+[[ "$FINAL_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+[[ "$PREVIOUS_PRODUCTION_ID" =~ ^dpl_[A-Za-z0-9]+$ ]]
+
+PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
+PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.name' <<<"$PROJECT_JSON")" = primitree
+test "$(jq -r '.rootDirectory' <<<"$PROJECT_JSON")" = apps/docs
+test "$(jq -r '.link.type' <<<"$PROJECT_JSON")" = github
+test "$(jq -r '.link.org' <<<"$PROJECT_JSON")" = marklearst
+test "$(jq -r '.link.repo' <<<"$PROJECT_JSON")" = primitree
+test "$(jq -r '.link.productionBranch' <<<"$PROJECT_JSON")" = main
+test "$(jq -r '.autoAssignCustomDomains' <<<"$PROJECT_JSON")" = true
+verify_previous_production_identity
+require_release_main_unchanged
+
+PRODUCTION_DEPLOYMENT_ID=
+PRODUCTION_JSON=
+for attempt in {1..60}; do
+  if PRODUCTION_SUMMARY=$(
+    vercel inspect primitree.com --format=json --scope marklearst
+  ); then
+    OBSERVED_DEPLOYMENT_ID=$(
+      jq -r '.id // empty' <<<"$PRODUCTION_SUMMARY"
+    ) || OBSERVED_DEPLOYMENT_ID=
+    if [[ -n "$OBSERVED_DEPLOYMENT_ID" ]] &&
+      PRODUCTION_JSON=$(
+        vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID" \
+          --scope marklearst --raw
+      ) &&
+      [[ "$(jq -r '.id' <<<"$PRODUCTION_JSON")" == "$OBSERVED_DEPLOYMENT_ID" ]] &&
+      [[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == "$PROJECT_ID" ]] &&
+      [[ "$(jq -r '.name' <<<"$PRODUCTION_JSON")" == primitree ]] &&
+      [[ "$(jq -r '.readyState' <<<"$PRODUCTION_JSON")" == READY ]] &&
+      [[ "$(jq -r '.target' <<<"$PRODUCTION_JSON")" == production ]] &&
+      [[ "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" == "$FINAL_COMMIT" ]]; then
+      PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"
+      break
+    fi
+  fi
+  if ((attempt < 60)); then
+    sleep 10
+  fi
+done
+
+if [[ -z "$PRODUCTION_DEPLOYMENT_ID" ]]; then
+  printf '%s\n' \
+    'The production domain did not reach the exact merged commit. Restoring the previous deployment.' \
+    >&2
+  if ! restore_previous_production; then
+    printf '%s\n' \
+      'Rollback did not complete its safety checks. Inspect current production before continuing.' \
+      >&2
+  fi
+  exit 1
+fi
+
+test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$PRODUCTION_DEPLOYMENT_ID"
+test "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" = \
+  "$FINAL_COMMIT"
+if ! wait_for_verified_public_site; then
+  printf '%s\n' \
+    'Production route verification failed. Restoring the previous deployment.' \
+    >&2
+  if ! restore_previous_production; then
+    printf '%s\n' \
+      'Rollback did not complete its safety checks. Inspect current production before continuing.' \
+      >&2
+  fi
+  exit 1
+fi
+require_release_main_unchanged
+verify_production_domain_id
+
+printf 'Production deployment ID: %s\n' "$PRODUCTION_DEPLOYMENT_ID"
+printf 'Production commit: %s\n' "$FINAL_COMMIT"
+```
+
+Keep the previous production deployment ID through the rest of the launch. A
+failure after this step must roll back to that exact ID and rerun
+`verify_public_health` before any deprecation continues.
+
+An Instant Rollback pauses automatic production-domain assignment. After you
+repair `main`, verify the exact fixed deployment before restoring normal Git
+deployment behavior:
+
+```bash
+vercel promote '<exact verified fixed deployment ID>' --scope marklearst
+```
+
+Rerun the project, deployment identity, domain, and public route checks from
+this step. Do not assume another `main` push becomes public while Vercel remains
+in rollback mode.
+
+### 4. Create the bootstrap credential and protected environment
 
 - [ ] Create a granular npm token that expires after one day and make the protected GitHub `npm` environment its sole storage location.
 
@@ -217,7 +545,7 @@ GH_ENV_SECRETS=$(
 test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS")" = 1
 ```
 
-### 4. Tag, publish, and create the GitHub Release
+### 5. Tag, publish, and create the GitHub Release
 
 - [ ] Create `v1.0.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
 
@@ -250,7 +578,7 @@ packages, and creates or resumes the immutable GitHub Release from the same
 seven files. Record the run ID, package pages, `latest` dist-tags, provenance,
 release notes, asset digests, and final release URL.
 
-### 5. Configure all five trusted publishers
+### 6. Configure all five trusted publishers
 
 - [ ] Configure trusted publishing for all five packages and verify each saved relationship.
 
@@ -278,7 +606,7 @@ npm trust list '@primitree/mcp' --registry=https://registry.npmjs.org/
 until another package version publishes. The next token-free release proves
 that GitHub OIDC can publish the package.
 
-### 6. Delete the GitHub environment secret
+### 7. Delete the GitHub environment secret
 
 - [ ] Delete `NPM_TOKEN` from the protected GitHub environment after you verify all five trust entries.
 
@@ -294,7 +622,7 @@ test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS_A
 Stop if the name remains listed. Do not continue to token revocation or package
 security while GitHub retains the secret.
 
-### 7. Revoke the exact bootstrap token
+### 8. Revoke the exact bootstrap token
 
 - [ ] Revoke the exact one-day bootstrap token by ID and verify its removal.
 
@@ -316,7 +644,7 @@ test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select(.key == $id)] | length'
 
 Never substitute a token value for the ID.
 
-### 8. Require package MFA and disallow token publishing
+### 9. Require package MFA and disallow token publishing
 
 - [ ] Require 2FA while disallowing token-based publishing on all five packages.
 
@@ -336,257 +664,6 @@ packages, refresh each Publishing access page and confirm
 **Require two-factor authentication and disallow tokens** remains selected.
 Trusted OIDC publishing remains available through the exact repository,
 workflow, and environment relationship.
-
-### 9. Promote one staged production deployment
-
-- [ ] Prove the docs project boundary, stage a tested Production fallback, and promote the verified release candidate.
-
-The Vercel project is `primitree`, with project ID
-`prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd`. Its `rootDirectory` must equal `apps/docs`,
-and `sourceFilesOutsideRootDirectory` is `true` so the docs build can consume
-the workspace packages. Maintainers must commit `apps/docs/vercel.json` with
-`"github": { "autoAlias": false }` before merge. The committed setting and
-`--skip-domain` both block automatic domain assignment.
-
-Prove those settings before any repo-root upload. Stop if any assertion fails;
-do not use the repo-root deployment recipe without this proof:
-
-```bash
-set -euo pipefail
-PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
-PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
-test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
-test "$(jq -r '.name' <<<"$PROJECT_JSON")" = primitree
-test "$(jq -r '.rootDirectory' <<<"$PROJECT_JSON")" = apps/docs
-test "$(jq -r '.sourceFilesOutsideRootDirectory' <<<"$PROJECT_JSON")" = true
-test "$(jq -r '.github.autoAlias' apps/docs/vercel.json)" = false
-test "$(jq '[.protectionBypass // {} | to_entries[] | select(.value.scope == "automation-bypass")] | length' <<<"$PROJECT_JSON")" = 0
-```
-
-Record the production deployment ID and URL that Vercel returns. Do not use
-the production deployment in place before launch as a docs rollback or
-fallback:
-
-```bash
-set -euo pipefail
-vercel list primitree --environment production --status READY --format=json --scope marklearst
-```
-
-Deployment Protection covers the fallback and candidate URLs even though both
-target Production. Link a disposable directory to the exact project and create
-one temporary automation-bypass secret. Never link the repository or save the
-secret there. The exit trap is a cleanup fallback. The normal path revokes the
-exact secret and removes the disposable directory before the launch session
-ends.
-
-```bash
-set -euo pipefail
-VERCEL_PROBE_ROOT=$(mktemp -d)
-VERCEL_PROBE_DIR="$VERCEL_PROBE_ROOT/project"
-mkdir "$VERCEL_PROBE_DIR"
-VERCEL_BYPASS_ACTIVE=false
-VERCEL_BYPASS_REVOKE_SENT=false
-cleanup_vercel_probe() {
-  if [[ "${VERCEL_BYPASS_ACTIVE:-false}" == true ]]; then
-    if [[ "${VERCEL_BYPASS_REVOKE_SENT:-false}" != true ]]; then
-      vercel project protection disable "$PROJECT_ID" --protection-bypass \
-        --protection-bypass-secret "$VERCEL_BYPASS_SECRET" \
-        --scope marklearst || return 1
-      VERCEL_BYPASS_REVOKE_SENT=true
-    fi
-    local cleanup_project_json
-    cleanup_project_json=$(
-      vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw
-    ) || return 1
-    local cleanup_bypass_count
-    cleanup_bypass_count=$(
-      jq '[.protectionBypass // {} | to_entries[] | select(.value.scope == "automation-bypass")] | length' \
-        <<<"$cleanup_project_json"
-    ) || return 1
-    if [[ "$cleanup_bypass_count" != 0 ]]; then
-      VERCEL_BYPASS_REVOKE_SENT=false
-      return 1
-    fi
-    VERCEL_BYPASS_ACTIVE=false
-    VERCEL_BYPASS_REVOKE_SENT=false
-    unset VERCEL_BYPASS_SECRET
-  fi
-  if [[ -n "${VERCEL_PROBE_ROOT:-}" && -d "$VERCEL_PROBE_ROOT" ]]; then
-    rm -rf -- "$VERCEL_PROBE_ROOT" || return 1
-  fi
-  return 0
-}
-cleanup_vercel_probe_on_exit() {
-  local exit_status=$?
-  while ! cleanup_vercel_probe; do
-    printf '%s\n' \
-      'Could not confirm temporary Vercel bypass cleanup. Retrying in 5 seconds. Do not terminate this shell.' \
-      >&2
-    sleep 5
-  done
-  return "$exit_status"
-}
-trap cleanup_vercel_probe_on_exit EXIT
-vercel link --cwd "$VERCEL_PROBE_DIR" \
-  --yes \
-  --scope marklearst \
-  --project "$PROJECT_ID"
-VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)
-VERCEL_BYPASS_ACTIVE=true
-vercel project protection enable "$PROJECT_ID" --protection-bypass \
-  --protection-bypass-secret "$VERCEL_BYPASS_SECRET" \
-  --scope marklearst
-
-protected_get() {
-  local deployment="$1"
-  local path="$2"
-  (cd "$VERCEL_PROBE_DIR" &&
-    vercel curl "$path" --deployment "$deployment" \
-      --protection-bypass "$VERCEL_BYPASS_SECRET" \
-      --yes -- --fail --silent --show-error) || return 1
-}
-
-verify_protected_deployment() {
-  local deployment="$1"
-  local body
-  body=$(protected_get "$deployment" /) || return 1
-  grep -F 'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a' \
-    <<<"$body" >/dev/null || return 1
-  grep -F '<title>Primitree' <<<"$body" >/dev/null || return 1
-  grep -F 'name="description"' <<<"$body" >/dev/null || return 1
-  grep -F 'property="og:title"' <<<"$body" >/dev/null || return 1
-  body=$(protected_get "$deployment" /docs) || return 1
-  grep -F 'Primitree converts a Figma variables export into DTCG token files' \
-    <<<"$body" >/dev/null ||
-    return 1
-  body=$(protected_get "$deployment" /playground) || return 1
-  grep -F 'This page calls the same build function as' <<<"$body" >/dev/null ||
-    return 1
-  body=$(protected_get "$deployment" /docs/hooks/migration) || return 1
-  grep -F 'Primitree 1.0 moves the hooks package from' <<<"$body" >/dev/null ||
-    return 1
-  body=$(protected_get "$deployment" '/api/search?query=figma') || return 1
-  grep -F '"url":"/docs/concepts/figma-mcp"' <<<"$body" >/dev/null || return 1
-  return 0
-}
-
-verify_public_site() {
-  local base="${1%/}"
-  local body
-  body=$(curl --fail --silent --show-error "${base}/") || return 1
-  grep -F 'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a' \
-    <<<"$body" >/dev/null || return 1
-  grep -F '<title>Primitree' <<<"$body" >/dev/null || return 1
-  grep -F 'name="description"' <<<"$body" >/dev/null || return 1
-  grep -F 'property="og:title"' <<<"$body" >/dev/null || return 1
-  body=$(curl --fail --silent --show-error "${base}/docs") || return 1
-  grep -F 'Primitree converts a Figma variables export into DTCG token files' \
-    <<<"$body" >/dev/null ||
-    return 1
-  body=$(curl --fail --silent --show-error "${base}/playground") || return 1
-  grep -F 'This page calls the same build function as' <<<"$body" >/dev/null ||
-    return 1
-  body=$(curl --fail --silent --show-error "${base}/docs/hooks/migration") ||
-    return 1
-  grep -F 'Primitree 1.0 moves the hooks package from' <<<"$body" >/dev/null ||
-    return 1
-  body=$(curl --fail --silent --show-error "${base}/api/search?query=figma") ||
-    return 1
-  grep -F '"url":"/docs/concepts/figma-mcp"' <<<"$body" >/dev/null || return 1
-  return 0
-}
-```
-
-Choose a full, reviewed commit whose docs build passes these route checks. Stage
-that commit as a Production-target deployment with no domain assignment. Use
-that deployment as the docs fallback. A Preview deployment cannot serve as the
-fallback. Record the exact fallback deployment ID and URL:
-
-```bash
-set -euo pipefail
-FALLBACK_COMMIT='<full tested docs commit SHA>'
-git cat-file -e "$FALLBACK_COMMIT^{commit}"
-FALLBACK_WORKTREE="$(mktemp -d)/primitree-fallback"
-git worktree add --detach "$FALLBACK_WORKTREE" "$FALLBACK_COMMIT"
-FALLBACK_DEPLOY_JSON=$(vercel deploy "$FALLBACK_WORKTREE" \
-  --project primitree \
-  --scope marklearst \
-  --prod --skip-domain \
-  --meta gitCommitSha="$FALLBACK_COMMIT" \
-  --yes \
-  --format=json)
-git worktree remove "$FALLBACK_WORKTREE"
-FALLBACK_DEPLOYMENT_ID=$(jq -er '.id | strings | select(startswith("dpl_"))' <<<"$FALLBACK_DEPLOY_JSON")
-FALLBACK_DEPLOYMENT_URL=$(jq -er '.url | strings | select(test("^https://[a-z0-9.-]+\\.vercel\\.app$"; "i"))' <<<"$FALLBACK_DEPLOY_JSON")
-FALLBACK_DEPLOYMENT_HOST="${FALLBACK_DEPLOYMENT_URL#https://}"
-FALLBACK_JSON=$(vercel inspect "$FALLBACK_DEPLOYMENT_ID" --format=json --scope marklearst)
-test "$(jq -r '.id' <<<"$FALLBACK_JSON")" = "$FALLBACK_DEPLOYMENT_ID"
-test "$(jq -r '.name' <<<"$FALLBACK_JSON")" = primitree
-test "$(jq -r '.url' <<<"$FALLBACK_JSON")" = "$FALLBACK_DEPLOYMENT_HOST"
-test "$(jq -r '.readyState' <<<"$FALLBACK_JSON")" = READY
-test "$(jq -r '.target' <<<"$FALLBACK_JSON")" = production
-test "$(jq -r '.meta.gitCommitSha' <<<"$FALLBACK_JSON")" = "$FALLBACK_COMMIT"
-verify_protected_deployment "$FALLBACK_DEPLOYMENT_URL"
-```
-
-Build the candidate from a fresh detached worktree at the exact final commit.
-The project-setting checks confirm that the worktree-root upload applies the
-`apps/docs` root and includes its workspace dependencies. Build from a detached
-worktree so unrelated files in the main checkout cannot enter the upload. Keep
-the deployment off production domains. Read its exact deployment ID and URL
-from the deployment response. Never substitute a branch alias, `latest`, or
-values you copy by hand. Confirm its target type `production` before promotion.
-
-```bash
-set -euo pipefail
-test "$(git rev-parse 'HEAD^{commit}')" = "$FINAL_COMMIT"
-CANDIDATE_WORKTREE="$(mktemp -d)/primitree-candidate"
-git worktree add --detach "$CANDIDATE_WORKTREE" "$FINAL_COMMIT"
-test "$(git -C "$CANDIDATE_WORKTREE" rev-parse 'HEAD^{commit}')" = "$FINAL_COMMIT"
-CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE" \
-  --project primitree \
-  --scope marklearst \
-  --prod --skip-domain \
-  --meta gitCommitSha="$FINAL_COMMIT" \
-  --yes \
-  --format=json)
-git worktree remove "$CANDIDATE_WORKTREE"
-DEPLOYMENT_ID=$(jq -er '.id | strings | select(startswith("dpl_"))' <<<"$CANDIDATE_DEPLOY_JSON")
-DEPLOYMENT_URL=$(jq -er '.url | strings | select(test("^https://[a-z0-9.-]+\\.vercel\\.app$"; "i"))' <<<"$CANDIDATE_DEPLOY_JSON")
-DEPLOYMENT_HOST="${DEPLOYMENT_URL#https://}"
-CANDIDATE_JSON=$(vercel inspect "$DEPLOYMENT_ID" --format=json --scope marklearst)
-test "$(jq -r '.id' <<<"$CANDIDATE_JSON")" = "$DEPLOYMENT_ID"
-test "$(jq -r '.name' <<<"$CANDIDATE_JSON")" = primitree
-test "$(jq -r '.url' <<<"$CANDIDATE_JSON")" = "$DEPLOYMENT_HOST"
-test "$(jq -r '.readyState' <<<"$CANDIDATE_JSON")" = READY
-test "$(jq -r '.target' <<<"$CANDIDATE_JSON")" = production
-test "$(jq -r '.meta.gitCommitSha' <<<"$CANDIDATE_JSON")" = "$FINAL_COMMIT"
-
-verify_protected_deployment "$DEPLOYMENT_URL"
-vercel promote "$DEPLOYMENT_ID" --scope marklearst
-vercel domains inspect primitree.com --scope marklearst
-PRODUCTION_JSON=$(vercel inspect primitree.com --format=json --scope marklearst)
-test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$DEPLOYMENT_ID"
-verify_public_site https://primitree.com
-if cleanup_vercel_probe; then
-  trap - EXIT
-else
-  printf '%s\n' 'Temporary Vercel bypass cleanup failed; retry before continuing.' >&2
-  return 1 2>/dev/null || exit 1
-fi
-```
-
-Stop when another project owns `primitree.com` or promotion would reassign the
-domain. Establish ownership before continuing. Do not reassign or force the
-domain. The public production alias must resolve to the exact promoted
-deployment ID before the public route checks run. After
-promotion, rerun the complete production route and metadata checks. Keep both
-deployment IDs until launch verification finishes. For rollback, re-inspect
-`"$FALLBACK_DEPLOYMENT_ID"` and rerun
-`verify_protected_deployment "$FALLBACK_DEPLOYMENT_URL"`. Use that deployment
-ID as the sole rollback target. Revoke the temporary automation-bypass secret
-and remove the disposable link after either the candidate or fallback passes
-verification on the public domain.
 
 ### 10. Verify replacements and migration
 

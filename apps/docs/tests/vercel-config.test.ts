@@ -6,12 +6,12 @@ import test from 'node:test'
 
 const docsRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-test('Git previews do not claim the production alias', async () => {
+test('repository config does not disable Git alias assignment', async () => {
   const config = JSON.parse(
     await readFile(join(docsRoot, 'vercel.json'), 'utf8')
   )
 
-  assert.equal(config.github?.autoAlias, false)
+  assert.equal(Object.hasOwn(config, 'github'), false)
 })
 
 test('Git previews build the Primitree docs workspace', async () => {
