@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
 import path from 'node:path'
 import {
   composeGraph,
@@ -8,8 +9,10 @@ import {
   type TokenGraph,
 } from '@primitree/core'
 import { createDTCGGraphFragment } from '@primitree/dtcg'
-import { readJsonFile } from '../io'
 import { loadPrimitreeConfig, type LoadedDTCGSourceConfig } from './load'
+
+const MAX_SOURCE_BYTES = 10 * 1024 * 1024
+const SOURCE_READ_BUFFER_BYTES = 64 * 1024
 
 interface LoadConfiguredSourceOptions {
   readonly configPath?: string
@@ -41,6 +44,88 @@ function resultError(result: {
   readonly diagnostics: readonly { readonly message: string }[]
 }): Error {
   return new Error(result.diagnostics.map(item => item.message).join('\n'))
+}
+
+async function readConfiguredJsonFile(
+  filePath: string,
+  sourceLabel: string
+): Promise<unknown> {
+  const absolute = path.resolve(filePath)
+  const unreadable = () => new Error(`Could not read file: ${absolute}`)
+  const handle = await fs
+    .open(absolute, fsConstants.O_RDONLY | fsConstants.O_NONBLOCK)
+    .catch(() => {
+      throw unreadable()
+    })
+
+  let raw: string | undefined
+  let readFailed = false
+  let readFailure: unknown
+  try {
+    const stats = await handle.stat().catch(() => {
+      throw unreadable()
+    })
+    if (!stats.isFile()) {
+      throw new Error(`Could not read the ${sourceLabel}.`)
+    }
+    if (stats.size > MAX_SOURCE_BYTES) {
+      throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
+    }
+
+    const chunks: Buffer[] = []
+    let position = 0
+    while (true) {
+      const buffer = Buffer.allocUnsafe(SOURCE_READ_BUFFER_BYTES)
+      const { bytesRead } = await handle
+        .read(buffer, 0, buffer.length, position)
+        .catch(() => {
+          throw unreadable()
+        })
+      if (bytesRead === 0) {
+        break
+      }
+      position += bytesRead
+      if (position > MAX_SOURCE_BYTES) {
+        throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
+      }
+      chunks.push(buffer.subarray(0, bytesRead))
+    }
+    raw = Buffer.concat(chunks, position).toString('utf8')
+  } catch (error) {
+    readFailed = true
+    readFailure = error
+  }
+
+  let closeFailure: unknown
+  try {
+    await handle.close()
+  } catch (error) {
+    closeFailure = error
+  }
+  if (readFailed) {
+    if (closeFailure !== undefined) {
+      const readMessage =
+        readFailure instanceof Error ? readFailure.message : String(readFailure)
+      throw new Error(`${readMessage}\nCould not close file: ${absolute}`, {
+        cause: new AggregateError([readFailure, closeFailure]),
+      })
+    }
+    throw readFailure
+  }
+  if (closeFailure !== undefined) {
+    throw new Error(`Could not close file: ${absolute}`, {
+      cause: closeFailure,
+    })
+  }
+  if (raw === undefined) {
+    throw unreadable()
+  }
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    throw new Error(`File is not valid JSON: ${absolute}`)
+  }
 }
 
 export async function loadConfiguredSource(
@@ -79,14 +164,7 @@ export async function buildConfiguredSourceGraph(
   const sourceLabel =
     options.label ?? `file for source "${configured.sourceName}"`
 
-  const stats = await fs.stat(sourceFile).catch(() => undefined)
-  if (stats === undefined || !stats.isFile()) {
-    throw new Error(`Could not read the ${sourceLabel}.`)
-  }
-  if (stats.size > 10 * 1024 * 1024) {
-    throw new Error(`The ${sourceLabel} exceeds the 10 MiB file limit.`)
-  }
-  const document = await readJsonFile(sourceFile)
+  const document = await readConfiguredJsonFile(sourceFile, sourceLabel)
   const fragment = createDTCGGraphFragment(document, {
     source: configured.sourceName,
     uri: path.relative(

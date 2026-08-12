@@ -5,6 +5,10 @@ import { pathToFileURL } from 'node:url'
 import { createSourceId } from '@primitree/core'
 import { createPolicy, type Policy } from '@primitree/core/policy'
 import type { PrimitreeOutputFormat } from '../config'
+import {
+  isUnsafePortablePathSegment,
+  portablePathComparisonKey,
+} from '../portable-path'
 
 interface LoadPrimitreeConfigOptions {
   readonly cwd?: string
@@ -49,35 +53,12 @@ function rejectUnknownFields(
 }
 
 const PATH_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/u
-const WINDOWS_INVALID_PATH_CHARACTER = /[<>:"|?*]/u
-const WINDOWS_DEVICE_NAME =
-  /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu
 const OUTPUT_FORMAT_ORDER = [
   'dtcg',
   'css',
   'typescript',
   'tailwind',
 ] as const satisfies readonly PrimitreeOutputFormat[]
-
-function hasControlText(value: string): boolean {
-  for (const character of value) {
-    const code = character.charCodeAt(0)
-    if (code <= 31 || code === 127) {
-      return true
-    }
-  }
-  return false
-}
-
-function isUnsafeOutputSegment(segment: string): boolean {
-  return (
-    WINDOWS_INVALID_PATH_CHARACTER.test(segment) ||
-    WINDOWS_DEVICE_NAME.test(segment) ||
-    hasControlText(segment) ||
-    segment.endsWith('.') ||
-    segment.endsWith(' ')
-  )
-}
 
 function isMissing(error: unknown): boolean {
   return (
@@ -86,10 +67,6 @@ function isMissing(error: unknown): boolean {
     'code' in error &&
     error.code === 'ENOENT'
   )
-}
-
-function portablePathComparisonKey(value: string): string {
-  return value.normalize('NFC').toUpperCase().normalize('NFC')
 }
 
 function configuredPathLabel(
@@ -543,7 +520,9 @@ function normalizeOutputs(
   const segments = configuredDirectory.split('/')
   const unsafeSegment = segments.find(
     segment =>
-      segment !== '.' && segment !== '..' && isUnsafeOutputSegment(segment)
+      segment !== '.' &&
+      segment !== '..' &&
+      isUnsafePortablePathSegment(segment)
   )
   if (unsafeSegment !== undefined) {
     throw new Error(

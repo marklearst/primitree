@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineConfig } from '../src/config'
 import { loadPrimitreeConfig } from '../src/config/load'
 import { loadConfiguredSourceGraph } from '../src/config/source'
-import * as io from '../src/io'
 
 const temporaryDirectories: string[] = []
 
@@ -63,6 +64,213 @@ const source = {
 } as const
 
 describe('loadConfiguredSourceGraph', () => {
+  it('reads source metadata and contents from one opened file', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    const original = {
+      color: { base: { $type: 'number', $value: 1 } },
+      semantic: {
+        action: { $type: 'number', $value: '{color.base}' },
+      },
+    }
+    const replacement = {
+      color: { base: { $type: 'number', $value: 2 } },
+      semantic: {
+        action: { $type: 'number', $value: '{color.base}' },
+      },
+    }
+    await fs.writeFile(tokenPath, JSON.stringify(original), 'utf8')
+    const stat = fs.stat.bind(fs)
+    const open = fs.open.bind(fs)
+    let replaced = false
+    let sourceStatCalls = 0
+    const replacePath = async () => {
+      if (replaced) {
+        return
+      }
+      replaced = true
+      await fs.rename(tokenPath, `${tokenPath}.original`)
+      await fs.writeFile(tokenPath, JSON.stringify(replacement), 'utf8')
+    }
+    vi.spyOn(fs, 'stat').mockImplementation(async target => {
+      const stats = await stat(target)
+      if (String(target) === tokenPath) {
+        sourceStatCalls += 1
+        if (!replaced) {
+          await replacePath()
+        }
+      }
+      return stats
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (!replaced && String(target) === tokenPath) {
+        await replacePath()
+      }
+      return handle
+    })
+
+    const loaded = await loadConfiguredSourceGraph({ configPath })
+
+    expect(replaced).toBe(true)
+    expect(sourceStatCalls).toBe(0)
+    expect(loaded.document).toEqual(original)
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'opens a FIFO without waiting for a writer',
+    async () => {
+      const directory = await temporaryDirectory()
+      const configPath = await writeConfig(directory, {
+        schemaVersion: 1,
+        sources: { brand: source },
+      })
+      const tokenPath = path.join(directory, 'tokens.json')
+      execFileSync('mkfifo', [tokenPath])
+      const open = fs.open.bind(fs)
+      let usedNonblockingOpen = false
+      let closeCalls = 0
+      vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+        if (String(target) !== tokenPath) {
+          return open(target, flags, mode)
+        }
+        usedNonblockingOpen =
+          typeof flags === 'number' &&
+          (flags & fsConstants.O_NONBLOCK) === fsConstants.O_NONBLOCK
+        if (!usedNonblockingOpen) {
+          throw new Error('The FIFO open would wait for a writer.')
+        }
+        const handle = await open(target, flags, mode)
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+        })
+        return handle
+      })
+
+      await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+        'Could not read the file for source "brand".'
+      )
+      expect(usedNonblockingOpen).toBe(true)
+      expect(closeCalls).toBe(1)
+    }
+  )
+
+  it('stops when the opened source grows beyond 10 MiB', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(
+      tokenPath,
+      JSON.stringify({ color: { base: { $type: 'number', $value: 1 } } }),
+      'utf8'
+    )
+    const open = fs.open.bind(fs)
+    let openedHandle: Awaited<ReturnType<typeof fs.open>> | undefined
+    let grew = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        openedHandle = handle
+        const stat = handle.stat.bind(handle)
+        vi.spyOn(handle, 'stat').mockImplementation(async () => {
+          const stats = await stat()
+          if (!grew) {
+            grew = true
+            await fs.truncate(tokenPath, 10 * 1024 * 1024 + 1)
+          }
+          return stats
+        })
+      }
+      return handle
+    })
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      'The file for source "brand" exceeds the 10 MiB file limit.'
+    )
+
+    expect(grew).toBe(true)
+    const closedHandle = openedHandle
+    if (closedHandle === undefined) {
+      throw new Error('The source file was not opened.')
+    }
+    await expect(closedHandle.stat()).rejects.toMatchObject({ code: 'EBADF' })
+  })
+
+  it('keeps the source error when closing the file also fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, '{}', 'utf8')
+    await fs.truncate(tokenPath, 10 * 1024 * 1024 + 1)
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw new Error('Injected source close failure.')
+        })
+      }
+      return handle
+    })
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(
+      `The file for source "brand" exceeds the 10 MiB file limit.\nCould not close file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+  })
+
+  it('names the source file when closing it fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(
+      tokenPath,
+      JSON.stringify({ color: { base: { $type: 'number', $value: 1 } } }),
+      'utf8'
+    )
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw new Error('Injected source close failure.')
+        })
+      }
+      return handle
+    })
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      `Could not close file: ${tokenPath}`
+    )
+  })
+
   it('keeps source file read errors', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {
@@ -71,12 +279,30 @@ describe('loadConfiguredSourceGraph', () => {
     })
     const tokenPath = path.join(directory, 'tokens.json')
     await fs.writeFile(tokenPath, '{}', 'utf8')
-    vi.spyOn(io, 'readJsonFile').mockRejectedValue(
-      new Error(`Could not read file: ${tokenPath}`)
-    )
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(target) === tokenPath) {
+        throw new Error('Injected source read failure.')
+      }
+      return open(target, flags, mode)
+    })
 
     await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
       `Could not read file: ${tokenPath}`
+    )
+  })
+
+  it('reports invalid source JSON separately from read errors', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, '{', 'utf8')
+
+    await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
+      `File is not valid JSON: ${tokenPath}`
     )
   })
 })

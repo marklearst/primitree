@@ -4,7 +4,6 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseArgs } from '../src/args'
 import { runBuild } from '../src/commands/build'
-import * as io from '../src/io'
 
 const legacyFixturePath = path.join(
   import.meta.dirname,
@@ -335,6 +334,57 @@ describe('primitree build with a project config', () => {
     expect(console.log).toHaveBeenCalledWith('changed css/tokens.css')
   })
 
+  it('reports a symbolic link at an expected file as output drift', async () => {
+    const configPath = await writeProject('{size.base}', ['css'])
+    await runBuild(parseArgs(['--config', configPath]))
+    const cssPath = path.join(directory, 'generated', 'css', 'tokens.css')
+    const target = path.join(directory, 'outside.css')
+    await fs.writeFile(target, 'outside\n', 'utf8')
+    await fs.rm(cssPath)
+    await fs.symlink(target, cssPath)
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (openedPath, flags, mode) => {
+      if (String(openedPath) === cssPath) {
+        throw new Error('Expected output link was opened.')
+      }
+      return open(openedPath, flags, mode)
+    })
+    vi.mocked(console.log).mockClear()
+    process.exitCode = undefined
+
+    await runBuild(parseArgs(['--config', configPath, '--check']))
+
+    expect(process.exitCode).toBe(1)
+    expect(console.log).toHaveBeenCalledWith('changed css/tokens.css')
+    expect((await fs.lstat(cssPath)).isSymbolicLink()).toBe(true)
+    await expect(fs.readFile(target, 'utf8')).resolves.toBe('outside\n')
+  })
+
+  it('reports an unexpected symbolic link as output drift', async () => {
+    const configPath = await writeProject('{size.base}', ['css'])
+    await runBuild(parseArgs(['--config', configPath]))
+    const linkPath = path.join(directory, 'generated', 'css', 'extra.css')
+    const target = path.join(directory, 'outside.css')
+    await fs.writeFile(target, 'outside\n', 'utf8')
+    await fs.symlink(target, linkPath)
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (openedPath, flags, mode) => {
+      if (String(openedPath) === linkPath) {
+        throw new Error('Unexpected output link was opened.')
+      }
+      return open(openedPath, flags, mode)
+    })
+    vi.mocked(console.log).mockClear()
+    process.exitCode = undefined
+
+    await runBuild(parseArgs(['--config', configPath, '--check']))
+
+    expect(process.exitCode).toBe(1)
+    expect(console.log).toHaveBeenCalledWith('unexpected css/extra.css')
+    expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true)
+    await expect(fs.readFile(target, 'utf8')).resolves.toBe('outside\n')
+  })
+
   it('reports a directory at an expected file path without changing it', async () => {
     const configPath = await writeProject('{size.base}', ['css'])
     await runBuild(parseArgs(['--config', configPath]))
@@ -507,15 +557,15 @@ describe('primitree build with a project config', () => {
     const ancestor = path.join(directory, 'generated')
     const outside = path.join(directory, 'outside')
     await fs.mkdir(outside)
-    const readJsonFile = io.readJsonFile
+    const open = fs.open.bind(fs)
     let linkCreated = false
-    vi.spyOn(io, 'readJsonFile').mockImplementation(async file => {
-      const document = await readJsonFile(file)
-      if (!linkCreated && file === sourceFile) {
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (!linkCreated && String(target) === sourceFile) {
         await fs.symlink(outside, ancestor, 'dir')
         linkCreated = true
       }
-      return document
+      return handle
     })
 
     await expect(runBuild(parseArgs(['--config', configPath]))).rejects.toThrow(

@@ -139,6 +139,8 @@ describe('configured build output paths', () => {
     'tokens\\source.json',
     'tokens/source:stream.json',
     'tokens/CON.json',
+    'tokens/COM¹.json',
+    'tokens/LPT³.cache',
     'tokens/source.json.',
     'tokens/source.json ',
     'tokens//source.json',
@@ -164,6 +166,7 @@ describe('configured build output paths', () => {
     ['tokens/a.json', 'tokens/a.json'],
     ['tokens/a.json', 'TOKENS/A.JSON'],
     ['tokens/café.json', 'tokens/café.json'],
+    ['tokens/I.json', 'tokens/ı.json'],
     ['tokens', 'tokens/a.json'],
   ])('rejects colliding paths %j and %j', async (left, right) => {
     const output = path.join(directory, 'generated')
