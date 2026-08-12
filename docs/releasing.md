@@ -702,23 +702,29 @@ for attempt in {1..60}; do
     ) || OBSERVED_DEPLOYMENT_ID=
     if [[ "$OBSERVED_DEPLOYMENT_ID" == "$PREVIOUS_PRODUCTION_ID" ]]; then
       :
-    elif [[ -n "$OBSERVED_DEPLOYMENT_ID" ]] && PRODUCTION_JSON=$(
+    elif [[ -n "$OBSERVED_DEPLOYMENT_ID" ]]; then
+      if PRODUCTION_JSON=$(
         vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID" \
           --scope marklearst --raw
-      ) &&
-      [[ "$(jq -r '.id' <<<"$PRODUCTION_JSON")" == "$OBSERVED_DEPLOYMENT_ID" ]] &&
-      [[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == "$PROJECT_ID" ]] &&
-      [[ "$(jq -r '.name' <<<"$PRODUCTION_JSON")" == primitree ]] &&
-      [[ "$(jq -r '.source' <<<"$PRODUCTION_JSON")" == git ]] &&
-      [[ "$(jq -r '.readyState' <<<"$PRODUCTION_JSON")" == READY ]] &&
-      [[ "$(jq -r '.target' <<<"$PRODUCTION_JSON")" == production ]] &&
-      [[ "$(jq -r '.meta.githubCommitRef' <<<"$PRODUCTION_JSON")" == main ]] &&
-      [[ "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" == "$FINAL_COMMIT" ]]; then
-      PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"
-      break
-    elif [[ -n "$OBSERVED_DEPLOYMENT_ID" ]]; then
-      UNEXPECTED_PRODUCTION_ID="$OBSERVED_DEPLOYMENT_ID"
-      break
+      ); then
+        if [[ "$(jq -r '.id' <<<"$PRODUCTION_JSON")" == \
+          "$OBSERVED_DEPLOYMENT_ID" ]] &&
+          [[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == \
+            "$PROJECT_ID" ]] &&
+          [[ "$(jq -r '.name' <<<"$PRODUCTION_JSON")" == primitree ]] &&
+          [[ "$(jq -r '.source' <<<"$PRODUCTION_JSON")" == git ]] &&
+          [[ "$(jq -r '.readyState' <<<"$PRODUCTION_JSON")" == READY ]] &&
+          [[ "$(jq -r '.target' <<<"$PRODUCTION_JSON")" == production ]] &&
+          [[ "$(jq -r '.meta.githubCommitRef' <<<"$PRODUCTION_JSON")" == \
+            main ]] &&
+          [[ "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" == \
+            "$FINAL_COMMIT" ]]; then
+          PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"
+        else
+          UNEXPECTED_PRODUCTION_ID="$OBSERVED_DEPLOYMENT_ID"
+        fi
+        break
+      fi
     fi
   fi
   if ((attempt < 60)); then

@@ -2734,6 +2734,69 @@ sleep() {
   assert.equal(readFileSync(sleepCalls, 'utf8'), '11\n')
 })
 
+test('automatic production polling retries a transient deployment identity read', t => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const vercelPhase = extractMarkdownSubsection(
+    external,
+    '### 3. Verify the automatic main deployment'
+  )
+  const verificationBlock = extractBashBlockContaining(
+    vercelPhase,
+    'UNEXPECTED_PRODUCTION_ID=',
+    'automatic production verification'
+  )
+  const pollStart =
+    verificationBlock.indexOf('\nPRODUCTION_DEPLOYMENT_ID=\nPRODUCTION_JSON=') +
+    1
+  const pollEnd = verificationBlock.indexOf(
+    '\nif [[ -n "$UNEXPECTED_PRODUCTION_ID" ]]',
+    pollStart
+  )
+  assert.ok(
+    pollStart >= 0 && pollEnd > pollStart,
+    'poll loop must be extractable'
+  )
+  const pollBlock = verificationBlock.slice(pollStart, pollEnd)
+  const temp = mkdtempSync(join(tmpdir(), 'primitree-vercel-poll-'))
+  const identityCalls = join(temp, 'identity-calls')
+  t.after(() => rmSync(temp, { recursive: true, force: true }))
+  writeFileSync(identityCalls, '0\n')
+
+  const mocks = String.raw`
+vercel() {
+  if [[ "$1" == inspect ]]; then
+    printf '%s\n' '{"id":"dpl_release"}'
+    return 0
+  fi
+  if [[ "$1" == api && "$2" == "/v13/deployments/dpl_release" ]]; then
+    local calls
+    calls=$(cat "$IDENTITY_CALLS")
+    calls=$((calls + 1))
+    printf '%s\n' "$calls" >"$IDENTITY_CALLS"
+    if ((calls == 1)); then
+      return 1
+    fi
+    printf '{"id":"dpl_release","projectId":"%s","name":"primitree","source":"git","readyState":"READY","target":"production","meta":{"githubCommitRef":"main","githubCommitSha":"%s"}}\n' \
+      "$PROJECT_ID" "$FINAL_COMMIT"
+    return 0
+  fi
+  return 64
+}
+
+sleep() {
+  return 0
+}
+`
+  const result = runBash(
+    `${mocks}\nPROJECT_ID=prj_test\nFINAL_COMMIT=0123456789012345678901234567890123456789\nPREVIOUS_PRODUCTION_ID=dpl_previous\nIDENTITY_CALLS=${JSON.stringify(identityCalls)}\n${pollBlock}\n[[ "$PRODUCTION_DEPLOYMENT_ID" == dpl_release ]]\n[[ -z "$UNEXPECTED_PRODUCTION_ID" ]]`
+  )
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(readFileSync(identityCalls, 'utf8'), '2\n')
+})
+
 test('automatic deployment recovery verifies the fixed deployment before reenabling domains', t => {
   const external = extractMarkdownSection(
     releaseRunbook,
@@ -3207,7 +3270,7 @@ test('binds previous and automatic production deployments to immutable identitie
       'if PRODUCTION_SUMMARY=$(',
       'OBSERVED_DEPLOYMENT_ID=$(',
       'vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID"',
-      `[[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == "$PROJECT_ID" ]]`,
+      `[[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" ==`,
       'PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"',
       `test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$PRODUCTION_DEPLOYMENT_ID"`,
       `test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" =`,
