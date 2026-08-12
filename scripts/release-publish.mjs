@@ -196,6 +196,13 @@ function optionalRegistryObject(value, mismatchMessage) {
   return value
 }
 
+function isPrereleaseDistTagValue(value) {
+  return (
+    typeof value === 'string' &&
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-/u.test(value)
+  )
+}
+
 function validateRegistryMetadata({ artifactPath, metadata, expected }) {
   const label = `${expected.name}@${expected.version}`
   if (!isPlainObject(metadata)) {
@@ -249,7 +256,7 @@ function validateRegistryMetadata({ artifactPath, metadata, expected }) {
     ) && complete
   if (
     expected.forbidPrereleaseLatest === true &&
-    distTags?.latest === expected.version
+    isPrereleaseDistTagValue(distTags?.latest)
   ) {
     throw new Error(
       `${label}: prerelease must not remain on the latest dist-tag`
@@ -698,7 +705,7 @@ export async function runReleasePublish({
 
       if (
         isPrereleaseVersion(verified.version) &&
-        acceptedState.metadata?.['dist-tags']?.latest === verified.version
+        isPrereleaseDistTagValue(acceptedState.metadata?.['dist-tags']?.latest)
       ) {
         requireCommandSuccess(
           runCommand(

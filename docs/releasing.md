@@ -62,7 +62,8 @@ Packages publish in dependency order: core → dtcg → cli → hooks → mcp �
 primitree. Stable versions use npm's `latest` dist-tag. Versions ending in
 `-next.N` use `next` and GitHub marks their release as a prerelease. The release
 controller also removes an unexpected `latest` tag from every prerelease
-package and verifies that `next` identifies the exact version before
+package, including when `latest` points to an older prerelease. It preserves a
+stable `latest` and verifies that `next` identifies the exact version before
 continuing.
 
 ## Release artifact boundary
@@ -1142,8 +1143,9 @@ npm publish "$ARTIFACT_DIR/primitree-$VERSION.tgz" --registry=https://registry.n
 ### Wrong dist-tag
 
 Inspect and repair a dist-tag without republishing. A prerelease must remain on
-`next` and must not occupy `latest`. Remove `latest` when the listing shows that
-it points to `$VERSION`; preserve it when it points to a stable version.
+`next` and must not occupy `latest`. Remove `latest` whenever the listing shows
+that it points to a prerelease, including an older prerelease; preserve it when
+it points to a stable version.
 Use this core example for the package whose dist-tag needs repair:
 
 ```bash
@@ -1152,7 +1154,9 @@ npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npm
 LATEST_VERSION="$(
   npm view "@primitree/core" dist-tags.latest --registry=https://registry.npmjs.org
 )"
-if [ "$LATEST_VERSION" = "$VERSION" ]; then
+if printf '%s\n' "$LATEST_VERSION" |
+  grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-'
+then
   npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org
 fi
 ```
