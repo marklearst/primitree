@@ -67,13 +67,13 @@ jobs:
       - name: Run browser tests
         run: pnpm run test:e2e
 
-      - name: Validate stable release tag
+      - name: Validate release tag
         if: github.ref_type == 'tag'
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Release tags must use vMAJOR.MINOR.PATCH" >&2
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-next\.[0-9]+)?$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N" >&2
             exit 1
           fi
           pnpm run check:release-metadata
@@ -93,12 +93,7 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           use_oidc: true
-          files: >-
-            ./packages/core/coverage/lcov.info,
-            ./packages/dtcg/coverage/lcov.info,
-            ./packages/cli/coverage/lcov.info,
-            ./packages/hooks/coverage/lcov.info,
-            ./packages/mcp/coverage/lcov.info
+          files: ./packages/core/coverage/lcov.info,./packages/dtcg/coverage/lcov.info,./packages/cli/coverage/lcov.info,./packages/hooks/coverage/lcov.info,./packages/mcp/coverage/lcov.info
           disable_search: true
           fail_ci_if_error: true
 

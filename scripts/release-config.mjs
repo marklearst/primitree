@@ -62,6 +62,28 @@ export const RELEASE_FUNDING_TYPE = 'github'
 export const RELEASE_FUNDING = 'https://github.com/sponsors/marklearst'
 export const RELEASE_NODE_ENGINE = '>=24.0.0'
 
+const STABLE_RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+const NEXT_RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-next\.(0|[1-9]\d*)$/
+
+export function releaseChannelForVersion(version) {
+  if (typeof version !== 'string') {
+    throw new Error(
+      'release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
+    )
+  }
+  if (STABLE_RELEASE_VERSION_PATTERN.test(version)) return 'latest'
+  if (NEXT_RELEASE_VERSION_PATTERN.test(version)) return 'next'
+  throw new Error(
+    'release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
+  )
+}
+
+export function isPrereleaseVersion(version) {
+  return releaseChannelForVersion(version) === 'next'
+}
+
 export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
   freezePackage({
     path: 'packages/core',
@@ -148,6 +170,7 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     requiredFiles: ['dist', 'CHANGELOG.md'],
     requiredDeclarationFiles: ['dist/index.d.ts', 'dist/config.d.ts'],
     expectedExports: {
+      './bin': './dist/index.js',
       './config': {
         types: './dist/config.d.ts',
         import: './dist/config.js',
@@ -199,5 +222,17 @@ export const PUBLIC_RELEASE_PACKAGES = Object.freeze([
     requiredBin: 'primitree-mcp',
     requiredBinTarget: './dist/cli.js',
     requiredInternalRuntimeDependencies: ['@primitree/core', '@primitree/dtcg'],
+  }),
+  freezePackage({
+    path: 'packages/primitree',
+    manifestPath: 'packages/primitree/package.json',
+    name: 'primitree',
+    attwProfile: null,
+    requiredFiles: ['bin', 'CHANGELOG.md'],
+    requiredDeclarationFiles: [],
+    expectedExports: undefined,
+    requiredBin: 'primitree',
+    requiredBinTarget: './bin/primitree.js',
+    requiredInternalRuntimeDependencies: ['@primitree/cli'],
   }),
 ])

@@ -841,9 +841,9 @@ test('built prose validation requires every API page and exact public declaratio
     ['@primitree/mcp', ['dist/index.d.ts', 'dist/cli.d.ts']],
   ])
   const declarationFiles = PUBLIC_RELEASE_PACKAGES.flatMap(config =>
-    requiredDeclarations
-      .get(config.name)
-      .map(file => path.join(root, config.path, file))
+    (requiredDeclarations.get(config.name) ?? []).map(file =>
+      path.join(root, config.path, file)
+    )
   )
 
   assert.doesNotThrow(() =>

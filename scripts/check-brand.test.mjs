@@ -210,6 +210,10 @@ test('permits only migration references in approved files', () => {
       content: `The React package moved from ${hooksScope} to @primitree/hooks.`,
     },
     {
+      path: 'docs/launch/v1.0.0-next.0.md',
+      content: `The React package moved from ${hooksScope} to @primitree/hooks.`,
+    },
+    {
       path: 'docs/plans/2026-07-28-primitree-clean-break-implementation.md',
       content: `Keep ${hooksScope}@4.0.0 in migration instructions.`,
     },

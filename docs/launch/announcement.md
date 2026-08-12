@@ -1,6 +1,6 @@
 # Primitree 1.0 launch copy
 
-Draft copy for the 1.0.0 release.
+Draft copy for the 1.0 prerelease.
 
 ## Show HN
 
@@ -15,7 +15,7 @@ Hi HN. I built Primitree to turn an exported `variables.json` file into token
 files that live in a repository.
 
 ```sh
-npx @primitree/cli build variables.json
+npx primitree@next build variables.json
 git add design-tokens
 ```
 
@@ -56,7 +56,7 @@ Docs: https://primitree.com
 Build commit-ready token files from a Figma `variables.json` export.
 
 ```sh
-npx @primitree/cli build variables.json
+npx primitree@next build variables.json
 ```
 
 Primitree writes DTCG 2025.10 tokens plus a documented boolean extension,
@@ -119,13 +119,13 @@ Set Width 1200
 Set Height 640
 Set Theme "Catppuccin Mocha"
 
-Type "npx @primitree/cli build variables.json" Enter
+Type "npx primitree@next build variables.json" Enter
 Sleep 4s
 Type "find design-tokens -maxdepth 2 -type f | sort" Enter
 Sleep 4s
 Type "git add design-tokens && git status --short" Enter
 Sleep 4s
-Type "npx @primitree/cli diff backup/variables.json variables.json" Enter
+Type "npx primitree@next diff backup/variables.json variables.json" Enter
 Sleep 5s
 ```
 
@@ -135,7 +135,7 @@ switch one Resolver context, and download the zip.
 ## Launch checklist
 
 - [ ] Finish the [release runbook](../releasing.md).
-- [ ] Publish the five `@primitree` packages in dependency order.
+- [ ] Publish the five scoped packages and the unscoped `primitree` launcher in dependency order.
 - [ ] Verify the documentation site at https://primitree.com.
 - [ ] Verify the migration guide at
       https://primitree.com/docs/hooks/migration.
