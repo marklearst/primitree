@@ -352,6 +352,22 @@ export class ReferenceResolutionError extends Error {
   }
 }
 
+/** The result of validating one Resolver context selection. @public */
+export type ResolverContextValidation =
+  | {
+      /** Context selection that passed validation. */
+      readonly contexts: Record<string, string>
+      readonly ok: true
+      /** Token paths without an explicit, inherited, or alias-derived type. */
+      readonly untypedTokenPaths: string[]
+    }
+  | {
+      /** Context selection that failed reference or document validation. */
+      readonly contexts: Record<string, string>
+      readonly ok: false
+      readonly error: ReferenceResolutionError
+    }
+
 const TOKEN_REFERENCE_WORK_LIMIT_MESSAGE =
   'Token reference resolution exceeds the 1,000,000-unit work limit.'
 
@@ -1095,6 +1111,64 @@ export function listPermutations(
     errorMessage: workLimitMessage,
   }
   return listPermutationsWithBudget(resolver, budget)
+}
+
+/**
+ * Validate every Resolver context selection within one shared work budget.
+ *
+ * @remarks
+ * Successful results include paths whose tokens have no explicit, inherited,
+ * or whole-token-alias-derived type. Reference and token-document failures stay
+ * attached to their context so callers can report every failing selection.
+ *
+ * One call validates at most 1,000 context permutations, reads at most 64
+ * token-group levels, and spends at most 1,000,000 work units across context
+ * enumeration, Resolver application, effective-type flattening, reference
+ * resolution, and returned results.
+ *
+ * @param files - File-name map of token documents.
+ * @param resolver - Resolver document whose context selections to validate.
+ * @returns One validation result for each declared context permutation.
+ * @throws `TypeError` - The call exceeds its permutation, depth, or work limit.
+ * @throws {@link ReferenceResolutionError} - The Resolver cannot enumerate its
+ * context selections.
+ *
+ * @public
+ */
+export function validateResolverContexts(
+  files: Record<string, DTCGDocument>,
+  resolver: ResolverDocument
+): ResolverContextValidation[] {
+  const budget = publicResolverBudget(
+    'Resolver context validation exceeds the 1,000,000-unit work limit.',
+    'Resolver context validation can read at most 64 token-group levels.'
+  )
+  const permutations = listPermutationsWithBudget(resolver, budget)
+  const results: ResolverContextValidation[] = []
+
+  for (const contexts of permutations) {
+    try {
+      const merged = applyResolverWithBudget(files, resolver, contexts, budget)
+      const flat = flattenTypedTokensWithBudget(merged, budget)
+      resolveTokenValuesWithBudget(flat, budget)
+      const untypedTokenPaths: string[] = []
+      for (const token of flat) {
+        chargeResolverWork(budget)
+        if (token.type === undefined) {
+          untypedTokenPaths.push(token.path)
+        }
+      }
+      chargeResolverWork(budget)
+      results.push({ contexts, ok: true, untypedTokenPaths })
+    } catch (error) {
+      if (!(error instanceof ReferenceResolutionError)) {
+        throw error
+      }
+      chargeResolverWork(budget)
+      results.push({ contexts, ok: false, error })
+    }
+  }
+  return results
 }
 
 /** @internal */

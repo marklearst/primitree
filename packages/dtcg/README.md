@@ -115,11 +115,13 @@ import {
   listPermutations,
   resolveTokenValues,
   resolveTokenValuesSafe,
+  validateResolverContexts,
 } from '@primitree/dtcg'
 
 const dark = applyResolver(files, resolver, { semantic: 'dark' })
 const flat = flattenTypedTokens(dark)
 const values = resolveTokenValues(flat)
+const validations = validateResolverContexts(files, resolver)
 ```
 
 `flattenTypedTokens` includes each token's effective type after group
@@ -130,7 +132,10 @@ read up to 64 token-group levels and spend up to 1,000,000 work units per call.
 `resolveTokenValuesSafe` returns resolved values and one error for each input
 token that fails. `resolveTokenValues` and `resolveTokenValuesSafe` each have a
 1,000,000-unit work limit for token paths, references, reference walks, cycle
-messages, and resolved entries.
+messages, and resolved entries. `validateResolverContexts` checks every declared
+context permutation with one shared 1,000,000-unit work limit. Each result
+contains either a context error or the paths of tokens without an explicit,
+inherited, or alias-derived type.
 
 ## Build in-memory pipeline files
 

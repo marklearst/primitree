@@ -13,6 +13,7 @@ import {
   resolveTokenValues,
   resolveTokenValuesSafe,
   ReferenceResolutionError,
+  validateResolverContexts,
 } from '../src/resolve'
 import {
   isToken,
@@ -1484,6 +1485,203 @@ describe('listContexts / listPermutations', () => {
       })
     ).toThrow(
       'Resolver context permutations exceed the 1,000,000-unit work limit.'
+    )
+  })
+})
+
+describe('validateResolverContexts', () => {
+  it('returns one result for each context and keeps reference failures local', () => {
+    const validationResolver: ResolverDocument = {
+      version: '2025.10',
+      modifiers: {
+        theme: {
+          contexts: {
+            good: [{ $ref: './good.tokens.json' }],
+            bad: [{ $ref: './bad.tokens.json' }],
+          },
+        },
+      },
+      resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+    }
+
+    const results = validateResolverContexts(
+      {
+        'good.tokens.json': {
+          base: { $type: 'number', $value: 1 },
+          alias: { $value: '{base}' },
+        },
+        'bad.tokens.json': {
+          alias: { $type: 'number', $value: '{missing}' },
+        },
+      },
+      validationResolver
+    )
+
+    expect(results).toHaveLength(2)
+    expect(results[0]).toEqual({
+      contexts: { theme: 'good' },
+      ok: true,
+      untypedTokenPaths: [],
+    })
+    expect(results[1]).toMatchObject({
+      contexts: { theme: 'bad' },
+      ok: false,
+      error: {
+        name: 'ReferenceResolutionError',
+        path: 'missing',
+      },
+    })
+    const failed = results[1]
+    expect(failed?.ok).toBe(false)
+    if (failed?.ok === false) {
+      expect(failed.error.message).toMatch(/does not exist/i)
+    }
+  })
+
+  it('reports effective untyped token paths without retaining flattened tokens', () => {
+    const results = validateResolverContexts(
+      {
+        'tokens.tokens.json': {
+          typed: {
+            $type: 'number',
+            literal: { $value: 1 },
+            alias: { $value: '{typed.literal}' },
+          },
+          untyped: { $value: 'plain' },
+        },
+      },
+      {
+        version: '2025.10',
+        sets: {
+          base: { sources: [{ $ref: './tokens.tokens.json' }] },
+        },
+        resolutionOrder: [{ $ref: '#/sets/base' }],
+      }
+    )
+
+    expect(results).toEqual([
+      {
+        contexts: {},
+        ok: true,
+        untypedTokenPaths: ['untyped'],
+      },
+    ])
+  })
+
+  it('shares one work limit across every context validation', () => {
+    const repeatedDocument: DTCGDocument = Object.fromEntries(
+      Array.from({ length: 300 }, (_, index) => [
+        `token-${index}-${'x'.repeat(500)}`,
+        { $type: 'string', $value: 'value' },
+      ])
+    )
+    const contexts = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `context-${index}`,
+        [{ $ref: './repeated.tokens.json' }],
+      ])
+    )
+
+    expect(
+      validateResolverContexts(
+        { 'repeated.tokens.json': repeatedDocument },
+        {
+          version: '2025.10',
+          modifiers: {
+            theme: {
+              contexts: {
+                only: [{ $ref: './repeated.tokens.json' }],
+              },
+            },
+          },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toMatchObject([{ contexts: { theme: 'only' }, ok: true }])
+
+    expect(() =>
+      validateResolverContexts(
+        { 'repeated.tokens.json': repeatedDocument },
+        {
+          version: '2025.10',
+          modifiers: { theme: { contexts } },
+          resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+        }
+      )
+    ).toThrow(
+      'Resolver context validation exceeds the 1,000,000-unit work limit.'
+    )
+  })
+
+  it('rejects more than 1,000 context permutations', () => {
+    const modifiers = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        `axis-${index}`,
+        { contexts: { first: [], second: [] } },
+      ])
+    )
+
+    expect(() =>
+      validateResolverContexts(
+        {},
+        {
+          version: '2025.10',
+          modifiers,
+          resolutionOrder: [],
+        }
+      )
+    ).toThrow(TypeError)
+    expect(() =>
+      validateResolverContexts(
+        {},
+        {
+          version: '2025.10',
+          modifiers,
+          resolutionOrder: [],
+        }
+      )
+    ).toThrow('Resolver can contain at most 1,000 context permutations.')
+  })
+
+  it('propagates the shared token-group depth limit', () => {
+    let nested: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    const action = () =>
+      validateResolverContexts(
+        { 'deep.tokens.json': nested },
+        {
+          version: '2025.10',
+          sets: {
+            deep: { sources: [{ $ref: './deep.tokens.json' }] },
+          },
+          resolutionOrder: [{ $ref: '#/sets/deep' }],
+        }
+      )
+
+    expect(action).toThrow(TypeError)
+    expect(action).toThrow(
+      'Resolver context validation can read at most 64 token-group levels.'
+    )
+  })
+
+  it('throws when the Resolver cannot enumerate its contexts', () => {
+    expectResolutionFailure(
+      () =>
+        validateResolverContexts(
+          {},
+          {
+            version: '2025.10',
+            modifiers: { theme: { contexts: {} } },
+            resolutionOrder: [{ $ref: '#/modifiers/theme' }],
+          }
+        ),
+      '#/modifiers/theme/contexts',
+      /define at least one context/i
     )
   })
 })

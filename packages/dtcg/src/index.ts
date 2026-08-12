@@ -19,9 +19,14 @@ export {
   applyResolver,
   listContexts,
   listPermutations,
+  validateResolverContexts,
   ReferenceResolutionError,
 } from './resolve'
-export type { FlatToken, TypedFlatToken } from './resolve'
+export type {
+  FlatToken,
+  ResolverContextValidation,
+  TypedFlatToken,
+} from './resolve'
 
 export { figmaColorToDTCG, colorToHex, isFigmaColor } from './color'
 export { inferTokenType } from './inferType'
