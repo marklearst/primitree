@@ -11,7 +11,7 @@ test('repository config does not disable Git alias assignment', async () => {
     await readFile(join(docsRoot, 'vercel.json'), 'utf8')
   )
 
-  assert.equal(Object.hasOwn(config, 'github'), false)
+  assert.notEqual(config.github?.autoAlias, false)
 })
 
 test('Git previews build the Primitree docs workspace', async () => {

@@ -183,6 +183,13 @@ repository and production branch. `autoAssignCustomDomains` must be `true`.
 Record the current production deployment before merging so the launch has one
 verified rollback target:
 
+Use one release operator and reserve an exclusive production-change window from
+this capture through step 3. During that window, do not promote or roll back
+another deployment. The verifier stops on any third production ID. Before it
+runs an automatic rollback, alias-event history must show the exact release and
+no other events after the recorded baseline. Any other alias event aborts the
+automatic rollback.
+
 ```bash
 set -euo pipefail
 PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
@@ -206,26 +213,63 @@ test "$(jq -r '.name' <<<"$PREVIOUS_PRODUCTION_JSON")" = primitree
 test "$(jq -r '.readyState' <<<"$PREVIOUS_PRODUCTION_JSON")" = READY
 test "$(jq -r '.target' <<<"$PREVIOUS_PRODUCTION_JSON")" = production
 
-PREVIOUS_PRODUCTION_HOME=$(curl --fail --silent --show-error https://primitree.com/)
+PREVIOUS_PRODUCTION_HOME=$(
+  curl --fail --connect-timeout 5 --max-time 20 --location \
+    --silent --show-error https://primitree.com/
+)
 grep -F '<title>Primitree' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
 grep -F 'name="description"' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
 grep -F 'property="og:title"' <<<"$PREVIOUS_PRODUCTION_HOME" >/dev/null
-curl --fail --silent --show-error https://primitree.com/docs >/dev/null
-curl --fail --silent --show-error https://primitree.com/playground >/dev/null
-curl --fail --silent --show-error \
-  https://primitree.com/docs/hooks/migration >/dev/null
+PREVIOUS_PRODUCTION_DOCS=$(
+  curl --fail --connect-timeout 5 --max-time 20 --location \
+    --silent --show-error https://primitree.com/docs
+)
+grep -F '<title>Build token files · Primitree' \
+  <<<"$PREVIOUS_PRODUCTION_DOCS" >/dev/null
+PREVIOUS_PRODUCTION_PLAYGROUND=$(
+  curl --fail --connect-timeout 5 --max-time 20 --location \
+    --silent --show-error https://primitree.com/playground
+)
+grep -F '<title>Playground · Primitree' \
+  <<<"$PREVIOUS_PRODUCTION_PLAYGROUND" >/dev/null
+PREVIOUS_PRODUCTION_MIGRATION=$(
+  curl --fail --connect-timeout 5 --max-time 20 --location \
+    --silent --show-error https://primitree.com/docs/hooks/migration
+)
+grep -F '<title>Migration from @figma-vars/hooks · Primitree' \
+  <<<"$PREVIOUS_PRODUCTION_MIGRATION" >/dev/null
 PREVIOUS_PRODUCTION_SEARCH=$(
-  curl --fail --silent --show-error \
+  curl --fail --connect-timeout 5 --max-time 20 --location \
+    --silent --show-error \
     'https://primitree.com/api/search?query=figma'
 )
 grep -F '"url":"/docs/concepts/figma-mcp"' \
   <<<"$PREVIOUS_PRODUCTION_SEARCH" >/dev/null
+RELEASE_EVENT_BASELINE_JSON=$(
+  vercel api \
+    "/v3/events?projectIds=$PROJECT_ID&types=aliases-assigned&withPayload=true&limit=1" \
+    --scope marklearst --raw
+)
+RELEASE_EVENT_BASELINE_ID=$(
+  jq -er \
+    '.events
+    | select(length == 1)
+    | .[0]
+    | select(.type == "aliases-assigned")
+    | select(.payload.projectId == $project)
+    | .id
+    | strings
+    | select(startswith("uev_"))' \
+    --arg project "$PROJECT_ID" \
+    <<<"$RELEASE_EVENT_BASELINE_JSON"
+)
 POST_HEALTH_PRODUCTION_SUMMARY=$(
   vercel inspect primitree.com --format=json --scope marklearst
 )
 test "$(jq -r '.id' <<<"$POST_HEALTH_PRODUCTION_SUMMARY")" = \
   "$PREVIOUS_PRODUCTION_ID"
 printf 'Previous production deployment ID: %s\n' "$PREVIOUS_PRODUCTION_ID"
+printf 'Release alias-event baseline: %s\n' "$RELEASE_EVENT_BASELINE_ID"
 ```
 
 After every required review and check passes, merge, switch to `main`, and
@@ -262,22 +306,37 @@ when Vercel does not assign the exact commit or a public check fails.
 ```bash
 set -euo pipefail
 
+public_get() {
+  local body
+  local effective_url
+  local expected_url="$1"
+  local response
+  response=$(
+    curl --fail --location --silent --show-error \
+      --connect-timeout 5 --max-time 20 --max-redirs 5 \
+      --write-out $'\n%{url_effective}' "$expected_url"
+  ) || return 1
+  effective_url=${response##*$'\n'}
+  body=${response%$'\n'*}
+  [[ "${effective_url%/}" == "${expected_url%/}" ]] || return 1
+  printf '%s\n' "$body"
+}
+
 verify_public_health() {
   local body
-  body=$(curl --fail --silent --show-error https://primitree.com/) || return 1
+  body=$(public_get https://primitree.com/) || return 1
   grep -F '<title>Primitree' <<<"$body" >/dev/null || return 1
   grep -F 'name="description"' <<<"$body" >/dev/null || return 1
   grep -F 'property="og:title"' <<<"$body" >/dev/null || return 1
-  curl --fail --silent --show-error https://primitree.com/docs >/dev/null ||
+  body=$(public_get https://primitree.com/docs) || return 1
+  grep -F '<title>Build token files · Primitree' <<<"$body" >/dev/null ||
     return 1
-  curl --fail --silent --show-error https://primitree.com/playground >/dev/null ||
-    return 1
-  curl --fail --silent --show-error \
-    https://primitree.com/docs/hooks/migration >/dev/null || return 1
-  body=$(
-    curl --fail --silent --show-error \
-      'https://primitree.com/api/search?query=figma'
-  ) || return 1
+  body=$(public_get https://primitree.com/playground) || return 1
+  grep -F '<title>Playground · Primitree' <<<"$body" >/dev/null || return 1
+  body=$(public_get https://primitree.com/docs/hooks/migration) || return 1
+  grep -F '<title>Migration from @figma-vars/hooks · Primitree' \
+    <<<"$body" >/dev/null || return 1
+  body=$(public_get 'https://primitree.com/api/search?query=figma') || return 1
   grep -F '"url":"/docs/concepts/figma-mcp"' <<<"$body" >/dev/null || return 1
   return 0
 }
@@ -285,21 +344,16 @@ verify_public_health() {
 verify_public_site() {
   local body
   verify_public_health || return 1
-  body=$(curl --fail --silent --show-error https://primitree.com/) || return 1
+  body=$(public_get https://primitree.com/) || return 1
   grep -F 'Govern token change. Know every consequence.' \
     <<<"$body" >/dev/null || return 1
-  body=$(curl --fail --silent --show-error https://primitree.com/docs) ||
-    return 1
+  body=$(public_get https://primitree.com/docs) || return 1
   grep -F 'Primitree checks a local DTCG token file' \
     <<<"$body" >/dev/null || return 1
-  body=$(curl --fail --silent --show-error https://primitree.com/playground) ||
-    return 1
+  body=$(public_get https://primitree.com/playground) || return 1
   grep -F 'This page calls the same build function as' <<<"$body" >/dev/null ||
     return 1
-  body=$(
-    curl --fail --silent --show-error \
-      https://primitree.com/docs/hooks/migration
-  ) || return 1
+  body=$(public_get https://primitree.com/docs/hooks/migration) || return 1
   grep -F 'Primitree 1.0 moves the hooks package from' <<<"$body" >/dev/null ||
     return 1
   return 0
@@ -337,6 +391,7 @@ verify_previous_production_identity() {
 verify_current_release_identity() {
   local current_id="$1"
   local current_json
+  [[ "$current_id" =~ ^dpl_[A-Za-z0-9]+$ ]] || return 1
   current_json=$(
     vercel api "/v13/deployments/$current_id" --scope marklearst --raw
   ) || return 1
@@ -344,10 +399,200 @@ verify_current_release_identity() {
   [[ "$(jq -r '.projectId' <<<"$current_json")" == "$PROJECT_ID" ]] ||
     return 1
   [[ "$(jq -r '.name' <<<"$current_json")" == primitree ]] || return 1
+  [[ "$(jq -r '.source' <<<"$current_json")" == git ]] || return 1
   [[ "$(jq -r '.target' <<<"$current_json")" == production ]] || return 1
+  [[ "$(jq -r '.readyState' <<<"$current_json")" == READY ]] || return 1
+  [[ "$(jq -r '.meta.githubCommitRef' <<<"$current_json")" == main ]] ||
+    return 1
   [[ "$(jq -r '.meta.githubCommitSha' <<<"$current_json")" == \
     "$FINAL_COMMIT" ]] || return 1
   return 0
+}
+
+verify_previous_is_release_predecessor() {
+  local baseline_index
+  local event_count
+  local release_events
+  [[ -n "$PRODUCTION_DEPLOYMENT_ID" ]] || return 1
+  release_events=$(
+    vercel api \
+      "/v3/events?projectIds=$PROJECT_ID&types=aliases-assigned&withPayload=true&limit=100" \
+      --scope marklearst --raw
+  ) || return 1
+  event_count=$(jq '.events | length' <<<"$release_events") || return 1
+  [[ "$event_count" =~ ^[0-9]+$ ]] || return 1
+  ((event_count > 1 && event_count < 100)) || return 1
+  baseline_index=$(
+    jq --arg baseline "$RELEASE_EVENT_BASELINE_ID" \
+      '[.events[].id] | index($baseline) // -1' <<<"$release_events"
+  ) || return 1
+  [[ "$baseline_index" =~ ^[0-9]+$ ]] || return 1
+  ((baseline_index > 0 && baseline_index < event_count)) || return 1
+  jq -e \
+    --argjson baseline_index "$baseline_index" \
+    --arg project "$PROJECT_ID" \
+    --arg release "$PRODUCTION_DEPLOYMENT_ID" \
+    'all(.events[0:$baseline_index][];
+      .type == "aliases-assigned"
+      and .payload.projectId == $project
+      and .payload.deployment.id == $release)' \
+    <<<"$release_events" >/dev/null
+}
+
+pause_automatic_production_domains() {
+  vercel api "/v9/projects/$PROJECT_ID" \
+    -X PATCH \
+    -F autoAssignCustomDomains=false \
+    --scope marklearst --silent || return 1
+  verify_automatic_production_domains_paused
+}
+
+verify_automatic_production_domains_paused() {
+  local project_json
+  project_json=$(
+    vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw
+  ) || return 1
+  [[ "$(jq -r '.id' <<<"$project_json")" == "$PROJECT_ID" ]] || return 1
+  [[ "$(jq -r '.name' <<<"$project_json")" == primitree ]] || return 1
+  [[ "$(jq -r '.autoAssignCustomDomains' <<<"$project_json")" == false ]]
+}
+
+cancel_unfinished_release_deployment() {
+  local attempt
+  local cancel_json
+  local release_count
+  local release_json
+  local release_list
+  local release_state
+  release_list=$(
+    vercel api \
+      "/v7/deployments?projectId=$PROJECT_ID&sha=$FINAL_COMMIT&branch=main&target=production&limit=2" \
+      --scope marklearst --raw
+  ) || return 1
+  release_count=$(
+    jq --arg project "$PROJECT_ID" --arg commit "$FINAL_COMMIT" \
+      '[.deployments[]
+        | select(.projectId == $project)
+        | select(.source == "git")
+        | select(.target == "production")
+        | select(.meta.githubCommitRef == "main")
+        | select(.meta.githubCommitSha == $commit)]
+      | length' \
+      <<<"$release_list"
+  ) || return 1
+  [[ "$release_count" =~ ^[0-9]+$ ]] || return 1
+  ((release_count <= 1)) || return 1
+  if ((release_count == 0)); then
+    return 0
+  fi
+  RELEASE_DEPLOYMENT_ID=$(
+    jq -er --arg project "$PROJECT_ID" --arg commit "$FINAL_COMMIT" \
+      '.deployments[]
+      | select(.projectId == $project)
+      | select(.source == "git")
+      | select(.target == "production")
+      | select(.meta.githubCommitRef == "main")
+      | select(.meta.githubCommitSha == $commit)
+      | .uid' \
+      <<<"$release_list"
+  ) || return 1
+  release_json=$(
+    vercel api "/v13/deployments/$RELEASE_DEPLOYMENT_ID" \
+      --scope marklearst --raw
+  ) || return 1
+  [[ "$(jq -r '.id' <<<"$release_json")" == "$RELEASE_DEPLOYMENT_ID" ]] ||
+    return 1
+  [[ "$(jq -r '.projectId' <<<"$release_json")" == "$PROJECT_ID" ]] ||
+    return 1
+  [[ "$(jq -r '.name' <<<"$release_json")" == primitree ]] || return 1
+  [[ "$(jq -r '.source' <<<"$release_json")" == git ]] || return 1
+  [[ "$(jq -r '.target' <<<"$release_json")" == production ]] || return 1
+  [[ "$(jq -r '.meta.githubCommitRef' <<<"$release_json")" == main ]] ||
+    return 1
+  [[ "$(jq -r '.meta.githubCommitSha' <<<"$release_json")" == \
+    "$FINAL_COMMIT" ]] || return 1
+  release_state=$(jq -r '.readyState' <<<"$release_json") || return 1
+  case "$release_state" in
+    READY | ERROR | CANCELED)
+      return 0
+      ;;
+    BUILDING | INITIALIZING | QUEUED)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  if cancel_json=$(
+    vercel api "/v12/deployments/$RELEASE_DEPLOYMENT_ID/cancel" \
+      -X PATCH --scope marklearst --raw
+  ); then
+    [[ "$(jq -r '.id' <<<"$cancel_json")" == "$RELEASE_DEPLOYMENT_ID" ]] ||
+      return 1
+    [[ "$(jq -r '.projectId' <<<"$cancel_json")" == "$PROJECT_ID" ]] ||
+      return 1
+    [[ "$(jq -r '.readyState' <<<"$cancel_json")" == CANCELED ]] || return 1
+  else
+    release_json=$(
+      vercel api "/v13/deployments/$RELEASE_DEPLOYMENT_ID" \
+        --scope marklearst --raw
+    ) || return 1
+    release_state=$(jq -r '.readyState' <<<"$release_json") || return 1
+    [[ "$release_state" == READY || "$release_state" == ERROR || \
+      "$release_state" == CANCELED ]] || return 1
+  fi
+
+  for attempt in {1..12}; do
+    release_json=$(
+      vercel api "/v13/deployments/$RELEASE_DEPLOYMENT_ID" \
+        --scope marklearst --raw
+    ) || return 1
+    release_state=$(jq -r '.readyState' <<<"$release_json") || return 1
+    if [[ "$release_state" == READY || "$release_state" == ERROR || \
+      "$release_state" == CANCELED ]]; then
+      return 0
+    fi
+    if ((attempt < 12)); then
+      sleep 5
+    fi
+  done
+  return 1
+}
+
+contain_failed_release() {
+  local current_id
+  local current_summary
+  pause_automatic_production_domains || return 1
+  cancel_unfinished_release_deployment || return 1
+  if ! current_summary=$(
+    vercel inspect primitree.com --format=json --scope marklearst
+  ); then
+    verify_automatic_production_domains_paused || return 1
+    return 1
+  fi
+  if ! current_id=$(jq -er '.id | strings | select(test("^dpl_[A-Za-z0-9]+$"))' \
+    <<<"$current_summary"); then
+    verify_automatic_production_domains_paused || return 1
+    return 1
+  fi
+  if [[ "$current_id" != "$PREVIOUS_PRODUCTION_ID" ]]; then
+    if ! verify_current_release_identity "$current_id"; then
+      printf 'Rollback refused for unexpected production deployment: %s\n' \
+        "$current_id" >&2
+      verify_automatic_production_domains_paused || return 1
+      return 1
+    fi
+    PRODUCTION_DEPLOYMENT_ID="$current_id"
+  fi
+  if ! require_release_main_unchanged; then
+    verify_automatic_production_domains_paused || return 1
+    return 1
+  fi
+  if ! restore_previous_production; then
+    verify_automatic_production_domains_paused || return 1
+    return 1
+  fi
+  verify_automatic_production_domains_paused
 }
 
 verify_production_domain_id() {
@@ -385,6 +630,7 @@ restore_previous_production() {
     current_id=
   fi
 
+  [[ "$current_id" =~ ^dpl_[A-Za-z0-9]+$ ]] || return 1
   require_release_main_unchanged || return 1
   verify_previous_production_identity || return 1
   if [[ "$current_id" != "$PREVIOUS_PRODUCTION_ID" ]]; then
@@ -393,6 +639,8 @@ restore_previous_production() {
         "${current_id:-unknown}" >&2
       return 1
     fi
+    PRODUCTION_DEPLOYMENT_ID="$current_id"
+    verify_previous_is_release_predecessor || return 1
     require_release_main_unchanged || return 1
     current_summary=$(
       vercel inspect primitree.com --format=json --scope marklearst
@@ -424,8 +672,10 @@ restore_previous_production() {
 
 FINAL_COMMIT='<full main commit SHA recorded in step 2>'
 PREVIOUS_PRODUCTION_ID='<deployment ID recorded before merge>'
+RELEASE_EVENT_BASELINE_ID='<alias-event ID recorded before merge>'
 [[ "$FINAL_COMMIT" =~ ^[0-9a-f]{40}$ ]]
 [[ "$PREVIOUS_PRODUCTION_ID" =~ ^dpl_[A-Za-z0-9]+$ ]]
+[[ "$RELEASE_EVENT_BASELINE_ID" =~ ^uev_[A-Za-z0-9]+$ ]]
 
 PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
 PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
@@ -442,6 +692,7 @@ require_release_main_unchanged
 
 PRODUCTION_DEPLOYMENT_ID=
 PRODUCTION_JSON=
+UNEXPECTED_PRODUCTION_ID=
 for attempt in {1..60}; do
   if PRODUCTION_SUMMARY=$(
     vercel inspect primitree.com --format=json --scope marklearst
@@ -449,18 +700,24 @@ for attempt in {1..60}; do
     OBSERVED_DEPLOYMENT_ID=$(
       jq -r '.id // empty' <<<"$PRODUCTION_SUMMARY"
     ) || OBSERVED_DEPLOYMENT_ID=
-    if [[ -n "$OBSERVED_DEPLOYMENT_ID" ]] &&
-      PRODUCTION_JSON=$(
+    if [[ "$OBSERVED_DEPLOYMENT_ID" == "$PREVIOUS_PRODUCTION_ID" ]]; then
+      :
+    elif [[ -n "$OBSERVED_DEPLOYMENT_ID" ]] && PRODUCTION_JSON=$(
         vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID" \
           --scope marklearst --raw
       ) &&
       [[ "$(jq -r '.id' <<<"$PRODUCTION_JSON")" == "$OBSERVED_DEPLOYMENT_ID" ]] &&
       [[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == "$PROJECT_ID" ]] &&
       [[ "$(jq -r '.name' <<<"$PRODUCTION_JSON")" == primitree ]] &&
+      [[ "$(jq -r '.source' <<<"$PRODUCTION_JSON")" == git ]] &&
       [[ "$(jq -r '.readyState' <<<"$PRODUCTION_JSON")" == READY ]] &&
       [[ "$(jq -r '.target' <<<"$PRODUCTION_JSON")" == production ]] &&
+      [[ "$(jq -r '.meta.githubCommitRef' <<<"$PRODUCTION_JSON")" == main ]] &&
       [[ "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" == "$FINAL_COMMIT" ]]; then
       PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"
+      break
+    elif [[ -n "$OBSERVED_DEPLOYMENT_ID" ]]; then
+      UNEXPECTED_PRODUCTION_ID="$OBSERVED_DEPLOYMENT_ID"
       break
     fi
   fi
@@ -469,13 +726,24 @@ for attempt in {1..60}; do
   fi
 done
 
+if [[ -n "$UNEXPECTED_PRODUCTION_ID" ]]; then
+  printf 'Unexpected production deployment observed: %s. Pausing automatic assignment and containing the exact release candidate without rollback.\n' \
+    "$UNEXPECTED_PRODUCTION_ID" >&2
+  if ! contain_failed_release; then
+    printf '%s\n' \
+      'Containment stopped without rollback. Inspect the current deployment and automatic-domain setting before continuing.' \
+      >&2
+  fi
+  exit 1
+fi
+
 if [[ -z "$PRODUCTION_DEPLOYMENT_ID" ]]; then
   printf '%s\n' \
-    'The production domain did not reach the exact merged commit. Restoring the previous deployment.' \
+    'The production domain did not reach the exact merged commit. Pausing automatic assignment and containing the release.' \
     >&2
-  if ! restore_previous_production; then
+  if ! contain_failed_release; then
     printf '%s\n' \
-      'Rollback did not complete its safety checks. Inspect current production before continuing.' \
+      'Containment did not complete every safety check. Inspect the current deployment and automatic-domain setting before continuing.' \
       >&2
   fi
   exit 1
@@ -487,11 +755,11 @@ test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" = \
   "$FINAL_COMMIT"
 if ! wait_for_verified_public_site; then
   printf '%s\n' \
-    'Production route verification failed. Restoring the previous deployment.' \
+    'Production route verification failed. Pausing automatic assignment and containing the release.' \
     >&2
-  if ! restore_previous_production; then
+  if ! contain_failed_release; then
     printf '%s\n' \
-      'Rollback did not complete its safety checks. Inspect current production before continuing.' \
+      'Containment did not complete every safety check. Inspect the current deployment and automatic-domain setting before continuing.' \
       >&2
   fi
   exit 1
@@ -504,15 +772,109 @@ printf 'Production commit: %s\n' "$FINAL_COMMIT"
 ```
 
 Keep the previous production deployment ID through the rest of the launch. A
-failure after this step must roll back to that exact ID and rerun
-`verify_public_health` before any deprecation continues.
+rollback may use that ID when alias-event history contains no intervening
+deployment after the recorded baseline. Rerun `verify_public_health` before any
+deprecation continues.
 
-An Instant Rollback pauses automatic production-domain assignment. After you
-repair `main`, verify the exact fixed deployment before restoring normal Git
-deployment behavior:
+Failure containment pauses automatic production-domain assignment before it
+cancels an unfinished release deployment or rolls back. After you repair
+`main`, verify the exact fixed deployment before restoring normal Git deployment
+behavior:
 
 ```bash
-vercel promote '<exact verified fixed deployment ID>' --scope marklearst
+set -euo pipefail
+PROJECT_ID=prj_J9yx9KZeG7q54CWTZm2ik2R4uwAd
+PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.name' <<<"$PROJECT_JSON")" = primitree
+test "$(jq -r '.autoAssignCustomDomains' <<<"$PROJECT_JSON")" = false
+FIXED_DEPLOYMENT_ID='<exact verified fixed deployment ID>'
+[[ "$FIXED_DEPLOYMENT_ID" =~ ^dpl_[A-Za-z0-9]+$ ]]
+git fetch origin main
+FIXED_COMMIT=$(git rev-parse 'origin/main^{commit}')
+[[ "$FIXED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+FIXED_JSON=$(
+  vercel api "/v13/deployments/$FIXED_DEPLOYMENT_ID" \
+    --scope marklearst --raw
+)
+test "$(jq -r '.id' <<<"$FIXED_JSON")" = "$FIXED_DEPLOYMENT_ID"
+test "$(jq -r '.projectId' <<<"$FIXED_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.name' <<<"$FIXED_JSON")" = primitree
+test "$(jq -r '.source' <<<"$FIXED_JSON")" = git
+test "$(jq -r '.target' <<<"$FIXED_JSON")" = production
+test "$(jq -r '.readyState' <<<"$FIXED_JSON")" = READY
+test "$(jq -r '.meta.githubCommitRef' <<<"$FIXED_JSON")" = main
+test "$(jq -r '.meta.githubCommitSha' <<<"$FIXED_JSON")" = "$FIXED_COMMIT"
+
+public_get() {
+  local body
+  local effective_url
+  local expected_url="$1"
+  local response
+  response=$(
+    curl --fail --location --silent --show-error \
+      --connect-timeout 5 --max-time 20 --max-redirs 5 \
+      --write-out $'\n%{url_effective}' "$expected_url"
+  )
+  effective_url=${response##*$'\n'}
+  body=${response%$'\n'*}
+  test "${effective_url%/}" = "${expected_url%/}"
+  printf '%s\n' "$body"
+}
+
+verify_fixed_public_site() {
+  local body
+  local summary
+  summary=$(vercel inspect primitree.com --format=json --scope marklearst) ||
+    return 1
+  [[ "$(jq -r '.id // empty' <<<"$summary")" == "$FIXED_DEPLOYMENT_ID" ]] ||
+    return 1
+  body=$(public_get https://primitree.com/) || return 1
+  grep -F 'Govern token change. Know every consequence.' <<<"$body" >/dev/null ||
+    return 1
+  body=$(public_get https://primitree.com/docs) || return 1
+  grep -F 'Primitree checks a local DTCG token file' <<<"$body" >/dev/null ||
+    return 1
+  body=$(public_get https://primitree.com/playground) || return 1
+  grep -F 'This page calls the same build function as' <<<"$body" >/dev/null ||
+    return 1
+  body=$(public_get https://primitree.com/docs/hooks/migration) || return 1
+  grep -F 'Primitree 1.0 moves the hooks package from' <<<"$body" >/dev/null ||
+    return 1
+  body=$(public_get 'https://primitree.com/api/search?query=figma') || return 1
+  grep -F '"url":"/docs/concepts/figma-mcp"' <<<"$body" >/dev/null ||
+    return 1
+  return 0
+}
+
+vercel promote "$FIXED_DEPLOYMENT_ID" --scope marklearst
+vercel api "/v9/projects/$PROJECT_ID" \
+  -X PATCH \
+  -F autoAssignCustomDomains=false \
+  --scope marklearst --silent
+PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.autoAssignCustomDomains' <<<"$PROJECT_JSON")" = false
+for attempt in {1..12}; do
+  if verify_fixed_public_site; then
+    break
+  fi
+  if ((attempt == 12)); then
+    exit 1
+  fi
+  sleep 5
+done
+git fetch origin main
+test "$(git rev-parse 'origin/main^{commit}')" = "$FIXED_COMMIT"
+vercel api "/v9/projects/$PROJECT_ID" \
+  -X PATCH \
+  -F autoAssignCustomDomains=true \
+  --scope marklearst --silent
+PROJECT_JSON=$(vercel api "/v9/projects/$PROJECT_ID" --scope marklearst --raw)
+test "$(jq -r '.id' <<<"$PROJECT_JSON")" = "$PROJECT_ID"
+test "$(jq -r '.autoAssignCustomDomains' <<<"$PROJECT_JSON")" = true
+FINAL_SUMMARY=$(vercel inspect primitree.com --format=json --scope marklearst)
+test "$(jq -r '.id // empty' <<<"$FINAL_SUMMARY")" = "$FIXED_DEPLOYMENT_ID"
 ```
 
 Rerun the project, deployment identity, domain, and public route checks from
