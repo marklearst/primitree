@@ -167,6 +167,8 @@ describe('configured build output paths', () => {
     ['tokens/a.json', 'TOKENS/A.JSON'],
     ['tokens/café.json', 'tokens/café.json'],
     ['tokens/I.json', 'tokens/ı.json'],
+    ['tokens/ß.json', 'tokens/SS.json'],
+    ['tokens/ẞ.json', 'tokens/ß.json'],
     ['tokens', 'tokens/a.json'],
   ])('rejects colliding paths %j and %j', async (left, right) => {
     const output = path.join(directory, 'generated')
