@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { toDTCG } from '../src/emit'
 import {
   applyResolver,
+  flattenTypedTokens,
   flattenTypedTokensWithBudget,
   flattenTokens,
   listContexts,
@@ -266,6 +267,93 @@ describe('flattenTokens', () => {
 
     expect(() => flattenTokens(nested)).toThrow(
       'Token flattening can read at most 64 token-group levels.'
+    )
+  })
+})
+
+describe('flattenTypedTokens', () => {
+  it('reports a token type inherited from its parent group', () => {
+    expect(
+      flattenTypedTokens({
+        weights: {
+          $type: 'fontWeight',
+          emphasis: { $value: 'semi-bold' },
+        },
+      })
+    ).toEqual([
+      {
+        path: 'weights.emphasis',
+        token: { $value: 'semi-bold' },
+        type: 'fontWeight',
+      },
+    ])
+  })
+
+  it('reports the target type for an untyped alias', () => {
+    expect(
+      flattenTypedTokens({
+        emphasis: { $type: 'fontWeight', $value: 'semi-bold' },
+        alias: { $value: '{emphasis}' },
+      })
+    ).toEqual([
+      {
+        path: 'emphasis',
+        token: { $type: 'fontWeight', $value: 'semi-bold' },
+        type: 'fontWeight',
+      },
+      {
+        path: 'alias',
+        token: { $value: '{emphasis}' },
+        type: 'fontWeight',
+      },
+    ])
+  })
+
+  it('keeps an explicit token type instead of its parent type', () => {
+    expect(
+      flattenTypedTokens({
+        weights: {
+          $type: 'fontWeight',
+          label: { $type: 'string', $value: 'semi-bold' },
+        },
+      })
+    ).toEqual([
+      {
+        path: 'weights.label',
+        token: { $type: 'string', $value: 'semi-bold' },
+        type: 'string',
+      },
+    ])
+  })
+
+  it('rejects malformed token document groups', () => {
+    expectResolutionFailure(
+      () => flattenTypedTokens({ bad: undefined }),
+      '#/document/bad',
+      /group child.*object or token/i
+    )
+  })
+
+  it('rejects more than 64 token-group levels', () => {
+    let nested: DTCGDocument = {
+      value: { $type: 'number', $value: 1 },
+    }
+    for (let depth = 0; depth <= 64; depth += 1) {
+      nested = { group: nested }
+    }
+
+    expect(() => flattenTypedTokens(nested)).toThrow(
+      'Typed token flattening can read at most 64 token-group levels.'
+    )
+  })
+
+  it('rejects documents above its work limit', () => {
+    const document = {
+      ['x'.repeat(1_000_000)]: { $type: 'number', $value: 1 },
+    } satisfies DTCGDocument
+
+    expect(() => flattenTypedTokens(document)).toThrow(
+      'Typed token flattening exceeds the 1,000,000-unit work limit.'
     )
   })
 })

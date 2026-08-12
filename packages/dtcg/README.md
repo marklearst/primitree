@@ -110,7 +110,7 @@ extension data.
 ```ts
 import {
   applyResolver,
-  flattenTokens,
+  flattenTypedTokens,
   listContexts,
   listPermutations,
   resolveTokenValues,
@@ -118,12 +118,14 @@ import {
 } from '@primitree/dtcg'
 
 const dark = applyResolver(files, resolver, { semantic: 'dark' })
-const flat = flattenTokens(dark)
+const flat = flattenTypedTokens(dark)
 const values = resolveTokenValues(flat)
 ```
 
-`applyResolver` and `flattenTokens` read up to 64 token-group levels and spend
-up to 1,000,000 work units per call.
+`flattenTypedTokens` includes each token's effective type after group
+inheritance and whole-token alias lookup. Use `flattenTokens` when effective
+types are not needed. `applyResolver`, `flattenTokens`, and `flattenTypedTokens`
+read up to 64 token-group levels and spend up to 1,000,000 work units per call.
 `resolveTokenValues` throws on a missing target or reference cycle.
 `resolveTokenValuesSafe` returns resolved values and one error for each input
 token that fails. `resolveTokenValues` and `resolveTokenValuesSafe` each have a

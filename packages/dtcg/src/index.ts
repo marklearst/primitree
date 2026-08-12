@@ -12,6 +12,7 @@ export type { ToDTCGOptions, ToDTCGResult } from './emit'
 
 export {
   mergeDocuments,
+  flattenTypedTokens,
   flattenTokens,
   resolveTokenValues,
   resolveTokenValuesSafe,
@@ -20,7 +21,7 @@ export {
   listPermutations,
   ReferenceResolutionError,
 } from './resolve'
-export type { FlatToken } from './resolve'
+export type { FlatToken, TypedFlatToken } from './resolve'
 
 export { figmaColorToDTCG, colorToHex, isFigmaColor } from './color'
 export { inferTokenType } from './inferType'
