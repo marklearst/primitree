@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import path from 'node:path'
+import { TextDecoder } from 'node:util'
 import {
   composeGraph,
   createSourceView,
@@ -90,7 +91,13 @@ async function readConfiguredJsonFile(
       }
       chunks.push(buffer.subarray(0, bytesRead))
     }
-    raw = Buffer.concat(chunks, position).toString('utf8')
+    try {
+      raw = new TextDecoder('utf-8', { fatal: true }).decode(
+        Buffer.concat(chunks, position)
+      )
+    } catch (error) {
+      throw new Error(`File is not valid UTF-8: ${absolute}`, { cause: error })
+    }
   } catch (error) {
     readFailed = true
     readFailure = error

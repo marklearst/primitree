@@ -63,6 +63,12 @@ const source = {
   ownership: { default: ['design-systems'] },
 } as const
 
+const parseableJsonWithInvalidUtf8 = Buffer.concat([
+  Buffer.from('{"color":"'),
+  Buffer.from([0xc3, 0x28]),
+  Buffer.from('"}'),
+])
+
 describe('loadConfiguredSourceGraph', () => {
   it('reads source metadata and contents from one opened file', async () => {
     const directory = await temporaryDirectory()
@@ -304,6 +310,70 @@ describe('loadConfiguredSourceGraph', () => {
     await expect(loadConfiguredSourceGraph({ configPath })).rejects.toThrow(
       `File is not valid JSON: ${tokenPath}`
     )
+  })
+
+  it('rejects invalid UTF-8 before parsing source JSON', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, parseableJsonWithInvalidUtf8)
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(`File is not valid UTF-8: ${tokenPath}`)
+    expect(failure.cause).toBeInstanceOf(TypeError)
+  })
+
+  it('keeps an invalid UTF-8 error when closing the source also fails', async () => {
+    const directory = await temporaryDirectory()
+    const configPath = await writeConfig(directory, {
+      schemaVersion: 1,
+      sources: { brand: source },
+    })
+    const tokenPath = path.join(directory, 'tokens.json')
+    await fs.writeFile(tokenPath, parseableJsonWithInvalidUtf8)
+    const closeFailure = new Error('Injected source close failure.')
+    const open = fs.open.bind(fs)
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw closeFailure
+        })
+      }
+      return handle
+    })
+
+    const failure = await loadConfiguredSourceGraph({ configPath }).catch(
+      error => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected source loading to fail.')
+    }
+    expect(failure.message).toBe(
+      `File is not valid UTF-8: ${tokenPath}\nCould not close file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected source failures to be combined.')
+    }
+    const [decodeFailure, combinedCloseFailure] = failure.cause.errors
+    expect(decodeFailure).toBeInstanceOf(Error)
+    expect((decodeFailure as Error).cause).toBeInstanceOf(TypeError)
+    expect(combinedCloseFailure).toBe(closeFailure)
   })
 })
 
