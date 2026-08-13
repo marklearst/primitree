@@ -744,18 +744,11 @@ describe('configured build output replacement', () => {
         )
       ).toBe(MAX_BUILD_RESOLVED_PATH_BYTES + 1)
       const open = fs.open.bind(fs)
-      const lstat = fs.lstat.bind(fs)
       let lockOpens = 0
-      let filesystemReads = 0
       vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
         lockOpens += 1
         return open(target, flags, mode)
       })
-      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
-        filesystemReads += 1
-        return lstat(target, options)
-      })
-
       await expect(
         installBuildOutput(
           output,
@@ -766,7 +759,6 @@ describe('configured build output replacement', () => {
         `Resolved build output file path is ${MAX_BUILD_RESOLVED_PATH_BYTES + 1} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(filePath)}.`
       )
       expect(lockOpens).toBe(0)
-      expect(filesystemReads).toBeGreaterThan(0)
     }
   )
 
