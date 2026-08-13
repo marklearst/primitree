@@ -1959,7 +1959,7 @@ test('dates public release copy before creating a tag', () => {
   )
   const tagPhase = extractMarkdownSection(
     external,
-    '### 4. Tag, publish, and create the GitHub Release'
+    '### 5. Tag, publish, and create the GitHub Release'
   )
 
   assert.match(tagPhase, /five package\s+changelogs/i)
@@ -2037,7 +2037,7 @@ test('freezes the launch administration order and credential boundaries', () => 
   )
   const packageSecurity = extractMarkdownSubsection(
     external,
-    '### 8. Require package MFA and disallow token publishing'
+    '### 9. Require package MFA and disallow token publishing'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
@@ -2047,13 +2047,13 @@ test('freezes the launch administration order and credential boundaries', () => 
     [
       '### 1. Branch preflight',
       '### 2. Merge and bind exact main',
-      '### 3. Create the bootstrap credential and protected environment',
-      '### 4. Tag, publish, and create the GitHub Release',
-      '### 5. Configure all five trusted publishers',
-      '### 6. Delete the GitHub environment secret',
-      '### 7. Revoke the exact bootstrap token',
-      '### 8. Require package MFA and disallow token publishing',
-      '### 9. Promote one staged production deployment',
+      '### 3. Verify the automatic main deployment',
+      '### 4. Create the bootstrap credential and protected environment',
+      '### 5. Tag, publish, and create the GitHub Release',
+      '### 6. Configure all five trusted publishers',
+      '### 7. Delete the GitHub environment secret',
+      '### 8. Revoke the exact bootstrap token',
+      '### 9. Require package MFA and disallow token publishing',
       '### 10. Verify replacements and migration',
       '### 11. Deprecate the sole legacy target: 4.0.0',
     ],
@@ -2123,32 +2123,66 @@ test('freezes the launch administration order and credential boundaries', () => 
   assert.match(external, /trusted OIDC[\s\S]*remains\s+available/i)
 })
 
-test('release route verifiers fail closed on every fetch and content assertion', () => {
+test('records a healthy rollback target before merging main', () => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
   )
-  const verifierBlock = extractBashBlockContaining(
+  assertInOrder(
     external,
-    'protected_get()',
-    'Vercel route verifiers'
+    [
+      'PREVIOUS_PRODUCTION_JSON=$(vercel api "/v13/deployments/$PREVIOUS_PRODUCTION_ID"',
+      `test "$(jq -r '.projectId' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PROJECT_ID"`,
+      'PREVIOUS_PRODUCTION_HOME=$(curl',
+      "grep -F '<title>Primitree'",
+      'grep -F \'name="description"\'',
+      'grep -F \'property="og:title"\'',
+      'https://primitree.com/docs',
+      'https://primitree.com/playground',
+      'https://primitree.com/docs/hooks/migration',
+      "'https://primitree.com/api/search?query=figma'",
+      `grep -F '"url":"/docs/concepts/figma-mcp"'`,
+      'POST_HEALTH_PRODUCTION_SUMMARY=$(',
+      `test "$(jq -r '.id' <<<"$POST_HEALTH_PRODUCTION_SUMMARY")" =`,
+      'git switch main',
+    ],
+    'pre-merge rollback health'
+  )
+})
+
+test('automatic production route verifiers fail closed on every fetch and content assertion', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const vercelPhase = extractMarkdownSubsection(
+    external,
+    '### 3. Verify the automatic main deployment'
+  )
+  const verifierBlock = extractBashBlockContaining(
+    vercelPhase,
+    'verify_public_health()',
+    'automatic production verification'
   )
   const definitions = verifierBlock.slice(
-    verifierBlock.indexOf('protected_get()')
+    verifierBlock.indexOf('verify_public_health()'),
+    verifierBlock.indexOf(
+      "FINAL_COMMIT='<full main commit SHA recorded in step 2>'"
+    )
   )
   const mocks = String.raw`
 route_body() {
   case "$1" in
     /)
-      [[ "$OMIT_MARKER" == "Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a" ]] ||
-        printf '%s\n' 'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a'
+      [[ "$OMIT_MARKER" == "Govern token change. Know every consequence." ]] ||
+        printf '%s\n' 'Govern token change. Know every consequence.'
       [[ "$OMIT_MARKER" == "<title>Primitree" ]] || printf '%s\n' '<title>Primitree'
       [[ "$OMIT_MARKER" == 'name="description"' ]] || printf '%s\n' 'name="description"'
       [[ "$OMIT_MARKER" == 'property="og:title"' ]] || printf '%s\n' 'property="og:title"'
       ;;
     /docs)
-      [[ "$OMIT_MARKER" == "Primitree converts a Figma variables export into DTCG token files" ]] ||
-        printf '%s\n' 'Primitree converts a Figma variables export into DTCG token files'
+      [[ "$OMIT_MARKER" == "Primitree checks a local DTCG token file" ]] ||
+        printf '%s\n' 'Primitree checks a local DTCG token file'
       ;;
     /playground)
       [[ "$OMIT_MARKER" == "This page calls the same build function as" ]] ||
@@ -2168,11 +2202,6 @@ route_body() {
   esac
 }
 
-protected_get() {
-  [[ "$2" == "$FAIL_PATH" ]] && return 65
-  route_body "$2"
-}
-
 curl() {
   local url=''
   local path=''
@@ -2184,11 +2213,11 @@ curl() {
 }
 `
   const markers = [
-    'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
+    'Govern token change. Know every consequence.',
     '<title>Primitree',
     'name="description"',
     'property="og:title"',
-    'Primitree converts a Figma variables export into DTCG token files',
+    'Primitree checks a local DTCG token file',
     'This page calls the same build function as',
     'Primitree 1.0 moves the hooks package from',
     '"url":"/docs/concepts/figma-mcp"',
@@ -2201,309 +2230,227 @@ curl() {
     '/api/search?query=figma',
   ]
 
-  for (const verifier of [
-    ['verify_protected_deployment', 'https://candidate.vercel.app'],
-    ['verify_public_site', 'https://primitree.com'],
-  ]) {
-    const [name, target] = verifier
-    const baseline = runBash(
-      `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=''\n${name} ${target}`
-    )
-    assert.equal(baseline.status, 0, baseline.stderr)
+  const baseline = runBash(
+    `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=''\nverify_public_site`
+  )
+  assert.equal(baseline.status, 0, baseline.stderr)
 
-    for (const marker of markers) {
-      const result = runBash(
-        `${definitions}\n${mocks}\nOMIT_MARKER=${JSON.stringify(marker)}\nFAIL_PATH=''\n${name} ${target}`
-      )
-      assert.notEqual(
-        result.status,
-        0,
-        `${name} must reject missing marker ${marker}`
-      )
-    }
+  for (const marker of markers) {
+    const result = runBash(
+      `${definitions}\n${mocks}\nOMIT_MARKER=${JSON.stringify(marker)}\nFAIL_PATH=''\nverify_public_site`
+    )
+    assert.notEqual(
+      result.status,
+      0,
+      `verify_public_site must reject missing marker ${marker}`
+    )
+  }
+  for (const verifier of ['verify_public_health', 'verify_public_site']) {
     for (const path of paths) {
       const result = runBash(
-        `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=${JSON.stringify(path)}\n${name} ${target}`
+        `${definitions}\n${mocks}\nOMIT_MARKER=''\nFAIL_PATH=${JSON.stringify(path)}\n${verifier}`
       )
       assert.notEqual(
         result.status,
         0,
-        `${name} must reject a failed fetch for ${path}`
+        `${verifier} must reject a failed fetch for ${path}`
       )
     }
   }
 })
 
-test('Vercel promotion phase stops on failed identity and route gates', t => {
+test('automatic production rollback restores and verifies the recorded deployment', t => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
   )
   const vercelPhase = extractMarkdownSubsection(
     external,
-    '### 9. Promote one staged production deployment'
+    '### 3. Verify the automatic main deployment'
   )
-  const candidateBlock = extractBashBlockContaining(
+  const verificationBlock = extractBashBlockContaining(
     vercelPhase,
-    'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
-    'candidate deployment'
+    'restore_previous_production()',
+    'automatic production verification'
   )
+  const functionStart = verificationBlock.indexOf(
+    'restore_previous_production()'
+  )
+  const functionEnd =
+    verificationBlock.indexOf('\n}\n\nFINAL_COMMIT=', functionStart) + 3
+  assert.ok(
+    functionEnd > functionStart,
+    'rollback function must be extractable'
+  )
+  const rollbackFunction = verificationBlock.slice(functionStart, functionEnd)
   const temp = mkdtempSync(join(tmpdir(), 'primitree-vercel-gates-'))
   const callLog = join(temp, 'calls.log')
+  const currentId = join(temp, 'current-id')
   t.after(() => rmSync(temp, { recursive: true, force: true }))
 
   const mocks = String.raw`
-FINAL_COMMIT=0123456789abcdef0123456789abcdef01234567
-PROJECT_ID=prj_test
-
-mktemp() {
-  printf '%s\n' /tmp/primitree-vercel-gate
-}
-
-git() {
-  if [[ "$1" == "rev-parse" ]]; then
-    [[ "$FAIL_STAGE" == "head_identity" ]] &&
-      printf '%s\n' 1111111111111111111111111111111111111111 ||
-      printf '%s\n' "$FINAL_COMMIT"
-    return 0
-  fi
-  if [[ "$1" == "-C" && "$3" == "rev-parse" ]]; then
-    [[ "$FAIL_STAGE" == "worktree_identity" ]] &&
-      printf '%s\n' 2222222222222222222222222222222222222222 ||
-      printf '%s\n' "$FINAL_COMMIT"
-    return 0
-  fi
-  return 0
-}
-
 vercel() {
-  case "$1" in
-    deploy)
-      printf '%s\n' '{"kind":"deploy"}'
-      ;;
-    inspect)
-      if [[ "$2" == "primitree.com" ]]; then
-        printf '%s\n' '{"kind":"production"}'
-      else
-        printf '%s\n' '{"kind":"candidate"}'
-      fi
-      ;;
-    promote)
-      printf '%s\n' promote >>"$CALL_LOG"
-      ;;
-    domains)
-      return 0
-      ;;
-  esac
+  if [[ "$1" == inspect ]]; then
+    printf '{"id":"%s"}\n' "$(cat "$CURRENT_ID")"
+    return 0
+  fi
+  if [[ "$1" == rollback ]]; then
+    printf '%s\n' rollback >>"$CALL_LOG"
+    [[ "$ROLLBACK_REBINDS" == true ]] && printf '%s\n' "$PREVIOUS_PRODUCTION_ID" >"$CURRENT_ID"
+    return 0
+  fi
+  return 64
 }
 
-jq() {
-  local filter="${'$'}{2:-}"
-  local input
-  input=$(cat)
-  case "$filter" in
-    '.id |'*)
-      printf '%s\n' dpl_candidate
-      ;;
-    '.url |'*)
-      printf '%s\n' https://candidate.vercel.app
-      ;;
-    '.id')
-      if [[ "$input" == *'"kind":"production"'* ]]; then
-        [[ "$FAIL_STAGE" == "production_identity" ]] &&
-          printf '%s\n' dpl_other ||
-          printf '%s\n' dpl_candidate
-      else
-        [[ "$FAIL_STAGE" == "inspect_identity" ]] &&
-          printf '%s\n' dpl_other ||
-          printf '%s\n' dpl_candidate
-      fi
-      ;;
-    '.name')
-      printf '%s\n' primitree
-      ;;
-    '.url')
-      printf '%s\n' candidate.vercel.app
-      ;;
-    '.readyState')
-      printf '%s\n' READY
-      ;;
-    '.target')
-      [[ "$FAIL_STAGE" == "target_identity" ]] &&
-        printf '%s\n' preview ||
-        printf '%s\n' production
-      ;;
-    '.meta.gitCommitSha')
-      printf '%s\n' "$FINAL_COMMIT"
-      ;;
-  esac
+verify_public_health() {
+  [[ "$HEALTHY" == true ]]
 }
 
-verify_protected_deployment() {
-  [[ "$FAIL_STAGE" != "candidate_routes" ]]
+require_release_main_unchanged() {
+  [[ "$MAIN_UNCHANGED" == true ]]
 }
 
-verify_public_site() {
-  [[ "$FAIL_STAGE" != "public_routes" ]]
+verify_previous_production_identity() {
+  [[ "$PREVIOUS_IDENTITY_VALID" == true ]]
 }
 
-cleanup_vercel_probe() {
+verify_current_release_identity() {
+  [[ "$CURRENT_IDENTITY_VALID" == true ]]
+}
+
+sleep() {
   return 0
 }
 `
 
+  const base = `${rollbackFunction}\n${mocks}\nPREVIOUS_PRODUCTION_ID=dpl_previous\nCURRENT_ID=${JSON.stringify(currentId)}\nCALL_LOG=${JSON.stringify(callLog)}\nMAIN_UNCHANGED=true\nPREVIOUS_IDENTITY_VALID=true\nCURRENT_IDENTITY_VALID=true`
+
+  writeFileSync(currentId, 'dpl_previous\n')
+  writeFileSync(callLog, '')
+  const alreadyRestored = runBash(
+    `${base}\nROLLBACK_REBINDS=true\nHEALTHY=true\nrestore_previous_production`
+  )
+  assert.equal(alreadyRestored.status, 0, alreadyRestored.stderr)
+  assert.equal(readFileSync(callLog, 'utf8'), '')
+
+  writeFileSync(currentId, 'dpl_candidate\n')
+  writeFileSync(callLog, '')
+  const restored = runBash(
+    `${base}\nROLLBACK_REBINDS=true\nHEALTHY=true\nrestore_previous_production`
+  )
+  assert.equal(restored.status, 0, restored.stderr)
+  assert.equal(readFileSync(callLog, 'utf8'), 'rollback\n')
+
   for (const failure of [
-    'head_identity',
-    'worktree_identity',
-    'inspect_identity',
-    'target_identity',
-    'candidate_routes',
+    ['false', 'true'],
+    ['true', 'false'],
   ]) {
+    const [rebinds, healthy] = failure
+    writeFileSync(currentId, 'dpl_candidate\n')
     writeFileSync(callLog, '')
     const result = runBash(
-      `${mocks}\nFAIL_STAGE=${failure}\nCALL_LOG=${JSON.stringify(callLog)}\n${candidateBlock}`
+      `${base}\nROLLBACK_REBINDS=${rebinds}\nHEALTHY=${healthy}\nrestore_previous_production`
     )
-    assert.notEqual(result.status, 0, `${failure} must stop the phase`)
+    assert.notEqual(result.status, 0, `rollback must reject ${failure}`)
+  }
+
+  for (const safetyGate of [
+    ['false', 'true', 'true'],
+    ['true', 'false', 'true'],
+    ['true', 'true', 'false'],
+  ]) {
+    const [mainUnchanged, previousIdentityValid, currentIdentityValid] =
+      safetyGate
+    writeFileSync(currentId, 'dpl_candidate\n')
+    writeFileSync(callLog, '')
+    const result = runBash(
+      `${rollbackFunction}\n${mocks}\nPREVIOUS_PRODUCTION_ID=dpl_previous\nCURRENT_ID=${JSON.stringify(currentId)}\nCALL_LOG=${JSON.stringify(callLog)}\nMAIN_UNCHANGED=${mainUnchanged}\nPREVIOUS_IDENTITY_VALID=${previousIdentityValid}\nCURRENT_IDENTITY_VALID=${currentIdentityValid}\nROLLBACK_REBINDS=true\nHEALTHY=true\nrestore_previous_production`
+    )
+    assert.notEqual(result.status, 0, `rollback must reject ${safetyGate}`)
     assert.equal(
       readFileSync(callLog, 'utf8'),
       '',
-      `${failure} must stop before promotion`
+      'rollback must not run after a main or deployment identity mismatch'
     )
-  }
-
-  for (const failure of ['production_identity', 'public_routes']) {
-    writeFileSync(callLog, '')
-    const result = runBash(
-      `${mocks}\nFAIL_STAGE=${failure}\nCALL_LOG=${JSON.stringify(callLog)}\n${candidateBlock}`
-    )
-    assert.notEqual(
-      result.status,
-      0,
-      `${failure} must not be masked by cleanup`
-    )
-    assert.equal(readFileSync(callLog, 'utf8'), 'promote\n')
-  }
-
-  const bashBlocks = [...vercelPhase.matchAll(/```bash\n([\s\S]*?)\n```/g)].map(
-    match => match[1]
-  )
-  assert.equal(bashBlocks.length, 5)
-  for (const block of bashBlocks) {
-    assert.match(block, /^set -euo pipefail\n/)
   }
 })
 
-test('Vercel probe cleanup retains retry state until revoke readback is zero', t => {
+test('automatic production verification retries propagation and rechecks the domain', t => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
   )
-  const probeBlock = extractBashBlockContaining(
+  const vercelPhase = extractMarkdownSubsection(
     external,
-    'cleanup_vercel_probe()',
-    'Vercel probe cleanup'
+    '### 3. Verify the automatic main deployment'
   )
-  const functionStart = probeBlock.indexOf('cleanup_vercel_probe()')
+  const verificationBlock = extractBashBlockContaining(
+    vercelPhase,
+    'wait_for_verified_public_site()',
+    'automatic production verification'
+  )
+  const functionStart = verificationBlock.indexOf(
+    'wait_for_verified_public_site()'
+  )
   const functionEnd =
-    probeBlock.indexOf('\n}\ncleanup_vercel_probe_on_exit()', functionStart) + 3
-  assert.ok(functionEnd > functionStart, 'cleanup function must be extractable')
-  const cleanupFunction = probeBlock.slice(functionStart, functionEnd)
-  const exitHandlerStart = probeBlock.indexOf('cleanup_vercel_probe_on_exit()')
-  assert.notEqual(
-    exitHandlerStart,
-    -1,
-    'EXIT trap must retry cleanup before the shell loses the bypass secret'
-  )
-  const exitHandlerEnd =
-    probeBlock.indexOf(
-      '\n}\ntrap cleanup_vercel_probe_on_exit EXIT',
-      exitHandlerStart
+    verificationBlock.indexOf(
+      '\n}\n\nrestore_previous_production()',
+      functionStart
     ) + 3
-  assert.ok(
-    exitHandlerEnd > exitHandlerStart,
-    'EXIT handler must be extractable'
-  )
-  const exitHandler = probeBlock.slice(exitHandlerStart, exitHandlerEnd)
-  assertInOrder(
-    probeBlock,
-    [
-      'VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)',
-      'VERCEL_BYPASS_ACTIVE=true',
-      'vercel project protection enable "$PROJECT_ID" --protection-bypass',
-    ],
-    'conservative bypass cleanup arming'
-  )
-  const common = String.raw`
-VERCEL_PROBE_ROOT=/tmp/disposable-vercel-probe
-VERCEL_BYPASS_SECRET=test-bypass-secret
-VERCEL_BYPASS_ACTIVE=true
-RM_CALLED=0
-rm() {
-  RM_CALLED=1
-  return 0
+  assert.ok(functionEnd > functionStart, 'retry function must be extractable')
+  const retryFunction = verificationBlock.slice(functionStart, functionEnd)
+  const temp = mkdtempSync(join(tmpdir(), 'primitree-vercel-public-'))
+  const publicCalls = join(temp, 'public-calls')
+  const domainCalls = join(temp, 'domain-calls')
+  const sleepCalls = join(temp, 'sleep-calls')
+  t.after(() => rmSync(temp, { recursive: true, force: true }))
+
+  const mocks = String.raw`
+verify_public_site() {
+  local calls
+  calls=$(cat "$PUBLIC_CALLS")
+  calls=$((calls + 1))
+  printf '%s\n' "$calls" >"$PUBLIC_CALLS"
+  [[ "$calls" -ge "$PUBLIC_SUCCEEDS_AT" ]]
+}
+
+verify_production_domain_id() {
+  local calls
+  calls=$(cat "$DOMAIN_CALLS")
+  calls=$((calls + 1))
+  printf '%s\n' "$calls" >"$DOMAIN_CALLS"
+  [[ "$DOMAIN_MATCHES" == true ]]
+}
+
+sleep() {
+  local calls
+  calls=$(cat "$SLEEP_CALLS")
+  printf '%s\n' "$((calls + 1))" >"$SLEEP_CALLS"
 }
 `
+  const base = `${retryFunction}\n${mocks}\nPUBLIC_CALLS=${JSON.stringify(publicCalls)}\nDOMAIN_CALLS=${JSON.stringify(domainCalls)}\nSLEEP_CALLS=${JSON.stringify(sleepCalls)}`
 
-  const revokeFailure = runBash(String.raw`${cleanupFunction}
-${common}
-vercel() {
-  return 71
-}
-if cleanup_vercel_probe; then
-  exit 72
-fi
-[[ "$VERCEL_BYPASS_ACTIVE" == true ]] || exit 73
-[[ "$RM_CALLED" == 0 ]] || exit 74
-`)
-  assert.equal(revokeFailure.status, 0, revokeFailure.stderr)
-
-  const readbackFailure = runBash(String.raw`${cleanupFunction}
-${common}
-vercel() {
-  if [[ "$1" == project ]]; then
-    return 0
-  fi
-  if [[ "$1" == api ]]; then
-    printf '%s\n' '{"protectionBypass":{"still-active":{"scope":"automation-bypass"}}}'
-    return 0
-  fi
-  return 75
-}
-if cleanup_vercel_probe; then
-  exit 76
-fi
-[[ "$VERCEL_BYPASS_ACTIVE" == true ]] || exit 77
-[[ "$RM_CALLED" == 0 ]] || exit 78
-`)
-  assert.equal(readbackFailure.status, 0, readbackFailure.stderr)
-  assert.match(
-    external,
-    /if cleanup_vercel_probe; then\s+trap - EXIT\s+else[\s\S]*bypass[\s\S]*(?:return|exit) 1/
+  for (const file of [publicCalls, domainCalls, sleepCalls]) {
+    writeFileSync(file, '0\n')
+  }
+  const propagated = runBash(
+    `${base}\nPUBLIC_SUCCEEDS_AT=2\nDOMAIN_MATCHES=true\nwait_for_verified_public_site`
   )
+  assert.equal(propagated.status, 0, propagated.stderr)
+  assert.equal(readFileSync(publicCalls, 'utf8'), '2\n')
+  assert.equal(readFileSync(domainCalls, 'utf8'), '1\n')
+  assert.equal(readFileSync(sleepCalls, 'utf8'), '1\n')
 
-  const retryRoot = mkdtempSync(join(tmpdir(), 'primitree-exit-cleanup-'))
-  const retryLog = join(retryRoot, 'cleanup.log')
-  t.after(() => rmSync(retryRoot, { recursive: true, force: true }))
-  const earlyAbort = runBash(String.raw`
-${exitHandler}
-cleanup_vercel_probe() {
-  printf '%s\n' cleanup >>"$RETRY_LOG"
-  [[ "$(wc -l <"$RETRY_LOG")" -ge 2 ]]
-}
-sleep() {
-  return 0
-}
-RETRY_LOG=${JSON.stringify(retryLog)}
-trap cleanup_vercel_probe_on_exit EXIT
-set -e
-false
-`)
-  assert.notEqual(earlyAbort.status, 0, 'early gate failure must stay failed')
-  assert.equal(
-    readFileSync(retryLog, 'utf8'),
-    'cleanup\ncleanup\n',
-    'EXIT handler must retry a transient first cleanup failure'
+  for (const file of [publicCalls, domainCalls, sleepCalls]) {
+    writeFileSync(file, '0\n')
+  }
+  const movedDomain = runBash(
+    `${base}\nPUBLIC_SUCCEEDS_AT=1\nDOMAIN_MATCHES=false\nwait_for_verified_public_site`
   )
+  assert.notEqual(movedDomain.status, 0)
+  assert.equal(readFileSync(publicCalls, 'utf8'), '12\n')
+  assert.equal(readFileSync(domainCalls, 'utf8'), '12\n')
+  assert.equal(readFileSync(sleepCalls, 'utf8'), '11\n')
 })
 
 test('credential retirement blocks on retained GitHub secrets and npm tokens', t => {
@@ -2514,7 +2461,7 @@ test('credential retirement blocks on retained GitHub secrets and npm tokens', t
   const secretBlock = extractFirstBashBlock(
     extractMarkdownSubsection(
       external,
-      '### 6. Delete the GitHub environment secret'
+      '### 7. Delete the GitHub environment secret'
     ),
     'GitHub secret deletion'
   )
@@ -2554,7 +2501,7 @@ gh() {
   const tokenBlock = extractFirstBashBlock(
     extractMarkdownSubsection(
       external,
-      '### 7. Revoke the exact bootstrap token'
+      '### 8. Revoke the exact bootstrap token'
     ),
     'npm token revocation'
   ).replace(
@@ -2636,30 +2583,32 @@ ${tokenBlock}
   )
 })
 
-test('requires immutable staged production promotion before legacy deprecation', () => {
+test('requires exact automatic main verification before legacy deprecation', () => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
   )
   const normalizedExternal = external.replace(/\s+/g, ' ')
+  const mergeBlock = extractBashBlockContaining(
+    external,
+    'git switch main',
+    'exact main merge'
+  )
+  assert.match(mergeBlock, /^set -euo pipefail\n/)
 
   for (const phrase of [
     VERCEL_PROJECT_ID,
-    '`rootDirectory` must equal `apps/docs`',
-    '`sourceFilesOutsideRootDirectory` is `true`',
-    '`apps/docs/vercel.json`',
-    '`"github": { "autoAlias": false }`',
-    'must commit `apps/docs/vercel.json` with',
-    'Do not use the production deployment in place before launch as a docs rollback or fallback',
-    'Use that deployment as the docs fallback',
-    'fallback deployment ID and URL',
-    'exact deployment ID and URL',
+    `test "$(jq -r '.rootDirectory' <<<"$PROJECT_JSON")" = apps/docs`,
+    `test "$(jq -r '.sourceFilesOutsideRootDirectory' <<<"$PROJECT_JSON")" = true`,
+    '`autoAssignCustomDomains` must be `true`',
+    'Successful Vercel deployments from the configured `main` production branch assign the production domains.',
+    'Record the current production deployment before merging',
+    'previous production deployment ID',
     'exact commit',
-    'target type `production`',
-    '--meta gitCommitSha="$FALLBACK_COMMIT"',
-    '--meta gitCommitSha="$FINAL_COMMIT"',
-    'vercel promote "$DEPLOYMENT_ID"',
-    'vercel domains inspect primitree.com',
+    `test "$(jq -r '.target' <<<"$PREVIOUS_PRODUCTION_JSON")" = production`,
+    `test "$(jq -r '.projectId' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PROJECT_ID"`,
+    'vercel rollback "$PREVIOUS_PRODUCTION_ID"',
+    'restore_previous_production',
   ]) {
     assert.ok(
       normalizedExternal.includes(phrase),
@@ -2671,65 +2620,52 @@ test('requires immutable staged production promotion before legacy deprecation',
     [
       `PROJECT_ID=${VERCEL_PROJECT_ID}`,
       'vercel api "/v9/projects/$PROJECT_ID"',
-      "jq -r '.github.autoAlias' apps/docs/vercel.json",
-      'vercel list primitree --environment production',
-      'VERCEL_PROBE_DIR=',
-      'vercel link --cwd "$VERCEL_PROBE_DIR"',
-      'VERCEL_BYPASS_SECRET=$(openssl rand -hex 32)',
-      'vercel project protection enable "$PROJECT_ID" --protection-bypass',
-      'FALLBACK_COMMIT=',
-      'vercel deploy "$FALLBACK_WORKTREE"',
-      '--meta gitCommitSha="$FALLBACK_COMMIT"',
-      'vercel inspect "$FALLBACK_DEPLOYMENT_ID"',
-      'verify_protected_deployment "$FALLBACK_DEPLOYMENT_URL"',
-      'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
-      '--prod --skip-domain',
-      '--meta gitCommitSha="$FINAL_COMMIT"',
-      'vercel inspect "$DEPLOYMENT_ID"',
-      'verify_protected_deployment "$DEPLOYMENT_URL"',
-      'vercel promote "$DEPLOYMENT_ID"',
-      'vercel domains inspect primitree.com',
-      'verify_public_site https://primitree.com',
-      'if cleanup_vercel_probe; then',
+      'jq -r \'.link.type\' <<<"$PROJECT_JSON"',
+      'jq -r \'.link.org\' <<<"$PROJECT_JSON"',
+      'jq -r \'.link.repo\' <<<"$PROJECT_JSON"',
+      'jq -r \'.link.productionBranch\' <<<"$PROJECT_JSON"',
+      'jq -r \'.autoAssignCustomDomains\' <<<"$PROJECT_JSON"',
+      'PREVIOUS_PRODUCTION_SUMMARY=$(vercel inspect primitree.com',
+      'PREVIOUS_PRODUCTION_ID=$(jq -er',
+      'PREVIOUS_PRODUCTION_JSON=$(vercel api "/v13/deployments/$PREVIOUS_PRODUCTION_ID"',
+      `test "$(jq -r '.projectId' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PROJECT_ID"`,
+      'PREVIOUS_PRODUCTION_HOME=$(curl',
+      'PREVIOUS_PRODUCTION_SEARCH=$(',
+      'POST_HEALTH_PRODUCTION_SUMMARY=$(',
+      'git switch main',
+      "FINAL_COMMIT=$(git rev-parse 'origin/main^{commit}')",
+      'printf \'Final main commit: %s\\n\' "$FINAL_COMMIT"',
+      'verify_current_release_identity()',
+      'restore_previous_production()',
+      "FINAL_COMMIT='<full main commit SHA recorded in step 2>'",
+      "PREVIOUS_PRODUCTION_ID='<deployment ID recorded before merge>'",
+      'if PRODUCTION_SUMMARY=$(',
+      'vercel inspect primitree.com --format=json --scope marklearst',
+      'OBSERVED_DEPLOYMENT_ID=$(',
+      'vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID"',
+      'PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"',
+      `test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" =`,
+      'wait_for_verified_public_site',
       'npm view "@primitree/core@1.0.0"',
       LEGACY_DEPRECATION_COMMAND,
     ],
-    'staged production and deprecation'
+    'automatic production and deprecation'
   )
-  assert.equal(occurrences(external, '--prod --skip-domain'), 2)
-  assert.equal(
-    occurrences(
-      external,
-      'vercel project protection enable "$PROJECT_ID" --protection-bypass'
-    ),
-    1
-  )
-  assert.equal(
-    occurrences(
-      external,
-      'vercel project protection disable "$PROJECT_ID" --protection-bypass'
-    ),
-    1
-  )
+  assert.doesNotMatch(external, /--prod --skip-domain|protection-bypass/)
+  assert.doesNotMatch(external, /\.meta\.gitCommitSha/)
   assert.match(
     external,
-    /\(cd "\$VERCEL_PROBE_DIR" &&\s+vercel curl "\$path" --deployment "\$deployment"/
-  )
-  const protectedVerifier = external.slice(
-    external.indexOf('protected_get()'),
-    external.indexOf('verify_public_site()')
+    /The main branch advanced[\s\S]*Stop without changing production/
   )
   const publicVerifier = external.slice(
-    external.indexOf('verify_public_site()'),
-    external.indexOf('Choose a full, reviewed commit')
+    external.indexOf('verify_public_health()'),
+    external.indexOf("FINAL_COMMIT='<full main commit SHA recorded in step 2>'")
   )
-  assert.match(protectedVerifier, /vercel curl/)
-  assert.doesNotMatch(protectedVerifier, /^\s*curl\b/m)
   assert.match(publicVerifier, /^\s*body=\$\(curl\b/m)
   assert.doesNotMatch(publicVerifier, /vercel curl/)
   for (const meaningfulContent of [
-    'Run one command to write DTCG, CSS, Tailwind v4, TypeScript, and a',
-    'Primitree converts a Figma variables export into DTCG token files',
+    'Govern token change. Know every consequence.',
+    'Primitree checks a local DTCG token file',
     'This page calls the same build function as',
     'Primitree 1.0 moves the hooks package from',
     '"url":"/docs/concepts/figma-mcp"',
@@ -2740,14 +2676,28 @@ test('requires immutable staged production promotion before legacy deprecation',
     )
   }
   assert.doesNotMatch(external, /jq -r '\.autoAlias' apps\/docs\/vercel\.json/)
-  assert.doesNotMatch(
-    external,
-    /vercel promote (?:latest|main|quality\/)|vercel alias set|--force/
+  assert.doesNotMatch(external, /vercel alias set|--force/)
+  assert.equal(
+    occurrences(
+      external,
+      "vercel promote '<exact verified fixed deployment ID>' --scope marklearst"
+    ),
+    1,
+    'rollback recovery must explicitly restore automatic domain assignment'
   )
-  assert.match(external, /do not[\s\S]*reassign[\s\S]*domain/i)
+  assertInOrder(
+    external,
+    [
+      'vercel rollback "$PREVIOUS_PRODUCTION_ID"',
+      'An Instant Rollback pauses automatic production-domain assignment.',
+      "vercel promote '<exact verified fixed deployment ID>' --scope marklearst",
+      'Rerun the project, deployment identity, domain, and public route checks',
+    ],
+    'rollback recovery'
+  )
   assert.match(
     external,
-    /rerun[\s\S]*complete[\s\S]*route and metadata checks/i
+    /rollback[\s\S]*exact recorded[\s\S]*previous production deployment/i
   )
   assert.equal(occurrences(external, LEGACY_DEPRECATION_COMMAND), 1)
   assert.match(
@@ -2764,58 +2714,41 @@ test('requires immutable staged production promotion before legacy deprecation',
   assert.doesNotMatch(external, /npm deprecate[^\n]*@(?:\*|[^"\s]+@\*)/)
 })
 
-test('binds staged deployments and the production alias to immutable identities', () => {
+test('binds previous and automatic production deployments to immutable identities', () => {
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
   )
-  assert.doesNotMatch(external, /vercel deploy "\$REPO_ROOT"/)
   assertInOrder(
     external,
     [
-      'FALLBACK_DEPLOY_JSON=$(vercel deploy "$FALLBACK_WORKTREE"',
-      "FALLBACK_DEPLOYMENT_ID=$(jq -er '.id |",
-      "FALLBACK_DEPLOYMENT_URL=$(jq -er '.url |",
-      'FALLBACK_DEPLOYMENT_HOST="${FALLBACK_DEPLOYMENT_URL#https://}"',
-      'FALLBACK_JSON=$(vercel inspect "$FALLBACK_DEPLOYMENT_ID"',
-      `test "$(jq -r '.url' <<<"$FALLBACK_JSON")" = "$FALLBACK_DEPLOYMENT_HOST"`,
-      'CANDIDATE_WORKTREE=',
-      'git worktree add --detach "$CANDIDATE_WORKTREE" "$FINAL_COMMIT"',
-      `test "$(git -C "$CANDIDATE_WORKTREE" rev-parse 'HEAD^{commit}')" = "$FINAL_COMMIT"`,
-      'CANDIDATE_DEPLOY_JSON=$(vercel deploy "$CANDIDATE_WORKTREE"',
-      "DEPLOYMENT_ID=$(jq -er '.id |",
-      "DEPLOYMENT_URL=$(jq -er '.url |",
-      'DEPLOYMENT_HOST="${DEPLOYMENT_URL#https://}"',
-      'CANDIDATE_JSON=$(vercel inspect "$DEPLOYMENT_ID"',
-      `test "$(jq -r '.url' <<<"$CANDIDATE_JSON")" = "$DEPLOYMENT_HOST"`,
-      'vercel promote "$DEPLOYMENT_ID"',
-      'PRODUCTION_JSON=$(vercel inspect primitree.com',
-      `test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$DEPLOYMENT_ID"`,
+      'PREVIOUS_PRODUCTION_SUMMARY=$(vercel inspect primitree.com',
+      "PREVIOUS_PRODUCTION_ID=$(jq -er '.id |",
+      'PREVIOUS_PRODUCTION_JSON=$(vercel api "/v13/deployments/$PREVIOUS_PRODUCTION_ID"',
+      `test "$(jq -r '.id' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PREVIOUS_PRODUCTION_ID"`,
+      `test "$(jq -r '.projectId' <<<"$PREVIOUS_PRODUCTION_JSON")" = "$PROJECT_ID"`,
+      'git switch main',
+      "FINAL_COMMIT=$(git rev-parse 'origin/main^{commit}')",
+      'printf \'Final main commit: %s\\n\' "$FINAL_COMMIT"',
+      'require_release_main_unchanged',
+      'verify_current_release_identity()',
+      'if PRODUCTION_SUMMARY=$(',
+      'OBSERVED_DEPLOYMENT_ID=$(',
+      'vercel api "/v13/deployments/$OBSERVED_DEPLOYMENT_ID"',
+      `[[ "$(jq -r '.projectId' <<<"$PRODUCTION_JSON")" == "$PROJECT_ID" ]]`,
+      'PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"',
+      `test "$(jq -r '.id' <<<"$PRODUCTION_JSON")" = "$PRODUCTION_DEPLOYMENT_ID"`,
+      `test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" =`,
+      'wait_for_verified_public_site',
+      'verify_production_domain_id',
     ],
     'deployment identity'
   )
-  assert.equal(
-    occurrences(external, 'DEPLOYMENT_ID=$(jq -er'),
-    2,
-    'fallback and candidate IDs must both derive from deploy JSON'
-  )
-  assert.equal(
-    occurrences(external, 'DEPLOYMENT_URL=$(jq -er'),
-    2,
-    'fallback and candidate URLs must both derive from deploy JSON'
-  )
-  assert.equal(
-    occurrences(external, 'select(test("^https://'),
-    2,
-    'deploy JSON URLs must be validated as absolute HTTPS Vercel URLs'
-  )
-  assert.doesNotMatch(
-    external,
-    /\.url \| strings \| select\(endswith\("\.vercel\.app"\)\)/
-  )
+  assert.equal(occurrences(external, 'PREVIOUS_PRODUCTION_ID=$(jq -er'), 1)
+  assert.equal(occurrences(external, 'OBSERVED_DEPLOYMENT_ID=$('), 1)
   assert.match(
     external,
-    /public production alias[\s\S]*exact promoted\s+deployment ID/i
+    /production domain[\s\S]*exact deployment ID[\s\S]*exact merged commit/i
   )
 })
 
@@ -2894,7 +2827,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   const tagPhase = extractMarkdownSubsection(
     external,
-    '### 4. Tag, publish, and create the GitHub Release'
+    '### 5. Tag, publish, and create the GitHub Release'
   )
   const checklist = [...external.matchAll(/^- \[([ xX])\] /gm)]
   assert.equal(checklist.length, 11)
