@@ -8,13 +8,13 @@ import { runInspect, inspectHelp } from './commands/inspect'
 import { runInit, initHelp } from './commands/init'
 
 const GLOBAL_HELP = `
-primitree: build design tokens from Figma variables
+primitree: check and build design tokens from DTCG or Figma JSON
 
 Usage:
   primitree <command> [options]
 
 Commands:
-  build    Convert variables JSON into token files and code
+  build    Check a configured DTCG source or convert a Figma variables export
   diff     Compare DTCG files with configured rules or Figma variables exports
   check    Check a configured DTCG source, Figma export, or built token directory
   inspect  Explain one token from a configured DTCG source

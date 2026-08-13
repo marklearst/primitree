@@ -415,6 +415,11 @@ function makePackRepository(t) {
       path.join(packageDirectory, 'package.json'),
       `${JSON.stringify({ name, version: VERSION })}\n`
     )
+    writeFileSync(
+      path.join(packageDirectory, 'README.md'),
+      'Read the [changelog](CHANGELOG.md).\n'
+    )
+    writeFileSync(path.join(packageDirectory, 'CHANGELOG.md'), '# Changelog\n')
     if (name === '@primitree/hooks') {
       mkdirSync(path.join(packageDirectory, 'scripts'))
       writeFileSync(

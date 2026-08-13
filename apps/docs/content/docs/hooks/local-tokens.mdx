@@ -39,7 +39,7 @@ export function App() {
 function BrandButton() {
   const brand = useToken('semantic.color.bg.brand')
   // brand.value  -> resolved DTCG value under active contexts
-  // brand.css    -> '#3366ff'
+  // brand.css    -> 'color(srgb 0.2 0.4 1)'
   // brand.cssVar -> 'var(--semantic-color-bg-brand)'
 
   return <button style={{ background: brand.css ?? undefined }}>Brand</button>

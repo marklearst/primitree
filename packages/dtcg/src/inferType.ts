@@ -34,7 +34,9 @@ const FONT_FAMILY_NAME = /font[-/ ]?famil|typeface/i
  *
  * @public
  */
-export function inferTokenType(variable: NormalizedVariable): DTCGTokenType {
+export function inferTokenType(
+  variable: NormalizedVariable
+): Exclude<DTCGTokenType, 'cubicBezier'> {
   switch (variable.resolvedType) {
     case 'COLOR':
       return 'color'

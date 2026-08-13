@@ -1,15 +1,66 @@
 import { toDTCG, type ToDTCGOptions } from '../emit'
-import { flattenTokens, listContexts } from '../resolve'
+import {
+  applyResolverWithBudget,
+  chargeResolverWork,
+  flattenTokensWithBudget,
+  listContextsWithBudget,
+  type ResolverWorkBudget,
+} from '../resolve'
+import type { DTCGDocument, ResolverDocument } from '../types'
 import { emitCss } from './css'
 import { emitTailwind } from './tailwind'
 import { emitTypescript } from './typescript'
+import { hasLoneUtf16Surrogate } from './unicode'
 import cliPackageManifest from '../../../cli/package.json' with { type: 'json' }
+
+export { DTCGOutputCapabilityError } from './output-error'
 
 /** The pipeline returns each output file in this form. @public */
 export interface PipelineFile {
   /** Relative path inside the output directory. */
   path: string
   contents: string
+}
+
+/**
+ * Checked DTCG files and the Resolver that selects them.
+ *
+ * @remarks
+ * File names are relative to the Resolver file. Token files may use nested
+ * paths, such as `themes/dark.tokens.json`. The emitted `tokens/` path can
+ * contain at most 64 nested directory levels, 16,639 UTF-8 bytes in total,
+ * and 255 UTF-8 bytes per segment. The fixed prefix leaves up to 63 nested
+ * levels in a token file name. Primitree readers look for a Resolver named
+ * `tokens.resolver.json`.
+ *
+ * @public
+ */
+export interface DTCGOutputSet {
+  /** Token files keyed by their path from the Resolver file. */
+  readonly files: Record<string, DTCGDocument>
+  /** Resolver used to select the token files and contexts. */
+  readonly resolver: ResolverDocument
+  /** Required file name for the Resolver output. */
+  readonly resolverFileName: 'tokens.resolver.json'
+}
+
+/**
+ * Options for CSS, Tailwind, and TypeScript files from
+ * {@link buildDTCGOutputs}.
+ *
+ * @remarks
+ * Token JSON and the Resolver are always returned. Each option defaults to
+ * `true`.
+ *
+ * @public
+ */
+export interface BuildOutputOptions {
+  /** Emit `css/tokens.css`. Default: `true`. */
+  readonly css?: boolean
+  /** Emit `css/tokens.tailwind.css`. Default: `true`. */
+  readonly tailwind?: boolean
+  /** Emit `ts/tokens.ts`. Default: `true`. */
+  readonly typescript?: boolean
 }
 
 /** Options for {@link buildPipeline}. @public */
@@ -44,8 +95,338 @@ export interface BuildPipelineResult {
   summary: PipelineSummary
 }
 
-function serialize(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`
+const MAX_OUTPUT_TOKEN_FILES = 1_000
+const MAX_OUTPUT_JSON_DEPTH = 64
+const MAX_OUTPUT_JSON_ITEMS = 100_000
+const MAX_OUTPUT_JSON_TEXT = 20 * 1024 * 1024
+const MAX_OUTPUT_SUMMARY_WORK = 1_000_000
+const MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES = 255
+const MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH = 64
+const MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES =
+  (MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH + 1) *
+    MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES +
+  MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH
+const OUTPUT_TOKEN_PATH_PREFIX = 'tokens/'
+const MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES =
+  MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES - OUTPUT_TOKEN_PATH_PREFIX.length
+const OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE =
+  'DTCG output summary exceeds the 1,000,000-unit work limit.'
+const OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE =
+  'DTCG output summary can read at most 64 token-group levels.'
+
+interface JsonSortBudget {
+  items: number
+  textBytes: number
+}
+
+function utf8ByteLengthWithin(value: string, maxBytes: number): number {
+  if (value.length > maxBytes) {
+    return maxBytes + 1
+  }
+
+  let bytes = 0
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+    if (codeUnit <= 0x7f) {
+      bytes += 1
+    } else if (codeUnit <= 0x7ff) {
+      bytes += 2
+    } else if (
+      codeUnit >= 0xd800 &&
+      codeUnit <= 0xdbff &&
+      index + 1 < value.length
+    ) {
+      const nextCodeUnit = value.charCodeAt(index + 1)
+      if (nextCodeUnit >= 0xdc00 && nextCodeUnit <= 0xdfff) {
+        bytes += 4
+        index += 1
+      } else {
+        bytes += 3
+      }
+    } else {
+      bytes += 3
+    }
+
+    if (bytes > maxBytes) {
+      return maxBytes + 1
+    }
+  }
+  return bytes
+}
+
+function chargeJsonBudget(
+  budget: JsonSortBudget,
+  items: number,
+  text?: string
+): void {
+  budget.items += items
+  if (budget.items > MAX_OUTPUT_JSON_ITEMS) {
+    throw new TypeError('DTCG output data can contain at most 100,000 items.')
+  }
+
+  if (text !== undefined) {
+    const remainingBytes = MAX_OUTPUT_JSON_TEXT - budget.textBytes
+    const addedBytes = utf8ByteLengthWithin(text, remainingBytes)
+    if (addedBytes > remainingBytes) {
+      throw new TypeError('DTCG output text can contain at most 20 MiB.')
+    }
+    budget.textBytes += addedBytes
+  }
+}
+
+function sortJsonValue(
+  value: unknown,
+  active: WeakSet<object>,
+  budget: JsonSortBudget,
+  depth: number,
+  path: readonly string[],
+  preserveResolverOrder: boolean
+): unknown {
+  if (depth > MAX_OUTPUT_JSON_DEPTH) {
+    throw new TypeError('DTCG output data can contain at most 64 levels.')
+  }
+  chargeJsonBudget(budget, 1, typeof value === 'string' ? value : undefined)
+  if (value === null || typeof value !== 'object') {
+    return value
+  }
+  if (active.has(value)) {
+    throw new TypeError('DTCG output data cannot contain a cycle.')
+  }
+  active.add(value)
+  try {
+    if (Array.isArray(value)) {
+      if (value.length > MAX_OUTPUT_JSON_ITEMS - budget.items) {
+        throw new TypeError(
+          'DTCG output data can contain at most 100,000 items.'
+        )
+      }
+      return value.map((item, index) =>
+        sortJsonValue(
+          item,
+          active,
+          budget,
+          depth + 1,
+          [...path, String(index)],
+          preserveResolverOrder
+        )
+      )
+    }
+    const sorted = Object.create(null) as Record<string, unknown>
+    const keys = Object.keys(value)
+    chargeJsonBudget(budget, keys.length)
+    for (const key of keys) {
+      chargeJsonBudget(budget, 0, key)
+    }
+    const isResolverModifierMap =
+      preserveResolverOrder && path.length === 1 && path[0] === 'modifiers'
+    const isResolverContextMap =
+      preserveResolverOrder &&
+      path.length === 3 &&
+      path[0] === 'modifiers' &&
+      path[2] === 'contexts'
+    const orderedKeys =
+      isResolverModifierMap || isResolverContextMap ? keys : keys.sort()
+    for (const key of orderedKeys) {
+      Object.defineProperty(sorted, key, {
+        value: sortJsonValue(
+          Reflect.get(value as Record<string, unknown>, key),
+          active,
+          budget,
+          depth + 1,
+          [...path, key],
+          preserveResolverOrder
+        ),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    }
+    return sorted
+  } finally {
+    active.delete(value)
+  }
+}
+
+function serializeSorted(
+  value: unknown,
+  budget: JsonSortBudget,
+  preserveResolverOrder = false
+): string {
+  const text = `${JSON.stringify(
+    sortJsonValue(value, new WeakSet(), budget, 0, [], preserveResolverOrder),
+    null,
+    2
+  )}\n`
+  if (utf8ByteLengthWithin(text, MAX_OUTPUT_JSON_TEXT) > MAX_OUTPUT_JSON_TEXT) {
+    throw new TypeError('A DTCG output file can contain at most 20 MiB.')
+  }
+  return text
+}
+
+const WINDOWS_DRIVE_PATH = /^[A-Za-z]:\//u
+const WINDOWS_INVALID_PATH_CHARACTER = /[<>:"|?*]/u
+const WINDOWS_RESERVED_FILE_NAME =
+  /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f) {
+      return true
+    }
+  }
+  return false
+}
+
+function isWindowsIncompatiblePathSegment(value: string): boolean {
+  return (
+    WINDOWS_INVALID_PATH_CHARACTER.test(value) ||
+    WINDOWS_RESERVED_FILE_NAME.test(value) ||
+    value.endsWith('.') ||
+    value.endsWith(' ')
+  )
+}
+
+function tokenOutputPath(fileName: string): string {
+  return `${OUTPUT_TOKEN_PATH_PREFIX}${fileName}`
+}
+
+function validateTokenFileOutputPath(value: string): void {
+  if (
+    utf8ByteLengthWithin(value, MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES) >
+    MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES
+  ) {
+    throw new Error(
+      'The emitted DTCG token file path can contain at most 16,639 UTF-8 bytes.'
+    )
+  }
+  if (hasLoneUtf16Surrogate(value)) {
+    throw new Error(
+      'The DTCG token file path cannot contain a lone UTF-16 surrogate.'
+    )
+  }
+  const segments = value.split('/')
+  if (
+    value.length === 0 ||
+    value.startsWith('/') ||
+    WINDOWS_DRIVE_PATH.test(value) ||
+    value.includes('\\') ||
+    segments.some(
+      segment =>
+        segment.length === 0 ||
+        segment === '.' ||
+        segment === '..' ||
+        hasControlCharacter(segment) ||
+        isWindowsIncompatiblePathSegment(segment)
+    )
+  ) {
+    throw new Error(`Unsafe DTCG token file path: "${value}".`)
+  }
+  if (segments.length + 1 > MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH + 1) {
+    throw new Error(
+      `The emitted DTCG token file path can contain at most ${MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH} nested directory levels.`
+    )
+  }
+  if (
+    segments.some(
+      segment =>
+        utf8ByteLengthWithin(segment, MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES) >
+        MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES
+    )
+  ) {
+    throw new Error(
+      `The DTCG token file path segment can contain at most ${MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES} UTF-8 bytes.`
+    )
+  }
+}
+
+function portablePathComparisonKey(value: string): string {
+  return value.normalize('NFC').toLowerCase().toUpperCase().normalize('NFC')
+}
+
+interface PortableOutputPathNode {
+  readonly children: Map<string, PortableOutputPathNode>
+  claimedFileName?: string
+  firstClaimedFileName?: string
+}
+
+function claimPortableOutputPath(
+  root: PortableOutputPathNode,
+  name: string
+): void {
+  const visited: PortableOutputPathNode[] = [root]
+  let node = root
+  for (const segment of portablePathComparisonKey(name).split('/')) {
+    if (node.claimedFileName !== undefined) {
+      throw new Error(
+        `DTCG output paths collide: "${node.claimedFileName}" and "${name}".`
+      )
+    }
+    let child = node.children.get(segment)
+    if (child === undefined) {
+      child = { children: new Map() }
+      node.children.set(segment, child)
+    }
+    node = child
+    visited.push(node)
+  }
+
+  if (node.claimedFileName !== undefined) {
+    throw new Error(
+      `DTCG output paths collide: "${node.claimedFileName}" and "${name}".`
+    )
+  }
+  if (node.firstClaimedFileName !== undefined) {
+    throw new Error(
+      `DTCG output paths collide: "${name}" and "${node.firstClaimedFileName}".`
+    )
+  }
+
+  node.claimedFileName = name
+  for (const visitedNode of visited) {
+    visitedNode.firstClaimedFileName ??= name
+  }
+}
+
+function validateDTCGOutputPaths(input: DTCGOutputSet): void {
+  const tokenFileNames = Object.keys(input.files)
+  if (tokenFileNames.length > MAX_OUTPUT_TOKEN_FILES) {
+    throw new Error('A DTCG output set can contain at most 1,000 token files.')
+  }
+  if (input.resolverFileName !== 'tokens.resolver.json') {
+    throw new Error(
+      'The DTCG Resolver file name must be "tokens.resolver.json".'
+    )
+  }
+  const claimed: PortableOutputPathNode = { children: new Map() }
+  for (const name of [...tokenFileNames, input.resolverFileName]) {
+    if (name !== input.resolverFileName || Object.hasOwn(input.files, name)) {
+      validateTokenFileOutputPath(name)
+    }
+    claimPortableOutputPath(claimed, name)
+  }
+}
+
+function assertUnicodeScalarResolverNames(
+  contextsByAxis: Readonly<Record<string, readonly string[]>>,
+  budget: ResolverWorkBudget
+): void {
+  for (const [axis, contexts] of Object.entries(contextsByAxis)) {
+    chargeResolverWork(budget, axis.length + 1)
+    if (hasLoneUtf16Surrogate(axis)) {
+      throw new Error(
+        'The DTCG Resolver axis name cannot contain a lone UTF-16 surrogate.'
+      )
+    }
+    for (const context of contexts) {
+      chargeResolverWork(budget, context.length + 1)
+      if (hasLoneUtf16Surrogate(context)) {
+        throw new Error(
+          'The DTCG Resolver context name cannot contain a lone UTF-16 surrogate.'
+        )
+      }
+    }
+  }
 }
 
 function formatCount(count: number, singular: string): string {
@@ -445,6 +826,156 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
 }
 
 /**
+ * Build DTCG, CSS, TypeScript, and Tailwind files in memory.
+ *
+ * @remarks
+ * The input must contain checked local DTCG files and a Resolver that selects
+ * them. This function does not read or write files. Projects may select
+ * Tailwind output without CSS if they supply matching custom properties.
+ *
+ * The function accepts at most 1,000 token files. After the fixed `tokens/`
+ * prefix, a token file output can contain at most 64 nested directory levels,
+ * 16,639 UTF-8 bytes in total, and 255 UTF-8 bytes per segment. A relative
+ * token file name can therefore contain at most 63 nested directory levels.
+ * JSON sorting stops after 64 levels, 100,000 items, or 20 MiB of names and
+ * string values. These limits apply before the function creates CSS or
+ * TypeScript text. The generated Resolver keeps modifier and context order.
+ * This preserves CSS rule order and each modifier’s fallback context when
+ * tools load the file again.
+ *
+ * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
+ * limit counts Resolver reads and token merges.
+ *
+ * CSS and Tailwind evaluate at most 1,000 active-context permutations. CSS,
+ * Tailwind, and TypeScript read at most 64 token-group levels and return at
+ * most 20 MiB. Tailwind reads at most 100,000 items per context. Each output
+ * has a 1,000,000-unit work limit. CSS counts active Resolver contexts, token
+ * merges, value comparisons, declarations, token paths, and token text.
+ * Tailwind counts active Resolver contexts, token merges, token walking, alias
+ * type resolution, namespace checks, token paths, name allocation, and output
+ * text. TypeScript also counts flattening, reference resolution, token paths,
+ * sorting, and value serialization.
+ *
+ * @param input - Checked token files and their Resolver.
+ * @param options - CSS, Tailwind, and TypeScript files to include.
+ * @returns Candidate files, counts, contexts, and an empty warning list.
+ *
+ * @throws {@link DTCGOutputCapabilityError} - CSS rejects a checked value or
+ * Resolver state that it cannot represent, or a token path changes Tailwind
+ * namespace between Resolver states.
+ *
+ * @throws `Error` - The builder rejects unsafe file names and emitted token
+ * paths whose depth or size exceeds these limits. It also rejects a Resolver
+ * file name other than `tokens.resolver.json`, lone surrogates in Resolver
+ * names, output path collisions, and CSS name collisions.
+ *
+ * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
+ * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
+ * their work limits or read more than 64 token-group levels. CSS and TypeScript
+ * reject output above 20 MiB. CSS and Tailwind reject more than 1,000 active
+ * context permutations. Tailwind rejects input above 100,000 items per
+ * context.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   buildDTCGOutputs,
+ *   type DTCGDocument,
+ * } from '@primitree/dtcg'
+ *
+ * const tokens = {
+ *   scale: {
+ *     base: { $type: 'number', $value: 4 },
+ *   },
+ * } satisfies DTCGDocument
+ *
+ * const result = buildDTCGOutputs({
+ *   files: { 'source.tokens.json': tokens },
+ *   resolver: {
+ *     version: '2025.10',
+ *     sets: {
+ *       source: { sources: [{ $ref: 'source.tokens.json' }] },
+ *     },
+ *     resolutionOrder: [{ $ref: '#/sets/source' }],
+ *   },
+ *   resolverFileName: 'tokens.resolver.json',
+ * })
+ *
+ * console.log(result.files.map(file => file.path))
+ * ```
+ *
+ * @see [DTCG Resolver 2025.10](https://www.designtokens.org/tr/2025.10/resolver/)
+ *
+ * @public
+ */
+export function buildDTCGOutputs(
+  input: DTCGOutputSet,
+  options: BuildOutputOptions = {}
+): BuildPipelineResult {
+  validateDTCGOutputPaths(input)
+  const files: PipelineFile[] = []
+  const tokenFileNames = Object.keys(input.files).sort()
+  const jsonBudget: JsonSortBudget = { items: 0, textBytes: 0 }
+
+  for (const name of tokenFileNames) {
+    const document = input.files[name]
+    if (document !== undefined) {
+      files.push({
+        path: tokenOutputPath(name),
+        contents: serializeSorted(document, jsonBudget),
+      })
+    }
+  }
+  files.push({
+    path: tokenOutputPath(input.resolverFileName),
+    contents: serializeSorted(input.resolver, jsonBudget, true),
+  })
+
+  if (options.css !== false) {
+    files.push({
+      path: 'css/tokens.css',
+      contents: emitCss(input.files, input.resolver),
+    })
+  }
+  if (options.tailwind !== false) {
+    files.push({
+      path: 'css/tokens.tailwind.css',
+      contents: emitTailwind(input.files, input.resolver),
+    })
+  }
+  if (options.typescript !== false) {
+    files.push({
+      path: 'ts/tokens.ts',
+      contents: emitTypescript(input.files, input.resolver),
+    })
+  }
+
+  const summaryBudget: ResolverWorkBudget = {
+    remaining: MAX_OUTPUT_SUMMARY_WORK,
+    errorMessage: OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE,
+    maxDepth: MAX_OUTPUT_JSON_DEPTH,
+    depthErrorMessage: OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE,
+  }
+
+  const collections = Object.keys(input.resolver.sets ?? {}).length
+  const variables = flattenTokensWithBudget(
+    applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget),
+    summaryBudget
+  ).length
+  const contexts = listContextsWithBudget(input.resolver, summaryBudget)
+  assertUnicodeScalarResolverNames(contexts, summaryBudget)
+  const summary: PipelineSummary = {
+    collections,
+    variables,
+    tokenFiles: tokenFileNames.length + 1,
+    contexts,
+    files: files.map(file => file.path),
+  }
+
+  return { files, warnings: [], summary }
+}
+
+/**
  * Build token JSON, a Resolver, CSS, Tailwind v4 mappings, TypeScript values,
  * transformer config, workflow, and README as in-memory files.
  *
@@ -475,35 +1006,9 @@ export function buildPipeline(
     emitOptions.resolverName = options.resolverName
   }
   const dtcg = toDTCG(input, emitOptions)
-  const files: PipelineFile[] = []
-
   const tokenFileNames = Object.keys(dtcg.files)
-  for (const [name, doc] of Object.entries(dtcg.files)) {
-    files.push({ path: `tokens/${name}`, contents: serialize(doc) })
-  }
-  files.push({
-    path: `tokens/${dtcg.resolverFileName}`,
-    contents: serialize(dtcg.resolver),
-  })
-
-  if (resolved.css) {
-    files.push({
-      path: 'css/tokens.css',
-      contents: emitCss(dtcg.files, dtcg.resolver),
-    })
-  }
-  if (resolved.tailwind) {
-    files.push({
-      path: 'css/tokens.tailwind.css',
-      contents: emitTailwind(dtcg.files, dtcg.resolver),
-    })
-  }
-  if (resolved.typescript) {
-    files.push({
-      path: 'ts/tokens.ts',
-      contents: emitTypescript(dtcg.files, dtcg.resolver),
-    })
-  }
+  const firstParty = buildDTCGOutputs(dtcg, resolved)
+  const files = [...firstParty.files]
 
   const baseFiles = tokenFileNames.filter(
     name => name.split('.').length === 3 // "<collection>.tokens.json"
@@ -524,18 +1029,7 @@ export function buildPipeline(
     })
   }
 
-  const summary: PipelineSummary = {
-    collections: Object.keys(dtcg.resolver.sets ?? {}).length,
-    variables: tokenFileNames
-      .filter(name => name.split('.').length === 3)
-      .reduce(
-        (count, name) => count + flattenTokens(dtcg.files[name] ?? {}).length,
-        0
-      ),
-    tokenFiles: tokenFileNames.length + 1,
-    contexts: listContexts(dtcg.resolver),
-    files: [],
-  }
+  const summary: PipelineSummary = { ...firstParty.summary, files: [] }
 
   if (resolved.readme) {
     files.push({

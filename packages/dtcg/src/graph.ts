@@ -9,7 +9,13 @@ import {
   type SourceId,
   type TokenId,
 } from '@primitree/core'
-import type { DTCGTokenType } from './types'
+import type {
+  DTCGColorComponent,
+  DTCGColorSpace,
+  DTCGColorValue,
+  DTCGCubicBezierValue,
+  DTCGTokenType,
+} from './types'
 
 const MAX_GRAPH_ITEMS = 100_000
 const MAX_GRAPH_DEPTH = 64
@@ -17,6 +23,7 @@ const MAX_JOINED_PATH_LENGTH = 256
 
 const SUPPORTED_TOKEN_TYPES = new Set<string>([
   'color',
+  'cubicBezier',
   'dimension',
   'duration',
   'number',
@@ -42,10 +49,93 @@ const TOKEN_PROPERTIES = new Set([
   '$extensions',
 ])
 
-export interface DTCGGraphOptions {
-  /** Name used to create the Core source ID. */
+type ComponentRange =
+  | { readonly kind: 'closed'; readonly min: number; readonly max: number }
+  | { readonly kind: 'open-max'; readonly min: number; readonly max: number }
+  | { readonly kind: 'min'; readonly min: number }
+  | { readonly kind: 'finite' }
+
+const CLOSED_UNIT_RANGE = {
+  kind: 'closed',
+  min: 0,
+  max: 1,
+} as const satisfies ComponentRange
+const CLOSED_PERCENT_RANGE = {
+  kind: 'closed',
+  min: 0,
+  max: 100,
+} as const satisfies ComponentRange
+const HUE_RANGE = {
+  kind: 'open-max',
+  min: 0,
+  max: 360,
+} as const satisfies ComponentRange
+const NON_NEGATIVE_RANGE = {
+  kind: 'min',
+  min: 0,
+} as const satisfies ComponentRange
+const FINITE_RANGE = { kind: 'finite' } as const satisfies ComponentRange
+
+const COLOR_VALUE_PROPERTIES = new Set([
+  'colorSpace',
+  'components',
+  'alpha',
+  'hex',
+])
+
+const VALUE_UNIT_PROPERTIES = new Set(['value', 'unit'])
+
+const FONT_WEIGHT_NAMES = new Set([
+  'thin',
+  'hairline',
+  'extra-light',
+  'ultra-light',
+  'light',
+  'normal',
+  'regular',
+  'book',
+  'medium',
+  'semi-bold',
+  'demi-bold',
+  'bold',
+  'extra-bold',
+  'ultra-bold',
+  'black',
+  'heavy',
+  'extra-black',
+  'ultra-black',
+])
+
+const COLOR_SPACE_RANGES = new Map<
+  DTCGColorSpace,
+  readonly [ComponentRange, ComponentRange, ComponentRange]
+>([
+  ['srgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['srgb-linear', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['hsl', [HUE_RANGE, CLOSED_PERCENT_RANGE, CLOSED_PERCENT_RANGE]],
+  ['hwb', [HUE_RANGE, CLOSED_PERCENT_RANGE, CLOSED_PERCENT_RANGE]],
+  ['lab', [CLOSED_PERCENT_RANGE, FINITE_RANGE, FINITE_RANGE]],
+  ['lch', [CLOSED_PERCENT_RANGE, NON_NEGATIVE_RANGE, HUE_RANGE]],
+  ['oklab', [CLOSED_UNIT_RANGE, FINITE_RANGE, FINITE_RANGE]],
+  ['oklch', [CLOSED_UNIT_RANGE, NON_NEGATIVE_RANGE, HUE_RANGE]],
+  ['display-p3', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['a98-rgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['prophoto-rgb', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['rec2020', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['xyz-d65', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+  ['xyz-d50', [CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE, CLOSED_UNIT_RANGE]],
+])
+
+/**
+ * Source details for {@link createDTCGGraphFragment}.
+ *
+ * @public
+ */
+export interface DTCGGraphFragmentOptions {
+  /** Name used to create the Core source ID and qualify group and token IDs. */
   readonly source: string
-  /** File name or URI copied into provenance records. */
+
+  /** Optional file name or URI copied into source, group, and token provenance. */
   readonly uri?: string
 }
 
@@ -71,6 +161,7 @@ interface PreparedToken extends TokenInput {
 interface AdapterIssue {
   readonly code: string
   readonly message: string
+  readonly path?: readonly string[]
 }
 
 interface WorkBudget {
@@ -142,14 +233,35 @@ function pathKey(path: readonly string[]): string {
   return JSON.stringify(path)
 }
 
+function comparePaths(
+  left: readonly string[],
+  right: readonly string[]
+): number {
+  const length = Math.min(left.length, right.length)
+  for (let index = 0; index < length; index += 1) {
+    const leftSegment = left[index]
+    const rightSegment = right[index]
+    if (leftSegment === undefined || rightSegment === undefined) {
+      return left.length - right.length
+    }
+    if (leftSegment === rightSegment) {
+      continue
+    }
+    return leftSegment < rightSegment ? -1 : 1
+  }
+  return left.length - right.length
+}
+
 function failure(
   message: string,
-  code = 'dtcg.invalid-document'
+  code = 'dtcg.invalid-document',
+  path?: readonly string[]
 ): GraphFailure {
   const diagnostic = Object.freeze({
     code,
     phase: 'source' as const,
     message,
+    ...(path === undefined ? {} : { path }),
   })
   return Object.freeze({
     ok: false as const,
@@ -157,8 +269,12 @@ function failure(
   })
 }
 
-function invalid(message: string): AdapterIssue {
-  return { code: 'dtcg.invalid-document', message }
+function invalid(message: string, path?: readonly string[]): AdapterIssue {
+  return {
+    code: 'dtcg.invalid-document',
+    message,
+    ...(path === undefined ? {} : { path }),
+  }
 }
 
 function unsupported(message: string): AdapterIssue {
@@ -166,19 +282,19 @@ function unsupported(message: string): AdapterIssue {
 }
 
 function consumeWork(budget: WorkBudget, count = 1): boolean {
-  if (count > budget.remaining) {
+  if (!Number.isSafeInteger(count) || count < 0 || count > budget.remaining) {
     return false
   }
   budget.remaining -= count
   return true
 }
 
-function workLimitIssue(): AdapterIssue {
-  return invalid('The DTCG adapter reached its 100,000-item work limit.')
+function workLimitIssue(path?: readonly string[]): AdapterIssue {
+  return invalid('The DTCG adapter reached its 100,000-unit work limit.', path)
 }
 
 function failureFor(issue: AdapterIssue): GraphFailure {
-  return failure(issue.message, issue.code)
+  return failure(issue.message, issue.code, issue.path)
 }
 
 function validateMetadataValues(
@@ -306,13 +422,8 @@ function readReference(
   if (typeof value !== 'string' || !looksLikeCurlyReference(value)) {
     return { kind: 'literal' }
   }
-  if (!consumeWork(budget)) {
+  if (!consumeWork(budget, value.length)) {
     return { kind: 'work-limit' }
-  }
-  for (let index = 1; index < value.length - 1; index += 1) {
-    if (value.charCodeAt(index) === 0x2e && !consumeWork(budget)) {
-      return { kind: 'work-limit' }
-    }
   }
   const segments = value.slice(1, -1).split('.')
   const finalIndex = segments.length - 1
@@ -329,10 +440,11 @@ function readReference(
 
 function scanLiteralValue(
   root: unknown,
-  budget: WorkBudget
+  budget: WorkBudget,
+  workLimitPath?: readonly string[]
 ): AdapterIssue | undefined {
   if (!consumeWork(budget)) {
-    return workLimitIssue()
+    return workLimitIssue(workLimitPath)
   }
   const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
     { value: root, depth: 0 },
@@ -364,10 +476,11 @@ function scanLiteralValue(
     seen.add(value)
 
     if (Array.isArray(value)) {
-      if (!consumeWork(budget, value.length)) {
-        return workLimitIssue()
+      const length = value.length
+      if (!consumeWork(budget, length)) {
+        return workLimitIssue(workLimitPath)
       }
-      for (let index = value.length - 1; index >= 0; index -= 1) {
+      for (let index = length - 1; index >= 0; index -= 1) {
         stack.push({ value: Reflect.get(value, index), depth: entry.depth + 1 })
       }
       continue
@@ -380,7 +493,7 @@ function scanLiteralValue(
     }
     const keys = Object.keys(value)
     if (!consumeWork(budget, keys.length)) {
-      return workLimitIssue()
+      return workLimitIssue(workLimitPath)
     }
     for (let index = keys.length - 1; index >= 0; index -= 1) {
       const key = keys[index]
@@ -406,52 +519,298 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isFiniteNumberTuple(value: unknown, length: number): boolean {
-  if (!Array.isArray(value) || value.length !== length) {
+function fieldPath(path: readonly string[], field: string): readonly string[] {
+  return Object.freeze([...path, field])
+}
+
+function valueTypeIssue(
+  type: DTCGTokenType,
+  path: readonly string[]
+): AdapterIssue {
+  return invalid(`A DTCG token value does not match type "${type}".`, path)
+}
+
+function componentMatchesRange(
+  component: number,
+  range: ComponentRange
+): boolean {
+  if (!Number.isFinite(component)) {
     return false
   }
-  for (let index = 0; index < value.length; index += 1) {
-    if (!hasOwn(value, index) || !isFiniteNumber(Reflect.get(value, index))) {
-      return false
+  switch (range.kind) {
+    case 'closed': {
+      return component >= range.min && component <= range.max
+    }
+    case 'open-max': {
+      return component >= range.min && component < range.max
+    }
+    case 'min': {
+      return component >= range.min
+    }
+    case 'finite': {
+      return true
     }
   }
-  return true
+}
+
+type ColorValueReadResult =
+  | { readonly ok: true; readonly value: DTCGColorValue }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readColorValue(
+  value: unknown,
+  valuePath: readonly string[]
+): ColorValueReadResult {
+  const message = 'A DTCG token value does not match type "color".'
+  if (!isPlainRecord(value)) {
+    return { ok: false, issue: invalid(message, valuePath) }
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length < 2 ||
+    keys.length > 4 ||
+    !hasOwn(value, 'colorSpace') ||
+    !hasOwn(value, 'components') ||
+    !hasOnlyKeys(value, COLOR_VALUE_PROPERTIES)
+  ) {
+    return { ok: false, issue: invalid(message, valuePath) }
+  }
+
+  const colorSpaceValue = Reflect.get(value, 'colorSpace')
+  const ranges =
+    typeof colorSpaceValue === 'string'
+      ? COLOR_SPACE_RANGES.get(colorSpaceValue as DTCGColorSpace)
+      : undefined
+  if (ranges === undefined) {
+    return {
+      ok: false,
+      issue: invalid(message, fieldPath(valuePath, 'colorSpace')),
+    }
+  }
+  const colorSpace = colorSpaceValue as DTCGColorSpace
+
+  const componentsPath = fieldPath(valuePath, 'components')
+  const componentsValue = Reflect.get(value, 'components')
+  if (!Array.isArray(componentsValue) || componentsValue.length !== 3) {
+    return { ok: false, issue: invalid(message, componentsPath) }
+  }
+  const components: [
+    DTCGColorComponent,
+    DTCGColorComponent,
+    DTCGColorComponent,
+  ] = [0, 0, 0]
+  for (const index of [0, 1, 2] as const) {
+    const componentPath = fieldPath(componentsPath, String(index))
+    if (!hasOwn(componentsValue, index)) {
+      return { ok: false, issue: invalid(message, componentPath) }
+    }
+    const component = Reflect.get(componentsValue, index)
+    if (component === 'none') {
+      components[index] = component
+      continue
+    }
+    if (
+      typeof component !== 'number' ||
+      !componentMatchesRange(component, ranges[index])
+    ) {
+      return { ok: false, issue: invalid(message, componentPath) }
+    }
+    components[index] = component
+  }
+
+  const hasAlpha = hasOwn(value, 'alpha')
+  let alpha: number | undefined
+  if (hasAlpha) {
+    const alphaValue = Reflect.get(value, 'alpha')
+    if (!isFiniteNumber(alphaValue) || alphaValue < 0 || alphaValue > 1) {
+      return {
+        ok: false,
+        issue: invalid(message, fieldPath(valuePath, 'alpha')),
+      }
+    }
+    alpha = alphaValue
+  }
+
+  const hasHex = hasOwn(value, 'hex')
+  let hex: string | undefined
+  if (hasHex) {
+    const hexValue = Reflect.get(value, 'hex')
+    if (typeof hexValue !== 'string' || !/^#[0-9a-fA-F]{6}$/u.test(hexValue)) {
+      return {
+        ok: false,
+        issue: invalid(message, fieldPath(valuePath, 'hex')),
+      }
+    }
+    hex = hexValue
+  }
+
+  return {
+    ok: true,
+    value: {
+      colorSpace,
+      components,
+      ...(alpha === undefined ? {} : { alpha }),
+      ...(hex === undefined ? {} : { hex }),
+    },
+  }
 }
 
 function isColorValue(value: unknown): boolean {
-  if (
-    !isPlainRecord(value) ||
-    !hasOnlyKeys(
-      value,
-      new Set(['colorSpace', 'components', 'alpha', 'hex'])
-    ) ||
-    value.colorSpace !== 'srgb' ||
-    !isFiniteNumberTuple(value.components, 3)
-  ) {
-    return false
+  return readColorValue(value, []).ok
+}
+
+type CubicBezierValueReadResult =
+  | { readonly ok: true; readonly value: DTCGCubicBezierValue }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readCubicBezierValue(
+  value: unknown,
+  valuePath: readonly string[]
+): CubicBezierValueReadResult {
+  if (!Array.isArray(value) || value.length !== 4) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('cubicBezier', valuePath),
+    }
   }
-  return (
-    (value.alpha === undefined || isFiniteNumber(value.alpha)) &&
-    (value.hex === undefined || typeof value.hex === 'string')
-  )
+  const curve: DTCGCubicBezierValue = [0, 0, 0, 0]
+  for (const index of [0, 1, 2, 3] as const) {
+    const itemPath = fieldPath(valuePath, String(index))
+    if (!hasOwn(value, index)) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('cubicBezier', itemPath),
+      }
+    }
+    const coordinate = Reflect.get(value, index)
+    if (
+      !isFiniteNumber(coordinate) ||
+      ((index === 0 || index === 2) && (coordinate < 0 || coordinate > 1))
+    ) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('cubicBezier', itemPath),
+      }
+    }
+    curve[index] = coordinate
+  }
+  return { ok: true, value: curve }
+}
+
+function dimensionValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  const message = 'A DTCG token value does not match type "dimension".'
+  if (!isPlainRecord(value)) {
+    return invalid(message, valuePath)
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length !== 2 ||
+    !hasOwn(value, 'value') ||
+    !hasOwn(value, 'unit') ||
+    !hasOnlyKeys(value, VALUE_UNIT_PROPERTIES)
+  ) {
+    return invalid(message, valuePath)
+  }
+  if (!isFiniteNumber(value.value)) {
+    return invalid(message, fieldPath(valuePath, 'value'))
+  }
+  if (value.unit !== 'px' && value.unit !== 'rem') {
+    return invalid(message, fieldPath(valuePath, 'unit'))
+  }
+  return undefined
 }
 
 function isDimensionValue(value: unknown): boolean {
-  return (
-    isPlainRecord(value) &&
-    hasOnlyKeys(value, new Set(['value', 'unit'])) &&
-    isFiniteNumber(value.value) &&
-    (value.unit === 'px' || value.unit === 'rem')
-  )
+  return dimensionValueIssue(value, []) === undefined
 }
 
-function isDurationValue(value: unknown): boolean {
-  return (
-    isPlainRecord(value) &&
-    hasOnlyKeys(value, new Set(['value', 'unit'])) &&
-    isFiniteNumber(value.value) &&
-    (value.unit === 'ms' || value.unit === 's')
-  )
+function durationValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  if (!isPlainRecord(value)) {
+    return valueTypeIssue('duration', valuePath)
+  }
+  const keys = Object.keys(value)
+  if (
+    keys.length !== 2 ||
+    !hasOwn(value, 'value') ||
+    !hasOwn(value, 'unit') ||
+    !hasOnlyKeys(value, VALUE_UNIT_PROPERTIES)
+  ) {
+    return valueTypeIssue('duration', valuePath)
+  }
+  if (!isFiniteNumber(value.value)) {
+    return valueTypeIssue('duration', fieldPath(valuePath, 'value'))
+  }
+  if (value.unit !== 'ms' && value.unit !== 's') {
+    return valueTypeIssue('duration', fieldPath(valuePath, 'unit'))
+  }
+  return undefined
+}
+
+type FontFamilyValueReadResult =
+  | { readonly ok: true; readonly value: string | readonly string[] }
+  | { readonly ok: false; readonly issue: AdapterIssue }
+
+function readFontFamilyValue(
+  value: unknown,
+  valuePath: readonly string[]
+): FontFamilyValueReadResult {
+  if (typeof value === 'string') {
+    return { ok: true, value }
+  }
+  if (!Array.isArray(value)) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('fontFamily', valuePath),
+    }
+  }
+  const length = value.length
+  if (!Number.isSafeInteger(length) || length < 0 || length > MAX_GRAPH_ITEMS) {
+    return { ok: false, issue: workLimitIssue(valuePath) }
+  }
+  if (length === 0) {
+    return {
+      ok: false,
+      issue: valueTypeIssue('fontFamily', valuePath),
+    }
+  }
+  const names: string[] = []
+  for (let index = 0; index < length; index += 1) {
+    const itemPath = fieldPath(valuePath, String(index))
+    if (!hasOwn(value, index)) {
+      return {
+        ok: false,
+        issue: valueTypeIssue('fontFamily', itemPath),
+      }
+    }
+    const name = Reflect.get(value, index)
+    if (typeof name !== 'string') {
+      return {
+        ok: false,
+        issue: valueTypeIssue('fontFamily', itemPath),
+      }
+    }
+    names.push(name)
+  }
+  return { ok: true, value: Object.freeze(names) }
+}
+
+function fontWeightValueIssue(
+  value: unknown,
+  valuePath: readonly string[]
+): AdapterIssue | undefined {
+  if (
+    (isFiniteNumber(value) && value >= 1 && value <= 1000) ||
+    (typeof value === 'string' && FONT_WEIGHT_NAMES.has(value))
+  ) {
+    return undefined
+  }
+  return valueTypeIssue('fontWeight', valuePath)
 }
 
 function matchesType(type: DTCGTokenType, value: unknown): boolean {
@@ -459,17 +818,24 @@ function matchesType(type: DTCGTokenType, value: unknown): boolean {
     case 'color': {
       return isColorValue(value)
     }
+    case 'cubicBezier': {
+      return readCubicBezierValue(value, []).ok
+    }
     case 'dimension': {
       return isDimensionValue(value)
     }
     case 'duration': {
-      return isDurationValue(value)
+      return durationValueIssue(value, []) === undefined
     }
-    case 'number':
     case 'fontWeight': {
+      return fontWeightValueIssue(value, []) === undefined
+    }
+    case 'number': {
       return isFiniteNumber(value)
     }
-    case 'fontFamily':
+    case 'fontFamily': {
+      return readFontFamilyValue(value, []).ok
+    }
     case 'string': {
       return typeof value === 'string'
     }
@@ -532,9 +898,18 @@ function prepareToken(
   sourceId: SourceId,
   budget: WorkBudget
 ): PreparedToken | GraphFailure {
+  const typedValuePath =
+    token.type === 'dimension' ||
+    token.type === 'color' ||
+    token.type === 'cubicBezier' ||
+    token.type === 'duration' ||
+    token.type === 'fontFamily' ||
+    token.type === 'fontWeight'
+      ? fieldPath(token.path, '$value')
+      : undefined
   const reference = readReference(token.value, budget)
   if (reference.kind === 'work-limit') {
-    return failureFor(workLimitIssue())
+    return failureFor(workLimitIssue(typedValuePath))
   }
   if (reference.kind === 'invalid') {
     return failure('A DTCG reference path is invalid.')
@@ -555,7 +930,7 @@ function prepareToken(
     }
   }
 
-  const valueIssue = scanLiteralValue(token.value, budget)
+  const valueIssue = scanLiteralValue(token.value, budget, typedValuePath)
   if (valueIssue !== undefined) {
     return failureFor(valueIssue)
   }
@@ -620,25 +995,90 @@ function inferTokenType(
 }
 
 /**
- * Convert one token document from Primitree's DTCG value set into a Core graph
- * fragment.
+ * Read Primitree's supported DTCG value subset into a Core graph fragment.
  *
  * @remarks
- * The adapter supports group type inheritance, `$root`, and whole-token brace
- * references. It returns a source diagnostic for group extension, nested brace
- * references, JSON Pointer references, and token types that this package does
- * not support. It checks DTCG descriptions, deprecation values, and extensions.
- * Core graph records do not store those fields, so the adapter omits them.
+ * The caller reads and parses JSON. This function performs no file I/O.
  *
- * @param document - DTCG token document to read.
+ * A group `$type` applies to its child groups and tokens until another group or
+ * token sets its own type. The reader accepts `$root` and keeps `$root` as the
+ * final token path segment.
+ *
+ * Supported DTCG token types are `color`, `cubicBezier`, `dimension`,
+ * `duration`, `number`, `fontWeight`, `fontFamily`, and `string`. The reader
+ * also accepts Primitree's documented `boolean` extension.
+ *
+ * Color values may use any of the 14 color spaces checked by this package.
+ * Each color has three components in the allowed range for its color space. A
+ * component may be `none`. Alpha from 0 through 1 and six-digit hex text are
+ * optional. Dimension values use a finite number with `px` or `rem`. Duration
+ * values use a finite number with `ms` or `s`. Cubic Bezier values use four
+ * finite coordinates. Both x coordinates range from 0 through 1. Number
+ * values must be finite. Font weights use numbers from 1 through 1000 or the
+ * names listed by DTCG. Font families use one name or an ordered list of names.
+ * String values use text.
+ *
+ * The reader creates immediate edges for whole-token brace references in the
+ * supplied document. An alias may omit `$type` when its reference chain reaches
+ * a typed token. The reader requires an alias and its immediate target to have
+ * the same effective type whenever that target exists. Core resolves token
+ * values later.
+ *
+ * A typed alias may keep a missing target for Core `composeGraph` to report. A
+ * cycle whose aliases share one effective type remains in the fragment. Core
+ * `resolveToken` reports `graph.reference-cycle` when a caller resolves a token
+ * in that cycle.
+ * The reader rejects a cycle with no type because it cannot infer that type.
+ *
+ * The reader checks that `$description` is text, `$deprecated` is boolean or
+ * text, and `$extensions` is a plain object. Core graph records do not store
+ * those fields, so the returned fragment omits them.
+ *
+ * Group and token paths may contain at most 64 segments. Their dot-joined paths
+ * may contain at most 256 characters. Token values may contain at most 64
+ * nested levels.
+ *
+ * Each call has one 100,000-unit work limit. It counts document entries,
+ * characters in brace references, each literal value scan, token-value object
+ * key, and token-value array entry.
+ *
+ * The reader rejects `$extends`, JSON Pointer references, references nested
+ * inside literal values, unknown reserved properties, and token types outside
+ * the supported list.
+ *
+ * @param document - Parsed token document that uses the supported value subset.
  * @param options - Source name and optional provenance URI.
- * @returns A graph fragment result or a source diagnostic.
+ * @returns A Core result containing a graph fragment or source diagnostics.
+ *
+ * @example
+ * ```ts
+ * import { createDTCGGraphFragment } from '@primitree/dtcg'
+ *
+ * const result = createDTCGGraphFragment(
+ *   {
+ *     scale: {
+ *       $type: 'number',
+ *       base: { $value: 4 },
+ *       control: { $value: '{scale.base}' },
+ *     },
+ *   },
+ *   { source: 'brand', uri: 'tokens.json' }
+ * )
+ *
+ * if (!result.ok) {
+ *   throw new Error(result.diagnostics[0]?.message ?? 'DTCG input failed')
+ * }
+ *
+ * const fragment = result.value
+ * ```
+ *
+ * @see [DTCG 2025.10 Format Module](https://www.designtokens.org/tr/2025.10/format/)
  *
  * @public
  */
-export function toGraphFragment(
+export function createDTCGGraphFragment(
   document: unknown,
-  options: DTCGGraphOptions
+  options: DTCGGraphFragmentOptions
 ): Result<GraphFragment> {
   try {
     if (!isPlainRecord(document) || !isPlainRecord(options)) {
@@ -787,6 +1227,9 @@ export function toGraphFragment(
       }
     }
 
+    groups.sort((left, right) => comparePaths(left.path, right.path))
+    tokens.sort((left, right) => comparePaths(left.path, right.path))
+
     const preparedTokens: PreparedToken[] = []
     for (const token of tokens) {
       const prepared = prepareToken(token, sourceId, workBudget)
@@ -805,12 +1248,104 @@ export function toGraphFragment(
       if (!typeResult.ok) {
         return typeResult.failure
       }
+      if (token.referencePath !== undefined) {
+        const target = tokensByPath.get(pathKey(token.referencePath))
+        if (target !== undefined) {
+          const targetTypeResult = inferTokenType(
+            target,
+            tokensByPath,
+            inferredTypes
+          )
+          if (!targetTypeResult.ok) {
+            return targetTypeResult.failure
+          }
+          if (typeResult.value !== targetTypeResult.value) {
+            return failure(
+              'A DTCG alias type does not match its reference target.',
+              'dtcg.invalid-document',
+              fieldPath(token.path, '$value')
+            )
+          }
+        }
+      }
+      let coreValue = token.coreValue
       if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'dimension'
+      ) {
+        const issue = dimensionValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'color'
+      ) {
+        const color = readColorValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!color.ok) {
+          return failureFor(color.issue)
+        }
+        coreValue = { kind: 'literal', value: color.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'cubicBezier'
+      ) {
+        const curve = readCubicBezierValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!curve.ok) {
+          return failureFor(curve.issue)
+        }
+        coreValue = { kind: 'literal', value: curve.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'duration'
+      ) {
+        const issue = durationValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'fontFamily'
+      ) {
+        const family = readFontFamilyValue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (!family.ok) {
+          return failureFor(family.issue)
+        }
+        coreValue = { kind: 'literal', value: family.value }
+      } else if (
+        token.coreValue.kind === 'literal' &&
+        typeResult.value === 'fontWeight'
+      ) {
+        const issue = fontWeightValueIssue(
+          token.value,
+          fieldPath(token.path, '$value')
+        )
+        if (issue !== undefined) {
+          return failureFor(issue)
+        }
+      } else if (
         token.coreValue.kind === 'literal' &&
         !matchesType(typeResult.value, token.value)
       ) {
         return failure(
-          `A DTCG token value does not match type "${typeResult.value}".`
+          `A DTCG token value does not match type "${typeResult.value}".`,
+          'dtcg.invalid-document',
+          fieldPath(token.path, '$value')
         )
       }
       coreTokens.push({
@@ -822,7 +1357,7 @@ export function toGraphFragment(
         type: typeResult.value,
         values: [
           {
-            value: token.coreValue,
+            value: coreValue,
             provenance: token.provenance,
           },
         ],

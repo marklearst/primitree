@@ -1,65 +1,170 @@
 ---
 title: Get started
-description: Install Primitree, export variables.json, and build your first token pipeline.
+description: Check a local DTCG file and build token files with Primitree.
 ---
 
-You need Node.js 24 or newer. Contributors working in this monorepo need pnpm 11 or newer.
+You need Node.js 24 or newer. Contributors working in this monorepo need pnpm
+11 or newer.
 
 ## 1. Install the CLI
 
 ```bash
 pnpm add -D @primitree/cli
-# One-off command
-npx @primitree/cli --help
 ```
 
-## 2. Export variables from Figma
+## 2. Add a DTCG token file
 
-Use the [Primitree export plugin](/docs/figma-plugin) to download local variables from the open file. Primitree accepts the input shapes listed in [Export variables](/docs/getting-started/export-variables).
+Create `tokens.json` with a base layer and a semantic layer. Semantic tokens
+reference the base values they use.
 
-Figma Enterprise organizations can call the Variables REST API:
+```json
+{
+  "base": {
+    "motion": {
+      "quick": {
+        "$type": "duration",
+        "$value": { "value": 0.2, "unit": "s" }
+      }
+    },
+    "type": {
+      "family": {
+        "$type": "fontFamily",
+        "$value": ["Atkinson Hyperlegible", "sans-serif"]
+      },
+      "weight": { "$type": "fontWeight", "$value": 650.5 }
+    }
+  },
+  "semantic": {
+    "motion": {
+      "quick": { "$type": "duration", "$value": "{base.motion.quick}" },
+      "control": {
+        "$type": "duration",
+        "$value": "{semantic.motion.quick}"
+      }
+    },
+    "type": {
+      "family": {
+        "$type": "fontFamily",
+        "$value": "{base.type.family}"
+      },
+      "body": {
+        "$type": "fontFamily",
+        "$value": "{semantic.type.family}"
+      },
+      "weight": {
+        "$type": "fontWeight",
+        "$value": "{base.type.weight}"
+      },
+      "emphasis": {
+        "$type": "fontWeight",
+        "$value": "{semantic.type.weight}"
+      }
+    }
+  }
+}
+```
+
+## 3. Add the source config
+
+Create `primitree.config.ts` next to `tokens.json`.
+
+```ts
+export default {
+  schemaVersion: 1,
+  sources: {
+    brand: {
+      type: 'dtcg',
+      file: './tokens.json',
+      architecture: {
+        layers: [
+          { id: 'base', roots: ['base'], values: 'literal' },
+          {
+            id: 'semantic',
+            roots: ['semantic'],
+            values: 'reference',
+            references: ['base', 'semantic'],
+          },
+        ],
+      },
+      ownership: { default: ['design-systems'] },
+      outputs: {
+        directory: './generated',
+        formats: ['dtcg', 'css', 'typescript', 'tailwind'],
+      },
+    },
+  },
+}
+```
+
+The config gives the source the name `brand`. It allows literal values in
+`base` and aliases in `semantic`. Paths are relative to the config file.
+
+## 4. Check and inspect the source
 
 ```bash
-export FIGMA_TOKEN=figd_...
-primitree export --file-key AbCdEf... --out variables.json
+pnpm exec primitree check --source brand
+pnpm exec primitree inspect semantic.motion.control --source brand
 ```
 
-See [Export variables](/docs/getting-started/export-variables) for the accepted input shapes.
+`check` reports layer and owner findings. It rejects invalid token types,
+references, and cycles. `inspect` reports the resolved value and the alias
+chain for one token.
 
-## 3. Build the pipeline
+## 5. Compare a change
+
+Save a copy of the source file:
 
 ```bash
-primitree build variables.json
+cp tokens.json before.tokens.json
 ```
 
-Default output directory: `design-tokens/`.
+Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
+Compare the files:
 
 ```bash
-primitree build variables.json --out tokens --terrazzo
+pnpm exec primitree diff before.tokens.json tokens.json --source brand
 ```
 
-Use `--out` to change the folder. Use `--terrazzo` or `--style-dictionary` to pick a transformer config. The build reference lists each `--no-*` output flag.
+`diff` reports the tokens that changed between the saved file and the edited
+file.
 
-## 4. Commit the output
+## 6. Build the files
 
 ```bash
-git add design-tokens variables.json
-git commit -m "Add design token pipeline"
+pnpm exec primitree build --source brand
 ```
 
-Keep the raw export in git when pull requests need a semantic diff.
+The build writes these files to `generated/`:
 
-## 5. Wire CI (optional)
+```text
+generated/
+├── .primitree-manifest.json
+├── css/tokens.css
+├── css/tokens.tailwind.css
+├── tokens/source.tokens.json
+├── tokens/tokens.resolver.json
+└── ts/tokens.ts
+```
 
-The build writes `design-tokens.workflow.yml`. Move the file into `.github/workflows/` and review its paths. The template rebuilds generated files after a push that changes `variables.json`.
-
-Add this command to a pull request workflow for a breaking-change check:
+## 7. Check generated files in CI
 
 ```bash
-primitree diff backup/variables.json variables.json --fail-on-breaking
+pnpm exec primitree build --source brand --check
 ```
 
-With `--fail-on-breaking`, exit code `2` marks a breaking change.
+`build --check` reports missing, changed, and unexpected output files without
+writing. It exits with code `0` when the files match and code `1` when they
+differ.
+
+## Figma export follow-up
+
+Use the [Primitree export plugin](/docs/figma-plugin) when local Figma
+variables are the starting point. The plugin saves a `variables.json` export.
+Run `pnpm exec primitree build variables.json` to convert that export. Figma
+REST access requires access to the Figma file, a Figma Enterprise seat, and a
+Personal Access Token with `file_variables:read`. Set the token in
+`FIGMA_TOKEN` or `FIGMA_PAT`, and set the file key in `FIGMA_FILE_KEY`. Run
+`pnpm exec primitree export`.
 
 ## Use the generated tokens
 

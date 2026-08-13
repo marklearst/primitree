@@ -1,15 +1,11 @@
 ---
 title: Build token files
-description: Convert a Figma variables export into token files and code with Primitree.
+description: Check local DTCG token files and build CSS, Tailwind, TypeScript, and DTCG output.
 ---
 
-Primitree converts a Figma variables export into DTCG token files, CSS, Tailwind v4, TypeScript, and a Resolver for modes. The monorepo contains semantic diff tools, React hooks, and an MCP server.
-
-## Figma API access
-
-Figma limits its Variables REST API to Enterprise organizations. The Primitree export plugin reads local variables from the open file through the Plugin API. Build from the checked-in JSON without calling that REST endpoint.
-
-The CLI turns that JSON into files a codebase can import and review.
+Primitree checks a local DTCG token file against the layer and owner rules in
+`primitree.config.ts`. It then writes DTCG, CSS, Tailwind CSS, and TypeScript
+files for an app to use.
 
 ## Requirements
 
@@ -19,11 +15,38 @@ The CLI turns that JSON into files a codebase can import and review.
 
 ## Quick start
 
+Install the CLI. Add a local DTCG file and `primitree.config.ts`. Run:
+
 ```bash
-npx @primitree/cli build variables.json
+pnpm add -D @primitree/cli
+pnpm exec primitree check --source brand
+pnpm exec primitree inspect semantic.motion.control --source brand
+cp tokens.json before.tokens.json
 ```
 
-The command writes a `design-tokens/` directory. See [Getting started](/docs/getting-started) for the export and build steps.
+Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
+Compare the files and build the output:
+
+```bash
+pnpm exec primitree diff before.tokens.json tokens.json --source brand
+pnpm exec primitree build --source brand
+pnpm exec primitree build --source brand --check
+```
+
+`check` reports source findings. `inspect` explains one token. `diff` compares
+the saved file with the edited file. `build` writes the configured files.
+`build --check` reports output changes without writing. See
+[Getting started](/docs/getting-started) for the token file, config, commands,
+and generated files.
+
+## Figma export
+
+The Figma path is available when a project starts with local variables. Use the
+[Primitree export plugin](/docs/figma-plugin) to save an export. Run
+`pnpm exec primitree build variables.json`. Figma REST access requires access
+to the Figma file, a Figma Enterprise seat, and a Personal Access Token with
+`file_variables:read`. Set the token in `FIGMA_TOKEN` or `FIGMA_PAT`, and set
+the file key in `FIGMA_FILE_KEY`. Run `pnpm exec primitree export`.
 
 ## Packages
 
@@ -41,7 +64,7 @@ The command writes a `design-tokens/` directory. See [Getting started](/docs/get
   <Card
     title='Getting started'
     href='/docs/getting-started'
-    description='Install, export, build, commit'
+    description='Install, configure, check, and build'
   />
   <Card
     title='CLI reference'
@@ -62,4 +85,5 @@ The command writes a `design-tokens/` directory. See [Getting started](/docs/get
 
 ## Playground
 
-The [playground](/docs/playground) processes a variables export in the browser and downloads the generated files as a zip.
+The [playground](/docs/playground) processes a variables export in the browser
+and downloads the generated files as a zip.

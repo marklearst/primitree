@@ -6,18 +6,14 @@ import {
   VariablesParseError,
 } from '@primitree/core'
 import { createPolicy, evaluatePolicy } from '@primitree/core/policy'
-import {
-  applyResolver,
-  flattenTokens,
-  listPermutations,
-  resolveTokenValues,
-  isToken,
-  type DTCGDocument,
-  type ResolverDocument,
-} from '@primitree/dtcg'
+import { validateResolverContexts } from '@primitree/dtcg'
 import { type ParsedArgs } from '../args'
 import { loadConfiguredSourceGraph } from '../config/source'
-import { fileExists, readJsonFile } from '../io'
+import {
+  isMissingCheckSourcePath,
+  loadBuiltTokenSource,
+  loadVariablesCheckSource,
+} from '../token-source'
 
 function formatCount(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? '' : 's'}`
@@ -128,7 +124,7 @@ async function checkVariablesFile(filePath: string): Promise<CheckReport> {
   const report: CheckReport = { errors: [], warnings: [] }
   let json: unknown
   try {
-    json = await readJsonFile(filePath)
+    json = await loadVariablesCheckSource(filePath)
   } catch (err) {
     report.errors.push(err instanceof Error ? err.message : String(err))
     return report
@@ -155,8 +151,7 @@ async function checkVariablesFile(filePath: string): Promise<CheckReport> {
 
 async function checkTokensDirectory(dir: string): Promise<CheckReport> {
   const report: CheckReport = { errors: [], warnings: [] }
-  const resolverPath = path.join(dir, 'tokens.resolver.json')
-  const resolver = (await readJsonFile(resolverPath)) as ResolverDocument
+  const { files, resolver, origin } = await loadBuiltTokenSource(dir)
   if (resolver.version !== '2025.10') {
     report.errors.push(
       `Resolver version: expected "2025.10", received "${String(resolver.version)}"`
@@ -164,42 +159,25 @@ async function checkTokensDirectory(dir: string): Promise<CheckReport> {
     return report
   }
 
-  const files: Record<string, DTCGDocument> = {}
-  const entries = await fs.readdir(dir)
-  for (const entry of entries) {
-    if (entry.endsWith('.tokens.json')) {
-      files[entry] = (await readJsonFile(path.join(dir, entry))) as DTCGDocument
-    }
-  }
   if (Object.keys(files).length === 0) {
-    report.errors.push(`${dir} contains no *.tokens.json files`)
+    report.errors.push(`${origin} contains no *.tokens.json files`)
     return report
   }
 
-  for (const permutation of listPermutations(resolver)) {
+  for (const result of validateResolverContexts(files, resolver)) {
     const label =
-      Object.keys(permutation).length > 0
-        ? Object.entries(permutation)
+      Object.keys(result.contexts).length > 0
+        ? Object.entries(result.contexts)
             .map(([axis, context]) => `${axis}=${context}`)
             .join(', ')
         : 'default'
-    try {
-      const merged = applyResolver(files, resolver, permutation)
-      const flat = flattenTokens(merged)
-      resolveTokenValues(flat)
-      for (const { path: tokenPath, token } of flat) {
-        if (!isToken(token)) {
-          continue
-        }
-        if (token.$type === undefined) {
-          report.warnings.push(
-            `Token "${tokenPath}" has no $type (context: ${label})`
-          )
-        }
-      }
-    } catch (err) {
-      report.errors.push(
-        `Context (${label}): ${err instanceof Error ? err.message : String(err)}`
+    if (!result.ok) {
+      report.errors.push(`Context (${label}): ${result.error.message}`)
+      continue
+    }
+    for (const tokenPath of result.untypedTokenPaths) {
+      report.warnings.push(
+        `Token "${tokenPath}" has no $type (context: ${label})`
       )
     }
   }
@@ -227,25 +205,19 @@ export async function runCheck(args: ParsedArgs): Promise<void> {
   }
 
   const resolved = path.resolve(target)
-  const stat = await fs.stat(resolved).catch(() => null)
+  const stat = await fs.lstat(resolved).catch(error => {
+    if (!isMissingCheckSourcePath(error)) {
+      throw error
+    }
+    return null
+  })
   if (!stat) {
     throw new Error(`Path does not exist: ${resolved}`)
   }
 
   let report: CheckReport
   if (stat.isDirectory()) {
-    const hasResolver = await fileExists(
-      path.join(resolved, 'tokens.resolver.json')
-    )
-    const nested = path.join(resolved, 'tokens')
-    if (
-      !hasResolver &&
-      (await fileExists(path.join(nested, 'tokens.resolver.json')))
-    ) {
-      report = await checkTokensDirectory(nested)
-    } else {
-      report = await checkTokensDirectory(resolved)
-    }
+    report = await checkTokensDirectory(resolved)
   } else {
     report = await checkVariablesFile(resolved)
   }
