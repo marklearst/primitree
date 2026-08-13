@@ -38,10 +38,15 @@ its hash changed and refuses any unlisted path.
 
 The output directory must stay under the config file's directory and cannot
 contain the source token file. Use a separate directory for generated files.
+Primitree allows up to 255 UTF-8 bytes in each intermediate output-directory
+segment, up to 200 UTF-8 bytes in its final directory name, and up to 255 UTF-8
+bytes in each generated-file path segment. The shorter final directory name
+keeps the lock, staging, and backup names portable.
 
 `--check` compares the files in the output directory with the files Primitree
 would write. It reports missing, changed, and unexpected paths without writing.
-Exit code 1 means the files differ.
+It also rechecks the output directory and its ancestors while it scans, and
+stops if one changes. Exit code 1 means the files differ.
 
 ### Figma variables export
 

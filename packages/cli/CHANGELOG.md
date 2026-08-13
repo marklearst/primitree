@@ -17,12 +17,20 @@ Initial release of `@primitree/cli`.
 - `primitree init` for token repository scaffolding.
 - `primitree export` for Enterprise Variables REST API access.
 - Unsafe-path checks for scaffold and generated file writes.
+- Configured output paths limit intermediate directory segments to 255 UTF-8
+  bytes and the final directory name to 200 UTF-8 bytes. Generated file path
+  segments use the 255-byte limit.
 - Portable path checks reject lone UTF-16 surrogates before filesystem encoding
   can replace them.
 - Positional input checks reject malformed UTF-8, symbolic links, and special nodes.
 - Configured builds compare regular source files inspected during output-path
   validation with the files they open. They reject opened-file or
   configured-path changes during the bounded snapshot read.
+- Configured builds reject malformed UTF-8 in installed manifests and preserve
+  primary read, parse, and scan failures when closing a file or directory also
+  fails.
+- Configured `build --check` rechecks the output directory and its ancestors
+  throughout inspection and stops if one changes.
 - Built-source scans recheck directory identity after resolving each selected
   root path.
 - Positional variables JSON can be up to 20 MiB. Built token sources can contain up to 1,000 token files, 100,000 directory entries, and 64 nested directory levels. Each built-source JSON file can be up to 20 MiB, with a 256 MiB combined limit that includes the Resolver.
