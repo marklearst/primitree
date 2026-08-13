@@ -36,10 +36,6 @@ export function docsPathToUrl(file) {
   const slugs = getSlugs(relative)
   const route = `/docs${slugs.length > 0 ? `/${slugs.join('/')}` : ''}`
 
-  if (/(?:^|[/\\])index\.mdx?$/iu.test(relative)) {
-    return `${route}/`
-  }
-
   return route
 }
 

@@ -814,6 +814,9 @@ test('built prose validation requires every API page and exact public declaratio
   const root = '/repo'
   const markdownFiles = [
     'index.mdx',
+    'cli-config.mdx',
+    'core-policy.mdx',
+    'core-types.mdx',
     'core.mdx',
     'dtcg.mdx',
     'hooks.mdx',

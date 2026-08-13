@@ -7,6 +7,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@primitree/core": ["../../packages/core/src/index.ts"],
+      "@primitree/core/policy": ["../../packages/core/src/policy/index.ts"],
       "@primitree/core/types": ["../../packages/core/src/types/index.ts"],
       "@primitree/dtcg": ["../../packages/dtcg/src/index.ts"]
     },
@@ -19,6 +20,7 @@
     "types": ["node", "react"]
   },
   "include": [
+    "../../packages/cli/src/config.ts",
     "../../packages/core/src",
     "../../packages/dtcg/src",
     "../../packages/hooks/src",
