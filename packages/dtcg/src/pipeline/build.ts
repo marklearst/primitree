@@ -27,9 +27,10 @@ export interface PipelineFile {
  *
  * @remarks
  * File names are relative to the Resolver file. Token files may use nested
- * paths, such as `themes/dark.tokens.json`. A path can contain at most 64
- * nested directory levels and 16,639 UTF-8 bytes in total. Each segment can
- * contain at most 255 UTF-8 bytes. Primitree readers look for a Resolver named
+ * paths, such as `themes/dark.tokens.json`. The emitted `tokens/` path can
+ * contain at most 64 nested directory levels, 16,639 UTF-8 bytes in total,
+ * and 255 UTF-8 bytes per segment. The fixed prefix leaves up to 63 nested
+ * levels in a token file name. Primitree readers look for a Resolver named
  * `tokens.resolver.json`.
  *
  * @public
@@ -105,6 +106,9 @@ const MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES =
   (MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH + 1) *
     MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES +
   MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH
+const OUTPUT_TOKEN_PATH_PREFIX = 'tokens/'
+const MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES =
+  MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES - OUTPUT_TOKEN_PATH_PREFIX.length
 const OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE =
   'DTCG output summary exceeds the 1,000,000-unit work limit.'
 const OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE =
@@ -283,18 +287,22 @@ function isWindowsIncompatiblePathSegment(value: string): boolean {
   )
 }
 
-function validateRelativeOutputPath(value: string, label: string): void {
+function tokenOutputPath(fileName: string): string {
+  return `${OUTPUT_TOKEN_PATH_PREFIX}${fileName}`
+}
+
+function validateTokenFileOutputPath(value: string): void {
   if (
-    utf8ByteLengthWithin(value, MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES) >
-    MAX_PORTABLE_OUTPUT_TOKEN_FILE_PATH_BYTES
+    utf8ByteLengthWithin(value, MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES) >
+    MAX_RELATIVE_OUTPUT_TOKEN_FILE_PATH_BYTES
   ) {
     throw new Error(
-      `The DTCG ${label} path can contain at most 16,639 UTF-8 bytes.`
+      'The emitted DTCG token file path can contain at most 16,639 UTF-8 bytes.'
     )
   }
   if (hasLoneUtf16Surrogate(value)) {
     throw new Error(
-      `The DTCG ${label} path cannot contain a lone UTF-16 surrogate.`
+      'The DTCG token file path cannot contain a lone UTF-16 surrogate.'
     )
   }
   const segments = value.split('/')
@@ -312,11 +320,11 @@ function validateRelativeOutputPath(value: string, label: string): void {
         isWindowsIncompatiblePathSegment(segment)
     )
   ) {
-    throw new Error(`Unsafe DTCG ${label} path: "${value}".`)
+    throw new Error(`Unsafe DTCG token file path: "${value}".`)
   }
-  if (segments.length > MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH + 1) {
+  if (segments.length + 1 > MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH + 1) {
     throw new Error(
-      `The DTCG ${label} path can contain at most ${MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH} nested directory levels.`
+      `The emitted DTCG token file path can contain at most ${MAX_OUTPUT_TOKEN_FILE_DIRECTORY_DEPTH} nested directory levels.`
     )
   }
   if (
@@ -327,7 +335,7 @@ function validateRelativeOutputPath(value: string, label: string): void {
     )
   ) {
     throw new Error(
-      `The DTCG ${label} path segment can contain at most ${MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES} UTF-8 bytes.`
+      `The DTCG token file path segment can contain at most ${MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES} UTF-8 bytes.`
     )
   }
 }
@@ -393,7 +401,7 @@ function validateDTCGOutputPaths(input: DTCGOutputSet): void {
   const claimed: PortableOutputPathNode = { children: new Map() }
   for (const name of [...tokenFileNames, input.resolverFileName]) {
     if (name !== input.resolverFileName || Object.hasOwn(input.files, name)) {
-      validateRelativeOutputPath(name, 'token file')
+      validateTokenFileOutputPath(name)
     }
     claimPortableOutputPath(claimed, name)
   }
@@ -825,13 +833,15 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * them. This function does not read or write files. Projects may select
  * Tailwind output without CSS if they supply matching custom properties.
  *
- * The function accepts at most 1,000 token files. A token file path can contain
- * at most 64 nested directory levels, 16,639 UTF-8 bytes in total, and 255
- * UTF-8 bytes per segment. JSON sorting stops after 64 levels, 100,000 items,
- * or 20 MiB of names and string values. These limits apply before the function
- * creates CSS or TypeScript text. The generated Resolver keeps modifier and
- * context order. This preserves CSS rule order and each modifier’s fallback
- * context when tools load the file again.
+ * The function accepts at most 1,000 token files. After the fixed `tokens/`
+ * prefix, a token file output can contain at most 64 nested directory levels,
+ * 16,639 UTF-8 bytes in total, and 255 UTF-8 bytes per segment. A relative
+ * token file name can therefore contain at most 63 nested directory levels.
+ * JSON sorting stops after 64 levels, 100,000 items, or 20 MiB of names and
+ * string values. These limits apply before the function creates CSS or
+ * TypeScript text. The generated Resolver keeps modifier and context order.
+ * This preserves CSS rule order and each modifier’s fallback context when
+ * tools load the file again.
  *
  * The summary reads at most 64 token-group levels. Its 1,000,000-unit work
  * limit counts Resolver reads and token merges.
@@ -854,10 +864,10 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * Resolver state that it cannot represent, or a token path changes Tailwind
  * namespace between Resolver states.
  *
- * @throws `Error` - The builder rejects unsafe file names and names whose depth
- * or size exceeds these limits. It also rejects a Resolver file name other than
- * `tokens.resolver.json`, lone surrogates in Resolver names, output path
- * collisions, and CSS name collisions.
+ * @throws `Error` - The builder rejects unsafe file names and emitted token
+ * paths whose depth or size exceeds these limits. It also rejects a Resolver
+ * file name other than `tokens.resolver.json`, lone surrogates in Resolver
+ * names, output path collisions, and CSS name collisions.
  *
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
  * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
@@ -911,13 +921,13 @@ export function buildDTCGOutputs(
     const document = input.files[name]
     if (document !== undefined) {
       files.push({
-        path: `tokens/${name}`,
+        path: tokenOutputPath(name),
         contents: serializeSorted(document, jsonBudget),
       })
     }
   }
   files.push({
-    path: `tokens/${input.resolverFileName}`,
+    path: tokenOutputPath(input.resolverFileName),
     contents: serializeSorted(input.resolver, jsonBudget, true),
   })
 
