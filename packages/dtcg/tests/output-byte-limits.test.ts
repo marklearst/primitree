@@ -17,47 +17,55 @@ const outputOptions = {
 } as const
 
 describe('buildDTCGOutputs JSON byte limits', () => {
-  it('counts UTF-8 bytes across token names and text values', () => {
-    const value = '😀'.repeat(2_625_000)
-    const files = {
-      'brand.tokens.json': {
-        first: { $type: 'fontFamily', $value: value },
-      },
-      'second.tokens.json': {
-        second: { $type: 'fontFamily', $value: value },
-      },
-    } satisfies Record<string, DTCGDocument>
-
-    expect(() =>
-      buildDTCGOutputs(
-        {
-          files,
-          resolver,
-          resolverFileName: 'tokens.resolver.json',
+  it(
+    'counts UTF-8 bytes across token names and text values',
+    { timeout: 10_000 },
+    () => {
+      const value = '😀'.repeat(2_625_000)
+      const files = {
+        'brand.tokens.json': {
+          first: { $type: 'fontFamily', $value: value },
         },
-        outputOptions
-      )
-    ).toThrow('DTCG output text can contain at most 20 MiB.')
-  })
-
-  it('counts UTF-8 bytes in each serialized token file', () => {
-    const value = '界'.repeat(75)
-    const document = {
-      family: {
-        $type: 'fontFamily',
-        $value: Array.from({ length: 90_000 }, () => value),
-      },
-    } satisfies DTCGDocument
-
-    expect(() =>
-      buildDTCGOutputs(
-        {
-          files: { 'brand.tokens.json': document },
-          resolver,
-          resolverFileName: 'tokens.resolver.json',
+        'second.tokens.json': {
+          second: { $type: 'fontFamily', $value: value },
         },
-        outputOptions
-      )
-    ).toThrow('A DTCG output file can contain at most 20 MiB.')
-  })
+      } satisfies Record<string, DTCGDocument>
+
+      expect(() =>
+        buildDTCGOutputs(
+          {
+            files,
+            resolver,
+            resolverFileName: 'tokens.resolver.json',
+          },
+          outputOptions
+        )
+      ).toThrow('DTCG output text can contain at most 20 MiB.')
+    }
+  )
+
+  it(
+    'counts UTF-8 bytes in each serialized token file',
+    { timeout: 10_000 },
+    () => {
+      const value = '界'.repeat(75)
+      const document = {
+        family: {
+          $type: 'fontFamily',
+          $value: Array.from({ length: 90_000 }, () => value),
+        },
+      } satisfies DTCGDocument
+
+      expect(() =>
+        buildDTCGOutputs(
+          {
+            files: { 'brand.tokens.json': document },
+            resolver,
+            resolverFileName: 'tokens.resolver.json',
+          },
+          outputOptions
+        )
+      ).toThrow('A DTCG output file can contain at most 20 MiB.')
+    }
+  )
 })

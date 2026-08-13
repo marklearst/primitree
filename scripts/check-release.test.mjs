@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -1898,8 +1899,15 @@ test('publishes through one pinned dual-mode helper and then verifies the public
   const publish = jobs.get('publish')
   assert.ok(publish)
   assert.equal(workflowDocument.jobs.publish.environment, 'npm')
+  assert.equal(
+    workflowDocument.jobs.publish.if,
+    "github.event.deleted != true && github.ref_type == 'tag'"
+  )
   assert.match(publish, /needs: \[quality, packed-consumer\]/)
-  assert.match(publish, /if: github\.ref_type == 'tag'/)
+  assert.match(
+    publish,
+    /if: github\.event\.deleted != true && github\.ref_type == 'tag'/
+  )
   assert.match(publish, /timeout-minutes: 30/)
   assert.match(publish, /node-version: 24\.18\.0/)
   assert.match(publish, /npm install --global npm@11\.18\.0/)
@@ -1946,7 +1954,10 @@ test('creates an immutable-safe GitHub Release in a separate least-privilege job
   const document = assertWorkflowTrustPolicy(workflow)
   const releaseJob = document.jobs['github-release']
   assert.deepEqual(releaseJob.needs, ['publish'])
-  assert.equal(releaseJob.if, "github.ref_type == 'tag'")
+  assert.equal(
+    releaseJob.if,
+    "github.event.deleted != true && github.ref_type == 'tag'"
+  )
   assert.equal(releaseJob['timeout-minutes'], 15)
   assert.deepEqual(releaseJob.permissions, { contents: 'write' })
   assert.equal(Object.hasOwn(releaseJob, 'environment'), false)
@@ -2005,32 +2016,143 @@ test('documents the unscoped launcher and next channel in prerelease notes', () 
   assert.doesNotMatch(nextReleaseNotes, /—/)
 })
 
-test('dates public release copy before creating a tag', () => {
+test('finalizes dated public release copy before tag validation and final binding', () => {
+  const localPreflight = extractMarkdownSection(
+    releaseRunbook,
+    '## Local preflight'
+  )
   const external = extractMarkdownSection(
     releaseRunbook,
     '## External npm and GitHub steps'
+  )
+  const mergePhase = extractMarkdownSection(
+    external,
+    '### 2. Merge and bind exact main'
   )
   const tagPhase = extractMarkdownSection(
     external,
     '### 5. Tag, publish, and create the GitHub prerelease'
   )
+  const normalizedPreflight = localPreflight.replace(/\s+/g, ' ')
+  const normalizedMergePhase = mergePhase.replace(/\s+/g, ' ')
 
-  assert.match(tagPhase, /all six package changelogs/i)
-  assert.match(tagPhase, /`1\.0\.0-next\.0`/)
-  assert.match(tagPhase, /`Status: Released YYYY-MM-DD\.`/)
+  assert.match(normalizedPreflight, /all six package changelogs/i)
+  assert.match(normalizedPreflight, /`\$VERSION \(YYYY-MM-DD\)`/)
+  assert.match(normalizedPreflight, /`Status: Released YYYY-MM-DD\.`/)
+  assert.match(normalizedPreflight, /same UTC date in all seven files/i)
+  assertInOrder(
+    normalizedPreflight,
+    [
+      'Before running the tag-mode metadata check',
+      'ARTIFACT_DIR=artifacts/npm',
+      'pnpm run verify:release-artifacts',
+      'VERSION=$(node -p',
+      'RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"',
+      'all six package changelogs',
+      '`Status: Released YYYY-MM-DD.`',
+      'same UTC date in all seven files',
+      'RELEASE_DATE=$(',
+      'CURRENT_UTC_DATE=$(date -u +%F)',
+      'test "$RELEASE_DATE" = "$CURRENT_UTC_DATE"',
+      'GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata',
+    ],
+    'release copy and first tag-mode validation order'
+  )
+  assert.match(
+    normalizedPreflight,
+    /Stop when the UTC-date guard fails[\s\S]*reviewed date-correction pull request[\s\S]*rebind `FINAL_COMMIT`[\s\S]*tag-mode metadata and deployment verification/i
+  )
+  assert.doesNotMatch(normalizedPreflight, /tag is not pushed on 2026-08-17/i)
+
+  assert.match(
+    normalizedMergePhase,
+    /public manifests are already at 1\.0\.0-next\.0\./
+  )
+  assert.doesNotMatch(
+    normalizedMergePhase,
+    /public manifests are already at 1\.0\.0\./
+  )
+  assertInOrder(
+    normalizedMergePhase,
+    [
+      'confirm that the reviewed branch contains the finalized release copy',
+      'Commit these release markers',
+      'git switch main',
+      "FINAL_COMMIT=$(git rev-parse 'origin/main^{commit}')",
+    ],
+    'release copy commit and final main binding order'
+  )
+
+  assert.match(tagPhase, /committed release copy/i)
   assert.match(tagPhase, /tag-mode metadata check rejects[\s\S]*Unreleased/i)
+  assert.doesNotMatch(
+    tagPhase,
+    /Update the release copy|change `1\.0\.0-next\.0`|replace the draft status/i
+  )
   assert.match(
     tagPhase,
     /git tag -a "v\$VERSION" "\$FINAL_COMMIT" -m "Primitree \$VERSION"/
   )
+  assert.doesNotMatch(tagPhase, /VERSION=1\.0\.0-next\.0/)
+  assert.doesNotMatch(tagPhase, /docs\/launch\/v1\.0\.0-next\.0\.md/)
   assertInOrder(
     tagPhase,
     [
-      'Update the release copy before creating the tag.',
+      'The committed release copy',
+      'ARTIFACT_DIR=artifacts/npm',
+      'pnpm run verify:release-artifacts',
+      'VERSION=$(node -p',
+      'RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"',
+      'RELEASE_DATE=$(',
+      'CURRENT_UTC_DATE=$(date -u +%F)',
+      'test "$RELEASE_DATE" = "$CURRENT_UTC_DATE"',
       'GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata',
       'git tag -a "v$VERSION"',
     ],
-    'release copy and tag order'
+    'committed release copy and tag order'
+  )
+})
+
+test('derives the recovery tag and release notes from the verified artifact version', () => {
+  const external = extractMarkdownSection(
+    releaseRunbook,
+    '## External npm and GitHub steps'
+  )
+  const tagPhase = extractMarkdownSubsection(
+    external,
+    '### 5. Tag, publish, and create the GitHub prerelease'
+  )
+  const recovery = extractMarkdownSection(
+    releaseRunbook,
+    '### Recover from a pushed wrong tag'
+  )
+
+  assert.match(recovery, /next `-next\.N` version[\s\S]*through step 5/i)
+  assertInOrder(
+    tagPhase,
+    [
+      'pnpm run verify:release-artifacts',
+      'VERSION=$(node -p',
+      'RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"',
+      'GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata',
+      'git tag -a "v$VERSION" "$FINAL_COMMIT"',
+      'git push origin "refs/tags/v$VERSION"',
+    ],
+    'recovery version and tag binding'
+  )
+})
+
+test('reads every release version through ARTIFACT_DIR', () => {
+  assert.doesNotMatch(
+    releaseRunbook,
+    /require\('\.\/artifacts\/npm\/manifest\.json'\)\.version/
+  )
+  assert.equal(
+    occurrences(
+      releaseRunbook,
+      'require(require("node:path").resolve(process.argv[1], "manifest.json")).version'
+    ),
+    6
   )
 })
 
@@ -2148,6 +2270,7 @@ test('freezes the launch administration order and credential boundaries', () => 
   )
   assert.match(external, /BOOTSTRAP_TOKEN_ID/)
   assert.match(external, /exact token ID/i)
+  assert.equal(occurrences(external, 'select((.id // .key) == $id)'), 2)
   assert.match(
     external,
     /bootstrap granular access token[\s\S]*cannot authorize `npm trust`/i
@@ -3097,7 +3220,7 @@ npm() {
     if [[ -e "$TOKEN_STATE" && "$KEEP_REVOKED_TOKEN" != true ]]; then
       printf '%s\n' '[]'
     else
-      printf '%s\n' '[{"key":"token-id-123","token":"npm_example"}]'
+      printf '[{"%s":"token-id-123","token":"npm_example"}]\n' "${'$'}{TOKEN_FIELD:-id}"
     fi
     if [[ ! -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == before ]] ||
       [[ -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == after ]]; then
@@ -3125,6 +3248,11 @@ npm() {
     `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
   )
   assert.equal(removedToken.status, 0, removedToken.stderr)
+  rmSync(tokenState, { force: true })
+  const removedKeyToken = runBash(
+    `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nTOKEN_FIELD=key\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
+  )
+  assert.equal(removedKeyToken.status, 0, removedKeyToken.stderr)
   for (const failure of ['before', 'after']) {
     rmSync(tokenState, { force: true })
     const failedReadback = runBash(
@@ -3229,12 +3357,16 @@ test('requires exact automatic main verification before legacy deprecation', () 
       'PRODUCTION_DEPLOYMENT_ID="$OBSERVED_DEPLOYMENT_ID"',
       `test "$(jq -r '.meta.githubCommitSha' <<<"$PRODUCTION_JSON")" =`,
       'wait_for_verified_public_site',
-      'npm view "@primitree/core@1.0.0-next.0"',
+      'npm view "@primitree/core@$VERSION"',
       LEGACY_DEPRECATION_COMMAND,
     ],
     'automatic production and deprecation'
   )
   assert.doesNotMatch(external, /--prod --skip-domain|protection-bypass/)
+  assert.doesNotMatch(
+    external,
+    /npm view "(?:@primitree\/(?:core|dtcg|cli|hooks|mcp)|primitree)@1\.0\.0-next\.0"/
+  )
   assert.doesNotMatch(external, /\.meta\.gitCommitSha/)
   assert.match(
     external,
@@ -3432,7 +3564,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   )
   assert.match(
     tagPhase,
-    /^- \[ \] Create `v1\.0\.0-next\.0` at the final verified commit and no other commit, push the single intended tag, and approve publication\.$/m
+    /^- \[ \] Create `v\$VERSION` at the final verified commit and no other commit, push the single intended tag, and approve publication\. The initial candidate is `v1\.0\.0-next\.0`\.$/m
   )
   assert.doesNotMatch(tagPhase, /^- \[ \] Recreate `v1\.0\.0`/m)
   for (const phrase of [
@@ -3441,7 +3573,7 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
     'trusted publishing for all six packages',
     'protected npm and GitHub environments and rulesets',
     'GitHub environment `npm`',
-    '`v1.0.0-next.0` at the final verified commit and no other commit',
+    'initial candidate is `v1.0.0-next.0`',
     'single intended tag',
     'immutable releases',
     'release tag updates and deletions',
@@ -3472,6 +3604,10 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   assert.match(external, /Administration[\s\S]*read/)
   assert.match(external, /job-scoped `GITHUB_TOKEN`[\s\S]*cannot perform/i)
   assert.match(
+    branchPreflight,
+    /active repository ruleset `Protect release tags`[\s\S]*no bypass\s+actors[\s\S]*release tag updates and deletions/i
+  )
+  assert.match(
     external,
     /ruleset[\s\S]*release tag updates and deletions[\s\S]*immutable-release protection[\s\S]*after\s+publication/i
   )
@@ -3498,7 +3634,7 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   assertInOrder(recovery, viewCommands, 'partial publication queries')
   assertInOrder(recovery, publishCommands, 'same-byte publication retries')
   for (const command of viewCommands) {
-    assert.equal(occurrences(releaseRunbook, command), 2)
+    assert.equal(occurrences(recovery, command), 1)
   }
   for (const command of publishCommands) {
     assert.equal(occurrences(releaseRunbook, command), 1)
@@ -3514,6 +3650,21 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   assert.match(recovery, /Linux[\s\S]*sha256sum --check SHA256SUMS/i)
   assert.match(recovery, /Re-run failed jobs/)
   assert.match(recovery, /sole\s+supported selective recovery path/i)
+  assert.match(
+    recovery,
+    /import \{ releaseChannelForVersion \} from ['"]\.\/scripts\/release-config\.mjs['"][\s\S]*releaseChannelForVersion\(process\.argv\[1\]\)/
+  )
+  assert.doesNotMatch(recovery, /^RELEASE_CHANNEL=next$/m)
+  assertInOrder(
+    recovery,
+    [
+      'VERSION=$(node -p',
+      'RELEASE_CHANNEL=$(',
+      'releaseChannelForVersion(process.argv[1])',
+      '(cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)',
+    ],
+    'artifact-derived release channel'
+  )
   assert.match(
     recovery,
     /`npm publish` commands[\s\S]*do not execute[\s\S]*from a local machine/i
@@ -3555,19 +3706,26 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
   )
 })
 
-test('preserves tag and provenance boundaries during recovery', () => {
+test('preserves immutable tags and advances wrong-tag recovery to a new version', () => {
   const recovery = extractMarkdownSection(
     releaseRunbook,
     '## Partial publication recovery'
   )
-  assert.match(recovery, /git tag -d "v\$VERSION"/)
-  assert.match(recovery, /git push origin ":refs\/tags\/v\$VERSION"/)
+  const wrongTag = extractMarkdownSection(
+    recovery,
+    '### Recover from a pushed wrong tag'
+  )
+  const registryPackages = RELEASE_PUBLISH_PACKAGES.map(({ name }) => name)
+
   assert.match(
     recovery,
     /pushed wrong tag[\s\S]*publish job never started[\s\S]*all six/i
   )
-  assert.match(recovery, /started publish job[\s\S]*blocks tag movement/i)
-  assert.match(recovery, /preserve provenance/i)
+  assert.match(
+    recovery,
+    /started publish job[\s\S]*blocks the unpublished-version[\s\S]*path/i
+  )
+  assert.match(recovery, /preserve[\s\S]*provenance/i)
   assert.match(
     recovery,
     /GitHub Release[\s\S]*re-run failed jobs[\s\S]*without moving the tag/i
@@ -3576,24 +3734,158 @@ test('preserves tag and provenance boundaries during recovery', () => {
     recovery,
     /credential[\s\S]*preserve the artifact and checksums[\s\S]*retries packages[\s\S]*missing[\s\S]*verified tarballs/i
   )
-  const registryQueries = RELEASE_PUBLISH_PACKAGES.map(
-    ({ name }) =>
-      `npm view "${name}@$VERSION" version --registry=https://registry.npmjs.org`
+
+  assert.match(wrongTag, /exact tag[\s\S]*exact head SHA/i)
+  assert.match(
+    wrongTag,
+    /jq -r '\.event'[\s\S]*= push[\s\S]*jq -r '\.headBranch'[\s\S]*"v\$VERSION"/
   )
+  assert.match(
+    wrongTag,
+    /PUBLISH_JOB_JSON[\s\S]*select\(length == 1\)[\s\S]*skipped[\s\S]*cancelled[\s\S]*\.steps \| arrays \| length[\s\S]*PUBLISH_STEP_COUNT" = 0/i
+  )
+  assert.match(wrongTag, /all six[\s\S]*npm `E404`/i)
+  assert.match(
+    wrongTag,
+    /reviewed follow-up[\s\S]*correction changeset[\s\S]*version pull request[\s\S]*next `-next\.N` version/i
+  )
+  assert.match(
+    wrongTag,
+    /launch note[\s\S]*`Status: Failed release attempt YYYY-MM-DD\. npm publication did not start\.`/i
+  )
+  assert.match(
+    wrongTag,
+    /all six package changelogs[\s\S]*`The immutable Git tag exists, but npm has no matching package version\.`/i
+  )
+  assert.match(
+    wrongTag,
+    /correct the release copy[\s\S]*merge[\s\S]*rebind `FINAL_COMMIT`[\s\S]*deployment verification[\s\S]*new version tag/i
+  )
+  assert.match(
+    wrongTag,
+    /Never disable `Protect release tags`[\s\S]*Never move or delete[\s\S]*a pushed `v\*` tag/i
+  )
+  assert.doesNotMatch(wrongTag, /enforcement=disabled/)
+  assert.doesNotMatch(wrongTag, /git tag -d|git push[^\n]*:refs\/tags/)
+
   assertInOrder(
-    recovery,
+    wrongTag,
     [
+      'OLD_RUN_JSON=$(',
+      'REMOTE_TAG_REFS=$(',
+      'test "$REMOTE_TAG_COMMIT" = "$OLD_RUN_HEAD_SHA"',
+      'if [ "$OLD_RUN_STATUS" != completed ]; then',
       'gh run cancel "$OLD_RUN_ID"',
       'gh run watch "$OLD_RUN_ID"',
-      'gh run view "$OLD_RUN_ID" --json status,conclusion,jobs',
+      'TERMINAL_RUN_JSON=$(',
+      'test "$(jq -r \'.status\' <<<"$TERMINAL_RUN_JSON")" = completed',
+      'PUBLISH_JOB_JSON=$(',
+      'test "$PUBLISH_STEP_COUNT" = 0',
       'publish job never started',
-      ...registryQueries,
-      'git tag -d "v$VERSION"',
-      'git push origin ":refs/tags/v$VERSION"',
+      'NPM_REGISTRY=https://registry.npmjs.org',
+      ...registryPackages.map(name => `"${name}"`),
+      'all six versions return npm `E404`',
+      'correction changeset',
+      'Status: Failed release attempt YYYY-MM-DD. npm publication did not start.',
+      'The immutable Git tag exists, but npm has no matching package version.',
+      'version pull request',
+      'next `-next.N` version',
+      'Correct the release copy',
+      'rebind `FINAL_COMMIT`',
+      'new version tag',
     ],
-    'safe tag replacement'
+    'immutable wrong-tag recovery'
   )
-  assert.match(recovery, /Cancel an active old run/i)
+})
+
+test('requires an array before counting publish steps', () => {
+  const wrongTag = extractMarkdownSection(
+    releaseRunbook,
+    '### Recover from a pushed wrong tag'
+  )
+  const filterMatch = wrongTag.match(
+    /PUBLISH_STEP_COUNT=\$\(jq -er '([^']+)' <<<"\$PUBLISH_JOB_JSON"\)/
+  )
+  assert.ok(filterMatch)
+  assert.equal(filterMatch[1], '.steps | arrays | length')
+})
+
+test('accepts only six bounded exact-E404 registry responses', t => {
+  const wrongTag = extractMarkdownSection(
+    releaseRunbook,
+    '### Recover from a pushed wrong tag'
+  )
+  const checker = extractBashBlockContaining(
+    wrongTag,
+    'NPM_E404_CHECK_DIR=$(mktemp -d)',
+    'wrong-tag exact E404 checker'
+  )
+  const testRoot = mkdtempSync(join(tmpdir(), 'primitree-e404-check-'))
+  const temporaryDirectory = join(testRoot, 'tmp')
+  const queryLog = join(testRoot, 'queries.log')
+  mkdirSync(temporaryDirectory)
+  t.after(() => rmSync(testRoot, { recursive: true, force: true }))
+
+  const mockNpm = String.raw`
+npm() {
+  printf '%s\n' "$*" >>"$NPM_QUERY_LOG"
+  if [[ "$NPM_SCENARIO" == success && "$2" == "$NPM_TARGET" ]]; then
+    printf '%s\n' "$VERSION"
+    return 0
+  fi
+  if [[ "$NPM_SCENARIO" == non-e404 && "$2" == "$NPM_TARGET" ]]; then
+    printf '%s\n' 'npm error code E401' >&2
+    return 1
+  fi
+  printf '%s\n' 'npm error code E404' >&2
+  return 1
+}
+`
+  const runScenario = (scenario, target = '') => {
+    writeFileSync(queryLog, '')
+    const result = runBash(`${mockNpm}\n${checker}`, {
+      env: {
+        ...process.env,
+        TMPDIR: temporaryDirectory,
+        VERSION: '1.0.0-next.0',
+        NPM_QUERY_LOG: queryLog,
+        NPM_SCENARIO: scenario,
+        NPM_TARGET: target,
+      },
+    })
+    assert.equal(result.stdout, '', `${scenario} must not expose npm stdout`)
+    assert.equal(result.stderr, '', `${scenario} must not expose npm stderr`)
+    assert.deepEqual(
+      readdirSync(temporaryDirectory),
+      [],
+      `${scenario} must remove registry output`
+    )
+    return {
+      result,
+      queries: readFileSync(queryLog, 'utf8').trim().split('\n'),
+    }
+  }
+
+  const allMissing = runScenario('e404')
+  assert.equal(allMissing.result.status, 0, 'six E404 responses must pass')
+  assert.deepEqual(
+    allMissing.queries,
+    RELEASE_PUBLISH_PACKAGES.map(
+      ({ name }) =>
+        `view ${name}@1.0.0-next.0 version --registry=https://registry.npmjs.org --fetch-retries=0 --fetch-timeout=20000 --loglevel=error`
+    ),
+    'the checker must query all six exact package versions'
+  )
+
+  const published = runScenario('success', 'primitree@1.0.0-next.0')
+  assert.notEqual(published.result.status, 0, 'a published version must fail')
+
+  const registryFailure = runScenario('non-e404', 'primitree@1.0.0-next.0')
+  assert.notEqual(
+    registryFailure.result.status,
+    0,
+    'a non-E404 registry failure must fail'
+  )
 })
 
 test('rejects blanket tag pushes with or without an explicit remote', () => {
