@@ -265,7 +265,7 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
   assert.match(chrome, /bg-primitree-accent-wash text-primitree-accent/u)
   assert.match(
     chrome,
-    /import \{ SearchTrigger \} from 'fumadocs-ui\/layouts\/shared\/slots\/search-trigger'/u
+    /import\s*\{\s*FullSearchTrigger,\s*SearchTrigger,\s*\}\s*from 'fumadocs-ui\/layouts\/shared\/slots\/search-trigger'/u
   )
   assert.match(chrome, /function GithubMark\(\)/u)
   assert.match(chrome, /fill='currentColor'/u)
