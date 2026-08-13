@@ -10,6 +10,7 @@ const legacyFixturePath = path.join(
   'fixtures/local-variables.json'
 )
 
+let sandboxDirectory: string
 let directory: string
 
 function projectSource(
@@ -39,7 +40,11 @@ function projectSource(
 }
 
 beforeEach(async () => {
-  directory = await fs.mkdtemp(path.join(os.tmpdir(), 'primitree-build-'))
+  sandboxDirectory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'primitree-build-')
+  )
+  directory = path.join(sandboxDirectory, 'project')
+  await fs.mkdir(directory)
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
   process.exitCode = undefined
@@ -48,7 +53,7 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.restoreAllMocks()
   process.exitCode = undefined
-  await fs.rm(directory, { recursive: true, force: true })
+  await fs.rm(sandboxDirectory, { recursive: true, force: true })
 })
 
 async function writeProject(
