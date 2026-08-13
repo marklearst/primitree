@@ -2,7 +2,9 @@ import {
   applyResolver,
   createDTCGGraphFragment,
   cssVarName,
-  flattenTokens,
+  flattenTypedTokens,
+  isReferenceValue,
+  isToken,
   listContexts,
   type ReferenceResolutionError,
   resolveTokenValuesSafe,
@@ -61,10 +63,159 @@ class TokenSourceResolutionError extends Error {
   }
 }
 
+function graphValidationType(value: unknown): DTCGTokenType {
+  switch (typeof value) {
+    case 'boolean':
+      return 'boolean'
+    case 'number':
+      return 'number'
+    case 'string':
+      return 'string'
+  }
+
+  try {
+    if (Array.isArray(value)) {
+      return typeof value[0] === 'string' ? 'fontFamily' : 'cubicBezier'
+    }
+    if (value !== null && typeof value === 'object') {
+      if (Object.hasOwn(value, 'colorSpace')) {
+        return 'color'
+      }
+      if (Object.hasOwn(value, 'unit')) {
+        const unit = Reflect.get(value, 'unit')
+        if (unit === 'ms' || unit === 's') {
+          return 'duration'
+        }
+      }
+      return 'dimension'
+    }
+  } catch {
+    // The graph adapter reports unreadable or unsupported values consistently.
+    return 'string'
+  }
+
+  return 'string'
+}
+
+function graphValidationToken(
+  token: object,
+  validationType: DTCGTokenType
+): Record<string, unknown> {
+  const target = Object.create(Object.getPrototypeOf(token)) as Record<
+    string,
+    unknown
+  >
+
+  return new Proxy(target, {
+    get(_target, property) {
+      if (property === '$type') {
+        return validationType
+      }
+      return Reflect.get(token, property, token)
+    },
+    getOwnPropertyDescriptor(target, property) {
+      if (property === '$type') {
+        return {
+          configurable: true,
+          enumerable: true,
+          value: validationType,
+          writable: false,
+        }
+      }
+      const descriptor = Reflect.getOwnPropertyDescriptor(token, property)
+      if (
+        descriptor !== undefined &&
+        !descriptor.configurable &&
+        !Object.hasOwn(target, property)
+      ) {
+        Reflect.defineProperty(target, property, descriptor)
+      }
+      return descriptor
+    },
+    ownKeys() {
+      const keys = Reflect.ownKeys(token)
+      keys.push('$type')
+      return keys
+    },
+  })
+}
+
+function graphValidationDocument(
+  document: Record<string, unknown>,
+  untypedLiteralTypes: ReadonlyMap<string, DTCGTokenType>,
+  path = '',
+  groups = new WeakMap<object, Record<string, unknown>>(),
+  tokens = new Map<string, Record<string, unknown>>()
+): Record<string, unknown> {
+  const existing = groups.get(document)
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const view = new Proxy(document, {
+    get(target, property) {
+      const value = Reflect.get(target, property)
+      if (isToken(value)) {
+        const tokenPath =
+          path.length === 0 ? String(property) : `${path}.${String(property)}`
+        const validationType = untypedLiteralTypes.get(tokenPath)
+        if (validationType === undefined) {
+          return value
+        }
+        const existingToken = tokens.get(tokenPath)
+        if (existingToken !== undefined) {
+          return existingToken
+        }
+        // Core graph tokens require a type. Preserve the original prototype
+        // and descriptors while exposing a lazy, validation-only type.
+        const validationToken = graphValidationToken(value, validationType)
+        tokens.set(tokenPath, validationToken)
+        return validationToken
+      }
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value)
+      ) {
+        const groupPath =
+          path.length === 0 ? String(property) : `${path}.${String(property)}`
+        return graphValidationDocument(
+          value as Record<string, unknown>,
+          untypedLiteralTypes,
+          groupPath,
+          groups,
+          tokens
+        )
+      }
+      return value
+    },
+  })
+  groups.set(document, view)
+  return view
+}
+
 function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {
   const document = applyResolver(source.files, source.resolver, contexts ?? {})
-  const flat = flattenTokens(document)
-  const fragment = createDTCGGraphFragment(document, { source: 'mcp' })
+  const flat = flattenTypedTokens(document)
+  const untypedLiteralTypes = new Map<string, DTCGTokenType>()
+  for (const entry of flat) {
+    if (
+      entry.type === undefined &&
+      !Object.hasOwn(entry.token, '$type') &&
+      !isReferenceValue(entry.token.$value)
+    ) {
+      untypedLiteralTypes.set(
+        entry.path,
+        graphValidationType(entry.token.$value)
+      )
+    }
+  }
+  const fragment = createDTCGGraphFragment(
+    untypedLiteralTypes.size === 0
+      ? document
+      : graphValidationDocument(document, untypedLiteralTypes),
+    { source: 'mcp' }
+  )
   if (!fragment.ok) {
     throw new TokenSourceCheckError(fragment.diagnostics)
   }
@@ -75,9 +226,7 @@ function resolvedFlat(source: TokenSource, contexts?: Record<string, string>) {
       .map(({ path }) => path)
     throw new TokenSourceResolutionError(errors, failedTokenPaths)
   }
-  const types = new Map(
-    fragment.value.tokens.map(token => [token.path.join('.'), token.type])
-  )
+  const types = new Map(flat.map(token => [token.path, token.type]))
   return { flat, values, types }
 }
 

@@ -63,6 +63,9 @@ const server = await createServer(source)
 Applications can import the five tool functions without starting an MCP
 transport.
 
+Tool lookups retain valid literals and aliases without an effective `$type`.
+Their results omit `type`, and `$type` filters exclude them.
+
 Read the [Primitree documentation](https://primitree.com) or review the
 [1.0.0 changelog](CHANGELOG.md).
 
