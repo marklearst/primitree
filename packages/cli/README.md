@@ -36,13 +36,25 @@ the selected files and `.primitree-manifest.json` into the dedicated output
 directory. A later build reads that manifest. It refuses a listed file when
 its hash changed and refuses any unlisted path.
 
+An interrupted install can leave a backup or cleanup sidecar beside the output
+directory. Primitree reports each matching path for that output and stops before
+it replaces any installed files. Inspect the retained paths and recover any
+needed files before removing them and running the build again. Primitree leaves
+them in place.
+
 The output directory must stay under the config file's directory and cannot
 contain the source token file. Use a separate directory for generated files.
-Primitree allows up to 255 UTF-8 bytes in each intermediate output-directory
-segment and up to 200 UTF-8 bytes in its final directory name. A generated-file
-path can use up to 64 directory levels, 16,639 UTF-8 bytes in total, and 255
-UTF-8 bytes in each segment. The shorter final directory name keeps the lock,
-staging, and backup names portable.
+The output directory and every resolved file path under its output, staging,
+backup, and cleanup directories must fit within 1,023 UTF-8 bytes. Its
+normalized relative path can use up to 64 components. Each intermediate
+component can use up to 255 UTF-8 bytes, and the final directory name can use up
+to 200. A config can define up to 64 named sources. Each configured source path
+must stay below the config directory and can use up to 64 resolved absolute
+components and 1,023 UTF-8 bytes, including after symbolic-link resolution,
+with up to 255 UTF-8 bytes in each component. A generated-file path can use up
+to 64 directory levels, 16,639 UTF-8 bytes relative to its output, and 255 UTF-8
+bytes in each segment. The shorter final directory name keeps the transaction
+paths portable.
 
 `--check` compares the files in the output directory with the files Primitree
 would write. It reports missing, changed, and unexpected paths without writing.

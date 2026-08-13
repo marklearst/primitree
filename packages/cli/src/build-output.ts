@@ -8,11 +8,14 @@ import {
   buildOutputBackupName,
   buildOutputBackupPrefix,
   buildOutputCleanupName,
+  buildOutputCleanupPrefix,
   buildOutputLockName,
+  buildOutputLongestDerivedFilePath,
   buildOutputStagePrefix,
   MAX_BUILD_OUTPUT_FILE_DIRECTORY_DEPTH,
   MAX_BUILD_OUTPUT_FILE_PATH_BYTES,
   MAX_BUILD_OUTPUT_FILE_PATH_COMPONENTS,
+  MAX_BUILD_RESOLVED_PATH_BYTES,
   MAX_PORTABLE_PATH_SEGMENT_BYTES,
 } from './build-output-paths'
 import { writePipelineFiles } from './io'
@@ -57,6 +60,20 @@ interface OutputPathSnapshotEntry {
   readonly identity?: OutputPathIdentity
 }
 
+interface OutputPreflightSnapshotEntry {
+  readonly path: string
+  readonly identity: OutputPathIdentity
+  readonly mtimeNs: bigint
+  readonly ctimeNs: bigint
+}
+
+interface OutputPathCreationEpoch {
+  readonly guard: OutputPathGuard
+  rebaseAfterMkdir(parent: string, child: string): Promise<void>
+}
+
+const MAX_OUTPUT_PREFLIGHT_CAPTURE_ATTEMPTS = 4
+
 type OutputPathSnapshot = readonly OutputPathSnapshotEntry[]
 type OutputPathGuard = () => Promise<void>
 type BuildOutputFileHandle = Awaited<ReturnType<typeof fs.open>>
@@ -69,6 +86,180 @@ interface OutputDirectoryEpochTracker {
   ): Promise<BigIntStats>
   guard(directory?: string): OutputPathGuard
   verifyAll(): Promise<void>
+}
+
+function existingOutputPathSnapshot(
+  snapshot: OutputPathSnapshot
+): OutputPathSnapshot {
+  const firstMissing = snapshot.findIndex(entry => entry.identity === undefined)
+  return firstMissing < 0 ? snapshot : snapshot.slice(0, firstMissing)
+}
+
+async function captureOutputPreflightSnapshot(
+  snapshot: OutputPathSnapshot,
+  rootDirectory: string
+): Promise<readonly OutputPreflightSnapshotEntry[]> {
+  const existing = existingOutputPathSnapshot(snapshot)
+  const entries = new Map<string, OutputPathIdentity | undefined>()
+  const resolvedRoot = path.resolve(rootDirectory)
+  entries.set(path.dirname(resolvedRoot), undefined)
+  for (const entry of existing) {
+    entries.set(entry.path, entry.identity)
+  }
+  const captured: OutputPreflightSnapshotEntry[] = []
+  for (const [entryPath, expectedIdentity] of entries) {
+    const stats = await fs
+      .lstat(entryPath, { bigint: true })
+      .catch(() => undefined)
+    if (
+      stats === undefined ||
+      !stats.isDirectory() ||
+      stats.isSymbolicLink() ||
+      (expectedIdentity !== undefined &&
+        (stats.dev !== expectedIdentity.dev ||
+          stats.ino !== expectedIdentity.ino))
+    ) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${entryPath}`
+      )
+    }
+    captured.push({
+      path: entryPath,
+      identity: { dev: stats.dev, ino: stats.ino },
+      mtimeNs: stats.mtimeNs,
+      ctimeNs: stats.ctimeNs,
+    })
+  }
+  return captured
+}
+
+async function assertOutputPreflightSnapshot(
+  snapshot: readonly OutputPreflightSnapshotEntry[]
+): Promise<void> {
+  for (const entry of snapshot) {
+    const stats = await fs
+      .lstat(entry.path, { bigint: true })
+      .catch(() => undefined)
+    if (
+      stats === undefined ||
+      !stats.isDirectory() ||
+      stats.isSymbolicLink() ||
+      stats.dev !== entry.identity.dev ||
+      stats.ino !== entry.identity.ino ||
+      stats.mtimeNs !== entry.mtimeNs ||
+      stats.ctimeNs !== entry.ctimeNs
+    ) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${entry.path}`
+      )
+    }
+  }
+}
+
+async function refreshChangedOutputPreflightAnchor(
+  snapshot: readonly OutputPreflightSnapshotEntry[],
+  rootDirectory: string
+): Promise<readonly OutputPreflightSnapshotEntry[] | undefined> {
+  const anchor = path.dirname(path.resolve(rootDirectory))
+  const next: OutputPreflightSnapshotEntry[] = []
+  let changed = false
+  for (const entry of snapshot) {
+    const stats = await fs
+      .lstat(entry.path, { bigint: true })
+      .catch(() => undefined)
+    if (
+      stats === undefined ||
+      !stats.isDirectory() ||
+      stats.isSymbolicLink() ||
+      stats.dev !== entry.identity.dev ||
+      stats.ino !== entry.identity.ino
+    ) {
+      return undefined
+    }
+    if (stats.mtimeNs !== entry.mtimeNs || stats.ctimeNs !== entry.ctimeNs) {
+      if (entry.path !== anchor) {
+        return undefined
+      }
+      changed = true
+      next.push({
+        path: entry.path,
+        identity: entry.identity,
+        mtimeNs: stats.mtimeNs,
+        ctimeNs: stats.ctimeNs,
+      })
+    } else {
+      next.push(entry)
+    }
+  }
+  return changed ? next : undefined
+}
+
+async function createOutputPathCreationEpoch(
+  snapshot: OutputPathSnapshot,
+  rootDirectory: string
+): Promise<OutputPathCreationEpoch> {
+  let current = await captureOutputPreflightSnapshot(snapshot, rootDirectory)
+  const guard = async () => {
+    try {
+      await assertOutputPreflightSnapshot(current)
+    } catch (error) {
+      const refreshed = await refreshChangedOutputPreflightAnchor(
+        current,
+        rootDirectory
+      )
+      if (refreshed === undefined) {
+        throw error
+      }
+      current = refreshed
+    }
+  }
+  return {
+    guard,
+    async rebaseAfterMkdir(parent, child) {
+      const parentIndex = current.findIndex(entry => entry.path === parent)
+      const expectedParent = current[parentIndex]
+      if (expectedParent === undefined) {
+        throw new Error(
+          `Primitree found a changed build output path while inspecting: ${parent}`
+        )
+      }
+      const parentStats = await fs
+        .lstat(parent, { bigint: true })
+        .catch(() => undefined)
+      const childStats = await fs
+        .lstat(child, { bigint: true })
+        .catch(() => undefined)
+      if (
+        parentStats === undefined ||
+        !parentStats.isDirectory() ||
+        parentStats.isSymbolicLink() ||
+        parentStats.dev !== expectedParent.identity.dev ||
+        parentStats.ino !== expectedParent.identity.ino ||
+        childStats === undefined ||
+        !childStats.isDirectory() ||
+        childStats.isSymbolicLink()
+      ) {
+        throw new Error(
+          `Primitree found a changed build output path while inspecting: ${child}`
+        )
+      }
+      const next = [...current]
+      next[parentIndex] = {
+        path: parent,
+        identity: { dev: parentStats.dev, ino: parentStats.ino },
+        mtimeNs: parentStats.mtimeNs,
+        ctimeNs: parentStats.ctimeNs,
+      }
+      next.push({
+        path: child,
+        identity: { dev: childStats.dev, ino: childStats.ino },
+        mtimeNs: childStats.mtimeNs,
+        ctimeNs: childStats.ctimeNs,
+      })
+      current = next
+      await guard()
+    },
+  }
 }
 
 function isMissing(error: unknown): boolean {
@@ -175,6 +366,100 @@ function validateBuildFiles(files: readonly PipelineFile[]): void {
   if (files.filter(file => file.path === BUILD_MANIFEST_PATH).length !== 1) {
     throw new Error('Build output requires one Primitree manifest file.')
   }
+}
+
+function validateResolvedBuildFilePaths(
+  directory: string,
+  files: readonly Pick<PipelineFile, 'path'>[]
+): void {
+  const resolvedDirectory = path.resolve(directory)
+  for (const file of files) {
+    const resolvedPath = path.join(resolvedDirectory, ...file.path.split('/'))
+    const bytes = Buffer.byteLength(resolvedPath, 'utf8')
+    if (bytes > MAX_BUILD_RESOLVED_PATH_BYTES) {
+      throw new Error(
+        `Resolved build output file path is ${bytes} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(file.path)}.`
+      )
+    }
+  }
+}
+
+function validateLongestDerivedBuildFilePaths(
+  directory: string,
+  files: readonly Pick<PipelineFile, 'path'>[]
+): void {
+  for (const file of files) {
+    const longestDerivedPath = buildOutputLongestDerivedFilePath(
+      directory,
+      file.path
+    )
+    const bytes = Buffer.byteLength(longestDerivedPath, 'utf8')
+    if (bytes > MAX_BUILD_RESOLVED_PATH_BYTES) {
+      throw new Error(
+        `Resolved build output file path is ${bytes} UTF-8 bytes; use at most ${MAX_BUILD_RESOLVED_PATH_BYTES} UTF-8 bytes: ${JSON.stringify(file.path)}.`
+      )
+    }
+  }
+}
+
+async function physicalOutputDirectory(
+  rootDirectory: string,
+  directory: string
+): Promise<string> {
+  const root = path.resolve(rootDirectory)
+  const output = path.resolve(directory)
+  const relative = path.relative(root, output)
+  const physicalRoot = await fs.realpath(root)
+  return path.resolve(physicalRoot, relative)
+}
+
+async function physicalOutputDirectoryIfDifferent(
+  rootDirectory: string,
+  directory: string,
+  guard?: OutputPathGuard
+): Promise<string | undefined> {
+  await guard?.()
+  const physical = await physicalOutputDirectory(rootDirectory, directory)
+  await guard?.()
+  return physical === path.resolve(directory) ? undefined : physical
+}
+
+async function preflightPhysicalOutputDirectoryIfDifferent(
+  rootDirectory: string,
+  directory: string,
+  snapshot: OutputPathSnapshot
+): Promise<string | undefined> {
+  let priorFailure: unknown
+  for (
+    let attempt = 0;
+    attempt < MAX_OUTPUT_PREFLIGHT_CAPTURE_ATTEMPTS;
+    attempt += 1
+  ) {
+    const preflight = await captureOutputPreflightSnapshot(
+      snapshot,
+      rootDirectory
+    )
+    const guard = () => assertOutputPreflightSnapshot(preflight)
+    try {
+      return await physicalOutputDirectoryIfDifferent(
+        rootDirectory,
+        directory,
+        guard
+      )
+    } catch (error) {
+      priorFailure = error
+      if (
+        attempt + 1 === MAX_OUTPUT_PREFLIGHT_CAPTURE_ATTEMPTS ||
+        (await refreshChangedOutputPreflightAnchor(
+          preflight,
+          rootDirectory
+        )) === undefined
+      ) {
+        throw error
+      }
+    }
+  }
+  throw priorFailure
 }
 
 function validateBuildCandidate(files: readonly PipelineFile[]) {
@@ -649,7 +934,8 @@ async function hashFile(
 async function checkOutputParent(
   rootDirectory: string,
   outputDirectory: string,
-  createMissing: boolean
+  createMissing: boolean,
+  creationEpoch?: OutputPathCreationEpoch
 ): Promise<OutputPathSnapshot> {
   const root = path.resolve(rootDirectory)
   const output = path.resolve(outputDirectory)
@@ -666,12 +952,16 @@ async function checkOutputParent(
   const parentSegments = relative.split(path.sep).slice(0, -1)
   const snapshot: OutputPathSnapshotEntry[] = []
   let current = root
-  const rootStats = await fs.lstat(root, { bigint: true }).catch(error => {
-    if (isMissing(error)) {
-      return undefined
-    }
-    throw error
-  })
+  const outerGuard = creationEpoch?.guard
+  await outerGuard?.()
+  const rootStats = await runGuardedPathOperation(outerGuard, () =>
+    fs.lstat(root, { bigint: true }).catch(error => {
+      if (isMissing(error)) {
+        return undefined
+      }
+      throw error
+    })
+  )
   if (
     rootStats === undefined ||
     !rootStats.isDirectory() ||
@@ -687,21 +977,27 @@ async function checkOutputParent(
   for (const segment of parentSegments) {
     current = path.join(current, segment)
     await assertOutputPathSnapshot(snapshot)
-    let stats = await fs.lstat(current, { bigint: true }).catch(error => {
-      if (isMissing(error)) {
-        return undefined
-      }
-      throw error
-    })
+    let stats = await runGuardedPathOperation(outerGuard, () =>
+      fs.lstat(current, { bigint: true }).catch(error => {
+        if (isMissing(error)) {
+          return undefined
+        }
+        throw error
+      })
+    )
     if (stats === undefined && createMissing) {
       await assertOutputPathSnapshot(snapshot)
+      await outerGuard?.()
       await fs.mkdir(current).catch(error => {
         if (!isAlreadyExists(error)) {
           throw error
         }
       })
+      await creationEpoch?.rebaseAfterMkdir(path.dirname(current), current)
       await assertOutputPathSnapshot(snapshot)
-      stats = await fs.lstat(current, { bigint: true })
+      stats = await runGuardedPathOperation(outerGuard, () =>
+        fs.lstat(current, { bigint: true })
+      )
     }
     if (stats === undefined) {
       snapshot.push({ path: current })
@@ -722,6 +1018,7 @@ async function checkOutputParent(
     })
   }
   await assertOutputPathSnapshot(snapshot)
+  await outerGuard?.()
   return snapshot
 }
 
@@ -948,13 +1245,18 @@ async function isEmptyOutputDirectory(
   return paths.files.length === 0 && paths.directories.length === 0
 }
 
-async function findInterruptedBackups(
+async function findInterruptedBuildPaths(
   parent: string,
   name: string,
   guard?: OutputPathGuard
-): Promise<readonly string[]> {
-  const prefix = buildOutputBackupPrefix(name)
-  const backups: string[] = []
+): Promise<{
+  readonly paths: readonly string[]
+  readonly hasCleanupPath: boolean
+}> {
+  const backupPrefix = buildOutputBackupPrefix(name)
+  const cleanupPrefix = buildOutputCleanupPrefix(name)
+  const paths: string[] = []
+  let hasCleanupPath = false
   let count = 0
   await visitBuildOutputDirectory(parent, guard, entry => {
     count += 1
@@ -963,11 +1265,14 @@ async function findInterruptedBackups(
         'Build output parent can contain at most 100,000 entries.'
       )
     }
-    if (entry.name.startsWith(prefix)) {
-      backups.push(path.join(parent, entry.name))
+    if (entry.name.startsWith(backupPrefix)) {
+      paths.push(path.join(parent, entry.name))
+    } else if (entry.name.startsWith(cleanupPrefix)) {
+      paths.push(path.join(parent, entry.name))
+      hasCleanupPath = true
     }
   })
-  return backups.sort()
+  return { paths: paths.sort(), hasCleanupPath }
 }
 
 async function restorePriorOutput(
@@ -1140,7 +1445,8 @@ async function verifyOwnedOutput(
   sourceId: string,
   parentGuard?: OutputPathGuard,
   expectedStats?: BigIntStats,
-  parentSnapshot?: OutputPathSnapshot
+  parentSnapshot?: OutputPathSnapshot,
+  futureDirectories: readonly string[] = []
 ): Promise<void> {
   const epochs = await captureOutputLineageEpochs(
     directory,
@@ -1178,6 +1484,16 @@ async function verifyOwnedOutput(
     ...manifest.files.map(file => ({ path: file.path, contents: '' })),
     { path: BUILD_MANIFEST_PATH, contents: '' },
   ])
+  validateResolvedBuildFilePaths(directory, [
+    ...manifest.files,
+    { path: BUILD_MANIFEST_PATH },
+  ])
+  for (const futureDirectory of futureDirectories) {
+    validateLongestDerivedBuildFilePaths(futureDirectory, [
+      ...manifest.files,
+      { path: BUILD_MANIFEST_PATH },
+    ])
+  }
   if (manifest.source.id !== sourceId) {
     throw new Error(
       `Existing build output belongs to source "${manifest.source.id}", not "${sourceId}".`
@@ -1228,6 +1544,7 @@ export async function inspectBuildOutput(
   rootDirectory?: string
 ): Promise<BuildOutputState> {
   validateBuildCandidate(files)
+  validateResolvedBuildFilePaths(directory, files)
   const parentSnapshot =
     rootDirectory === undefined
       ? undefined
@@ -1236,6 +1553,21 @@ export async function inspectBuildOutput(
     parentSnapshot === undefined
       ? undefined
       : () => assertOutputPathSnapshot(parentSnapshot)
+  if (
+    rootDirectory !== undefined &&
+    parentSnapshot !== undefined &&
+    parentGuard !== undefined
+  ) {
+    const comparisonDirectory =
+      await preflightPhysicalOutputDirectoryIfDifferent(
+        rootDirectory,
+        directory,
+        parentSnapshot
+      )
+    if (comparisonDirectory !== undefined) {
+      validateResolvedBuildFilePaths(comparisonDirectory, files)
+    }
+  }
   const epochs = await captureOutputLineageEpochs(
     directory,
     parentSnapshot,
@@ -1375,13 +1707,44 @@ export async function installBuildOutput(
   }
   const parent = path.dirname(directory)
   const name = path.basename(directory)
-  await checkOutputParent(rootDirectory, directory, true)
-  const parentSnapshot = await checkOutputParent(
+  validateResolvedBuildFilePaths(directory, files)
+  validateLongestDerivedBuildFilePaths(directory, files)
+  const preflightSnapshot = await checkOutputParent(
     rootDirectory,
     directory,
     false
   )
+  const comparisonDirectory = await preflightPhysicalOutputDirectoryIfDifferent(
+    rootDirectory,
+    directory,
+    preflightSnapshot
+  )
+  if (comparisonDirectory !== undefined) {
+    validateResolvedBuildFilePaths(comparisonDirectory, files)
+    validateLongestDerivedBuildFilePaths(comparisonDirectory, files)
+  }
+  const creationEpoch = await createOutputPathCreationEpoch(
+    preflightSnapshot,
+    rootDirectory
+  )
+  const parentSnapshot = await checkOutputParent(
+    rootDirectory,
+    directory,
+    true,
+    creationEpoch
+  )
   const guard = () => assertOutputPathSnapshot(parentSnapshot)
+  const boundComparisonDirectory =
+    await preflightPhysicalOutputDirectoryIfDifferent(
+      rootDirectory,
+      directory,
+      parentSnapshot
+    )
+  if (boundComparisonDirectory !== undefined) {
+    validateResolvedBuildFilePaths(boundComparisonDirectory, files)
+    validateLongestDerivedBuildFilePaths(boundComparisonDirectory, files)
+  }
+  await guard()
   const lock = path.join(parent, buildOutputLockName(name))
   await guard()
   const lockHandle = await fs.open(lock, 'wx').catch(error => {
@@ -1403,15 +1766,18 @@ export async function installBuildOutput(
     )
     const backupScanGuard = createOutputRootGuard(parent, parentStats, guard)
     await backupScanGuard()
-    const interruptedBackups = await findInterruptedBackups(
+    const interruptedBuildPaths = await findInterruptedBuildPaths(
       parent,
       name,
       backupScanGuard
     )
     await backupScanGuard()
-    if (interruptedBackups.length > 0) {
+    if (interruptedBuildPaths.paths.length > 0) {
+      const kind = interruptedBuildPaths.hasCleanupPath
+        ? 'recovery paths'
+        : 'backups'
       throw new Error(
-        `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${interruptedBackups.join(', ')}`
+        `Primitree found one or more ${kind} from an interrupted build. Check these paths before running the build again: ${interruptedBuildPaths.paths.join(', ')}`
       )
     }
     await guard()
@@ -1431,7 +1797,16 @@ export async function installBuildOutput(
       stats !== undefined &&
       !(await isEmptyOutputDirectory(directory, guard, stats, parentSnapshot))
     ) {
-      await verifyOwnedOutput(directory, sourceId, guard, stats, parentSnapshot)
+      await verifyOwnedOutput(
+        directory,
+        sourceId,
+        guard,
+        stats,
+        parentSnapshot,
+        boundComparisonDirectory === undefined
+          ? [directory]
+          : [directory, boundComparisonDirectory]
+      )
     }
     await guard()
     const stage = await fs.mkdtemp(
@@ -1495,7 +1870,10 @@ export async function installBuildOutput(
           sourceId,
           guard,
           stats,
-          parentSnapshot
+          parentSnapshot,
+          boundComparisonDirectory === undefined
+            ? [directory]
+            : [directory, boundComparisonDirectory]
         )
       }
       const backup = path.join(
