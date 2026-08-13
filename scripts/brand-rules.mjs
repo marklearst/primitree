@@ -6,6 +6,7 @@ const APPROVED_REFERENCE_PATHS = new Set([
   'apps/docs/content/docs/hooks/migration.mdx',
   'docs/releasing.md',
   'docs/launch/v1.0.0-next.0.md',
+  'docs/launch/v1.0.0-next.1.md',
   'docs/launch/v1.0.0.md',
   'docs/plans/2026-07-28-primitree-clean-break-implementation.md',
   'packages/hooks/CHANGELOG.md',

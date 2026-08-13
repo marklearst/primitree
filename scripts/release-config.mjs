@@ -67,13 +67,19 @@ const STABLE_RELEASE_VERSION_PATTERN =
 const NEXT_RELEASE_VERSION_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-next\.(0|[1-9]\d*)$/
 
+export function isStableReleaseVersion(version) {
+  return (
+    typeof version === 'string' && STABLE_RELEASE_VERSION_PATTERN.test(version)
+  )
+}
+
 export function releaseChannelForVersion(version) {
   if (typeof version !== 'string') {
     throw new Error(
       'release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'
     )
   }
-  if (STABLE_RELEASE_VERSION_PATTERN.test(version)) return 'latest'
+  if (isStableReleaseVersion(version)) return 'latest'
   if (NEXT_RELEASE_VERSION_PATTERN.test(version)) return 'next'
   throw new Error(
     'release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N'

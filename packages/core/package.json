@@ -1,6 +1,6 @@
 {
   "name": "@primitree/core",
-  "version": "1.0.0-next.0",
+  "version": "1.0.0-next.1",
   "description": "Types and functions for normalizing, resolving, comparing, and updating Figma Variables.",
   "author": "Mark Learst",
   "license": "MIT",

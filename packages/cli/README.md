@@ -244,7 +244,7 @@ the REST API.
 - [`@primitree/mcp`](https://www.npmjs.com/package/@primitree/mcp) serves token data through MCP.
 
 Read the [Primitree documentation](https://primitree.com) or review the
-[1.0.0-next.0 changelog](CHANGELOG.md).
+[1.0.0-next.1 changelog](CHANGELOG.md).
 
 ## License
 

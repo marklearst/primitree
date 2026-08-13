@@ -95,10 +95,12 @@ must be the exact version prefixed with `v`.
 Packages publish in dependency order: core → dtcg → cli → hooks → mcp →
 primitree. Stable versions use npm's `latest` dist-tag. Versions ending in
 `-next.N` use `next` and GitHub marks their release as a prerelease. The release
-controller also removes an unexpected `latest` tag from every prerelease
-package, including when `latest` points to an older prerelease. It preserves a
-stable `latest` and verifies that `next` identifies the exact version before
-continuing.
+controller verifies that `next` identifies the exact version before continuing.
+npm may also assign a prerelease `latest` while creating a package without
+stable history. The controller accepts that bootstrap state while the complete
+published history contains no stable version. It rejects that state after a
+stable release, preserves any stable `latest`, and does not mutate `latest`
+during a prerelease.
 
 ## Release artifact boundary
 
@@ -184,27 +186,31 @@ the previous phase.
 Run the complete local preflight, require the version pull request checks when
 one exists, and verify @primitree ownership, 2FA, and new-package rights. Confirm
 the protected npm and GitHub environments and rulesets are ready. Confirm the
-repository has no remote tags or GitHub Releases:
+candidate tag and GitHub Release do not exist. Prior immutable tags and releases
+may remain:
 
 ```bash
 set -euo pipefail
-REMOTE_TAG_REFS=$(git ls-remote --tags origin)
-test -z "$REMOTE_TAG_REFS"
-GITHUB_RELEASES=$(
-  gh release list --repo marklearst/primitree --json tagName
+CANDIDATE_TAG_REFS=$(
+  git ls-remote --tags origin \
+    "refs/tags/v$VERSION" \
+    "refs/tags/v$VERSION^{}"
 )
-test "$GITHUB_RELEASES" = '[]'
+test -z "$CANDIDATE_TAG_REFS"
+CANDIDATE_RELEASE_COUNT=$(
+  gh release list \
+    --repo marklearst/primitree \
+    --limit 1000 \
+    --json tagName \
+    --jq "[.[] | select(.tagName == \"v$VERSION\")] | length"
+)
+test "$CANDIDATE_RELEASE_COUNT" = 0
 ```
 
-Make the source repository public before creating any npm package. This lets
-package pages, provenance, issue links, and source links resolve to the same
-public project. Review the visibility change in GitHub. Run and verify the
-single repository mutation:
+Verify that the source repository remains public. This lets package pages,
+provenance, issue links, and source links resolve to the same public project:
 
 ```bash
-gh repo edit marklearst/primitree \
-  --visibility public \
-  --accept-visibility-change-consequences
 test "$(gh repo view marklearst/primitree --json visibility --jq '.visibility')" = PUBLIC
 ```
 
@@ -1017,8 +1023,8 @@ Approve the protected `npm` environment job. The workflow performs the
 bootstrap token-authenticated publish, verifies npm provenance against the
 expected repository, workflow, tag, and commit, smoke-tests the public
 packages, and creates or resumes the immutable GitHub Release from the same
-eight files. Record the run ID, package pages, `next` dist-tags, absence of the
-prerelease from `latest`, provenance, release notes, asset digests, and final
+eight files. Record the run ID, package pages, exact `next` dist-tags, observed
+`latest` values, provenance, release notes, asset digests, and final
 prerelease URL.
 
 ### 6. Configure all six trusted publishers
@@ -1204,23 +1210,16 @@ npm publish "$ARTIFACT_DIR/primitree-$VERSION.tgz" --registry=https://registry.n
 
 ### Wrong dist-tag
 
-Inspect and repair a dist-tag without republishing. A prerelease must remain on
-`next` and must not occupy `latest`. Remove `latest` whenever the listing shows
-that it points to a prerelease, including an older prerelease; preserve it when
-it points to a stable version.
-Use this core example for the package whose dist-tag needs repair:
+Inspect and repair the authoritative dist-tag without republishing. A
+prerelease must remain on `next`. A package without a stable version may keep a
+prerelease on `latest`; do not remove or move that bootstrap tag. Preserve a
+stable `latest` after one exists. Use this core example for the package whose
+`next` tag needs repair:
 
 ```bash
 npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org
 npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npmjs.org
-LATEST_VERSION="$(
-  npm view "@primitree/core" dist-tags.latest --registry=https://registry.npmjs.org
-)"
-if printf '%s\n' "$LATEST_VERSION" |
-  grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-'
-then
-  npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org
-fi
+npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org
 ```
 
 ### Bad package contents
@@ -1289,7 +1288,7 @@ run. Require GitHub to report a single `publish` job, a skipped or cancelled
 conclusion, and no steps:
 
 ```bash
-VERSION=${VERSION:-1.0.0-next.0}
+: "${VERSION:?Set VERSION to the wrong pushed tag version}"
 [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-next\.(0|[1-9][0-9]*)$ ]]
 OLD_RUN_ID=123456789
 set -euo pipefail
