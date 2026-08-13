@@ -44,6 +44,11 @@ interface OutputPathIdentity {
   readonly ino: bigint
 }
 
+interface OutputDirectoryEpoch extends OutputPathIdentity {
+  readonly mtimeNs: bigint
+  readonly ctimeNs: bigint
+}
+
 interface OutputPathSnapshotEntry {
   readonly path: string
   readonly identity?: OutputPathIdentity
@@ -52,6 +57,16 @@ interface OutputPathSnapshotEntry {
 type OutputPathSnapshot = readonly OutputPathSnapshotEntry[]
 type OutputPathGuard = () => Promise<void>
 type BuildOutputFileHandle = Awaited<ReturnType<typeof fs.open>>
+
+interface OutputDirectoryEpochTracker {
+  capture(
+    directory: string,
+    parent?: string,
+    expectedStats?: BigIntStats
+  ): Promise<BigIntStats>
+  guard(directory?: string): OutputPathGuard
+  verifyAll(): Promise<void>
+}
 
 function isMissing(error: unknown): boolean {
   return (
@@ -218,30 +233,52 @@ async function runGuardedPathOperation<T>(
 async function closeBuildOutputDirectory(
   handle: Dir,
   directory: string,
-  operationFailure?: { readonly error: unknown }
+  operationFailure?: { readonly error: unknown },
+  guard?: OutputPathGuard
 ): Promise<void> {
-  let closeFailure: unknown
+  const failures: Array<{
+    readonly error: unknown
+    readonly message: string
+    readonly kind: 'operation' | 'guard' | 'close'
+  }> = []
+  if (operationFailure !== undefined) {
+    failures.push({
+      error: operationFailure.error,
+      message: errorMessage(operationFailure.error),
+      kind: 'operation',
+    })
+  }
   try {
     await handle.close()
   } catch (error) {
-    closeFailure = error
-  }
-  if (operationFailure !== undefined) {
-    if (closeFailure !== undefined) {
-      throw new Error(
-        `${errorMessage(operationFailure.error)}\nCould not close build output directory: ${directory}`,
-        {
-          cause: new AggregateError([operationFailure.error, closeFailure]),
-        }
-      )
-    }
-    throw operationFailure.error
-  }
-  if (closeFailure !== undefined) {
-    throw new Error(`Could not close build output directory: ${directory}`, {
-      cause: closeFailure,
+    failures.push({
+      error,
+      message: `Could not close build output directory: ${directory}`,
+      kind: 'close',
     })
   }
+  try {
+    await guard?.()
+  } catch (error) {
+    failures.push({
+      error,
+      message: errorMessage(error),
+      kind: 'guard',
+    })
+  }
+  if (failures.length === 0) {
+    return
+  }
+  const onlyFailure = failures[0]
+  if (failures.length === 1 && onlyFailure !== undefined) {
+    if (onlyFailure.kind === 'close') {
+      throw new Error(onlyFailure.message, { cause: onlyFailure.error })
+    }
+    throw onlyFailure.error
+  }
+  throw new Error(failures.map(failure => failure.message).join('\n'), {
+    cause: new AggregateError(failures.map(failure => failure.error)),
+  })
 }
 
 async function openBuildOutputDirectory(
@@ -283,14 +320,13 @@ async function visitBuildOutputDirectory(
   } catch (error) {
     operationFailure = { error }
   }
-  await closeBuildOutputDirectory(handle, directory, operationFailure)
-  await guard?.()
+  await closeBuildOutputDirectory(handle, directory, operationFailure, guard)
 }
 
 async function listOutputPaths(
   directory: string,
-  symbolicLinks: 'reject' | 'list' = 'reject',
-  guard?: OutputPathGuard
+  symbolicLinks: 'reject' | 'list',
+  epochs: OutputDirectoryEpochTracker
 ): Promise<{
   readonly files: readonly string[]
   readonly directories: readonly string[]
@@ -299,7 +335,11 @@ async function listOutputPaths(
   const files: string[] = []
   const directories: string[] = []
   const foundSymbolicLinks: string[] = []
-  const pending = [{ absolute: directory, relative: '' }]
+  const pending: Array<{
+    readonly absolute: string
+    readonly relative: string
+    readonly parent?: string
+  }> = [{ absolute: directory, relative: '', parent: path.dirname(directory) }]
   let count = 0
 
   while (pending.length > 0) {
@@ -307,33 +347,38 @@ async function listOutputPaths(
     if (current === undefined) {
       break
     }
-    await visitBuildOutputDirectory(current.absolute, guard, entry => {
-      count += 1
-      if (count > MAX_OUTPUT_ENTRIES) {
-        throw new Error('Build output can contain at most 100,000 entries.')
-      }
-      const relative = path.posix.join(current.relative, entry.name)
-      const absolute = path.join(current.absolute, entry.name)
-      if (entry.isSymbolicLink()) {
-        if (symbolicLinks === 'reject') {
+    await epochs.capture(current.absolute, current.parent)
+    await visitBuildOutputDirectory(
+      current.absolute,
+      epochs.guard(current.absolute),
+      entry => {
+        count += 1
+        if (count > MAX_OUTPUT_ENTRIES) {
+          throw new Error('Build output can contain at most 100,000 entries.')
+        }
+        const relative = path.posix.join(current.relative, entry.name)
+        const absolute = path.join(current.absolute, entry.name)
+        if (entry.isSymbolicLink()) {
+          if (symbolicLinks === 'reject') {
+            throw new Error(
+              `Build output cannot contain a symbolic link: ${relative}`
+            )
+          }
+          foundSymbolicLinks.push(relative)
+          return
+        }
+        if (entry.isDirectory()) {
+          directories.push(`${relative}/`)
+          pending.push({ absolute, relative, parent: current.absolute })
+        } else if (entry.isFile()) {
+          files.push(relative)
+        } else {
           throw new Error(
-            `Build output cannot contain a symbolic link: ${relative}`
+            `Build output path is not a file or directory: ${relative}`
           )
         }
-        foundSymbolicLinks.push(relative)
-        return
       }
-      if (entry.isDirectory()) {
-        directories.push(`${relative}/`)
-        pending.push({ absolute, relative })
-      } else if (entry.isFile()) {
-        files.push(relative)
-      } else {
-        throw new Error(
-          `Build output path is not a file or directory: ${relative}`
-        )
-      }
-    })
+    )
   }
 
   return {
@@ -343,33 +388,12 @@ async function listOutputPaths(
   }
 }
 
-function sameSortedPaths(
-  left: readonly string[],
-  right: readonly string[]
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((entry, index) => entry === right[index])
-  )
-}
-
 async function listVerifiedOutputPaths(
   directory: string,
-  symbolicLinks: 'reject' | 'list' = 'reject',
-  guard?: OutputPathGuard
+  symbolicLinks: 'reject' | 'list',
+  epochs: OutputDirectoryEpochTracker
 ): ReturnType<typeof listOutputPaths> {
-  const first = await listOutputPaths(directory, symbolicLinks, guard)
-  const second = await listOutputPaths(directory, symbolicLinks, guard)
-  if (
-    !sameSortedPaths(first.files, second.files) ||
-    !sameSortedPaths(first.directories, second.directories) ||
-    !sameSortedPaths(first.symbolicLinks, second.symbolicLinks)
-  ) {
-    throw new Error(
-      `Primitree found changed build output while scanning: ${directory}`
-    )
-  }
-  return second
+  return listOutputPaths(directory, symbolicLinks, epochs)
 }
 
 function fileReadIdentity(stats: BigIntStats) {
@@ -711,12 +735,140 @@ async function assertOutputPathSnapshot(
   }
 }
 
+function outputDirectoryEpoch(stats: BigIntStats): OutputDirectoryEpoch {
+  return {
+    dev: stats.dev,
+    ino: stats.ino,
+    mtimeNs: stats.mtimeNs,
+    ctimeNs: stats.ctimeNs,
+  }
+}
+
+function isSameDirectoryEpoch(
+  left: OutputDirectoryEpoch,
+  right: OutputDirectoryEpoch
+): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs
+  )
+}
+
+function changedOutputScanError(directory: string, cause?: unknown): Error {
+  return new Error(
+    `Primitree found a changed build output path while inspecting: ${directory}`,
+    cause === undefined ? undefined : { cause }
+  )
+}
+
+function createOutputDirectoryEpochTracker(
+  directory: string,
+  parentGuard?: OutputPathGuard
+): OutputDirectoryEpochTracker {
+  const epochs = new Map<
+    string,
+    { readonly epoch: OutputDirectoryEpoch; readonly parent?: string }
+  >()
+  const assertEpoch = async (trackedDirectory: string): Promise<void> => {
+    const expected = epochs.get(trackedDirectory)
+    if (expected === undefined) {
+      return
+    }
+    const stats = await fs
+      .lstat(trackedDirectory, { bigint: true })
+      .catch(error => {
+        throw changedOutputScanError(directory, error)
+      })
+    if (
+      !stats.isDirectory() ||
+      stats.isSymbolicLink() ||
+      !isSameDirectoryEpoch(outputDirectoryEpoch(stats), expected.epoch)
+    ) {
+      throw changedOutputScanError(directory)
+    }
+  }
+  const guard =
+    (trackedDirectory?: string): OutputPathGuard =>
+    async () => {
+      await parentGuard?.()
+      if (trackedDirectory !== undefined) {
+        const tracked = epochs.get(trackedDirectory)
+        if (tracked?.parent !== undefined) {
+          await assertEpoch(tracked.parent)
+        }
+        await assertEpoch(trackedDirectory)
+      }
+      await parentGuard?.()
+    }
+  const capture = async (
+    trackedDirectory: string,
+    parent?: string,
+    expectedStats?: BigIntStats
+  ): Promise<BigIntStats> => {
+    const relevantGuard = guard(parent)
+    await relevantGuard()
+    const stats = await fs
+      .lstat(trackedDirectory, { bigint: true })
+      .catch(error => {
+        throw changedOutputScanError(directory, error)
+      })
+    await relevantGuard()
+    const epoch = outputDirectoryEpoch(stats)
+    const prior = epochs.get(trackedDirectory)
+    if (
+      !stats.isDirectory() ||
+      stats.isSymbolicLink() ||
+      (expectedStats !== undefined &&
+        !isSameDirectoryEpoch(epoch, outputDirectoryEpoch(expectedStats))) ||
+      (prior !== undefined && !isSameDirectoryEpoch(epoch, prior.epoch))
+    ) {
+      throw changedOutputScanError(directory)
+    }
+    if (prior === undefined) {
+      epochs.set(
+        trackedDirectory,
+        parent === undefined ? { epoch } : { epoch, parent }
+      )
+    } else if (prior.parent !== parent) {
+      throw changedOutputScanError(directory)
+    }
+    await guard(trackedDirectory)()
+    return stats
+  }
+  const verifyAll = async (): Promise<void> => {
+    await parentGuard?.()
+    for (const trackedDirectory of epochs.keys()) {
+      await assertEpoch(trackedDirectory)
+    }
+    await parentGuard?.()
+  }
+  return { guard, capture, verifyAll }
+}
+
+async function captureOutputLineageEpochs(
+  directory: string,
+  parentSnapshot: OutputPathSnapshot | undefined,
+  parentGuard: OutputPathGuard | undefined
+): Promise<OutputDirectoryEpochTracker> {
+  const epochs = createOutputDirectoryEpochTracker(directory, parentGuard)
+  let parent: string | undefined
+  for (const entry of parentSnapshot ?? []) {
+    if (entry.identity !== undefined) {
+      await epochs.capture(entry.path, parent)
+      parent = entry.path
+    }
+  }
+  return epochs
+}
+
 function createOutputRootGuard(
   directory: string,
   stats: BigIntStats,
   parentGuard: OutputPathGuard | undefined
 ): OutputPathGuard {
-  const identity = { dev: stats.dev, ino: stats.ino }
+  const identity = outputDirectoryEpoch(stats)
   return async () => {
     await parentGuard?.()
     const current = await fs.lstat(directory, { bigint: true }).catch(error => {
@@ -728,8 +880,7 @@ function createOutputRootGuard(
     if (
       !current.isDirectory() ||
       current.isSymbolicLink() ||
-      current.dev !== identity.dev ||
-      current.ino !== identity.ino
+      !isSameDirectoryEpoch(outputDirectoryEpoch(current), identity)
     ) {
       throw new Error(
         `Primitree found a changed build output path while inspecting: ${directory}`
@@ -768,14 +919,17 @@ async function captureOutputRootGuard(
 async function isEmptyOutputDirectory(
   directory: string,
   parentGuard?: OutputPathGuard,
-  expectedStats?: BigIntStats
+  expectedStats?: BigIntStats,
+  parentSnapshot?: OutputPathSnapshot
 ): Promise<boolean> {
-  const { guard } = await captureOutputRootGuard(
+  const epochs = await captureOutputLineageEpochs(
     directory,
-    parentGuard,
-    expectedStats
+    parentSnapshot,
+    parentGuard
   )
-  const paths = await listVerifiedOutputPaths(directory, 'reject', guard)
+  await epochs.capture(directory, path.dirname(directory), expectedStats)
+  const paths = await listVerifiedOutputPaths(directory, 'reject', epochs)
+  await epochs.verifyAll()
   return paths.files.length === 0 && paths.directories.length === 0
 }
 
@@ -932,15 +1086,18 @@ async function verifyOwnedOutput(
   directory: string,
   sourceId: string,
   parentGuard?: OutputPathGuard,
-  expectedStats?: BigIntStats
+  expectedStats?: BigIntStats,
+  parentSnapshot?: OutputPathSnapshot
 ): Promise<void> {
-  const { guard } = await captureOutputRootGuard(
+  const epochs = await captureOutputLineageEpochs(
     directory,
-    parentGuard,
-    expectedStats
+    parentSnapshot,
+    parentGuard
   )
+  await epochs.capture(directory, path.dirname(directory), expectedStats)
+  const outputGuard = epochs.guard(directory)
   const manifestPath = path.join(directory, BUILD_MANIFEST_PATH)
-  await guard?.()
+  await outputGuard()
   const manifestStats = await fs
     .lstat(manifestPath, { bigint: true })
     .catch(error => {
@@ -949,7 +1106,7 @@ async function verifyOwnedOutput(
       }
       throw error
     })
-  await guard?.()
+  await outputGuard()
   if (
     manifestStats === undefined ||
     !manifestStats.isFile() ||
@@ -959,7 +1116,11 @@ async function verifyOwnedOutput(
       'Existing build output needs a Primitree manifest file and cannot use a symbolic link in its place.'
     )
   }
-  const manifest = await readBuildManifest(manifestPath, manifestStats, guard)
+  const manifest = await readBuildManifest(
+    manifestPath,
+    manifestStats,
+    outputGuard
+  )
   validateBuildFiles([
     ...manifest.files.map(file => ({ path: file.path, contents: '' })),
     { path: BUILD_MANIFEST_PATH, contents: '' },
@@ -974,7 +1135,7 @@ async function verifyOwnedOutput(
     ...manifest.files.map(file => file.path),
   ])
   const ownedDirectories = expectedDirectories([...ownedFiles])
-  const actual = await listVerifiedOutputPaths(directory, 'reject', guard)
+  const actual = await listVerifiedOutputPaths(directory, 'reject', epochs)
   const unexpected = [
     ...actual.files.filter(file => !ownedFiles.has(file)),
     ...actual.directories.filter(child => !ownedDirectories.has(child)),
@@ -986,24 +1147,26 @@ async function verifyOwnedOutput(
   }
   for (const file of manifest.files) {
     const filePath = path.join(directory, ...file.path.split('/'))
-    await guard?.()
+    const fileGuard = epochs.guard(path.dirname(filePath))
+    await fileGuard()
     const stats = await fs.lstat(filePath, { bigint: true }).catch(error => {
       if (isMissing(error)) {
         return undefined
       }
       throw error
     })
-    await guard?.()
+    await fileGuard()
     if (stats === undefined || !stats.isFile() || stats.isSymbolicLink()) {
       throw new Error(`Refusing to replace missing build output: ${file.path}`)
     }
     if (
       stats.size !== BigInt(file.bytes) ||
-      (await hashFile(filePath, stats, file.bytes, guard)) !== file.sha256
+      (await hashFile(filePath, stats, file.bytes, fileGuard)) !== file.sha256
     ) {
       throw new Error(`Refusing to replace changed build output: ${file.path}`)
     }
   }
+  await epochs.verifyAll()
 }
 
 export async function inspectBuildOutput(
@@ -1020,16 +1183,21 @@ export async function inspectBuildOutput(
     parentSnapshot === undefined
       ? undefined
       : () => assertOutputPathSnapshot(parentSnapshot)
-  await parentGuard?.()
-  const stats = await fs.lstat(directory, { bigint: true }).catch(error => {
-    if (isMissing(error)) {
-      return undefined
-    }
-    throw error
-  })
-  await parentGuard?.()
+  const epochs = await captureOutputLineageEpochs(
+    directory,
+    parentSnapshot,
+    parentGuard
+  )
+  const stats = await runGuardedPathOperation(epochs.guard(), () =>
+    fs.lstat(directory, { bigint: true }).catch(error => {
+      if (isMissing(error)) {
+        return undefined
+      }
+      throw error
+    })
+  )
   if (stats === undefined) {
-    await parentGuard?.()
+    await epochs.verifyAll()
     return {
       status: 'drift',
       paths: [...files]
@@ -1042,14 +1210,13 @@ export async function inspectBuildOutput(
       'The configured output path must point to a directory, not a symbolic link.'
     )
   }
-  const guard = createOutputRootGuard(directory, stats, parentGuard)
-  await guard()
+  await epochs.capture(directory, path.dirname(directory), stats)
   const drift: BuildOutputDrift[] = []
   const expectedFiles = new Set(files.map(file => file.path))
   const expectedDirectoriesForFiles = expectedDirectories(
     files.map(file => file.path)
   )
-  const actual = await listVerifiedOutputPaths(directory, 'list', guard)
+  const actual = await listVerifiedOutputPaths(directory, 'list', epochs)
   const actualFiles = new Set(actual.files)
   const actualSymbolicLinks = new Set(actual.symbolicLinks)
   for (const file of [...files].sort((left, right) =>
@@ -1064,7 +1231,8 @@ export async function inspectBuildOutput(
       continue
     }
     const filePath = path.join(directory, ...file.path.split('/'))
-    await guard()
+    const fileGuard = epochs.guard(path.dirname(filePath))
+    await fileGuard()
     const fileStats = await fs
       .lstat(filePath, { bigint: true })
       .catch(error => {
@@ -1073,7 +1241,7 @@ export async function inspectBuildOutput(
         }
         throw error
       })
-    await guard()
+    await fileGuard()
     if (fileStats === undefined) {
       drift.push({ path: file.path, kind: 'missing' })
       continue
@@ -1088,7 +1256,7 @@ export async function inspectBuildOutput(
         filePath,
         fileStats,
         Buffer.byteLength(file.contents, 'utf8'),
-        guard
+        fileGuard
       )) !== hashBuildText(file.contents)
     ) {
       drift.push({ path: file.path, kind: 'changed' })
@@ -1113,7 +1281,7 @@ export async function inspectBuildOutput(
     (left, right) =>
       left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind)
   )
-  await guard()
+  await epochs.verifyAll()
   return drift.length === 0
     ? { status: 'current', paths: [] }
     : { status: 'drift', paths: drift }
@@ -1198,9 +1366,9 @@ export async function installBuildOutput(
     await guard()
     if (
       stats !== undefined &&
-      !(await isEmptyOutputDirectory(directory, guard, stats))
+      !(await isEmptyOutputDirectory(directory, guard, stats, parentSnapshot))
     ) {
-      await verifyOwnedOutput(directory, sourceId, guard, stats)
+      await verifyOwnedOutput(directory, sourceId, guard, stats, parentSnapshot)
     }
     await guard()
     const stage = await fs.mkdtemp(
@@ -1256,8 +1424,16 @@ export async function installBuildOutput(
         await installedGuard()
         return 'written'
       }
-      if (!(await isEmptyOutputDirectory(directory, guard, stats))) {
-        await verifyOwnedOutput(directory, sourceId, guard, stats)
+      if (
+        !(await isEmptyOutputDirectory(directory, guard, stats, parentSnapshot))
+      ) {
+        await verifyOwnedOutput(
+          directory,
+          sourceId,
+          guard,
+          stats,
+          parentSnapshot
+        )
       }
       const backup = path.join(
         parent,
@@ -1274,8 +1450,21 @@ export async function installBuildOutput(
         backupGuard = createOutputRootGuard(backup, backupStats, guard)
         await backupGuard()
         outputMode = Number(backupStats.mode)
-        if (!(await isEmptyOutputDirectory(backup, guard, backupStats))) {
-          await verifyOwnedOutput(backup, sourceId, guard, backupStats)
+        if (
+          !(await isEmptyOutputDirectory(
+            backup,
+            guard,
+            backupStats,
+            parentSnapshot
+          ))
+        ) {
+          await verifyOwnedOutput(
+            backup,
+            sourceId,
+            guard,
+            backupStats,
+            parentSnapshot
+          )
         }
       } catch (error) {
         return restorePriorOutput(backup, directory, error, guard, backupStats)
