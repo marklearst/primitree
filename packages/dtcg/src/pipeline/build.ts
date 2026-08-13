@@ -2,7 +2,7 @@ import { toDTCG, type ToDTCGOptions } from '../emit'
 import {
   applyResolverWithBudget,
   chargeResolverWork,
-  flattenTokens,
+  flattenTokensWithBudget,
   listContextsWithBudget,
   type ResolverWorkBudget,
 } from '../resolve'
@@ -27,8 +27,9 @@ export interface PipelineFile {
  *
  * @remarks
  * File names are relative to the Resolver file. Token files may use nested
- * paths, such as `themes/dark.tokens.json`. Primitree readers look for a
- * Resolver named `tokens.resolver.json`.
+ * paths, such as `themes/dark.tokens.json`. Each path segment can contain at
+ * most 255 UTF-8 bytes. Primitree readers look for a Resolver named
+ * `tokens.resolver.json`.
  *
  * @public
  */
@@ -97,6 +98,7 @@ const MAX_OUTPUT_JSON_DEPTH = 64
 const MAX_OUTPUT_JSON_ITEMS = 100_000
 const MAX_OUTPUT_JSON_TEXT = 20 * 1024 * 1024
 const MAX_OUTPUT_SUMMARY_WORK = 1_000_000
+const MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES = 255
 const OUTPUT_SUMMARY_WORK_LIMIT_MESSAGE =
   'DTCG output summary exceeds the 1,000,000-unit work limit.'
 const OUTPUT_SUMMARY_DEPTH_LIMIT_MESSAGE =
@@ -297,6 +299,17 @@ function validateRelativeOutputPath(value: string, label: string): void {
     )
   ) {
     throw new Error(`Unsafe DTCG ${label} path: "${value}".`)
+  }
+  if (
+    segments.some(
+      segment =>
+        utf8ByteLengthWithin(segment, MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES) >
+        MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES
+    )
+  ) {
+    throw new Error(
+      `The DTCG ${label} path segment can contain at most ${MAX_PORTABLE_OUTPUT_PATH_SEGMENT_BYTES} UTF-8 bytes.`
+    )
   }
 }
 
@@ -791,9 +804,10 @@ Stats: ${formatCount(summary.collections, 'collection')}, ${formatCount(summary.
  * Resolver state that it cannot represent, or a token path changes Tailwind
  * namespace between Resolver states.
  *
- * @throws `Error` - The builder rejects unsafe file names, a Resolver file
- * name other than `tokens.resolver.json`, lone surrogates in Resolver names,
- * output path collisions, and CSS name collisions.
+ * @throws `Error` - The builder rejects unsafe or oversized file-name
+ * segments, a Resolver file name other than `tokens.resolver.json`, lone
+ * surrogates in Resolver names, output path collisions, and CSS name
+ * collisions.
  *
  * @throws `TypeError` - JSON sorting rejects cycles and data above its limits.
  * The summary, CSS, Tailwind, and TypeScript outputs reject calls that exceed
@@ -884,8 +898,9 @@ export function buildDTCGOutputs(
   }
 
   const collections = Object.keys(input.resolver.sets ?? {}).length
-  const variables = flattenTokens(
-    applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget)
+  const variables = flattenTokensWithBudget(
+    applyResolverWithBudget(input.files, input.resolver, {}, summaryBudget),
+    summaryBudget
   ).length
   const contexts = listContextsWithBudget(input.resolver, summaryBudget)
   assertUnicodeScalarResolverNames(contexts, summaryBudget)

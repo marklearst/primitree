@@ -164,14 +164,17 @@ files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
 Resolver file name must be `tokens.resolver.json`, which is the name Primitree
 readers discover. The builder rejects output names that collide after
 lowercasing and Unicode normalization, along with file names that contain a
-lone UTF-16 surrogate. Its JSON sorter accepts up to 1,000 token files, 64
-levels, 100,000 items, and 20 MiB of names and text values.
+lone UTF-16 surrogate or a path segment above 255 UTF-8 bytes. Its JSON sorter
+accepts up to 1,000 token files, 64 levels, 100,000 items, and 20 MiB of names
+and text values.
 The builder also rejects Resolver axis and context names with a lone UTF-16
 surrogate before returning the output summary.
 The output keeps Resolver context order because the first context is the
 fallback when `default` is absent.
 
-The result summary stops at 64 token-group levels and 1,000,000 work units.
+The result summary shares one 1,000,000-unit work limit across Resolver
+application, token flattening, context listing, and Resolver-name checks. It
+also stops at 64 token-group levels.
 Resolver reads and token merges spend those units. A Resolver can return at
 most 1,000 context permutations. Reading declared contexts and copying public
 permutations has a separate 1,000,000-unit work limit.
