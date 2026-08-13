@@ -4,7 +4,7 @@ description: Serve repository design tokens to an MCP client.
 ---
 
 ```bash
-npm i -D @primitree/mcp
+npm i -D @primitree/mcp@next
 ```
 
 `@primitree/mcp` requires Node.js 24 or newer. The server reads any variables JSON shape listed in [Export variables](/docs/getting-started/export-variables), or a built `design-tokens/` directory.
@@ -16,7 +16,7 @@ npm i -D @primitree/mcp
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@primitree/mcp@next", "--tokens", "./variables.json"]
     }
   }
 }
@@ -26,7 +26,7 @@ Or point at built output:
 
 ```json
 {
-  "args": ["-y", "@primitree/mcp", "--tokens", "./design-tokens"]
+  "args": ["-y", "@primitree/mcp@next", "--tokens", "./design-tokens"]
 }
 ```
 

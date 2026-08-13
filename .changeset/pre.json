@@ -9,5 +9,5 @@
     "@primitree/mcp": "0.0.0",
     "primitree": "0.0.0"
   },
-  "changesets": ["primitree-one"]
+  "changesets": ["complete-next-one", "primitree-one"]
 }

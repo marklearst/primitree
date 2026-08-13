@@ -202,7 +202,7 @@ Replace `@figma-vars/hooks` with `@primitree/hooks` in dependencies and imports.
 The legacy npm package ends at version 4.0.0.
 
 Read the [migration guide](https://primitree.com/docs/hooks/migration) and the
-[1.0.0-next.0 changelog](CHANGELOG.md).
+[1.0.0-next.1 changelog](CHANGELOG.md).
 
 ## License
 

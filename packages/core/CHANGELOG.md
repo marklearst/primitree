@@ -1,6 +1,17 @@
 # Changelog
 
+## 1.0.0-next.1 (2026-08-17)
+
+### Patch Changes
+
+- Accept npm's prerelease bootstrap dist-tags and complete the package-family
+  release after the `1.0.0-next.0` attempt stopped after publishing
+  `@primitree/core`.
+
 ## 1.0.0-next.0 (2026-08-17)
+
+Release record: `@primitree/core` reached npm. The other five packages and the
+GitHub Release were not published.
 
 ### Major Changes
 

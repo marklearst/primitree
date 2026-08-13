@@ -1,6 +1,6 @@
 {
   "name": "@primitree/dtcg",
-  "version": "1.0.0-next.0",
+  "version": "1.0.0-next.1",
   "description": "Read Primitree's supported DTCG 2025.10 value subset into Core and convert Figma variables to DTCG, Resolver contexts, CSS, Tailwind CSS, and TypeScript.",
   "author": "Mark Learst",
   "license": "MIT",
