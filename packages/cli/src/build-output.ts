@@ -10,6 +10,9 @@ import {
   buildOutputCleanupName,
   buildOutputLockName,
   buildOutputStagePrefix,
+  MAX_BUILD_OUTPUT_FILE_DIRECTORY_DEPTH,
+  MAX_BUILD_OUTPUT_FILE_PATH_BYTES,
+  MAX_BUILD_OUTPUT_FILE_PATH_COMPONENTS,
   MAX_PORTABLE_PATH_SEGMENT_BYTES,
 } from './build-output-paths'
 import { writePipelineFiles } from './io'
@@ -111,7 +114,19 @@ function validateBuildFiles(files: readonly PipelineFile[]): void {
   }
   const pathsByKey = new Map<string, string>()
   for (const file of files) {
+    if (
+      Buffer.byteLength(file.path, 'utf8') > MAX_BUILD_OUTPUT_FILE_PATH_BYTES
+    ) {
+      throw new Error(
+        `Build output path can contain at most ${MAX_BUILD_OUTPUT_FILE_PATH_BYTES.toLocaleString('en-US')} UTF-8 bytes.`
+      )
+    }
     const segments = file.path.split('/')
+    if (segments.length > MAX_BUILD_OUTPUT_FILE_PATH_COMPONENTS) {
+      throw new Error(
+        `Build output path can contain at most ${MAX_BUILD_OUTPUT_FILE_DIRECTORY_DEPTH} nested directory levels.`
+      )
+    }
     if (
       file.path.length === 0 ||
       path.posix.isAbsolute(file.path) ||
