@@ -24,11 +24,14 @@ afterEach(async () => {
   await fs.rm(directory, { recursive: true, force: true })
 })
 
-function buildFiles(files: readonly PipelineFile[]): PipelineFile[] {
+function buildFiles(
+  files: readonly PipelineFile[],
+  source = 'brand'
+): PipelineFile[] {
   return [
     ...files,
     createBuildManifest({
-      source: 'brand',
+      source,
       sourceContents: 'source\n',
       formats: ['dtcg'],
       files,
@@ -163,6 +166,55 @@ describe('configured build output paths', () => {
   })
 
   it.each([
+    ['ASCII', 'a'.repeat(255)],
+    ['multibyte', '界'.repeat(85)],
+  ])(
+    'accepts %s build-file path components at 255 UTF-8 bytes',
+    async (_kind, segment) => {
+      const output = path.join(directory, 'generated')
+      const filePath = `${segment}/${segment}`
+
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }]),
+          'brand'
+        )
+      ).resolves.toBe('written')
+
+      await expect(
+        fs.readFile(path.join(output, filePath), 'utf8')
+      ).resolves.toBe('value\n')
+    }
+  )
+
+  it.each([
+    ['ASCII intermediate', 'a'.repeat(256), 'token.json'],
+    ['ASCII final', 'tokens', 'a'.repeat(256)],
+    ['multibyte intermediate', `${'界'.repeat(85)}a`, 'token.json'],
+    ['multibyte final', 'tokens', `${'界'.repeat(85)}a`],
+  ])(
+    'rejects a 256-byte %s build-file path component before creating output',
+    async (_kind, first, second) => {
+      const output = path.join(directory, 'generated')
+      const filePath = `${first}/${second}`
+
+      await expect(
+        installBuildOutput(
+          output,
+          buildFiles([{ path: filePath, contents: 'value\n' }]),
+          'brand'
+        )
+      ).rejects.toThrow(
+        `Build output path segment is 256 UTF-8 bytes; use at most 255 UTF-8 bytes: ${JSON.stringify(filePath)}.`
+      )
+
+      await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(fs.readdir(directory)).resolves.toEqual([])
+    }
+  )
+
+  it.each([
     ['tokens/a.json', 'tokens/a.json'],
     ['tokens/a.json', 'TOKENS/A.JSON'],
     ['tokens/café.json', 'tokens/café.json'],
@@ -266,6 +318,37 @@ describe('configured build output replacement', () => {
     })
   })
 
+  it('does not omit an unexpected file from a swapped directory handle', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.writeFile(path.join(output, 'keep.txt'), 'user data\n', 'utf8')
+    await fs.cp(output, outside, { recursive: true })
+    await fs.rm(path.join(outside, 'keep.txt'))
+    const openDirectory = fs.opendir.bind(fs)
+    let swapped = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      if (!swapped && String(target) === output) {
+        await fs.rename(output, heldOutput)
+        await fs.rename(outside, output)
+        const handle = await openDirectory(output, options)
+        await fs.rename(output, outside)
+        await fs.rename(heldOutput, output)
+        swapped = true
+        return handle
+      }
+      return openDirectory(target, options)
+    })
+
+    await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
+      `Primitree found changed build output while scanning: ${output}`
+    )
+
+    expect(swapped).toBe(true)
+  })
+
   it('rejects an oversized manifest before reading it', async () => {
     const output = path.join(directory, 'generated')
     const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
@@ -318,6 +401,238 @@ describe('configured build output replacement', () => {
     expect(enlarged).toBe(true)
   })
 
+  it('keeps a changed-file error before a close failure', async () => {
+    const output = path.join(directory, 'generated')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    const tokenPath = path.join(output, 'tokens', 'a.json')
+    const open = fs.open.bind(fs)
+    const closeFailure = new Error('Injected output file close failure.')
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        await fs.appendFile(tokenPath, 'later\n', 'utf8')
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw closeFailure
+        })
+      }
+      return handle
+    })
+
+    const failure = await inspectBuildOutput(output, files).catch(
+      (error: unknown) => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output inspection to fail.')
+    }
+    expect(failure.message).toBe(
+      `Primitree found changed build output while reading: ${tokenPath}\nCould not close build output file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both output read and close failures.')
+    }
+    expect(failure.cause.errors).toHaveLength(2)
+    expect((failure.cause.errors[0] as Error).message).toBe(
+      `Primitree found changed build output while reading: ${tokenPath}`
+    )
+    expect(failure.cause.errors[1]).toBe(closeFailure)
+  })
+
+  it('preserves an output scan and directory close failure', async () => {
+    const output = path.join(directory, 'generated')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    const scanFailure = new Error('Injected output scan failure.')
+    const closeFailure = new Error('Injected output directory close failure.')
+    const openDirectory = fs.opendir.bind(fs)
+    vi.spyOn(fs, 'opendir').mockImplementation(async target => {
+      if (String(target) !== output) {
+        return openDirectory(target)
+      }
+      const handle = await openDirectory(target)
+      const close = handle.close.bind(handle)
+      vi.spyOn(handle, 'read').mockRejectedValue(scanFailure)
+      vi.spyOn(handle, 'close').mockImplementation(async () => {
+        await close()
+        throw closeFailure
+      })
+      return handle
+    })
+
+    const failure = await inspectBuildOutput(output, files).catch(
+      (error: unknown) => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output scanning to fail.')
+    }
+    expect(failure.message).toBe(
+      `Injected output scan failure.\nCould not close build output directory: ${output}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both output scan and close failures.')
+    }
+    expect(failure.cause.errors).toEqual([scanFailure, closeFailure])
+  })
+
+  it('preserves an output open and path-change failure', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.mkdir(outside)
+    const openFailure = new Error('Injected output open failure.')
+    const openDirectory = fs.opendir.bind(fs)
+    vi.spyOn(fs, 'opendir').mockImplementation(async target => {
+      if (String(target) === output) {
+        await fs.rename(output, heldOutput)
+        await fs.symlink(outside, output, 'dir')
+        throw openFailure
+      }
+      return openDirectory(target)
+    })
+
+    const failure = await inspectBuildOutput(output, files, directory).catch(
+      (error: unknown) => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output opening to fail.')
+    }
+    expect(failure.message).toBe(
+      `Injected output open failure.\nPrimitree found a changed build output path while inspecting: ${output}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both output open and path failures.')
+    }
+    expect(failure.cause.errors).toEqual([openFailure, expect.any(Error)])
+  })
+
+  it('closes an opened output directory when its post-open guard fails', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.mkdir(outside)
+    const openDirectory = fs.opendir.bind(fs)
+    let closeCalls = 0
+    let swapped = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async target => {
+      const handle = await openDirectory(target)
+      if (!swapped && String(target) === output) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+        })
+        await fs.rename(output, heldOutput)
+        await fs.symlink(outside, output, 'dir')
+        swapped = true
+      }
+      return handle
+    })
+
+    await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(closeCalls).toBe(1)
+  })
+
+  it('closes an opened output file when its post-open guard fails', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.mkdir(outside)
+    const tokenPath = path.join(output, 'tokens', 'a.json')
+    const open = fs.open.bind(fs)
+    let closeCalls = 0
+    let swapped = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (!swapped && String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+        })
+        await fs.rename(output, heldOutput)
+        await fs.symlink(outside, output, 'dir')
+        swapped = true
+      }
+      return handle
+    })
+
+    await expect(inspectBuildOutput(output, files, directory)).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(closeCalls).toBe(1)
+  })
+
+  it('preserves a post-open path failure before a file close failure', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    const files = buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }])
+    await installBuildOutput(output, files, 'brand')
+    await fs.mkdir(outside)
+    const tokenPath = path.join(output, 'tokens', 'a.json')
+    const open = fs.open.bind(fs)
+    const closeFailure = new Error('Injected post-open file close failure.')
+    let closeCalls = 0
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === tokenPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          closeCalls += 1
+          await close()
+          throw closeFailure
+        })
+        await fs.rename(output, heldOutput)
+        await fs.symlink(outside, output, 'dir')
+      }
+      return handle
+    })
+
+    const failure = await inspectBuildOutput(output, files, directory).catch(
+      (error: unknown) => error
+    )
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected guarded file opening to fail.')
+    }
+    expect(failure.message).toBe(
+      `Primitree found a changed build output path while inspecting: ${output}\nCould not close build output file: ${tokenPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both path and close failures.')
+    }
+    expect((failure.cause.errors[0] as Error).message).toBe(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+    expect(failure.cause.errors[1]).toBe(closeFailure)
+    expect(closeCalls).toBe(1)
+  })
+
   it('stops scanning an output parent after 100,000 entries', async () => {
     const output = path.join(directory, 'generated')
     const openDirectory = fs.opendir.bind(fs)
@@ -325,12 +640,17 @@ describe('configured build output replacement', () => {
       if (String(target) !== directory) {
         return openDirectory(target)
       }
+      let index = 0
       return {
-        async *[Symbol.asyncIterator]() {
-          for (let index = 0; index <= 100_000; index += 1) {
-            yield { name: `sibling-${index}` }
+        async read() {
+          if (index > 100_000) {
+            return null
           }
+          const entry = { name: `sibling-${index}` }
+          index += 1
+          return entry
         },
+        async close() {},
       } as Awaited<ReturnType<typeof fs.opendir>>
     })
 
@@ -403,6 +723,7 @@ describe('configured build output replacement', () => {
     )
     await fs.mkdir(backup)
     const cleanupCalls: string[] = []
+    let lockCleanup: string | undefined
     const open = fs.open.bind(fs)
     vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
       const handle = await open(target, flags, mode)
@@ -418,36 +739,93 @@ describe('configured build output replacement', () => {
     })
     const remove = fs.rm.bind(fs)
     vi.spyOn(fs, 'rm').mockImplementation(async (target, options) => {
-      if (String(target) === lock) {
+      if (String(target).includes('.generated.primitree-clean-')) {
+        lockCleanup = String(target)
         cleanupCalls.push('remove')
         throw new Error('Injected lock removal failure.')
       }
       await remove(target, options)
     })
 
-    await expect(
-      installBuildOutput(
-        output,
-        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
-        'brand'
-      )
-    ).rejects.toThrow(
-      `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${backup}\nPrimitree could not release the output lock: ${lock}`
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected operation and lock cleanup to fail.')
+    }
+    expect(failure.message).toContain(
+      `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${backup}`
+    )
+    expect(lockCleanup).toBeDefined()
+    expect(failure.message).toContain(
+      `Primitree could not release the output lock: ${lockCleanup}`
     )
 
     expect(cleanupCalls).toEqual(['close', 'remove'])
-    await expect(fs.lstat(lock)).resolves.toBeDefined()
+    if (lockCleanup === undefined) {
+      throw new Error('Expected Primitree to retain the lock cleanup path.')
+    }
+    await expect(fs.lstat(lockCleanup)).resolves.toBeDefined()
   })
 
   it('reports a lock cleanup error after a successful build', async () => {
     const output = path.join(directory, 'generated')
-    const lock = path.join(directory, '.generated.primitree-lock')
     const remove = fs.rm.bind(fs)
+    let lockCleanup: string | undefined
     vi.spyOn(fs, 'rm').mockImplementation(async (target, options) => {
-      if (String(target) === lock) {
+      if (String(target).includes('.generated.primitree-clean-')) {
+        lockCleanup = String(target)
         throw new Error('Injected lock removal failure.')
       }
       await remove(target, options)
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected output-lock cleanup to fail.')
+    }
+    expect(lockCleanup).toBeDefined()
+    expect(failure.message).toBe(
+      `Primitree could not release the output lock: ${lockCleanup}`
+    )
+
+    await expect(
+      fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('value\n')
+    if (lockCleanup === undefined) {
+      throw new Error('Expected Primitree to retain the lock cleanup path.')
+    }
+    await expect(fs.lstat(lockCleanup)).resolves.toBeDefined()
+  })
+
+  it('does not remove a substituted output-lock path', async () => {
+    const output = path.join(directory, 'generated')
+    const lock = path.join(directory, '.generated.primitree-lock')
+    let cleanup: string | undefined
+    let heldLock: string | undefined
+    const outsideLock = path.join(directory, 'outside-lock')
+    await fs.writeFile(outsideLock, 'user data\n', 'utf8')
+    const rename = fs.rename.bind(fs)
+    let substituted = false
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      await rename(from, to)
+      if (!substituted && String(from) === lock) {
+        cleanup = String(to)
+        heldLock = `${String(to)}-held`
+        await rename(to, heldLock)
+        await rename(outsideLock, to)
+        substituted = true
+      }
     })
 
     await expect(
@@ -456,12 +834,16 @@ describe('configured build output replacement', () => {
         buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
         'brand'
       )
-    ).rejects.toThrow(`Primitree could not release the output lock: ${lock}`)
+    ).rejects.toThrow('Primitree could not release the output lock:')
 
-    await expect(
-      fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
-    ).resolves.toBe('value\n')
-    await expect(fs.lstat(lock)).resolves.toBeDefined()
+    expect(substituted).toBe(true)
+    expect(cleanup).toBeDefined()
+    expect(heldLock).toBeDefined()
+    if (cleanup === undefined || heldLock === undefined) {
+      throw new Error('Expected a substituted lock cleanup path.')
+    }
+    await expect(fs.readFile(cleanup, 'utf8')).resolves.toBe('user data\n')
+    await expect(fs.lstat(heldLock)).resolves.toBeDefined()
   })
 
   it('rejects a symbolic-link ancestor before creating output files', async () => {
@@ -531,6 +913,494 @@ describe('configured build output replacement', () => {
     await expect(
       fs.readFile(path.join(output, BUILD_MANIFEST_PATH), 'utf8')
     ).resolves.toContain('../outside.txt')
+  })
+
+  it('rejects invalid UTF-8 in an installed manifest before ownership checks', async () => {
+    const output = path.join(directory, 'generated')
+    const tokenPath = path.join(output, 'tokens', 'a.json')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const manifestPath = path.join(output, BUILD_MANIFEST_PATH)
+    const manifest = await fs.readFile(manifestPath)
+    const sourceNameOffset = manifest.indexOf('brand')
+    if (sourceNameOffset === -1) {
+      throw new Error('Expected the installed manifest source name.')
+    }
+    manifest[sourceNameOffset] = 0xff
+    await fs.writeFile(manifestPath, manifest)
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }], '�rand'),
+        '�rand'
+      )
+    ).rejects.toThrow(
+      `Build output manifest is not valid UTF-8: ${manifestPath}`
+    )
+
+    await expect(fs.readFile(tokenPath, 'utf8')).resolves.toBe('old\n')
+  })
+
+  it('keeps a changed-manifest error before a close failure', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const manifestPath = path.join(output, BUILD_MANIFEST_PATH)
+    const open = fs.open.bind(fs)
+    const closeFailure = new Error('Injected manifest close failure.')
+    let manifestOpens = 0
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === manifestPath) {
+        manifestOpens += 1
+        if (manifestOpens === 2) {
+          await fs.appendFile(manifestPath, 'later\n', 'utf8')
+          const close = handle.close.bind(handle)
+          vi.spyOn(handle, 'close').mockImplementation(async () => {
+            await close()
+            throw closeFailure
+          })
+        }
+      }
+      return handle
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected manifest reading to fail.')
+    }
+    expect(failure.message).toBe(
+      `Primitree found a changed build output manifest while reading it.\nCould not close build output file: ${manifestPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both manifest read and close failures.')
+    }
+    expect((failure.cause.errors[0] as Error).message).toBe(
+      'Primitree found a changed build output manifest while reading it.'
+    )
+    expect(failure.cause.errors[1]).toBe(closeFailure)
+  })
+
+  it('keeps an invalid-manifest error before a close failure', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const manifestPath = path.join(output, BUILD_MANIFEST_PATH)
+    await fs.writeFile(manifestPath, '{}\n', 'utf8')
+    const open = fs.open.bind(fs)
+    const closeFailure = new Error('Injected invalid manifest close failure.')
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === manifestPath) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => {
+          await close()
+          throw closeFailure
+        })
+      }
+      return handle
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected invalid manifest reading to fail.')
+    }
+    expect(failure.message).toBe(
+      `Build output manifest must set "schemaVersion" to 1 and include a source ID, source SHA-256 hash, format list, and file list.\nCould not close build output file: ${manifestPath}`
+    )
+    expect(failure.cause).toBeInstanceOf(AggregateError)
+    if (!(failure.cause instanceof AggregateError)) {
+      throw new Error('Expected both manifest parse and close failures.')
+    }
+    expect((failure.cause.errors[0] as Error).message).toBe(
+      'Build output manifest must set "schemaVersion" to 1 and include a source ID, source SHA-256 hash, format list, and file list.'
+    )
+    expect(failure.cause.errors[1]).toBe(closeFailure)
+  })
+
+  it('rejects a same-inode manifest rewrite while reading', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const manifestPath = path.join(output, BUILD_MANIFEST_PATH)
+    const original = await fs.readFile(manifestPath)
+    const replacement = Buffer.from(original)
+    const hashLabel = Buffer.from('"sha256": "')
+    const hashLabelOffset = replacement.indexOf(hashLabel)
+    if (hashLabelOffset === -1) {
+      throw new Error('Expected a manifest source hash.')
+    }
+    const hashOffset = hashLabelOffset + hashLabel.length
+    replacement[hashOffset] = replacement[hashOffset] === 0x61 ? 0x62 : 0x61
+    const open = fs.open.bind(fs)
+    let rewritten = false
+    let manifestOpens = 0
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (String(target) === manifestPath) {
+        manifestOpens += 1
+        type PositionalRead = (
+          buffer: NodeJS.ArrayBufferView,
+          offset: number,
+          length: number,
+          position: number | null
+        ) => Promise<{ bytesRead: number; buffer: NodeJS.ArrayBufferView }>
+        const read = handle.read.bind(handle) as PositionalRead
+        vi.spyOn(handle, 'read').mockImplementation((async (
+          buffer: NodeJS.ArrayBufferView,
+          offset: number,
+          length: number,
+          position: number | null
+        ) => {
+          const result = await read(buffer, offset, length, position)
+          if (!rewritten && manifestOpens === 2 && result.bytesRead > 0) {
+            await fs.writeFile(manifestPath, replacement)
+            rewritten = true
+          }
+          return result
+        }) as typeof handle.read)
+      }
+      return handle
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      'Primitree found a changed build output manifest while reading it.'
+    )
+
+    expect(rewritten).toBe(true)
+  })
+
+  it('rejects an output ancestor changed while the lock is opened', async () => {
+    const project = path.join(directory, 'project')
+    const ancestor = path.join(project, 'build')
+    const heldAncestor = path.join(project, 'held-build')
+    const output = path.join(ancestor, 'generated')
+    const outside = path.join(directory, 'outside')
+    await fs.mkdir(ancestor, { recursive: true })
+    await fs.mkdir(outside)
+    const lock = path.join(ancestor, '.generated.primitree-lock')
+    const open = fs.open.bind(fs)
+    let swapped = false
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (!swapped && String(target) === lock) {
+        await fs.rename(ancestor, heldAncestor)
+        await fs.symlink(outside, ancestor, 'dir')
+        swapped = true
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand',
+        project
+      )
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${ancestor}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(await fs.readdir(outside)).toEqual(['.generated.primitree-lock'])
+    expect(await fs.readdir(heldAncestor)).toEqual([])
+  })
+
+  it('rejects an output directory changed while empty-output verification opens it', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    await fs.mkdir(outside)
+    const openDirectory = fs.opendir.bind(fs)
+    let outputOpens = 0
+    let swapped = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      if (String(target) === output) {
+        outputOpens += 1
+        if (outputOpens === 2) {
+          await fs.rename(output, heldOutput)
+          await fs.symlink(outside, output, 'dir')
+          swapped = true
+        }
+      }
+      return openDirectory(target, options)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(await fs.readdir(outside)).toEqual([])
+    await expect(
+      fs.readFile(path.join(heldOutput, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
+  })
+
+  it('rejects an output directory changed while ownership verification reads it', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    await fs.cp(output, outside, { recursive: true })
+    const openDirectory = fs.opendir.bind(fs)
+    const open = fs.open.bind(fs)
+    let outputOpens = 0
+    let swapped = false
+    let outsideFileOpened = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      const handle = await openDirectory(target, options)
+      if (String(target) === output) {
+        outputOpens += 1
+        if (outputOpens === 3) {
+          const read = handle.read.bind(handle)
+          vi.spyOn(handle, 'read').mockImplementation(async () => {
+            if (!swapped) {
+              await fs.rename(output, heldOutput)
+              await fs.symlink(outside, output, 'dir')
+              swapped = true
+            }
+            return read()
+          })
+        }
+      }
+      return handle
+    })
+    vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (swapped && String(target).startsWith(`${output}${path.sep}`)) {
+        outsideFileOpened = true
+      }
+      return open(target, flags, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(swapped).toBe(true)
+    expect(outsideFileOpened).toBe(false)
+    await expect(
+      fs.readFile(path.join(heldOutput, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
+  })
+
+  it('does not restore a backup path changed during verification', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const outside = path.join(directory, 'outside')
+    await fs.mkdir(outside)
+    const openDirectory = fs.opendir.bind(fs)
+    let backup: string | undefined
+    let heldBackup: string | undefined
+    let swapped = false
+    vi.spyOn(fs, 'opendir').mockImplementation(async (target, options) => {
+      const targetPath = String(target)
+      const handle = await openDirectory(target, options)
+      if (!swapped && targetPath.includes('.generated.primitree-backup-')) {
+        backup = targetPath
+        heldBackup = `${targetPath}-held`
+        await fs.rename(targetPath, heldBackup)
+        await fs.symlink(outside, targetPath, 'dir')
+        swapped = true
+      }
+      return handle
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(swapped).toBe(true)
+    expect(backup).toBeDefined()
+    expect(heldBackup).toBeDefined()
+    if (backup === undefined || heldBackup === undefined) {
+      throw new Error('Expected a moved and substituted backup path.')
+    }
+    expect((await fs.lstat(backup)).isSymbolicLink()).toBe(true)
+    await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(
+      fs.readFile(path.join(heldBackup, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
+    expect(await fs.readdir(outside)).toEqual([])
+  })
+
+  it('does not accept a substituted tree after restoring a backup', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const outside = path.join(directory, 'outside')
+    await fs.mkdir(outside)
+    const rename = fs.rename.bind(fs)
+    let backup: string | undefined
+    let heldBackup: string | undefined
+    let substituted = false
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      const fromPath = String(from)
+      if (
+        backup === undefined &&
+        from === output &&
+        String(to).includes('.generated.primitree-backup-')
+      ) {
+        backup = String(to)
+      }
+      await rename(from, to)
+      if (backup !== undefined && fromPath === backup && to === output) {
+        heldBackup = `${output}-held-restored`
+        await fs.rename(output, heldBackup)
+        await fs.rename(outside, output)
+        substituted = true
+      }
+    })
+    const chmod = fs.chmod.bind(fs)
+    vi.spyOn(fs, 'chmod').mockImplementation(async (target, mode) => {
+      if (String(target).includes('.generated.primitree-stage-')) {
+        throw new Error('Injected prepared-output permission failure.')
+      }
+      return chmod(target, mode)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow('Primitree found a changed build output path')
+
+    expect(substituted).toBe(true)
+    expect(heldBackup).toBeDefined()
+    if (heldBackup === undefined) {
+      throw new Error('Expected the restored backup to remain recoverable.')
+    }
+    await expect(
+      fs.readFile(path.join(heldBackup, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
+    expect(await fs.readdir(output)).toEqual([])
+  })
+
+  it('does not report written after the installed output is replaced', async () => {
+    const output = path.join(directory, 'generated')
+    const heldOutput = path.join(directory, 'held-generated')
+    const outside = path.join(directory, 'outside')
+    await fs.mkdir(outside)
+    const rename = fs.rename.bind(fs)
+    let replaced = false
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      await rename(from, to)
+      if (!replaced && String(from).includes('.generated.primitree-stage-')) {
+        await fs.rename(output, heldOutput)
+        await fs.symlink(outside, output, 'dir')
+        replaced = true
+      }
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow(
+      `Primitree found a changed build output path while inspecting: ${output}`
+    )
+
+    expect(replaced).toBe(true)
+    expect((await fs.lstat(output)).isSymbolicLink()).toBe(true)
+    await expect(
+      fs.readFile(path.join(heldOutput, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('value\n')
+    expect(await fs.readdir(outside)).toEqual([])
+  })
+
+  it('does not install stage contents changed during rename', async () => {
+    const output = path.join(directory, 'generated')
+    const rename = fs.rename.bind(fs)
+    let changed = false
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      if (!changed && String(from).includes('.generated.primitree-stage-')) {
+        await fs.writeFile(
+          path.join(String(from), 'tokens', 'a.json'),
+          'changed during rename\n',
+          'utf8'
+        )
+        changed = true
+      }
+      await rename(from, to)
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow('Prepared build output does not match its manifest.')
+
+    expect(changed).toBe(true)
   })
 
   it('restores the prior tree when installing the prepared tree fails', async () => {
@@ -622,6 +1492,7 @@ describe('configured build output replacement', () => {
     const rename = fs.rename.bind(fs)
     const remove = fs.rm.bind(fs)
     let stage: string | undefined
+    let cleanup: string | undefined
     vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
       if (
         String(from).includes('.generated.primitree-stage-') &&
@@ -633,7 +1504,11 @@ describe('configured build output replacement', () => {
       await rename(from, to)
     })
     vi.spyOn(fs, 'rm').mockImplementation(async (target, options) => {
-      if (stage !== undefined && String(target) === stage) {
+      if (
+        String(target).includes('.generated.primitree-clean-') &&
+        (await fs.lstat(target)).isDirectory()
+      ) {
+        cleanup = String(target)
         throw new Error('Injected stage cleanup failure.')
       }
       await remove(target, options)
@@ -650,13 +1525,65 @@ describe('configured build output replacement', () => {
       throw new Error('Expected the build to fail with an Error.')
     }
     expect(failure.message).toContain('Injected install failure.')
+    expect(cleanup).toBeDefined()
     expect(failure.message).toContain(
-      `Primitree could not remove prepared build output: ${stage}`
+      `Primitree could not remove prepared build output: ${cleanup}`
     )
-    if (stage === undefined) {
+    if (stage === undefined || cleanup === undefined) {
       throw new Error('Expected the build to keep one prepared directory.')
     }
-    await expect(fs.lstat(stage)).resolves.toBeDefined()
+    await expect(fs.lstat(cleanup)).resolves.toBeDefined()
+  })
+
+  it('does not recursively remove a substituted stage cleanup path', async () => {
+    const output = path.join(directory, 'generated')
+    const outside = path.join(directory, 'outside-stage')
+    await fs.mkdir(outside)
+    await fs.writeFile(path.join(outside, 'keep.txt'), 'user data\n', 'utf8')
+    const chmod = fs.chmod.bind(fs)
+    vi.spyOn(fs, 'chmod').mockImplementation(async (target, mode) => {
+      if (String(target).includes('.generated.primitree-stage-')) {
+        throw new Error('Injected prepared-output failure.')
+      }
+      return chmod(target, mode)
+    })
+    const rename = fs.rename.bind(fs)
+    let stage: string | undefined
+    let cleanup: string | undefined
+    let heldStage: string | undefined
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      await rename(from, to)
+      if (stage === undefined && String(from).includes('.primitree-stage-')) {
+        stage = String(from)
+        cleanup = String(to)
+        heldStage = `${String(to)}-held`
+        await rename(to, heldStage)
+        await rename(outside, to)
+      }
+    })
+
+    await expect(
+      installBuildOutput(
+        output,
+        buildFiles([{ path: 'tokens/a.json', contents: 'value\n' }]),
+        'brand'
+      )
+    ).rejects.toThrow('Primitree could not remove prepared build output:')
+
+    expect(stage).toBeDefined()
+    expect(cleanup).toBeDefined()
+    expect(heldStage).toBeDefined()
+    if (
+      stage === undefined ||
+      cleanup === undefined ||
+      heldStage === undefined
+    ) {
+      throw new Error('Expected a substituted stage cleanup path.')
+    }
+    await expect(
+      fs.readFile(path.join(cleanup, 'keep.txt'), 'utf8')
+    ).resolves.toBe('user data\n')
+    await expect(fs.lstat(heldStage)).resolves.toBeDefined()
   })
 
   it('preserves an edit made immediately before the prior tree is moved', async () => {
@@ -729,7 +1656,7 @@ describe('configured build output replacement', () => {
     }
   )
 
-  it('restores the prior tree when reading its moved permissions fails', async () => {
+  it('retains an unverified prior tree when reading its moved permissions fails', async () => {
     const output = path.join(directory, 'generated')
     await installBuildOutput(
       output,
@@ -737,25 +1664,40 @@ describe('configured build output replacement', () => {
       'brand'
     )
     const lstat = fs.lstat.bind(fs)
-    vi.spyOn(fs, 'lstat').mockImplementation(async target => {
+    vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
       if (String(target).includes('.generated.primitree-backup-')) {
         throw new Error('Injected permission read failure.')
       }
-      return lstat(target)
+      return lstat(target, options)
     })
 
-    await expect(
-      installBuildOutput(
-        output,
-        buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
-        'brand'
-      )
-    ).rejects.toThrow('Injected permission read failure.')
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
 
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected prior-output verification to fail.')
+    }
+    expect(failure.message).toContain('Injected permission read failure.')
+    expect(failure.message).toContain(
+      'Primitree could not restore the prior build output.'
+    )
+    await expect(fs.lstat(output)).rejects.toMatchObject({ code: 'ENOENT' })
+    const backups = (await fs.readdir(directory)).filter(entry =>
+      entry.startsWith('.generated.primitree-backup-')
+    )
+    expect(backups).toHaveLength(1)
+    const backup = backups[0]
+    if (backup === undefined) {
+      throw new Error('Expected Primitree to retain the prior output.')
+    }
+    expect(failure.message).toContain(path.join(directory, backup))
     await expect(
-      fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
+      fs.readFile(path.join(directory, backup, 'tokens', 'a.json'), 'utf8')
     ).resolves.toBe('old\n')
-    expect(await fs.readdir(directory)).toEqual(['generated'])
   })
 
   it('reports the retained backup when old-tree cleanup fails', async () => {
@@ -766,8 +1708,13 @@ describe('configured build output replacement', () => {
       'brand'
     )
     const remove = fs.rm.bind(fs)
+    let cleanup: string | undefined
     vi.spyOn(fs, 'rm').mockImplementation(async (target, options) => {
-      if (String(target).includes('.generated.primitree-backup-')) {
+      if (
+        String(target).includes('.generated.primitree-clean-') &&
+        (await fs.lstat(target)).isDirectory()
+      ) {
+        cleanup = String(target)
         throw new Error('Injected cleanup failure.')
       }
       await remove(target, options)
@@ -780,22 +1727,75 @@ describe('configured build output replacement', () => {
         'brand'
       )
     ).rejects.toThrow(
-      'Primitree installed the build output and could not remove the prior output:'
+      'Primitree installed the build output and retained the prior output because cleanup could not verify its path:'
     )
 
     await expect(
       fs.readFile(path.join(output, 'tokens', 'a.json'), 'utf8')
     ).resolves.toBe('new\n')
-    const backups = (await fs.readdir(directory)).filter(entry =>
-      entry.startsWith('.generated.primitree-backup-')
-    )
-    expect(backups).toHaveLength(1)
-    const backup = backups[0]
-    if (backup === undefined) {
+    expect(cleanup).toBeDefined()
+    if (cleanup === undefined) {
       throw new Error('Expected Primitree to keep one prior output directory.')
     }
     await expect(
-      fs.readFile(path.join(directory, backup, 'tokens', 'a.json'), 'utf8')
+      fs.readFile(path.join(cleanup, 'tokens', 'a.json'), 'utf8')
+    ).resolves.toBe('old\n')
+  })
+
+  it('does not recursively remove a substituted backup path', async () => {
+    const output = path.join(directory, 'generated')
+    await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'old\n' }]),
+      'brand'
+    )
+    const outside = path.join(directory, 'outside')
+    await fs.mkdir(outside)
+    await fs.writeFile(path.join(outside, 'keep.txt'), 'user data\n', 'utf8')
+    const rename = fs.rename.bind(fs)
+    let backup: string | undefined
+    let heldBackup: string | undefined
+    let substituted = false
+    vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+      await rename(from, to)
+      if (
+        !substituted &&
+        String(from).includes('.generated.primitree-backup-') &&
+        String(to).includes('.generated.primitree-clean-')
+      ) {
+        backup = String(to)
+        heldBackup = `${String(to)}-held`
+        await rename(to, heldBackup)
+        await rename(outside, to)
+        substituted = true
+      }
+    })
+
+    const failure = await installBuildOutput(
+      output,
+      buildFiles([{ path: 'tokens/a.json', contents: 'new\n' }]),
+      'brand'
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    if (!(failure instanceof Error)) {
+      throw new Error('Expected backup cleanup to fail.')
+    }
+    expect(failure.message).toContain(
+      'Primitree installed the build output and retained the prior output because cleanup could not verify its path:'
+    )
+
+    expect(substituted).toBe(true)
+    expect(backup).toBeDefined()
+    expect(heldBackup).toBeDefined()
+    if (backup === undefined || heldBackup === undefined) {
+      throw new Error('Expected a substituted backup cleanup path.')
+    }
+    await expect(
+      fs.readFile(path.join(backup, 'keep.txt'), 'utf8')
+    ).resolves.toBe('user data\n')
+    await expect(
+      fs.readFile(path.join(heldBackup, 'tokens', 'a.json'), 'utf8')
     ).resolves.toBe('old\n')
   })
 })

@@ -1,13 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { Stats } from 'node:fs'
+import type { BigIntStats, Dir, Dirent } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { TextDecoder } from 'node:util'
 import type { PipelineFile } from '@primitree/dtcg'
 import {
   buildOutputBackupName,
   buildOutputBackupPrefix,
+  buildOutputCleanupName,
   buildOutputLockName,
   buildOutputStagePrefix,
+  MAX_PORTABLE_PATH_SEGMENT_BYTES,
 } from './build-output-paths'
 import { writePipelineFiles } from './io'
 import {
@@ -15,6 +18,7 @@ import {
   hashBuildText,
   MAX_BUILD_FILE_BYTES,
   parseBuildManifest,
+  type BuildManifest,
 } from './output-manifest'
 import {
   isUnsafePortablePathSegment,
@@ -34,6 +38,20 @@ const MAX_OUTPUT_ENTRIES = 100_000
 const MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 const READ_BUFFER_BYTES = 64 * 1024
 const DIRECTORY_PERMISSION_BITS = 0o777
+
+interface OutputPathIdentity {
+  readonly dev: bigint
+  readonly ino: bigint
+}
+
+interface OutputPathSnapshotEntry {
+  readonly path: string
+  readonly identity?: OutputPathIdentity
+}
+
+type OutputPathSnapshot = readonly OutputPathSnapshotEntry[]
+type OutputPathGuard = () => Promise<void>
+type BuildOutputFileHandle = Awaited<ReturnType<typeof fs.open>>
 
 function isMissing(error: unknown): boolean {
   return (
@@ -94,6 +112,15 @@ function validateBuildFiles(files: readonly PipelineFile[]): void {
     ) {
       throw new Error(`Unsafe build output path: ${JSON.stringify(file.path)}.`)
     }
+    const oversizedSegment = segments.find(
+      segment =>
+        Buffer.byteLength(segment, 'utf8') > MAX_PORTABLE_PATH_SEGMENT_BYTES
+    )
+    if (oversizedSegment !== undefined) {
+      throw new Error(
+        `Build output path segment is ${Buffer.byteLength(oversizedSegment, 'utf8')} UTF-8 bytes; use at most ${MAX_PORTABLE_PATH_SEGMENT_BYTES} UTF-8 bytes: ${JSON.stringify(file.path)}.`
+      )
+    }
     const key = portablePathComparisonKey(file.path)
     const prior = pathsByKey.get(key)
     if (prior !== undefined) {
@@ -150,9 +177,120 @@ function validateBuildCandidate(files: readonly PipelineFile[]) {
   return manifest
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+async function rethrowAfterGuard(
+  operationFailure: unknown,
+  guard: OutputPathGuard | undefined
+): Promise<never> {
+  let guardFailure: unknown
+  try {
+    await guard?.()
+  } catch (error) {
+    guardFailure = error
+  }
+  if (guardFailure !== undefined) {
+    throw new Error(
+      `${errorMessage(operationFailure)}\n${errorMessage(guardFailure)}`,
+      { cause: new AggregateError([operationFailure, guardFailure]) }
+    )
+  }
+  throw operationFailure
+}
+
+async function runGuardedPathOperation<T>(
+  guard: OutputPathGuard | undefined,
+  operation: () => Promise<T>
+): Promise<T> {
+  await guard?.()
+  let result: T
+  try {
+    result = await operation()
+  } catch (error) {
+    return rethrowAfterGuard(error, guard)
+  }
+  await guard?.()
+  return result
+}
+
+async function closeBuildOutputDirectory(
+  handle: Dir,
+  directory: string,
+  operationFailure?: { readonly error: unknown }
+): Promise<void> {
+  let closeFailure: unknown
+  try {
+    await handle.close()
+  } catch (error) {
+    closeFailure = error
+  }
+  if (operationFailure !== undefined) {
+    if (closeFailure !== undefined) {
+      throw new Error(
+        `${errorMessage(operationFailure.error)}\nCould not close build output directory: ${directory}`,
+        {
+          cause: new AggregateError([operationFailure.error, closeFailure]),
+        }
+      )
+    }
+    throw operationFailure.error
+  }
+  if (closeFailure !== undefined) {
+    throw new Error(`Could not close build output directory: ${directory}`, {
+      cause: closeFailure,
+    })
+  }
+}
+
+async function openBuildOutputDirectory(
+  directory: string,
+  guard: OutputPathGuard | undefined
+): Promise<Dir> {
+  await guard?.()
+  let handle: Dir
+  try {
+    handle = await fs.opendir(directory)
+  } catch (error) {
+    return rethrowAfterGuard(error, guard)
+  }
+  try {
+    await guard?.()
+  } catch (error) {
+    await closeBuildOutputDirectory(handle, directory, { error })
+    throw error
+  }
+  return handle
+}
+
+async function visitBuildOutputDirectory(
+  directory: string,
+  guard: OutputPathGuard | undefined,
+  visit: (entry: Dirent) => void
+): Promise<void> {
+  const handle = await openBuildOutputDirectory(directory, guard)
+  let operationFailure: { readonly error: unknown } | undefined
+  try {
+    await guard?.()
+    while (true) {
+      const entry = await handle.read()
+      if (entry === null) {
+        break
+      }
+      visit(entry)
+    }
+  } catch (error) {
+    operationFailure = { error }
+  }
+  await closeBuildOutputDirectory(handle, directory, operationFailure)
+  await guard?.()
+}
+
 async function listOutputPaths(
   directory: string,
-  symbolicLinks: 'reject' | 'list' = 'reject'
+  symbolicLinks: 'reject' | 'list' = 'reject',
+  guard?: OutputPathGuard
 ): Promise<{
   readonly files: readonly string[]
   readonly directories: readonly string[]
@@ -169,8 +307,7 @@ async function listOutputPaths(
     if (current === undefined) {
       break
     }
-    const entries = await fs.opendir(current.absolute)
-    for await (const entry of entries) {
+    await visitBuildOutputDirectory(current.absolute, guard, entry => {
       count += 1
       if (count > MAX_OUTPUT_ENTRIES) {
         throw new Error('Build output can contain at most 100,000 entries.')
@@ -184,7 +321,7 @@ async function listOutputPaths(
           )
         }
         foundSymbolicLinks.push(relative)
-        continue
+        return
       }
       if (entry.isDirectory()) {
         directories.push(`${relative}/`)
@@ -196,7 +333,7 @@ async function listOutputPaths(
           `Build output path is not a file or directory: ${relative}`
         )
       }
-    }
+    })
   }
 
   return {
@@ -206,24 +343,126 @@ async function listOutputPaths(
   }
 }
 
-function isSameFile(left: Stats, right: Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino
+function sameSortedPaths(
+  left: readonly string[],
+  right: readonly string[]
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((entry, index) => entry === right[index])
+  )
 }
 
-async function readManifestText(
+async function listVerifiedOutputPaths(
+  directory: string,
+  symbolicLinks: 'reject' | 'list' = 'reject',
+  guard?: OutputPathGuard
+): ReturnType<typeof listOutputPaths> {
+  const first = await listOutputPaths(directory, symbolicLinks, guard)
+  const second = await listOutputPaths(directory, symbolicLinks, guard)
+  if (
+    !sameSortedPaths(first.files, second.files) ||
+    !sameSortedPaths(first.directories, second.directories) ||
+    !sameSortedPaths(first.symbolicLinks, second.symbolicLinks)
+  ) {
+    throw new Error(
+      `Primitree found changed build output while scanning: ${directory}`
+    )
+  }
+  return second
+}
+
+function fileReadIdentity(stats: BigIntStats) {
+  return {
+    dev: stats.dev,
+    ino: stats.ino,
+    size: stats.size,
+    mtimeNs: stats.mtimeNs,
+    ctimeNs: stats.ctimeNs,
+  }
+}
+
+function sameFileRead(
+  left: ReturnType<typeof fileReadIdentity>,
+  right: ReturnType<typeof fileReadIdentity>
+): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs
+  )
+}
+
+async function closeBuildOutputFile(
+  handle: BuildOutputFileHandle,
+  filePath: string,
+  operationFailure?: { readonly error: unknown }
+): Promise<void> {
+  let closeFailure: unknown
+  try {
+    await handle.close()
+  } catch (error) {
+    closeFailure = error
+  }
+  if (operationFailure !== undefined) {
+    if (closeFailure !== undefined) {
+      throw new Error(
+        `${errorMessage(operationFailure.error)}\nCould not close build output file: ${filePath}`,
+        {
+          cause: new AggregateError([operationFailure.error, closeFailure]),
+        }
+      )
+    }
+    throw operationFailure.error
+  }
+  if (closeFailure !== undefined) {
+    throw new Error(`Could not close build output file: ${filePath}`, {
+      cause: closeFailure,
+    })
+  }
+}
+
+async function openBuildOutputFile(
+  filePath: string,
+  guard: OutputPathGuard | undefined
+): Promise<BuildOutputFileHandle> {
+  await guard?.()
+  let handle: BuildOutputFileHandle
+  try {
+    handle = await fs.open(filePath, 'r')
+  } catch (error) {
+    return rethrowAfterGuard(error, guard)
+  }
+  try {
+    await guard?.()
+  } catch (error) {
+    await closeBuildOutputFile(handle, filePath, { error })
+    throw error
+  }
+  return handle
+}
+
+async function readBuildManifest(
   manifestPath: string,
-  expectedStats: Stats
-): Promise<string> {
-  if (expectedStats.size > MAX_MANIFEST_BYTES) {
+  expectedStats: BigIntStats,
+  guard?: OutputPathGuard
+): Promise<BuildManifest> {
+  if (expectedStats.size > BigInt(MAX_MANIFEST_BYTES)) {
     throw new Error('Build output manifest exceeds the 16 MiB limit.')
   }
-  const handle = await fs.open(manifestPath, 'r')
+  const handle = await openBuildOutputFile(manifestPath, guard)
+  let manifest: BuildManifest | undefined
+  let operationFailure: { readonly error: unknown } | undefined
   try {
-    const openedStats = await handle.stat()
+    await guard?.()
+    const openedStats = await handle.stat({ bigint: true })
+    const openedIdentity = fileReadIdentity(openedStats)
     if (
       !openedStats.isFile() ||
-      !isSameFile(expectedStats, openedStats) ||
-      openedStats.size > MAX_MANIFEST_BYTES
+      !sameFileRead(fileReadIdentity(expectedStats), openedIdentity) ||
+      openedStats.size > BigInt(MAX_MANIFEST_BYTES)
     ) {
       throw new Error(
         'Primitree found a changed build output manifest while reading it.'
@@ -250,27 +489,67 @@ async function readManifestText(
       chunks.push(buffer.subarray(0, bytesRead))
       position += bytesRead
     }
-    return Buffer.concat(chunks, total).toString('utf8')
-  } finally {
-    await handle.close()
+    const completedStats = await handle.stat({ bigint: true })
+    if (!sameFileRead(openedIdentity, fileReadIdentity(completedStats))) {
+      throw new Error(
+        'Primitree found a changed build output manifest while reading it.'
+      )
+    }
+    await guard?.()
+    const pathStats = await fs.lstat(manifestPath, { bigint: true })
+    await guard?.()
+    if (
+      !pathStats.isFile() ||
+      !sameFileRead(openedIdentity, fileReadIdentity(pathStats))
+    ) {
+      throw new Error(
+        'Primitree found a changed build output manifest while reading it.'
+      )
+    }
+    let text: string
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(
+        Buffer.concat(chunks, total)
+      )
+    } catch (error) {
+      throw new Error(
+        `Build output manifest is not valid UTF-8: ${manifestPath}`,
+        { cause: error }
+      )
+    }
+    manifest = parseBuildManifest(text)
+  } catch (error) {
+    operationFailure = { error }
   }
+  await closeBuildOutputFile(handle, manifestPath, operationFailure)
+  if (manifest === undefined) {
+    throw new Error(`Could not read build output manifest: ${manifestPath}`)
+  }
+  return manifest
 }
 
 async function hashFile(
   filePath: string,
-  expectedStats: Stats,
-  expectedBytes: number
+  expectedStats: BigIntStats,
+  expectedBytes: number,
+  guard?: OutputPathGuard
 ): Promise<string> {
   if (expectedBytes > MAX_BUILD_FILE_BYTES) {
     throw new Error(`Build output file exceeds the 64 MiB limit: ${filePath}`)
   }
-  const handle = await fs.open(filePath, 'r')
+  const handle = await openBuildOutputFile(filePath, guard)
+  let digest: string | undefined
+  let operationFailure: { readonly error: unknown } | undefined
   try {
-    const openedStats = await handle.stat()
+    await guard?.()
+    const openedStats = await handle.stat({ bigint: true })
     if (
       !openedStats.isFile() ||
-      !isSameFile(expectedStats, openedStats) ||
-      openedStats.size !== expectedBytes
+      !sameFileRead(
+        fileReadIdentity(expectedStats),
+        fileReadIdentity(openedStats)
+      ) ||
+      openedStats.size !== BigInt(expectedBytes)
     ) {
       throw new Error(
         `Primitree found changed build output while reading: ${filePath}`
@@ -297,23 +576,42 @@ async function hashFile(
       hash.update(buffer.subarray(0, bytesRead))
       position += bytesRead
     }
-    const finalStats = await handle.stat()
-    if (position !== expectedBytes || finalStats.size !== expectedBytes) {
+    const finalStats = await handle.stat({ bigint: true })
+    if (
+      position !== expectedBytes ||
+      !sameFileRead(fileReadIdentity(openedStats), fileReadIdentity(finalStats))
+    ) {
       throw new Error(
         `Primitree found changed build output while reading: ${filePath}`
       )
     }
-    return hash.digest('hex')
-  } finally {
-    await handle.close()
+    await guard?.()
+    const pathStats = await fs.lstat(filePath, { bigint: true })
+    await guard?.()
+    if (
+      !pathStats.isFile() ||
+      !sameFileRead(fileReadIdentity(openedStats), fileReadIdentity(pathStats))
+    ) {
+      throw new Error(
+        `Primitree found changed build output while reading: ${filePath}`
+      )
+    }
+    digest = hash.digest('hex')
+  } catch (error) {
+    operationFailure = { error }
   }
+  await closeBuildOutputFile(handle, filePath, operationFailure)
+  if (digest === undefined) {
+    throw new Error(`Could not read build output file: ${filePath}`)
+  }
+  return digest
 }
 
 async function checkOutputParent(
   rootDirectory: string,
   outputDirectory: string,
   createMissing: boolean
-): Promise<void> {
+): Promise<OutputPathSnapshot> {
   const root = path.resolve(rootDirectory)
   const output = path.resolve(outputDirectory)
   const relative = path.relative(root, output)
@@ -327,8 +625,9 @@ async function checkOutputParent(
   }
 
   const parentSegments = relative.split(path.sep).slice(0, -1)
+  const snapshot: OutputPathSnapshotEntry[] = []
   let current = root
-  const rootStats = await fs.lstat(root).catch(error => {
+  const rootStats = await fs.lstat(root, { bigint: true }).catch(error => {
     if (isMissing(error)) {
       return undefined
     }
@@ -341,25 +640,33 @@ async function checkOutputParent(
   ) {
     throw new Error(`Build output root must be a directory: ${root}`)
   }
+  snapshot.push({
+    path: root,
+    identity: { dev: rootStats.dev, ino: rootStats.ino },
+  })
 
   for (const segment of parentSegments) {
     current = path.join(current, segment)
-    let stats = await fs.lstat(current).catch(error => {
+    await assertOutputPathSnapshot(snapshot)
+    let stats = await fs.lstat(current, { bigint: true }).catch(error => {
       if (isMissing(error)) {
         return undefined
       }
       throw error
     })
     if (stats === undefined && createMissing) {
+      await assertOutputPathSnapshot(snapshot)
       await fs.mkdir(current).catch(error => {
         if (!isAlreadyExists(error)) {
           throw error
         }
       })
-      stats = await fs.lstat(current)
+      await assertOutputPathSnapshot(snapshot)
+      stats = await fs.lstat(current, { bigint: true })
     }
     if (stats === undefined) {
-      return
+      snapshot.push({ path: current })
+      continue
     }
     if (stats.isSymbolicLink()) {
       throw new Error(
@@ -369,29 +676,118 @@ async function checkOutputParent(
     if (!stats.isDirectory()) {
       throw new Error(`Build output parent must be a directory: ${current}`)
     }
+    await assertOutputPathSnapshot(snapshot)
+    snapshot.push({
+      path: current,
+      identity: { dev: stats.dev, ino: stats.ino },
+    })
+  }
+  await assertOutputPathSnapshot(snapshot)
+  return snapshot
+}
+
+async function assertOutputPathSnapshot(
+  snapshot: OutputPathSnapshot
+): Promise<void> {
+  for (const entry of snapshot) {
+    const stats = await fs.lstat(entry.path, { bigint: true }).catch(error => {
+      if (isMissing(error)) {
+        return undefined
+      }
+      throw error
+    })
+    const unchanged =
+      entry.identity === undefined
+        ? stats === undefined
+        : stats?.isDirectory() &&
+          !stats.isSymbolicLink() &&
+          stats.dev === entry.identity.dev &&
+          stats.ino === entry.identity.ino
+    if (!unchanged) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${entry.path}`
+      )
+    }
   }
 }
 
-async function isEmptyOutputDirectory(directory: string): Promise<boolean> {
-  const stats = await fs.lstat(directory)
+function createOutputRootGuard(
+  directory: string,
+  stats: BigIntStats,
+  parentGuard: OutputPathGuard | undefined
+): OutputPathGuard {
+  const identity = { dev: stats.dev, ino: stats.ino }
+  return async () => {
+    await parentGuard?.()
+    const current = await fs.lstat(directory, { bigint: true }).catch(error => {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${directory}`,
+        { cause: error }
+      )
+    })
+    if (
+      !current.isDirectory() ||
+      current.isSymbolicLink() ||
+      current.dev !== identity.dev ||
+      current.ino !== identity.ino
+    ) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${directory}`
+      )
+    }
+    await parentGuard?.()
+  }
+}
+
+async function captureOutputRootGuard(
+  directory: string,
+  parentGuard: OutputPathGuard | undefined,
+  expectedStats?: BigIntStats
+): Promise<{ readonly stats: BigIntStats; readonly guard: OutputPathGuard }> {
+  const stats = await runGuardedPathOperation(parentGuard, () =>
+    fs.lstat(directory, { bigint: true })
+  )
+  if (
+    expectedStats !== undefined &&
+    (stats.dev !== expectedStats.dev || stats.ino !== expectedStats.ino)
+  ) {
+    throw new Error(
+      `Primitree found a changed build output path while inspecting: ${directory}`
+    )
+  }
   if (!stats.isDirectory() || stats.isSymbolicLink()) {
     throw new Error(
       'The configured output path must point to a directory, not a symbolic link.'
     )
   }
-  const paths = await listOutputPaths(directory)
+  const guard = createOutputRootGuard(directory, stats, parentGuard)
+  await guard()
+  return { stats, guard }
+}
+
+async function isEmptyOutputDirectory(
+  directory: string,
+  parentGuard?: OutputPathGuard,
+  expectedStats?: BigIntStats
+): Promise<boolean> {
+  const { guard } = await captureOutputRootGuard(
+    directory,
+    parentGuard,
+    expectedStats
+  )
+  const paths = await listVerifiedOutputPaths(directory, 'reject', guard)
   return paths.files.length === 0 && paths.directories.length === 0
 }
 
 async function findInterruptedBackups(
   parent: string,
-  name: string
+  name: string,
+  guard?: OutputPathGuard
 ): Promise<readonly string[]> {
   const prefix = buildOutputBackupPrefix(name)
   const backups: string[] = []
-  const entries = await fs.opendir(parent)
   let count = 0
-  for await (const entry of entries) {
+  await visitBuildOutputDirectory(parent, guard, entry => {
     count += 1
     if (count > MAX_OUTPUT_ENTRIES) {
       throw new Error(
@@ -401,18 +797,37 @@ async function findInterruptedBackups(
     if (entry.name.startsWith(prefix)) {
       backups.push(path.join(parent, entry.name))
     }
-  }
+  })
   return backups.sort()
 }
 
 async function restorePriorOutput(
   backup: string,
   directory: string,
-  operationFailure: unknown
+  operationFailure: unknown,
+  parentGuard?: OutputPathGuard,
+  expectedStats?: BigIntStats
 ): Promise<never> {
   try {
+    if (expectedStats === undefined) {
+      throw new Error(
+        `Primitree could not verify the prior build output before restoring it: ${backup}`
+      )
+    }
+    const backupGuard = createOutputRootGuard(
+      backup,
+      expectedStats,
+      parentGuard
+    )
+    await backupGuard()
     await fs.rename(backup, directory)
+    await captureOutputRootGuard(directory, parentGuard, expectedStats)
   } catch (restoreFailure) {
+    const retained = await locateRetainedPath(
+      expectedStats,
+      [backup, directory],
+      path.dirname(directory)
+    )
     const operationMessage =
       operationFailure instanceof Error
         ? operationFailure.message
@@ -422,13 +837,84 @@ async function restorePriorOutput(
         ? restoreFailure.message
         : String(restoreFailure)
     throw new Error(
-      `${operationMessage}\nPrimitree could not restore the prior build output.\nRestore error: ${restoreMessage}\nCheck this path before running the build again: ${backup}`,
+      `${operationMessage}\nPrimitree could not restore the prior build output.\nRestore error: ${restoreMessage}\nInspect this location before running the build again: ${retained}`,
       {
         cause: new AggregateError([operationFailure, restoreFailure]),
       }
     )
   }
   throw operationFailure
+}
+
+function isSamePathIdentity(left: BigIntStats, right: BigIntStats): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.isDirectory() === right.isDirectory() &&
+    left.isFile() === right.isFile() &&
+    left.isSymbolicLink() === right.isSymbolicLink()
+  )
+}
+
+async function locateRetainedPath(
+  expectedStats: BigIntStats | undefined,
+  candidates: readonly string[],
+  parent: string
+): Promise<string> {
+  if (expectedStats !== undefined) {
+    for (const candidate of candidates) {
+      const stats = await fs
+        .lstat(candidate, { bigint: true })
+        .catch(() => undefined)
+      if (stats !== undefined && isSamePathIdentity(stats, expectedStats)) {
+        return candidate
+      }
+    }
+  }
+  return parent
+}
+
+async function removeVerifiedPath(
+  target: string,
+  expectedStats: BigIntStats,
+  parent: string,
+  outputName: string,
+  guard: OutputPathGuard | undefined,
+  recursive: boolean,
+  failureMessage: string
+): Promise<void> {
+  const quarantine = path.join(
+    parent,
+    buildOutputCleanupName(outputName, randomUUID())
+  )
+  try {
+    const targetStats = await runGuardedPathOperation(guard, () =>
+      fs.lstat(target, { bigint: true })
+    )
+    if (!isSamePathIdentity(targetStats, expectedStats)) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${target}`
+      )
+    }
+    await runGuardedPathOperation(guard, () => fs.rename(target, quarantine))
+    const quarantineStats = await runGuardedPathOperation(guard, () =>
+      fs.lstat(quarantine, { bigint: true })
+    )
+    if (!isSamePathIdentity(quarantineStats, expectedStats)) {
+      throw new Error(
+        `Primitree found a changed build output path while inspecting: ${quarantine}`
+      )
+    }
+    await fs.rm(quarantine, recursive ? { recursive: true } : undefined)
+    await guard?.()
+  } catch (error) {
+    const retained = await locateRetainedPath(
+      expectedStats,
+      [target, quarantine],
+      parent
+    )
+    throw new Error(`${failureMessage}: ${retained}`, { cause: error })
+  }
 }
 
 function expectedDirectories(paths: readonly string[]): Set<string> {
@@ -444,15 +930,26 @@ function expectedDirectories(paths: readonly string[]): Set<string> {
 
 async function verifyOwnedOutput(
   directory: string,
-  sourceId: string
+  sourceId: string,
+  parentGuard?: OutputPathGuard,
+  expectedStats?: BigIntStats
 ): Promise<void> {
+  const { guard } = await captureOutputRootGuard(
+    directory,
+    parentGuard,
+    expectedStats
+  )
   const manifestPath = path.join(directory, BUILD_MANIFEST_PATH)
-  const manifestStats = await fs.lstat(manifestPath).catch(error => {
-    if (isMissing(error)) {
-      return undefined
-    }
-    throw error
-  })
+  await guard?.()
+  const manifestStats = await fs
+    .lstat(manifestPath, { bigint: true })
+    .catch(error => {
+      if (isMissing(error)) {
+        return undefined
+      }
+      throw error
+    })
+  await guard?.()
   if (
     manifestStats === undefined ||
     !manifestStats.isFile() ||
@@ -462,9 +959,7 @@ async function verifyOwnedOutput(
       'Existing build output needs a Primitree manifest file and cannot use a symbolic link in its place.'
     )
   }
-  const manifest = parseBuildManifest(
-    await readManifestText(manifestPath, manifestStats)
-  )
+  const manifest = await readBuildManifest(manifestPath, manifestStats, guard)
   validateBuildFiles([
     ...manifest.files.map(file => ({ path: file.path, contents: '' })),
     { path: BUILD_MANIFEST_PATH, contents: '' },
@@ -479,7 +974,7 @@ async function verifyOwnedOutput(
     ...manifest.files.map(file => file.path),
   ])
   const ownedDirectories = expectedDirectories([...ownedFiles])
-  const actual = await listOutputPaths(directory)
+  const actual = await listVerifiedOutputPaths(directory, 'reject', guard)
   const unexpected = [
     ...actual.files.filter(file => !ownedFiles.has(file)),
     ...actual.directories.filter(child => !ownedDirectories.has(child)),
@@ -491,18 +986,20 @@ async function verifyOwnedOutput(
   }
   for (const file of manifest.files) {
     const filePath = path.join(directory, ...file.path.split('/'))
-    const stats = await fs.lstat(filePath).catch(error => {
+    await guard?.()
+    const stats = await fs.lstat(filePath, { bigint: true }).catch(error => {
       if (isMissing(error)) {
         return undefined
       }
       throw error
     })
+    await guard?.()
     if (stats === undefined || !stats.isFile() || stats.isSymbolicLink()) {
       throw new Error(`Refusing to replace missing build output: ${file.path}`)
     }
     if (
-      stats.size !== file.bytes ||
-      (await hashFile(filePath, stats, file.bytes)) !== file.sha256
+      stats.size !== BigInt(file.bytes) ||
+      (await hashFile(filePath, stats, file.bytes, guard)) !== file.sha256
     ) {
       throw new Error(`Refusing to replace changed build output: ${file.path}`)
     }
@@ -511,16 +1008,28 @@ async function verifyOwnedOutput(
 
 export async function inspectBuildOutput(
   directory: string,
-  files: readonly PipelineFile[]
+  files: readonly PipelineFile[],
+  rootDirectory?: string
 ): Promise<BuildOutputState> {
   validateBuildCandidate(files)
-  const stats = await fs.lstat(directory).catch(error => {
+  const parentSnapshot =
+    rootDirectory === undefined
+      ? undefined
+      : await checkOutputParent(rootDirectory, directory, false)
+  const parentGuard =
+    parentSnapshot === undefined
+      ? undefined
+      : () => assertOutputPathSnapshot(parentSnapshot)
+  await parentGuard?.()
+  const stats = await fs.lstat(directory, { bigint: true }).catch(error => {
     if (isMissing(error)) {
       return undefined
     }
     throw error
   })
+  await parentGuard?.()
   if (stats === undefined) {
+    await parentGuard?.()
     return {
       status: 'drift',
       paths: [...files]
@@ -533,12 +1042,14 @@ export async function inspectBuildOutput(
       'The configured output path must point to a directory, not a symbolic link.'
     )
   }
+  const guard = createOutputRootGuard(directory, stats, parentGuard)
+  await guard()
   const drift: BuildOutputDrift[] = []
   const expectedFiles = new Set(files.map(file => file.path))
   const expectedDirectoriesForFiles = expectedDirectories(
     files.map(file => file.path)
   )
-  const actual = await listOutputPaths(directory, 'list')
+  const actual = await listVerifiedOutputPaths(directory, 'list', guard)
   const actualFiles = new Set(actual.files)
   const actualSymbolicLinks = new Set(actual.symbolicLinks)
   for (const file of [...files].sort((left, right) =>
@@ -553,12 +1064,16 @@ export async function inspectBuildOutput(
       continue
     }
     const filePath = path.join(directory, ...file.path.split('/'))
-    const fileStats = await fs.lstat(filePath).catch(error => {
-      if (isMissingExpectedFile(error)) {
-        return undefined
-      }
-      throw error
-    })
+    await guard()
+    const fileStats = await fs
+      .lstat(filePath, { bigint: true })
+      .catch(error => {
+        if (isMissingExpectedFile(error)) {
+          return undefined
+        }
+        throw error
+      })
+    await guard()
     if (fileStats === undefined) {
       drift.push({ path: file.path, kind: 'missing' })
       continue
@@ -568,11 +1083,12 @@ export async function inspectBuildOutput(
       continue
     }
     if (
-      fileStats.size !== Buffer.byteLength(file.contents, 'utf8') ||
+      fileStats.size !== BigInt(Buffer.byteLength(file.contents, 'utf8')) ||
       (await hashFile(
         filePath,
         fileStats,
-        Buffer.byteLength(file.contents, 'utf8')
+        Buffer.byteLength(file.contents, 'utf8'),
+        guard
       )) !== hashBuildText(file.contents)
     ) {
       drift.push({ path: file.path, kind: 'changed' })
@@ -597,9 +1113,31 @@ export async function inspectBuildOutput(
     (left, right) =>
       left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind)
   )
+  await guard()
   return drift.length === 0
     ? { status: 'current', paths: [] }
     : { status: 'drift', paths: drift }
+}
+
+async function verifyBuildOutputTree(
+  directory: string,
+  files: readonly PipelineFile[],
+  rootDirectory: string,
+  expectedStats: BigIntStats,
+  parentGuard: OutputPathGuard,
+  failureMessage: string
+): Promise<OutputPathGuard> {
+  const { guard } = await captureOutputRootGuard(
+    directory,
+    parentGuard,
+    expectedStats
+  )
+  const state = await inspectBuildOutput(directory, files, rootDirectory)
+  await guard()
+  if (state.status !== 'current') {
+    throw new Error(failureMessage)
+  }
+  return guard
 }
 
 export async function installBuildOutput(
@@ -617,8 +1155,14 @@ export async function installBuildOutput(
   const parent = path.dirname(directory)
   const name = path.basename(directory)
   await checkOutputParent(rootDirectory, directory, true)
-  await checkOutputParent(rootDirectory, directory, false)
+  const parentSnapshot = await checkOutputParent(
+    rootDirectory,
+    directory,
+    false
+  )
+  const guard = () => assertOutputPathSnapshot(parentSnapshot)
   const lock = path.join(parent, buildOutputLockName(name))
+  await guard()
   const lockHandle = await fs.open(lock, 'wx').catch(error => {
     if (
       error !== null &&
@@ -630,81 +1174,157 @@ export async function installBuildOutput(
     }
     throw error
   })
+  const lockStats = await lockHandle.stat({ bigint: true })
   const runLockedInstall = async (): Promise<'written' | 'current'> => {
-    const interruptedBackups = await findInterruptedBackups(parent, name)
+    await guard()
+    const interruptedBackups = await findInterruptedBackups(parent, name, guard)
     if (interruptedBackups.length > 0) {
       throw new Error(
         `Primitree found one or more backups from an interrupted build. Check these paths before running the build again: ${interruptedBackups.join(', ')}`
       )
     }
-    const state = await inspectBuildOutput(directory, files)
+    await guard()
+    const state = await inspectBuildOutput(directory, files, rootDirectory)
+    await guard()
     if (state.status === 'current') {
       return 'current'
     }
-    let stats = await fs.lstat(directory).catch(error => {
+    let stats = await fs.lstat(directory, { bigint: true }).catch(error => {
       if (isMissing(error)) {
         return undefined
       }
       throw error
     })
-    if (stats !== undefined && !(await isEmptyOutputDirectory(directory))) {
-      await verifyOwnedOutput(directory, sourceId)
+    await guard()
+    if (
+      stats !== undefined &&
+      !(await isEmptyOutputDirectory(directory, guard, stats))
+    ) {
+      await verifyOwnedOutput(directory, sourceId, guard, stats)
     }
+    await guard()
     const stage = await fs.mkdtemp(
       path.join(parent, buildOutputStagePrefix(name))
     )
+    await guard()
+    const stageStats = await fs.lstat(stage, { bigint: true })
     let stageExists = true
     const runPreparedInstall = async (): Promise<'written'> => {
+      await guard()
       await writePipelineFiles(stage, [...files])
-      const staged = await inspectBuildOutput(stage, files)
-      if (staged.status !== 'current') {
-        throw new Error('Prepared build output does not match its manifest.')
-      }
+      await guard()
+      await verifyBuildOutputTree(
+        stage,
+        files,
+        rootDirectory,
+        stageStats,
+        guard,
+        'Prepared build output does not match its manifest.'
+      )
 
-      stats = await fs.lstat(directory).catch(error => {
+      stats = await fs.lstat(directory, { bigint: true }).catch(error => {
         if (isMissing(error)) {
           return undefined
         }
         throw error
       })
+      await guard()
       if (stats === undefined) {
         await setOutputDirectoryMode(
           stage,
           DIRECTORY_PERMISSION_BITS & ~process.umask()
         )
+        await verifyBuildOutputTree(
+          stage,
+          files,
+          rootDirectory,
+          stageStats,
+          guard,
+          'Prepared build output does not match its manifest.'
+        )
+        await guard()
         await fs.rename(stage, directory)
         stageExists = false
+        const installedGuard = await verifyBuildOutputTree(
+          directory,
+          files,
+          rootDirectory,
+          stageStats,
+          guard,
+          'Prepared build output does not match its manifest.'
+        )
+        await installedGuard()
         return 'written'
       }
-      if (!(await isEmptyOutputDirectory(directory))) {
-        await verifyOwnedOutput(directory, sourceId)
+      if (!(await isEmptyOutputDirectory(directory, guard, stats))) {
+        await verifyOwnedOutput(directory, sourceId, guard, stats)
       }
       const backup = path.join(
         parent,
         buildOutputBackupName(name, randomUUID())
       )
+      await guard()
       await fs.rename(directory, backup)
+      await guard()
       let outputMode: number
+      let backupGuard: OutputPathGuard | undefined
+      let backupStats: BigIntStats | undefined
       try {
-        outputMode = (await fs.lstat(backup)).mode
-        if (!(await isEmptyOutputDirectory(backup))) {
-          await verifyOwnedOutput(backup, sourceId)
+        backupStats = await fs.lstat(backup, { bigint: true })
+        backupGuard = createOutputRootGuard(backup, backupStats, guard)
+        await backupGuard()
+        outputMode = Number(backupStats.mode)
+        if (!(await isEmptyOutputDirectory(backup, guard, backupStats))) {
+          await verifyOwnedOutput(backup, sourceId, guard, backupStats)
         }
       } catch (error) {
-        return restorePriorOutput(backup, directory, error)
+        return restorePriorOutput(backup, directory, error, guard, backupStats)
       }
+      let installedGuard: OutputPathGuard | undefined
       try {
         await setOutputDirectoryMode(stage, outputMode)
+        await verifyBuildOutputTree(
+          stage,
+          files,
+          rootDirectory,
+          stageStats,
+          guard,
+          'Prepared build output does not match its manifest.'
+        )
+        await guard()
         await fs.rename(stage, directory)
         stageExists = false
-      } catch (error) {
-        return restorePriorOutput(backup, directory, error)
-      }
-      await fs.rm(backup, { recursive: true }).catch(() => {
-        throw new Error(
-          `Primitree installed the build output and could not remove the prior output: ${backup}`
+        installedGuard = await verifyBuildOutputTree(
+          directory,
+          files,
+          rootDirectory,
+          stageStats,
+          guard,
+          'Prepared build output does not match its manifest.'
         )
-      })
+        await installedGuard()
+      } catch (error) {
+        return restorePriorOutput(backup, directory, error, guard, backupStats)
+      }
+      await guard()
+      await installedGuard()
+      await backupGuard()
+      if (backupStats === undefined) {
+        throw new Error(
+          `Primitree installed the build output and retained the prior output because cleanup could not verify its path: ${parent}`
+        )
+      }
+      await removeVerifiedPath(
+        backup,
+        backupStats,
+        parent,
+        name,
+        guard,
+        true,
+        'Primitree installed the build output and retained the prior output because cleanup could not verify its path'
+      )
+      await guard()
+      await installedGuard()
       return 'written'
     }
     let stageResult: 'written' | undefined
@@ -719,12 +1339,23 @@ export async function installBuildOutput(
     let stageCleanupError: unknown
     if (stageExists) {
       try {
-        await fs.rm(stage, { recursive: true, force: true })
+        await removeVerifiedPath(
+          stage,
+          stageStats,
+          parent,
+          name,
+          guard,
+          true,
+          'Primitree could not remove prepared build output'
+        )
       } catch (error) {
         stageCleanupError = error
       }
     }
-    const cleanupMessage = `Primitree could not remove prepared build output: ${stage}`
+    const cleanupMessage =
+      stageCleanupError instanceof Error
+        ? stageCleanupError.message
+        : `Primitree could not remove prepared build output: ${parent}`
     if (stageFailed) {
       if (stageCleanupError !== undefined) {
         const failureMessage =
@@ -762,25 +1393,41 @@ export async function installBuildOutput(
     cleanupErrors.push(error)
   }
   try {
-    await fs.rm(lock)
+    await removeVerifiedPath(
+      lock,
+      lockStats,
+      parent,
+      name,
+      guard,
+      false,
+      'Primitree could not release the output lock'
+    )
   } catch (error) {
     cleanupErrors.push(error)
   }
+  const lockCleanupError = cleanupErrors.find(
+    error =>
+      error instanceof Error &&
+      error.message.startsWith('Primitree could not release the output lock:')
+  )
+  const lockCleanupMessage =
+    lockCleanupError instanceof Error
+      ? lockCleanupError.message
+      : `Primitree could not release the output lock: ${parent}`
   if (operationFailed) {
     if (cleanupErrors.length > 0) {
       const operationMessage =
         operationFailure instanceof Error
           ? operationFailure.message
           : String(operationFailure)
-      const cleanupMessage = `Primitree could not release the output lock: ${lock}`
-      throw new Error(`${operationMessage}\n${cleanupMessage}`, {
+      throw new Error(`${operationMessage}\n${lockCleanupMessage}`, {
         cause: new AggregateError([operationFailure, ...cleanupErrors]),
       })
     }
     throw operationFailure
   }
   if (cleanupErrors.length > 0) {
-    throw new Error(`Primitree could not release the output lock: ${lock}`, {
+    throw new Error(lockCleanupMessage, {
       cause:
         cleanupErrors.length === 1
           ? cleanupErrors[0]
