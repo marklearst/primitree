@@ -163,8 +163,9 @@ files. Set `css`, `tailwind`, or `typescript` to `false` to omit that file.
 `buildDTCGOutputs` rejects file names with absolute paths or `..` segments. The
 Resolver file name must be `tokens.resolver.json`, which is the name Primitree
 readers discover. The builder rejects output names that collide after
-lowercasing and Unicode normalization, along with file names that contain a
-lone UTF-16 surrogate or a path segment above 255 UTF-8 bytes. Its JSON sorter
+lowercasing and Unicode normalization. A token file path can contain at most 64
+nested directory levels, 16,639 UTF-8 bytes in total, and 255 UTF-8 bytes per
+segment. File names cannot contain a lone UTF-16 surrogate. The JSON sorter
 accepts up to 1,000 token files, 64 levels, 100,000 items, and 20 MiB of names
 and text values.
 The builder also rejects Resolver axis and context names with a lone UTF-16
