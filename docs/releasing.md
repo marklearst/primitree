@@ -44,7 +44,7 @@ notes path to the verified artifact:
 ```bash
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
-VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-next\.(0|[1-9][0-9]*))?$ ]]
 RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"
 test -f "$RELEASE_NOTES_PATH"
@@ -77,7 +77,7 @@ edit after binding is not a release candidate.
 Bind the release attempt to the saved artifact and validate the intended tag:
 
 ```bash
-test "$VERSION" = "$(node -p 'require("./artifacts/npm/manifest.json").version')"
+test "$VERSION" = "$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")"
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
@@ -994,7 +994,7 @@ before creating the release tag.
 ```bash
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
-VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-next\.(0|[1-9][0-9]*))?$ ]]
 RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"
 test -f "$RELEASE_NOTES_PATH"
@@ -1071,20 +1071,21 @@ security while GitHub retains the secret.
 
 - [ ] Revoke the exact one-day bootstrap token by ID and verify its removal.
 
-List tokens as JSON so npm returns full token IDs without exposing full token
-values. Match the description and expiry recorded at creation, copy that exact
-token ID into `BOOTSTRAP_TOKEN_ID`, revoke it, and list again:
+List tokens as JSON so npm returns a revocation identifier without exposing the
+token value. Match the description and expiry recorded at creation, copy that
+identifier into `BOOTSTRAP_TOKEN_ID`, revoke it, and list again. The selector
+uses `id` when present and falls back to `key` for npm JSON that omits `id`:
 
 ```bash
 set -euo pipefail
 TOKENS_BEFORE=$(npm token list --json) ||
   return 1 2>/dev/null || exit 1
 BOOTSTRAP_TOKEN_ID='<exact token ID from npm token list --json>'
-test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select(.id == $id)] | length' <<<"$TOKENS_BEFORE")" = 1
+test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select((.id // .key) == $id)] | length' <<<"$TOKENS_BEFORE")" = 1
 npm token revoke "$BOOTSTRAP_TOKEN_ID" --registry=https://registry.npmjs.org/
 TOKENS_AFTER=$(npm token list --json) ||
   return 1 2>/dev/null || exit 1
-test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select(.id == $id)] | length' <<<"$TOKENS_AFTER")" = 0
+test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select((.id // .key) == $id)] | length' <<<"$TOKENS_AFTER")" = 0
 ```
 
 Never substitute a token value for the ID.
@@ -1118,7 +1119,7 @@ workflow, and environment relationship.
 ```bash
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
-VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org/
 npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org/
 npm view "@primitree/cli@$VERSION" version --registry=https://registry.npmjs.org/
@@ -1168,7 +1169,7 @@ through GitHub Actions:
 ```bash
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
-VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 RELEASE_CHANNEL=next
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
@@ -1249,7 +1250,7 @@ verifyReleaseArtifacts({
   artifactDirectory: path.resolve(process.env.ARTIFACT_DIR),
 })
 NODE
-VERSION=$(node -p "require('$ARTIFACT_DIR/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
