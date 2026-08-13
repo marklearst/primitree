@@ -30,7 +30,7 @@ const BRAND_PATTERN =
 const LICHEN_CONTRACT_PATHS = new Set([
   'README.md',
   'apps/docs/app/global.css',
-  'apps/docs/components/landing/animated-mark.tsx',
+  'apps/docs/components/landing/living-canopy.tsx',
   'apps/docs/components/playground/playground.css',
   'apps/docs/public/favicon.svg',
   'apps/docs/public/primitree-icon.svg',
@@ -215,22 +215,34 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
 }
 
-function findCssPropertyValues(root, selector, property) {
-  const values = []
+function normalizeCssSelector(value) {
+  return value.trim().replace(/\s+/gu, ' ')
+}
+
+function findCssPropertyDeclarations(root, selector, property) {
+  const declarations = []
   const selectorPattern = new RegExp(`${escapeRegExp(selector)}(?![\\w-])`, 'u')
 
   root.walkRules(rule => {
-    if (!rule.selectors.some(candidate => selectorPattern.test(candidate))) {
-      return
-    }
+    const matchingSelectors = rule.selectors.filter(candidate =>
+      selectorPattern.test(candidate)
+    )
+    if (matchingSelectors.length === 0) return
+
     for (const declaration of rule.nodes ?? []) {
       if (declaration.type === 'decl' && declaration.prop === property) {
-        values.push(declaration.value.trim().replace(/\s+/gu, ' '))
+        for (const matchingSelector of matchingSelectors) {
+          declarations.push({
+            important: declaration.important,
+            selector: normalizeCssSelector(matchingSelector),
+            value: declaration.value.trim().replace(/\s+/gu, ' '),
+          })
+        }
       }
     }
   })
 
-  return values
+  return declarations
 }
 
 function parseCss(violations, path, content) {
@@ -368,111 +380,155 @@ function addSvgFillViolation(violations, path, content) {
   }
 }
 
-function addAnimatedMarkViolations(violations, path, content) {
-  if (path !== 'apps/docs/components/landing/animated-mark.tsx') return
+function addLivingCanopyMarkupViolations(violations, path, content) {
+  if (path !== 'apps/docs/components/landing/living-canopy.tsx') return
 
-  const body = /<path\b(?=[^>]*\bclassName=['"]mark-body['"])[^>]*>/u.exec(
-    content
-  )
+  const body =
+    /<path\b(?=[^>]*\bclassName=['"]canopy-logo-body['"])[^>]*>/u.exec(content)
   const fill = body && /\bfill=['"]([^'"]+)['"]/u.exec(body[0])
-  const actual = fill ? normalizeColor(fill[1]) : null
-  if (actual !== '#ffffff') {
+  const actual = fill?.[1] ?? null
+  if (actual !== 'var(--color-primitree-text)') {
     const offset =
       body && fill ? (body.index ?? 0) + (fill.index ?? 0) : (body?.index ?? 0)
     violations.push({
       path,
       line: body ? lineFromOffset(content, offset) : null,
-      match: `homepage mark body: expected #ffffff, found ${actual ?? 'missing'}`,
+      match: `living canopy mark: expected Bone body, found ${actual ?? 'missing'}`,
     })
   }
 
-  const gradient = /\bid=['"]mark-fill['"]/u.exec(content)
-  if (gradient) {
+  if (!/\bclassName=['"]canopy-root-node['"]/u.test(content)) {
     violations.push({
       path,
-      line: lineFromOffset(content, gradient.index ?? 0),
-      match: 'homepage mark body must not use a color gradient',
-    })
-  }
-
-  const sheen =
-    /<linearGradient\b(?=[^>]*\bid=['"]mark-sheen['"])[^>]*>([\s\S]*?)<\/linearGradient>/u.exec(
-      content
-    )
-  const sheenColors = sheen
-    ? Array.from(sheen[1].matchAll(/\bstopColor=['"]([^'"]+)['"]/gu), match =>
-        normalizeColor(match[1])
-      )
-    : []
-  if (
-    sheenColors.length === 0 ||
-    sheenColors.some(color => color !== '#ffffff')
-  ) {
-    violations.push({
-      path,
-      line: sheen ? lineFromOffset(content, sheen.index ?? 0) : null,
-      match: 'homepage mark sheen must stay neutral white',
+      line: null,
+      match: 'living canopy mark: missing structural Lichen root node',
     })
   }
 }
 
-function addHomepageMarkStyleViolations(violations, path, root) {
+function addHomepageRegressionViolations(violations, path, content) {
+  const isHomepageSource =
+    path === 'apps/docs/app/global.css' ||
+    path.startsWith('apps/docs/components/landing/')
+  if (!isHomepageSource) return
+
+  const bannedPatterns = [
+    {
+      label: 'retired mark glow',
+      pattern: /(?:\.|className=['"])[\w -]*mark-glow/u,
+    },
+    {
+      label: 'retired mark ring',
+      pattern: /(?:\.|className=['"])[\w -]*mark-ring/u,
+    },
+    {
+      label: 'global pointer tracking',
+      pattern: /addEventListener\(\s*['"]pointermove['"]/u,
+    },
+    {
+      label: 'infinite homepage animation',
+      pattern: /\banimation\s*:[^;\n]*\binfinite\b/u,
+    },
+    {
+      label: 'infinite homepage animation',
+      pattern: /animationIterationCount\s*:\s*['"]infinite['"]/u,
+    },
+  ]
+
+  for (const banned of bannedPatterns) {
+    const match = banned.pattern.exec(content)
+    if (match === null) continue
+    violations.push({
+      path,
+      line: lineFromOffset(content, match.index ?? 0),
+      match: `living canopy regression: ${banned.label}`,
+    })
+  }
+}
+
+function addLivingCanopyStyleViolations(violations, path, root) {
   if (path !== 'apps/docs/app/global.css' || root === null) return
 
   const expectedTreatments = [
     {
-      label: '10% Lichen halo',
-      property: 'background',
-      selector: '.mark-glow',
-      value: 'radial-gradient(circle, rgb(168 201 95 / 10%), transparent 70%)',
-    },
-    {
-      label: 'neutral first ring',
-      property: 'border',
-      selector: '.mark-ring',
-      value: '1px solid rgb(255 255 255 / 8%)',
-    },
-    {
-      label: 'neutral second ring',
-      property: 'border-color',
-      selector: '.mark-ring-2',
-      value: 'rgb(255 255 255 / 4%)',
-    },
-    {
-      label: 'neutral body shadow',
-      property: 'filter',
-      selector: '.mark-body',
-      value: 'drop-shadow(0 0 24px rgb(255 255 255 / 10%))',
-    },
-    {
-      label: 'Lichen node dots',
+      label: 'Bone logo body',
       property: 'fill',
-      selector: '.mark-node-dot',
+      selector: '.canopy-logo-body',
+      value: 'var(--color-primitree-text)',
+    },
+    {
+      label: 'Lichen root node',
+      property: 'fill',
+      selector: '.canopy-root-node',
       value: 'var(--color-primitree-accent)',
     },
     {
-      label: 'Lichen node pulses',
+      label: 'Lichen structural trunk',
       property: 'stroke',
-      selector: '.mark-node-pulse',
+      selector: '.canopy-trunk',
+      value: 'var(--color-primitree-accent)',
+    },
+    {
+      label: 'Lichen governed-token border',
+      property: 'stroke',
+      selector: '.canopy-token-node rect',
       value: 'var(--color-primitree-accent)',
     },
   ]
 
   for (const treatment of expectedTreatments) {
-    const values = findCssPropertyValues(
+    const declarations = findCssPropertyDeclarations(
       root,
       treatment.selector,
       treatment.property
     )
-    if (values.length > 0 && values.every(value => value === treatment.value)) {
+    const exactDeclarations = declarations.filter(
+      declaration => declaration.selector === treatment.selector
+    )
+    const hasConflictingPriorityDeclaration = declarations.some(
+      declaration =>
+        declaration.value !== treatment.value &&
+        (declaration.important || declaration.selector !== treatment.selector)
+    )
+    if (
+      exactDeclarations.at(-1)?.value === treatment.value &&
+      !hasConflictingPriorityDeclaration
+    ) {
       continue
     }
     violations.push({
       path,
       line: null,
-      match: `homepage mark: missing ${treatment.label}`,
+      match: `living canopy: missing ${treatment.label}`,
     })
   }
+
+  root.walkRules(rule => {
+    if (
+      !rule.selectors.some(
+        selector =>
+          selector.includes('.canopy') || selector.includes('.governance-')
+      )
+    ) {
+      return
+    }
+
+    for (const declaration of rule.nodes ?? []) {
+      if (declaration.type !== 'decl') continue
+      const usesAtmosphericEffect =
+        declaration.prop === 'filter' ||
+        declaration.prop === 'backdrop-filter' ||
+        /gradient\(|\binfinite\b/u.test(declaration.value)
+      if (!usesAtmosphericEffect) continue
+
+      violations.push({
+        path,
+        line: declaration.source?.start?.line ?? null,
+        match:
+          'living canopy: gradients, blur, and infinite motion are prohibited',
+      })
+    }
+  })
 }
 
 export function findBrandViolations(records) {
@@ -518,8 +574,9 @@ export function findLichenColorViolations(records) {
     addFormerColorViolations(violations, path, record.content)
     addCssVariableViolations(violations, path, cssRoot)
     addSvgFillViolation(violations, path, record.content)
-    addAnimatedMarkViolations(violations, path, record.content)
-    addHomepageMarkStyleViolations(violations, path, cssRoot)
+    addLivingCanopyMarkupViolations(violations, path, record.content)
+    addHomepageRegressionViolations(violations, path, record.content)
+    addLivingCanopyStyleViolations(violations, path, cssRoot)
   }
 
   return violations

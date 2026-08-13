@@ -4,11 +4,11 @@ export const siteUrl = 'https://primitree.com'
 export const siteName = 'Primitree'
 
 const siteDescription =
-  'Convert a Figma variables export into DTCG files and the code your app imports.'
+  'Govern DTCG token changes with policy, dependency impact, ownership, and checked build outputs.'
 
 export const homeSocialImage = {
   url: `${siteUrl}/opengraph-image`,
-  alt: 'Primitree design token pipeline',
+  alt: 'Primitree token governance graph',
   title: siteName,
   description: siteDescription,
   size: {

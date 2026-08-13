@@ -4,10 +4,10 @@ import test from 'node:test'
 import { docsPathToUrl } from '../scripts/check-links.mjs'
 
 test('docs paths map to their public routes', () => {
-  assert.equal(docsPathToUrl('content/docs/index.mdx'), '/docs/')
+  assert.equal(docsPathToUrl('content/docs/index.mdx'), '/docs')
   assert.equal(
     docsPathToUrl('content/docs/getting-started/index.mdx'),
-    '/docs/getting-started/'
+    '/docs/getting-started'
   )
   assert.equal(docsPathToUrl('content/docs/api/core.mdx'), '/docs/api/core')
   assert.equal(docsPathToUrl('content/docs/api/core'), '/docs/api/core')
