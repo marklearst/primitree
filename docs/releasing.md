@@ -60,10 +60,10 @@ must be the exact version prefixed with `v`.
 
 Packages publish in dependency order: core → dtcg → cli → hooks → mcp →
 primitree. Stable versions use npm's `latest` dist-tag. Versions ending in
-`-next.N` use `next` and GitHub marks their release as a prerelease. A first npm
-publication can assign both `next` and `latest`; the release controller removes
-that accidental `latest` tag from every prerelease package and verifies that
-`next` identifies the exact version before continuing.
+`-next.N` use `next` and GitHub marks their release as a prerelease. The release
+controller also removes an unexpected `latest` tag from every prerelease
+package and verifies that `next` identifies the exact version before
+continuing.
 
 ## Release artifact boundary
 
@@ -102,11 +102,14 @@ npm token, and does not request an OIDC identity token. It applies
 `changeset version`, updates the lockfile without lifecycle scripts, and proves
 the result with a frozen, script-free install.
 
-The initial `1.0.0-next.0` release uses the reviewed launch changeset and
-`.changeset/pre.json`. Merge the resulting Changesets version pull request after
-its exact head passes the protected checks. Keep prerelease mode active
-for later `next` releases. Exit prerelease mode in a separate reviewed version
-pull request before publishing stable `1.0.0`.
+The launcher pull request already contains the reviewed launch changeset,
+`.changeset/pre.json`, aligned `1.0.0-next.0` package versions, lockfile, and
+changelogs. It is the initial versioned release candidate. After it merges, the
+Version Packages workflow has no second initial Changesets version pull request
+to open. Keep prerelease mode active for later `next` releases;
+each later releasable package change requires a reviewed changeset and the
+resulting version pull request. Exit prerelease mode in a separate reviewed
+version pull request before publishing stable `1.0.0`.
 
 Before enabling the workflow, verify the repository setting **Allow GitHub
 Actions to create and approve pull requests**. Run this check with a repository
@@ -1139,13 +1142,19 @@ npm publish "$ARTIFACT_DIR/primitree-$VERSION.tgz" --registry=https://registry.n
 ### Wrong dist-tag
 
 Inspect and repair a dist-tag without republishing. A prerelease must remain on
-`next` and must not occupy `latest`. Use this core example for the package whose
-dist-tag needs repair:
+`next` and must not occupy `latest`. Remove `latest` when the listing shows that
+it points to `$VERSION`; preserve it when it points to a stable version.
+Use this core example for the package whose dist-tag needs repair:
 
 ```bash
 npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org
 npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npmjs.org
-npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org
+LATEST_VERSION="$(
+  npm view "@primitree/core" dist-tags.latest --registry=https://registry.npmjs.org
+)"
+if [ "$LATEST_VERSION" = "$VERSION" ]; then
+  npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org
+fi
 ```
 
 ### Bad package contents

@@ -34,6 +34,14 @@ const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1'
 const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1'
 const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
+const LAUNCHER_RUNTIME_PACKAGES = PUBLIC_RELEASE_PACKAGES.filter(config =>
+  [
+    '@primitree/core',
+    '@primitree/dtcg',
+    '@primitree/cli',
+    'primitree',
+  ].includes(config.name)
+)
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -649,7 +657,7 @@ export async function runReleasePublish({
 
     for (const artifact of verified.artifacts) {
       let published = false
-      let accepted = false
+      let acceptedState
       for (let attempt = 1; attempt <= maxPollAttempts; attempt += 1) {
         const state = await inspectRegistryPackage({
           artifact,
@@ -662,7 +670,7 @@ export async function runReleasePublish({
           version: verified.version,
         })
         if (state.kind === 'present') {
-          accepted = true
+          acceptedState = state
           break
         }
         if (state.kind === 'missing' && published === false) {
@@ -682,52 +690,34 @@ export async function runReleasePublish({
         }
         if (attempt < maxPollAttempts) await sleep(retryDelayMs)
       }
-      if (!accepted) {
+      if (acceptedState === undefined) {
         throw new Error(
           `registry polling exhausted for ${artifact.name} after ${maxPollAttempts} attempts`
         )
       }
-    }
 
-    if (isPrereleaseVersion(verified.version)) {
-      for (const artifact of verified.artifacts) {
-        const state = await inspectRegistryPackage({
-          artifact,
-          commandContext,
-          commitSha: githubSha,
-          fetchJson,
-          registry,
-          runCommand,
-          tagRef: githubRef,
-          version: verified.version,
-        })
-        if (state.kind !== 'present') {
-          throw new Error(
-            `prerelease dist-tag inspection failed for ${artifact.name}: ${state.kind}`
-          )
-        }
-        if (state.metadata?.['dist-tags']?.latest === verified.version) {
-          requireCommandSuccess(
-            runCommand(
-              'npm',
-              [
-                'dist-tag',
-                'rm',
-                artifact.name,
-                'latest',
-                `--registry=${registry}`,
-                '--fetch-retries=0',
-                `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
-              ],
-              commandOptions(commandContext)
-            ),
-            `npm dist-tag rm ${artifact.name} latest`
-          )
-        }
+      if (
+        isPrereleaseVersion(verified.version) &&
+        acceptedState.metadata?.['dist-tags']?.latest === verified.version
+      ) {
+        requireCommandSuccess(
+          runCommand(
+            'npm',
+            [
+              'dist-tag',
+              'rm',
+              artifact.name,
+              'latest',
+              `--registry=${registry}`,
+              '--fetch-retries=0',
+              `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+            ],
+            commandOptions(commandContext)
+          ),
+          `npm dist-tag rm ${artifact.name} latest`
+        )
       }
-    }
 
-    for (const artifact of verified.artifacts) {
       const state = await inspectRegistryPackage({
         artifact,
         commandContext,
@@ -788,6 +778,30 @@ function smokeCommand(runCommand, command, args, options) {
   requireCommandSuccess(
     runCommand(command, args, options),
     `${command} ${args.join(' ')}`
+  )
+}
+
+function runExactLauncherSmoke({ consumerDirectory, options, runCommand }) {
+  smokeCommand(
+    runCommand,
+    'node',
+    [
+      path.join(
+        consumerDirectory,
+        'node_modules',
+        'primitree',
+        'bin',
+        'primitree.js'
+      ),
+      '--help',
+    ],
+    options
+  )
+  smokeCommand(
+    runCommand,
+    path.join(consumerDirectory, 'node_modules', '.bin', 'primitree'),
+    ['--help'],
+    options
   )
 }
 
@@ -1345,6 +1359,7 @@ export function runPackedTarballConsumer({
       commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
     )
     assertInstalledVersions(consumerDirectory, verified.version)
+    runExactLauncherSmoke({ consumerDirectory, options, runCommand })
     runInstalledPackageSmokeChecks({
       consumerDirectory,
       options,
@@ -1359,6 +1374,65 @@ export function runPackedTarballConsumer({
   }
 }
 
+function runPublicLauncherConsumer({
+  version,
+  environment,
+  registry,
+  runCommand,
+}) {
+  const commandContext = createNpmExecutionContext({
+    environment,
+    keepOidc: false,
+    prefix: 'primitree-public-launcher-consumer-',
+    registry,
+  })
+  const consumerDirectory = commandContext.workingDirectory
+  writeFileSync(
+    path.join(consumerDirectory, 'package.json'),
+    `${JSON.stringify(
+      {
+        name: 'primitree-public-launcher-consumer',
+        version: '0.0.0',
+        private: true,
+        type: 'module',
+      },
+      null,
+      2
+    )}\n`
+  )
+  const options = commandOptions(commandContext)
+
+  try {
+    assertNpmVersion(commandOutput('npm', ['--version'], options, runCommand))
+    assertEffectiveRegistry(commandContext, registry, runCommand)
+    smokeCommand(
+      runCommand,
+      'npm',
+      [
+        'install',
+        '--save-exact',
+        '--ignore-scripts',
+        '--engine-strict',
+        '--audit=false',
+        '--fund=false',
+        `--registry=${registry}`,
+        '--fetch-retries=0',
+        `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+        `primitree@${version}`,
+      ],
+      commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
+    )
+    assertInstalledVersions(
+      consumerDirectory,
+      version,
+      LAUNCHER_RUNTIME_PACKAGES
+    )
+    runExactLauncherSmoke({ consumerDirectory, options, runCommand })
+  } finally {
+    commandContext.cleanup()
+  }
+}
+
 export async function runPublicRegistryConsumer({
   version,
   environment = process.env,
@@ -1366,6 +1440,7 @@ export async function runPublicRegistryConsumer({
   runCommand = defaultRunCommand,
 }) {
   releaseChannelForVersion(version)
+  runPublicLauncherConsumer({ version, environment, registry, runCommand })
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,

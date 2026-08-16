@@ -600,6 +600,83 @@ test('removes an accidental latest tag before accepting a first prerelease', asy
   }
 })
 
+test('cleans an accepted prerelease before a downstream publish failure', async () => {
+  const version = '1.0.0-next.0'
+  const fixture = fixtureArtifacts(version)
+  const core = fakePublishedPackage(
+    fixture.directory,
+    '@primitree/core',
+    version,
+    { latest: version, next: version }
+  )
+  const calls = []
+
+  try {
+    await assert.rejects(
+      runReleasePublish({
+        artifactDirectory: fixture.directory,
+        environment: { ...process.env, NPM_TOKEN: 'bootstrap-token' },
+        githubRef: `refs/tags/v${version}`,
+        githubSha: SHA,
+        retryDelayMs: 0,
+        sleep: async () => {},
+        fetchJson: async url => ({
+          status: 200,
+          value:
+            url === core.metadata.dist.attestations.url
+              ? core.attestation
+              : undefined,
+        }),
+        runCommand(command, args, options = {}) {
+          calls.push([command, ...args])
+          const configResult = registryConfigResult(args, options)
+          if (configResult !== undefined) return configResult
+          if (args[0] === '--version') {
+            return { status: 0, stdout: '11.18.0\n', stderr: '' }
+          }
+          if (args[0] === 'view') {
+            return args[1].startsWith('@primitree/core@')
+              ? {
+                  status: 0,
+                  stdout: JSON.stringify(core.metadata),
+                  stderr: '',
+                }
+              : { status: 1, stdout: '', stderr: 'npm error code E404\n' }
+          }
+          if (args[0] === 'dist-tag' && args[1] === 'rm') {
+            delete core.metadata['dist-tags'].latest
+            return { status: 0, stdout: '', stderr: '' }
+          }
+          if (args[0] === 'publish') {
+            return {
+              status: 1,
+              stdout: '',
+              stderr: 'downstream publish failed',
+            }
+          }
+          throw new Error(`unexpected command ${command} ${args.join(' ')}`)
+        },
+      }),
+      /npm publish @primitree\/dtcg@1\.0\.0-next\.0 failed/u
+    )
+
+    const cleanupIndex = calls.findIndex(
+      call =>
+        call[1] === 'dist-tag' &&
+        call[2] === 'rm' &&
+        call[3] === '@primitree/core'
+    )
+    const downstreamPublishIndex = calls.findIndex(
+      call => call[1] === 'publish' && call[2].includes('primitree-dtcg-')
+    )
+    assert.notEqual(cleanupIndex, -1)
+    assert.ok(cleanupIndex < downstreamPublishIndex)
+    assert.deepEqual(core.metadata['dist-tags'], { next: version })
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
 test('validates one exact identity-aware SLSA provenance statement', () => {
   const fixture = fixtureArtifacts()
   try {
@@ -1581,6 +1658,14 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
         calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`))
       )
     }
+    assert.ok(
+      calls.some(
+        call =>
+          call[0] === 'node' &&
+          call[1].endsWith('/node_modules/primitree/bin/primitree.js') &&
+          call[2] === '--help'
+      )
+    )
     const cliCalls = calls.filter(call =>
       call[0].endsWith('/node_modules/.bin/primitree')
     )
@@ -1647,6 +1732,7 @@ test('smoke-tests downloaded tarballs without workspace dependencies', () => {
           '--source',
           'brand',
         ],
+        ['--help'],
         ['--help'],
         ['check', '--format', 'json'],
       ]
@@ -1752,8 +1838,19 @@ test('creates a hermetic public-registry consumer with exact installs and signat
     },
   })
 
-  const install = calls.find(call => call[0] === 'npm' && call[1] === 'install')
+  const installs = calls.filter(
+    call => call[0] === 'npm' && call[1] === 'install'
+  )
+  assert.equal(installs.length, 2)
+  const [launcherInstall, install] = installs
+  assert.ok(launcherInstall)
   assert.ok(install)
+  assert.ok(launcherInstall.includes(`primitree@${VERSION}`))
+  for (const config of PUBLIC_RELEASE_PACKAGES.filter(
+    config => config.name !== 'primitree'
+  )) {
+    assert.equal(launcherInstall.includes(`${config.name}@${VERSION}`), false)
+  }
   for (const config of PUBLIC_RELEASE_PACKAGES) {
     assert.ok(install.includes(`${config.name}@${VERSION}`))
   }
@@ -1829,6 +1926,26 @@ test('creates a hermetic public-registry consumer with exact installs and signat
   for (const bin of ['primitree', 'primitree-mcp']) {
     assert.ok(calls.some(call => call[0].endsWith(`/node_modules/.bin/${bin}`)))
   }
+  assert.ok(
+    calls.some(
+      call =>
+        call[0] === 'node' &&
+        call[1].endsWith('/node_modules/primitree/bin/primitree.js') &&
+        call[2] === '--help'
+    )
+  )
+  const launcherSmokeIndex = calls.findIndex(
+    call =>
+      call[0] === 'node' &&
+      call[1].endsWith('/node_modules/primitree/bin/primitree.js') &&
+      call[2] === '--help'
+  )
+  const launcherBinIndex = calls.findIndex(
+    call =>
+      call[0].endsWith('/node_modules/.bin/primitree') && call[1] === '--help'
+  )
+  assert.ok(launcherSmokeIndex < installIndex)
+  assert.ok(launcherBinIndex < installIndex)
   assert.ok(
     calls
       .map((call, index) => ({ call, options: seenOptions[index] }))

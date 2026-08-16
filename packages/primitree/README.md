@@ -8,8 +8,8 @@ npx primitree@next --help
 npx primitree@next check
 ```
 
-The `next` tag carries the 1.0 prerelease. Npm's `latest` tag stays unchanged.
-The stable release will support `npx primitree` without a tag.
+The `next` tag carries the 1.0 prerelease. The prerelease does not occupy npm's
+`latest` tag. The stable release will support `npx primitree` without a tag.
 
 Install `@primitree/cli@next` when a project imports
 `@primitree/cli/config`. The launcher contains no second CLI implementation; it
