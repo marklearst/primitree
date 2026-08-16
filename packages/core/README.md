@@ -4,7 +4,7 @@
 resolution, comparison, and REST API functions shared across Primitree.
 
 ```sh
-npm install @primitree/core
+npm install @primitree/core@next
 ```
 
 ## Requirements
@@ -89,7 +89,7 @@ characters, so do not log it.
 - [`@primitree/hooks`](https://www.npmjs.com/package/@primitree/hooks) provides React hooks.
 
 Read the [Primitree documentation](https://primitree.com) or review the
-[1.0.0 changelog](CHANGELOG.md).
+[1.0.0-next.0 changelog](CHANGELOG.md).
 
 ## License
 

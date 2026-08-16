@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { verifyReleaseArtifacts } from './release-artifacts.mjs'
+import { isPrereleaseVersion } from './release-config.mjs'
 
 const API_VERSION = '2022-11-28'
 const REQUEST_TIMEOUT_MS = 10_000
@@ -181,7 +182,9 @@ function assertExactAssetSet(release, expectedAssets) {
     new Set(release.assets.map(asset => asset?.name)).size !==
       release.assets.length
   ) {
-    throw new Error('GitHub Release must contain exactly seven unique assets')
+    throw new Error(
+      `GitHub Release must contain exactly ${expectedAssets.length} unique assets`
+    )
   }
   if (
     release.assets.some(asset => !Number.isInteger(asset?.id)) ||
@@ -214,7 +217,7 @@ function assertExactRelease(release, expected, expectedAssets, draft) {
     release?.name !== expected.title ||
     release?.body !== expected.notes ||
     release?.draft !== draft ||
-    release?.prerelease !== false
+    release?.prerelease !== expected.prerelease
   ) {
     throw new Error(
       draft
@@ -313,7 +316,7 @@ function assertDraftMetadata(release, expected) {
     release?.tag_name !== expected.tag ||
     release?.name !== expected.title ||
     release?.body !== expected.notes ||
-    release?.prerelease !== false
+    release?.prerelease !== expected.prerelease
   ) {
     throw new Error('draft release does not match reviewed metadata')
   }
@@ -554,8 +557,10 @@ export async function createOrResumeGithubRelease({
   if (!/^[a-f0-9]{40}$/.test(githubSha ?? '')) {
     throw new Error('GITHUB_SHA must be a full lowercase commit SHA')
   }
-  if (!/^v\d+\.\d+\.\d+$/.test(tag ?? '')) {
-    throw new Error('GitHub Release tag must be stable vMAJOR.MINOR.PATCH')
+  if (!/^v\d+\.\d+\.\d+(?:-next\.\d+)?$/.test(tag ?? '')) {
+    throw new Error(
+      'GitHub Release tag must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N'
+    )
   }
   if (typeof token !== 'string' || token === '') {
     throw new Error('GITHUB_TOKEN is required')
@@ -571,9 +576,10 @@ export async function createOrResumeGithubRelease({
   if (tag !== `v${verified.version}`) {
     throw new Error('GitHub Release tag does not match artifact version')
   }
+  const prerelease = isPrereleaseVersion(verified.version)
   const expectedAssets = localReleaseAssets(artifactDirectory, verified)
-  if (expectedAssets.length !== 7) {
-    throw new Error('GitHub Release requires exactly seven local assets')
+  if (expectedAssets.length !== verified.artifacts.length + 2) {
+    throw new Error('GitHub Release local asset inventory is incomplete')
   }
   await requireRemoteTagCommit({
     apiBaseUrl,
@@ -599,7 +605,7 @@ export async function createOrResumeGithubRelease({
   ) {
     assertExactRelease(
       releaseResponse.value,
-      { notes, tag, title },
+      { notes, prerelease, tag, title },
       expectedAssets,
       false
     )
@@ -632,7 +638,7 @@ export async function createOrResumeGithubRelease({
               body: notes,
               draft: true,
               name: title,
-              prerelease: false,
+              prerelease,
               tag_name: tag,
               target_commitish: githubSha,
             },
@@ -666,7 +672,7 @@ export async function createOrResumeGithubRelease({
     tag,
     token,
   })
-  const expectedMetadata = { notes, tag, title }
+  const expectedMetadata = { notes, prerelease, tag, title }
   let assetSnapshot = draftAssetSnapshot(draftState.release)
   const release = (
     await apiRequest(draftState.releaseUrl, {
@@ -674,7 +680,7 @@ export async function createOrResumeGithubRelease({
         body: notes,
         draft: true,
         name: title,
-        prerelease: false,
+        prerelease,
         tag_name: tag,
         target_commitish: githubSha,
       },
@@ -757,7 +763,7 @@ export async function createOrResumeGithubRelease({
       body: notes,
       draft: false,
       name: title,
-      prerelease: false,
+      prerelease,
       tag_name: tag,
       target_commitish: githubSha,
     },

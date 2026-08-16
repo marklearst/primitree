@@ -17,9 +17,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
+import {
+  PUBLIC_RELEASE_PACKAGES,
+  releaseChannelForVersion,
+} from './release-config.mjs'
 
-const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+const RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-next\.(0|[1-9]\d*))?$/
 const SHA256_PATTERN = /^[a-f0-9]{64}$/
 const MANIFEST_NAME = 'manifest.json'
 const CHECKSUMS_NAME = 'SHA256SUMS'
@@ -173,7 +177,10 @@ export function expectedArtifacts(version) {
   }
   return PUBLIC_RELEASE_PACKAGES.map(config => ({
     name: config.name,
-    file: `primitree-${config.name.slice('@primitree/'.length)}-${version}.tgz`,
+    file:
+      config.name === 'primitree'
+        ? `primitree-${version}.tgz`
+        : `primitree-${config.name.slice('@primitree/'.length)}-${version}.tgz`,
   }))
 }
 
@@ -691,7 +698,7 @@ export function packReleaseArtifacts() {
   }
 }
 
-export function npmPublishDryRunArgs(artifactPath) {
+export function npmPublishDryRunArgs(artifactPath, version) {
   if (typeof artifactPath !== 'string' || !path.isAbsolute(artifactPath)) {
     throw new Error('npm publish dry-run requires an absolute tarball path')
   }
@@ -702,7 +709,7 @@ export function npmPublishDryRunArgs(artifactPath) {
     '--offline',
     '--provenance=false',
     '--access=public',
-    '--tag=latest',
+    `--tag=${releaseChannelForVersion(version)}`,
     '--ignore-scripts',
     '--registry=https://registry.npmjs.org/',
   ]
@@ -755,7 +762,11 @@ function runExternalReleaseChecks(before) {
           commonOptions
         )
       }
-      spawnChecked('npm', npmPublishDryRunArgs(artifact.path), commonOptions)
+      spawnChecked(
+        'npm',
+        npmPublishDryRunArgs(artifact.path, before.version),
+        commonOptions
+      )
     }
 
     const consumerDirectory = path.join(
@@ -853,7 +864,9 @@ export function verifyReleaseArtifacts({ artifactDirectory } = {}) {
     }
   }
   if (directoryEntries.length !== PUBLIC_RELEASE_PACKAGES.length + 2) {
-    throw new Error('artifact directory must contain exactly seven entries')
+    throw new Error(
+      `artifact directory must contain exactly ${expectedEntries.size} entries`
+    )
   }
 
   if (checksumBytes.toString('utf8') !== canonicalChecksums(artifacts)) {

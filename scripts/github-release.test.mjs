@@ -14,11 +14,13 @@ const SHA = '0123456789abcdef0123456789abcdef01234567'
 const NOTES = '# Primitree 1.0.0\n\nRelease notes.\n'
 const REPOSITORY_PATH = '/repos/marklearst/primitree'
 
-function fixtureAssets() {
+function fixtureAssets(version = VERSION) {
   const directory = mkdtempSync(path.join(tmpdir(), 'primitree-release-'))
   const artifacts = PUBLIC_RELEASE_PACKAGES.map(config => {
-    const stem = config.name.slice('@primitree/'.length)
-    const file = `primitree-${stem}-${VERSION}.tgz`
+    const file =
+      config.name === 'primitree'
+        ? `primitree-${version}.tgz`
+        : `primitree-${config.name.slice('@primitree/'.length)}-${version}.tgz`
     const bytes = Buffer.from(`${config.name}\n`)
     writeFileSync(path.join(directory, file), bytes)
     return {
@@ -29,7 +31,7 @@ function fixtureAssets() {
   })
   writeFileSync(
     path.join(directory, 'manifest.json'),
-    `${JSON.stringify({ version: VERSION, artifacts }, null, 2)}\n`
+    `${JSON.stringify({ version, artifacts }, null, 2)}\n`
   )
   writeFileSync(
     path.join(directory, 'SHA256SUMS'),
@@ -38,11 +40,12 @@ function fixtureAssets() {
   return { directory }
 }
 
-function localAssets(directory) {
+function localAssets(directory, version = VERSION) {
   return [
     ...PUBLIC_RELEASE_PACKAGES.map(config => {
-      const stem = config.name.slice('@primitree/'.length)
-      return `primitree-${stem}-${VERSION}.tgz`
+      return config.name === 'primitree'
+        ? `primitree-${version}.tgz`
+        : `primitree-${config.name.slice('@primitree/'.length)}-${version}.tgz`
     }),
     'manifest.json',
     'SHA256SUMS',
@@ -99,6 +102,7 @@ async function startGithubApi({
   mutateUploadResponse,
   redirectUploadTo,
   uploadUrl,
+  tag = TAG,
 }) {
   const requests = []
   let releases = structuredClone(initialReleases)
@@ -157,7 +161,7 @@ async function startGithubApi({
 
     if (
       request.method === 'GET' &&
-      url.pathname === `${REPOSITORY_PATH}/git/ref/tags/${TAG}`
+      url.pathname === `${REPOSITORY_PATH}/git/ref/tags/${tag}`
     ) {
       tagReads += 1
       const resolvedTagSha =
@@ -166,10 +170,10 @@ async function startGithubApi({
     }
     if (
       request.method === 'GET' &&
-      url.pathname === `${REPOSITORY_PATH}/releases/tags/${TAG}`
+      url.pathname === `${REPOSITORY_PATH}/releases/tags/${tag}`
     ) {
       const published = releases.find(
-        release => release.tag_name === TAG && release.draft === false
+        release => release.tag_name === tag && release.draft === false
       )
       if (published === undefined) return json(404, { message: 'Not Found' })
       const finalValue =
@@ -188,7 +192,7 @@ async function startGithubApi({
         const live = findRelease(entry.id)
         return live === undefined ? entry : structuredClone(live)
       })
-      const exactIndex = value.findIndex(release => release.tag_name === TAG)
+      const exactIndex = value.findIndex(release => release.tag_name === tag)
       if (exactIndex !== -1) {
         draftSnapshots += 1
         const exact = value[exactIndex]
@@ -235,7 +239,7 @@ async function startGithubApi({
         name: input.name,
         body: input.body,
         draft: true,
-        prerelease: false,
+        prerelease: input.prerelease,
         assets: [],
         upload_url: releaseUploadUrl(nextReleaseId - 1),
       }
@@ -431,6 +435,47 @@ test('creates and publishes a first release after list confirms no draft', async
   })
 })
 
+test('publishes a next tag as a GitHub prerelease with the complete asset set', async () => {
+  const version = '1.0.0-next.0'
+  const tag = `v${version}`
+  const fixture = fixtureAssets(version)
+  const api = await startGithubApi({ fixture, tag })
+  try {
+    const result = await createOrResumeGithubRelease({
+      apiBaseUrl: api.baseUrl,
+      artifactDirectory: fixture.directory,
+      githubRepository: 'marklearst/primitree',
+      githubSha: SHA,
+      notes: '# Primitree 1.0.0-next.0\n\nPrerelease notes.\n',
+      tag,
+      title: 'Primitree v1.0.0-next.0',
+      token: 'local-test-token',
+    })
+
+    assert.equal(result.status, 'published')
+    assert.equal(api.releases[0].prerelease, true)
+    assert.equal(
+      api.releases[0].assets.length,
+      localAssets(fixture.directory, version).length
+    )
+    assert.ok(
+      api.requests
+        .filter(
+          request =>
+            request.method === 'PATCH' ||
+            (request.method === 'POST' &&
+              request.path === `${REPOSITORY_PATH}/releases`)
+        )
+        .map(request => JSON.parse(request.body))
+        .filter(body => Object.hasOwn(body, 'prerelease'))
+        .every(body => body.prerelease === true)
+    )
+  } finally {
+    await api.close()
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
 test('resumes a partial draft when the API reports the existing tag target as main', async () => {
   await withGithubApi(
     fixture => ({
@@ -452,7 +497,10 @@ test('resumes a partial draft when the API reports the existing tag target as ma
       )
       assert.equal(api.releases[0].draft, false)
       assert.equal(api.releases[0].target_commitish, 'main')
-      assert.equal(api.releases[0].assets.length, 7)
+      assert.equal(
+        api.releases[0].assets.length,
+        localAssets(fixture.directory).length
+      )
       assert.deepEqual(
         api.releases[0].assets.slice(0, 2).map(asset => asset.id),
         [41, 42]
@@ -463,7 +511,7 @@ test('resumes a partial draft when the API reports the existing tag target as ma
             request.method === 'POST' &&
             /\/releases\/\d+\/assets$/.test(request.path)
         ).length,
-        5
+        localAssets(fixture.directory).length - 2
       )
       const patches = api.requests.filter(request => request.method === 'PATCH')
       assert.equal(patches.length, 2)

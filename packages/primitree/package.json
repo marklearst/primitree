@@ -1,0 +1,44 @@
+{
+  "name": "primitree",
+  "version": "1.0.0-next.0",
+  "description": "Run the Primitree design token CLI from the unscoped package name.",
+  "author": "Mark Learst",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "primitree": "./bin/primitree.js"
+  },
+  "files": [
+    "bin",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "design tokens",
+    "dtcg",
+    "figma variables",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marklearst/primitree.git",
+    "directory": "packages/primitree"
+  },
+  "bugs": {
+    "url": "https://github.com/marklearst/primitree/issues"
+  },
+  "homepage": "https://github.com/marklearst/primitree#readme",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/marklearst"
+  },
+  "dependencies": {
+    "@primitree/cli": "workspace:*"
+  }
+}

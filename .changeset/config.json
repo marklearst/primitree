@@ -3,7 +3,14 @@
   "changelog": ["@changesets/cli/changelog", null],
   "commit": false,
   "fixed": [
-    ["@primitree/core", "@primitree/dtcg", "@primitree/cli", "@primitree/hooks", "@primitree/mcp"]
+    [
+      "@primitree/core",
+      "@primitree/dtcg",
+      "@primitree/cli",
+      "@primitree/hooks",
+      "@primitree/mcp",
+      "primitree"
+    ]
   ],
   "linked": [],
   "access": "public",

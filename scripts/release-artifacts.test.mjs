@@ -28,6 +28,7 @@ const EXPECTED_NAMES = [
   '@primitree/cli',
   '@primitree/hooks',
   '@primitree/mcp',
+  'primitree',
 ]
 const EXPECTED_FILES = [
   'primitree-core-1.0.0.tgz',
@@ -35,6 +36,7 @@ const EXPECTED_FILES = [
   'primitree-cli-1.0.0.tgz',
   'primitree-hooks-1.0.0.tgz',
   'primitree-mcp-1.0.0.tgz',
+  'primitree-1.0.0.tgz',
 ]
 const SCRIPT_PATH = fileURLToPath(
   new URL('./release-artifacts.mjs', import.meta.url)
@@ -408,9 +410,13 @@ function makePackRepository(t) {
   )
 
   for (const name of EXPECTED_NAMES) {
-    const packageName = name.slice('@primitree/'.length)
+    const packageName =
+      name === 'primitree' ? name : name.slice('@primitree/'.length)
     const packageDirectory = path.join(directory, 'packages', packageName)
-    mkdirSync(path.join(packageDirectory, 'dist'), { recursive: true })
+    mkdirSync(
+      path.join(packageDirectory, name === 'primitree' ? 'bin' : 'dist'),
+      { recursive: true }
+    )
     writeFileSync(
       path.join(packageDirectory, 'package.json'),
       `${JSON.stringify({ name, version: VERSION })}\n`
@@ -489,6 +495,16 @@ test('derives the expected artifacts in dependency order', async () => {
       file: EXPECTED_FILES[index],
     }))
   )
+  assert.deepEqual(
+    expectedArtifacts('1.0.0-next.0'),
+    EXPECTED_NAMES.map(name => ({
+      name,
+      file:
+        name === 'primitree'
+          ? 'primitree-1.0.0-next.0.tgz'
+          : `primitree-${name.slice('@primitree/'.length)}-1.0.0-next.0.tgz`,
+    }))
+  )
   assert.throws(() => expectedArtifacts('v1.0.0'), /MAJOR\.MINOR\.PATCH/)
   assert.throws(() => expectedArtifacts('1.0.0-beta.1'), /MAJOR\.MINOR\.PATCH/)
 })
@@ -501,7 +517,7 @@ test('constructs stable public npm publish dry-run arguments', async () => {
     EXPECTED_FILES[0]
   )
 
-  assert.deepEqual(npmPublishDryRunArgs(artifactPath), [
+  assert.deepEqual(npmPublishDryRunArgs(artifactPath, VERSION), [
     'publish',
     artifactPath,
     '--dry-run',
@@ -512,8 +528,19 @@ test('constructs stable public npm publish dry-run arguments', async () => {
     '--ignore-scripts',
     '--registry=https://registry.npmjs.org/',
   ])
+  assert.deepEqual(npmPublishDryRunArgs(artifactPath, '1.0.0-next.0'), [
+    'publish',
+    artifactPath,
+    '--dry-run',
+    '--offline',
+    '--provenance=false',
+    '--access=public',
+    '--tag=next',
+    '--ignore-scripts',
+    '--registry=https://registry.npmjs.org/',
+  ])
   assert.throws(
-    () => npmPublishDryRunArgs(EXPECTED_FILES[0]),
+    () => npmPublishDryRunArgs(EXPECTED_FILES[0], VERSION),
     /absolute tarball path/i
   )
 })
@@ -664,7 +691,7 @@ test('artifact consumer fails closed before install on registry mismatch', t => 
   }
 })
 
-test('accepts exactly five ordered artifacts and performs no writes', async t => {
+test('accepts exactly six ordered artifacts and performs no writes', async t => {
   const fixture = makeFixture(t)
   const before = new Map(
     ['manifest.json', 'SHA256SUMS', ...EXPECTED_FILES].map(file => [
@@ -695,7 +722,7 @@ test('accepts exactly five ordered artifacts and performs no writes', async t =>
   }
 })
 
-test('release checks require all seven artifact files to remain byte-identical', async t => {
+test('release checks require all eight artifact files to remain byte-identical', async t => {
   const fixture = makeFixture(t)
   const { checkReleaseArtifacts, verifyReleaseArtifacts } =
     await releaseArtifactsModule()
@@ -906,9 +933,9 @@ test('rejects malformed manifest metadata', async t => {
       /version.*MAJOR\.MINOR\.PATCH/i,
     ],
     [
-      'prerelease version',
+      'unsupported prerelease version',
       f => {
-        f.manifest.version = '1.0.0-next.1'
+        f.manifest.version = '1.0.0-beta.1'
         f.rewriteManifest()
       },
       /version.*MAJOR\.MINOR\.PATCH/i,
@@ -976,7 +1003,7 @@ test('rejects wrong artifact entry count and shape', async t => {
         f.manifest.artifacts.pop()
         f.rewriteManifest()
       },
-      /exactly 5 artifact entries/i,
+      /exactly 6 artifact entries/i,
     ],
     [
       'extra entry',
@@ -984,7 +1011,7 @@ test('rejects wrong artifact entry count and shape', async t => {
         f.manifest.artifacts.push({ ...f.manifest.artifacts[0] })
         f.rewriteManifest()
       },
-      /exactly 5 artifact entries/i,
+      /exactly 6 artifact entries/i,
     ],
     [
       'null entry',

@@ -1,7 +1,7 @@
 {
-  "name": "primitree",
+  "name": "primitree-workspace",
   "private": true,
-  "description": "Monorepo for the @primitree packages and documentation.",
+  "description": "Monorepo for the Primitree packages and documentation.",
   "author": "Mark Learst",
   "license": "MIT",
   "type": "module",
