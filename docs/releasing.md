@@ -1,7 +1,8 @@
 # Releasing Primitree
 
 Use this runbook to prepare, publish, or recover a Primitree release. CI writes
-one checksummed artifact for the five public `@primitree/*` packages.
+one checksummed artifact for five `@primitree/*` packages and the unscoped
+`primitree` command launcher.
 Publish those files without rebuilding or substituting a tarball after the
 release checks pass.
 
@@ -25,7 +26,7 @@ pnpm run test:e2e
 pnpm run check:release
 ```
 
-`check:release` builds once, packs the five public packages, validates their
+`check:release` builds once, packs the six public packages, validates their
 metadata and artifact contents, runs Publint and Are the Types Wrong, checks
 the hooks size limit, and installs the tarballs in a temporary consumer. For
 each tarball, it runs a sanitized offline npm publish check. The repository
@@ -51,22 +52,23 @@ GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 macOS ships `shasum`; GitHub's Linux jobs use
 `sha256sum --check SHA256SUMS` instead.
 
-## Stable release semantics
+## Release channel semantics
 
-The workflow's sole release mode is stable. The five public packages must share
-the same strict `MAJOR.MINOR.PATCH` version, and the accepted release tag must
-equal `vMAJOR.MINOR.PATCH` using that shared version. The packages publish in
-dependency order: core → dtcg → cli → hooks → mcp. Every stable publication
-uses the npm dist-tag `latest`.
+All six public packages share one version. The workflow accepts stable
+`MAJOR.MINOR.PATCH` versions and `MAJOR.MINOR.PATCH-next.N` prereleases. The tag
+must be the exact version prefixed with `v`.
 
-This path does not support prerelease versions. A future prerelease needs a
-separate design that changes the version and tag validators, artifact
-filenames, tests, and workflow together, with an explicit non-`latest` dist-tag
-such as `next`.
+Packages publish in dependency order: core → dtcg → cli → hooks → mcp →
+primitree. Stable versions use npm's `latest` dist-tag. Versions ending in
+`-next.N` use `next` and GitHub marks their release as a prerelease. The release
+controller also removes an unexpected `latest` tag from every prerelease
+package, including when `latest` points to an older prerelease. It preserves a
+stable `latest` and verifies that `next` identifies the exact version before
+continuing.
 
 ## Release artifact boundary
 
-For `VERSION=1.0.0`, one release attempt contains these seven regular,
+For `VERSION=1.0.0-next.0`, one release attempt contains these eight regular,
 non-symlink files and no others under `artifacts/npm/`:
 
 1. `primitree-core-$VERSION.tgz`
@@ -74,12 +76,13 @@ non-symlink files and no others under `artifacts/npm/`:
 3. `primitree-cli-$VERSION.tgz`
 4. `primitree-hooks-$VERSION.tgz`
 5. `primitree-mcp-$VERSION.tgz`
-6. `manifest.json`
-7. `SHA256SUMS`
+6. `primitree-$VERSION.tgz`
+7. `manifest.json`
+8. `SHA256SUMS`
 
 `manifest.json` fixes the shared version, package names, filenames, dependency
 order, and digests. The publish boundary gives the manifest a separate
-validation because `SHA256SUMS` covers the five tarballs but not the manifest.
+validation because `SHA256SUMS` covers the six tarballs but not the manifest.
 The required checks cover the manifest schema, tag/version equality,
 `SHA256SUMS` entries, and every tarball hash. Publication requires all of them
 to pass.
@@ -100,11 +103,14 @@ npm token, and does not request an OIDC identity token. It applies
 `changeset version`, updates the lockfile without lifecycle scripts, and proves
 the result with a frozen, script-free install.
 
-The initial 1.0.0 release needs no fabricated version pull request. The five
-public package manifests already carry 1.0.0 and there is no pending changeset.
-Do not fabricate a changeset or version pull request for that bootstrap.
-Version pull request automation starts with later releases after reviewed
-changesets reach `main`.
+The launcher pull request already contains the reviewed launch changeset,
+`.changeset/pre.json`, aligned `1.0.0-next.0` package versions, lockfile, and
+changelogs. It is the initial versioned release candidate. After it merges, the
+Version Packages workflow has no second initial Changesets version pull request
+to open. Keep prerelease mode active for later `next` releases;
+each later releasable package change requires a reviewed changeset and the
+resulting version pull request. Exit prerelease mode in a separate reviewed
+version pull request before publishing stable `1.0.0`.
 
 Before enabling the workflow, verify the repository setting **Allow GitHub
 Actions to create and approve pull requests**. Run this check with a repository
@@ -155,6 +161,21 @@ GITHUB_RELEASES=$(
 )
 test "$GITHUB_RELEASES" = '[]'
 ```
+
+Make the source repository public before creating any npm package. This lets
+package pages, provenance, issue links, and source links resolve to the same
+public project. Review the visibility change in GitHub. Run and verify the
+single repository mutation:
+
+```bash
+gh repo edit marklearst/primitree \
+  --visibility public \
+  --accept-visibility-change-consequences
+test "$(gh repo view marklearst/primitree --json visibility --jq '.visibility')" = PUBLIC
+```
+
+Stop if the repository is not public. Do not create a package or bootstrap
+token until this check passes.
 
 Confirm that an administrator enabled immutable releases. Run this check with a
 maintainer credential that has repository `Administration` read permission. The
@@ -892,7 +913,7 @@ in rollback mode.
 - [ ] Create a granular npm token that expires after one day and make the protected GitHub `npm` environment its sole storage location.
 
 Create the granular token in the npm website with the minimum publish access
-needed for the five packages and CI 2FA bypass. Use it for the initial
+needed for the six packages and CI 2FA bypass. Use it for the initial
 token-authenticated publish and for no other purpose. Do not paste it into a
 command, shell variable, file, issue, or log.
 
@@ -913,25 +934,25 @@ GH_ENV_SECRETS=$(
 test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS")" = 1
 ```
 
-### 5. Tag, publish, and create the GitHub Release
+### 5. Tag, publish, and create the GitHub prerelease
 
-- [ ] Create `v1.0.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
+- [ ] Create `v1.0.0-next.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
 
-For the initial release, create one annotated stable tag at the recorded
+For the initial release, create one annotated prerelease tag at the recorded
 commit. Never use a blanket tag push.
 
-Update the release copy before creating the tag. In the five package
-changelogs, replace `1.0.0 (Unreleased)` with `1.0.0 (YYYY-MM-DD)`. In
-`docs/launch/v1.0.0.md`, replace the draft status with
-`Status: Released YYYY-MM-DD.` Use the same UTC date in all six files. The
-tag-mode metadata check rejects a missing date, a mismatched date, or any
-remaining `Unreleased` marker.
+Update the release copy before creating the tag. In all six package changelogs,
+change `1.0.0-next.0` to `1.0.0-next.0 (YYYY-MM-DD)`. In
+`docs/launch/v1.0.0-next.0.md`, replace the draft status with
+`Status: Released YYYY-MM-DD.` Use the same UTC date in all seven files. The
+tag-mode metadata check rejects a missing date, a mismatched date, or an
+`Unreleased` marker.
 
 Run `git tag -d` to clear a local tag from an earlier failed launch attempt
 before creating the release tag.
 
 ```bash
-VERSION=1.0.0
+VERSION=1.0.0-next.0
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 git tag -d "v$VERSION" 2>/dev/null || true
 git tag -a "v$VERSION" "$FINAL_COMMIT" -m "Primitree $VERSION"
@@ -943,12 +964,13 @@ Approve the protected `npm` environment job. The workflow performs the
 bootstrap token-authenticated publish, verifies npm provenance against the
 expected repository, workflow, tag, and commit, smoke-tests the public
 packages, and creates or resumes the immutable GitHub Release from the same
-seven files. Record the run ID, package pages, `latest` dist-tags, provenance,
-release notes, asset digests, and final release URL.
+eight files. Record the run ID, package pages, `next` dist-tags, absence of the
+prerelease from `latest`, provenance, release notes, asset digests, and final
+prerelease URL.
 
-### 6. Configure all five trusted publishers
+### 6. Configure all six trusted publishers
 
-- [ ] Configure trusted publishing for all five packages and verify each saved relationship.
+- [ ] Configure trusted publishing for all six packages and verify each saved relationship.
 
 Use a browser-authenticated local npm >=11.15 session with package write access.
 The bootstrap granular access token cannot authorize `npm trust`; authenticate
@@ -963,11 +985,13 @@ npm trust github '@primitree/dtcg' --repository marklearst/primitree --file ci.y
 npm trust github '@primitree/cli' --repository marklearst/primitree --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/
 npm trust github '@primitree/hooks' --repository marklearst/primitree --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/
 npm trust github '@primitree/mcp' --repository marklearst/primitree --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/
+npm trust github 'primitree' --repository marklearst/primitree --file ci.yml --environment npm --allow-publish --yes --registry=https://registry.npmjs.org/
 npm trust list '@primitree/core' --registry=https://registry.npmjs.org/
 npm trust list '@primitree/dtcg' --registry=https://registry.npmjs.org/
 npm trust list '@primitree/cli' --registry=https://registry.npmjs.org/
 npm trust list '@primitree/hooks' --registry=https://registry.npmjs.org/
 npm trust list '@primitree/mcp' --registry=https://registry.npmjs.org/
+npm trust list 'primitree' --registry=https://registry.npmjs.org/
 ```
 
 `npm trust list` confirms the saved configuration but cannot prove GitHub OIDC
@@ -976,7 +1000,7 @@ that GitHub OIDC can publish the package.
 
 ### 7. Delete the GitHub environment secret
 
-- [ ] Delete `NPM_TOKEN` from the protected GitHub environment after you verify all five trust entries.
+- [ ] Delete `NPM_TOKEN` from the protected GitHub environment after you verify all six trust entries.
 
 ```bash
 set -euo pipefail
@@ -1014,7 +1038,7 @@ Never substitute a token value for the ID.
 
 ### 9. Require package MFA and disallow token publishing
 
-- [ ] Require 2FA while disallowing token-based publishing on all five packages.
+- [ ] Require 2FA while disallowing token-based publishing on all six packages.
 
 Before this step, you must save trusted publishing, delete the GitHub secret,
 and revoke the bootstrap token. Open each package on npm, go to
@@ -1026,8 +1050,9 @@ and revoke the bootstrap token. Open each package on npm, go to
 - `@primitree/cli`
 - `@primitree/hooks`
 - `@primitree/mcp`
+- `primitree`
 
-The npm CLI does not expose the disallow-tokens setting. After saving all five
+The npm CLI does not expose the disallow-tokens setting. After saving all six
 packages, refresh each Publishing access page and confirm
 **Require two-factor authentication and disallow tokens** remains selected.
 Trusted OIDC publishing remains available through the exact repository,
@@ -1038,16 +1063,17 @@ workflow, and environment relationship.
 - [ ] Verify every replacement package, the production documentation site, and the migration page.
 
 ```bash
-npm view "@primitree/core@1.0.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/dtcg@1.0.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/cli@1.0.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/hooks@1.0.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/mcp@1.0.0" version --registry=https://registry.npmjs.org/
+npm view "@primitree/core@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+npm view "@primitree/dtcg@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+npm view "@primitree/cli@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+npm view "@primitree/hooks@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+npm view "@primitree/mcp@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+npm view "primitree@1.0.0-next.0" version --registry=https://registry.npmjs.org/
 curl --fail --silent --show-error https://primitree.com/ >/dev/null
 curl --fail --silent --show-error https://primitree.com/docs/hooks/migration >/dev/null
 ```
 
-All five replacement packages, the production documentation site, and the
+All six replacement packages, the production documentation site, and the
 migration page must be live and correct before deprecation.
 
 ### 11. Deprecate the sole legacy target: 4.0.0
@@ -1068,7 +1094,7 @@ Use GitHub **Re-run failed jobs** on the same tag workflow run as the sole
 supported selective recovery path. Do not start a new workflow run. The
 `npm publish` commands in this section are reference material; do not execute
 them from a local machine. The failed job downloads the unchanged same-run
-artifact, validates its seven-file boundary again, and keeps the job's OIDC
+artifact, validates its eight-file boundary again, and keeps the job's OIDC
 provenance context. Never rebuild or replace those files during recovery.
 
 The publish step queries every exact package version before its corresponding
@@ -1084,7 +1110,8 @@ Audit the workflow's registry decisions with these commands. Run recovery
 through GitHub Actions:
 
 ```bash
-VERSION=1.0.0
+VERSION=1.0.0-next.0
+RELEASE_CHANNEL=next
 ARTIFACT_DIR=artifacts/npm
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
@@ -1092,6 +1119,7 @@ npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.or
 npm view "@primitree/cli@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/hooks@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/mcp@$VERSION" version --registry=https://registry.npmjs.org
+npm view "primitree@$VERSION" version --registry=https://registry.npmjs.org
 ```
 
 GitHub's Linux jobs use `sha256sum --check SHA256SUMS` for the checksum step.
@@ -1099,27 +1127,38 @@ Treat npm `E404` as a missing package. Any other error, including an
 authentication, permission, rate-limit, DNS, or registry failure, stops recovery.
 
 The workflow uses its registry query to decide whether to execute each of these
-five literal commands in dependency order. Maintainers must not execute them
+six literal commands in dependency order. Maintainers must not execute them
 from a local machine because local publication cannot preserve the workflow's
 provenance:
 
 ```bash
-npm publish "$ARTIFACT_DIR/primitree-core-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-npm publish "$ARTIFACT_DIR/primitree-dtcg-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-npm publish "$ARTIFACT_DIR/primitree-cli-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-npm publish "$ARTIFACT_DIR/primitree-hooks-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
-npm publish "$ARTIFACT_DIR/primitree-mcp-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag=latest --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-core-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-dtcg-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-cli-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-hooks-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-mcp-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
+npm publish "$ARTIFACT_DIR/primitree-$VERSION.tgz" --registry=https://registry.npmjs.org --access=public --tag="$RELEASE_CHANNEL" --ignore-scripts
 ```
 
 ### Wrong dist-tag
 
-Inspect and repair a dist-tag without republishing. Use this core example for
-the package whose dist-tag needs repair:
+Inspect and repair a dist-tag without republishing. A prerelease must remain on
+`next` and must not occupy `latest`. Remove `latest` whenever the listing shows
+that it points to a prerelease, including an older prerelease; preserve it when
+it points to a stable version.
+Use this core example for the package whose dist-tag needs repair:
 
 ```bash
 npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org
-npm dist-tag add "@primitree/core@$VERSION" latest --registry=https://registry.npmjs.org
-npm dist-tag rm "@primitree/core" next --registry=https://registry.npmjs.org
+npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npmjs.org
+LATEST_VERSION="$(
+  npm view "@primitree/core" dist-tags.latest --registry=https://registry.npmjs.org
+)"
+if printf '%s\n' "$LATEST_VERSION" |
+  grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-'
+then
+  npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org
+fi
 ```
 
 ### Bad package contents
@@ -1190,19 +1229,20 @@ gh run view "$OLD_RUN_ID" --json status,conclusion,jobs
 ```
 
 Before continuing, require the output to prove the publish job never started.
-Re-query all five versions against the release registry and require all five
+Re-query all six versions against the release registry and require all six
 commands to return npm `E404`:
 
 ```bash
-VERSION=1.0.0
+VERSION=1.0.0-next.0
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/cli@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/hooks@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/mcp@$VERSION" version --registry=https://registry.npmjs.org
+npm view "primitree@$VERSION" version --registry=https://registry.npmjs.org
 ```
 
-After cancellation is terminal, the publish job never started, and all five
+After cancellation is terminal, the publish job never started, and all six
 versions are absent, delete and recreate the tag at the verified commit and
 push that single ref:
 

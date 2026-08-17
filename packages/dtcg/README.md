@@ -6,7 +6,7 @@ documents, a Resolver document, CSS custom properties, a Tailwind CSS v4 theme,
 and TypeScript token accessors.
 
 ```sh
-npm install @primitree/dtcg
+npm install @primitree/dtcg@next
 ```
 
 ## Requirements
@@ -244,7 +244,7 @@ Use [`@primitree/cli`](https://www.npmjs.com/package/@primitree/cli) when you
 want Primitree to write these files to disk.
 
 Read the [Primitree documentation](https://primitree.com) or review the
-[1.0.0 changelog](CHANGELOG.md).
+[1.0.0-next.0 changelog](CHANGELOG.md).
 
 ## License
 

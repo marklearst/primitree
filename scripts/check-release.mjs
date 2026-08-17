@@ -12,7 +12,8 @@ import {
   RELEASE_REPOSITORY_TYPE,
 } from './release-config.mjs'
 
-const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+const RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-next\.(0|[1-9]\d*))?$/
 const EXPECTED_AUTHOR = 'Mark Learst'
 const EXPECTED_LICENSE = 'MIT'
 const FORMER_PACKAGE_SCOPES = ['@figma-vars/', '@figmavars/']
@@ -518,7 +519,9 @@ export function validateReleaseManifests(options) {
   if (versions.size !== 1 || typeof version !== 'string') {
     errors.push('all public packages must use one version')
   } else if (!RELEASE_VERSION_PATTERN.test(version)) {
-    errors.push(`package version ${version} must use MAJOR.MINOR.PATCH`)
+    errors.push(
+      `package version ${version} must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-next.N`
+    )
   }
 
   for (const input of privatePackages) {
@@ -563,7 +566,9 @@ export function validateReleaseManifests(options) {
           : tag === null
             ? '<null>'
             : `<${typeof tag}>`
-      errors.push(`release tag ${tagDescription} must use vMAJOR.MINOR.PATCH`)
+      errors.push(
+        `release tag ${tagDescription} must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N`
+      )
     } else if (typeof version === 'string' && tag !== `v${version}`) {
       errors.push(`tag ${tag} does not match package version ${version}`)
     }
@@ -589,8 +594,8 @@ export function validateWorkspaceRootManifest(manifest) {
       `Workspace root manifest check failed:\n- ${errors.join('\n- ')}`
     )
   }
-  if (manifest.name !== 'primitree') {
-    errors.push('Workspace root must be named primitree')
+  if (manifest.name !== 'primitree-workspace') {
+    errors.push('Workspace root must be named primitree-workspace')
   }
   if (manifest.private !== true) {
     errors.push('Workspace root must be private')

@@ -1,0 +1,13 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "@primitree/core": "0.0.0",
+    "@primitree/dtcg": "0.0.0",
+    "@primitree/cli": "0.0.0",
+    "@primitree/hooks": "0.0.0",
+    "@primitree/mcp": "0.0.0",
+    "primitree": "0.0.0"
+  },
+  "changesets": ["primitree-one"]
+}

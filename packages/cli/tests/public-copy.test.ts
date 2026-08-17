@@ -98,6 +98,7 @@ describe('public CLI copy', () => {
 
   it('exposes the Primitree CLI without a hooks export command', () => {
     expect(cliManifest.bin).toEqual({ primitree: './dist/index.js' })
+    expect(cliManifest.exports['./bin']).toBe('./dist/index.js')
     expect(hooksManifest.bin).toBeUndefined()
     expect(hooksManifest.files).not.toContain('scripts/export-variables.mjs')
   })

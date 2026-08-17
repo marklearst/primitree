@@ -14,7 +14,11 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { verifyReleaseArtifacts } from './release-artifacts.mjs'
-import { PUBLIC_RELEASE_PACKAGES } from './release-config.mjs'
+import {
+  PUBLIC_RELEASE_PACKAGES,
+  isPrereleaseVersion,
+  releaseChannelForVersion,
+} from './release-config.mjs'
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org/'
 export const REQUIRED_NPM_VERSION = '11.18.0'
@@ -30,6 +34,14 @@ const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1'
 const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1'
 const REPOSITORY = 'https://github.com/marklearst/primitree'
 const WORKFLOW_PATH = '.github/workflows/ci.yml'
+const LAUNCHER_RUNTIME_PACKAGES = PUBLIC_RELEASE_PACKAGES.filter(config =>
+  [
+    '@primitree/core',
+    '@primitree/dtcg',
+    '@primitree/cli',
+    'primitree',
+  ].includes(config.name)
+)
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -84,8 +96,10 @@ export function verifyExactMain({
   githubSha,
   runCommand = defaultRunCommand,
 }) {
-  if (!/^refs\/tags\/v\d+\.\d+\.\d+$/.test(githubRef ?? '')) {
-    throw new Error('release ref must be a stable vMAJOR.MINOR.PATCH tag')
+  if (!/^refs\/tags\/v\d+\.\d+\.\d+(?:-next\.\d+)?$/.test(githubRef ?? '')) {
+    throw new Error(
+      'release ref must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-next.N'
+    )
   }
   if (!/^[a-f0-9]{40}$/.test(githubSha ?? '')) {
     throw new Error('GITHUB_SHA must be a full lowercase commit SHA')
@@ -182,6 +196,13 @@ function optionalRegistryObject(value, mismatchMessage) {
   return value
 }
 
+function isPrereleaseDistTagValue(value) {
+  return (
+    typeof value === 'string' &&
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-/u.test(value)
+  )
+}
+
 function validateRegistryMetadata({ artifactPath, metadata, expected }) {
   const label = `${expected.name}@${expected.version}`
   if (!isPlainObject(metadata)) {
@@ -226,12 +247,21 @@ function validateRegistryMetadata({ artifactPath, metadata, expected }) {
     attestations?.provenance,
     `${label}: provenance metadata is invalid`
   )
+  const releaseChannel = releaseChannelForVersion(expected.version)
   complete =
     validateAvailableField(
-      distTags?.latest,
+      distTags?.[releaseChannel],
       expected.version,
-      `${label}: latest dist-tag mismatch`
+      `${label}: ${releaseChannel} dist-tag mismatch`
     ) && complete
+  if (
+    expected.forbidPrereleaseLatest === true &&
+    isPrereleaseDistTagValue(distTags?.latest)
+  ) {
+    throw new Error(
+      `${label}: prerelease must not remain on the latest dist-tag`
+    )
+  }
   complete =
     validateAvailableField(
       dist?.integrity,
@@ -492,6 +522,7 @@ async function inspectRegistryPackage({
   runCommand,
   tagRef,
   version,
+  forbidPrereleaseLatest = false,
 }) {
   const result = runCommand(
     'npm',
@@ -516,6 +547,7 @@ async function inspectRegistryPackage({
     tagRef,
     commitSha,
     registry,
+    forbidPrereleaseLatest,
   }
   const metadataState = validateRegistryMetadata({
     artifactPath: artifact.path,
@@ -570,13 +602,13 @@ function requireReleaseContext(version, githubRef, githubSha) {
   }
 }
 
-function publishArguments(artifactPath, registry) {
+export function releasePublishArguments(artifactPath, registry, version) {
   return [
     'publish',
     artifactPath,
     '--provenance',
     '--access=public',
-    '--tag=latest',
+    `--tag=${releaseChannelForVersion(version)}`,
     '--ignore-scripts',
     `--registry=${registry}`,
     '--fetch-retries=0',
@@ -632,7 +664,7 @@ export async function runReleasePublish({
 
     for (const artifact of verified.artifacts) {
       let published = false
-      let accepted = false
+      let acceptedState
       for (let attempt = 1; attempt <= maxPollAttempts; attempt += 1) {
         const state = await inspectRegistryPackage({
           artifact,
@@ -645,14 +677,18 @@ export async function runReleasePublish({
           version: verified.version,
         })
         if (state.kind === 'present') {
-          accepted = true
+          acceptedState = state
           break
         }
         if (state.kind === 'missing' && published === false) {
           requireCommandSuccess(
             runCommand(
               'npm',
-              publishArguments(artifact.path, registry),
+              releasePublishArguments(
+                artifact.path,
+                registry,
+                verified.version
+              ),
               commandOptions(commandContext, PUBLISH_COMMAND_TIMEOUT_MS)
             ),
             `npm publish ${artifact.name}@${verified.version}`
@@ -661,14 +697,34 @@ export async function runReleasePublish({
         }
         if (attempt < maxPollAttempts) await sleep(retryDelayMs)
       }
-      if (!accepted) {
+      if (acceptedState === undefined) {
         throw new Error(
           `registry polling exhausted for ${artifact.name} after ${maxPollAttempts} attempts`
         )
       }
-    }
 
-    for (const artifact of verified.artifacts) {
+      if (
+        isPrereleaseVersion(verified.version) &&
+        isPrereleaseDistTagValue(acceptedState.metadata?.['dist-tags']?.latest)
+      ) {
+        requireCommandSuccess(
+          runCommand(
+            'npm',
+            [
+              'dist-tag',
+              'rm',
+              artifact.name,
+              'latest',
+              `--registry=${registry}`,
+              '--fetch-retries=0',
+              `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+            ],
+            commandOptions(commandContext)
+          ),
+          `npm dist-tag rm ${artifact.name} latest`
+        )
+      }
+
       const state = await inspectRegistryPackage({
         artifact,
         commandContext,
@@ -678,6 +734,7 @@ export async function runReleasePublish({
         runCommand,
         tagRef: githubRef,
         version: verified.version,
+        forbidPrereleaseLatest: isPrereleaseVersion(verified.version),
       })
       if (state.kind !== 'present') {
         throw new Error(
@@ -728,6 +785,30 @@ function smokeCommand(runCommand, command, args, options) {
   requireCommandSuccess(
     runCommand(command, args, options),
     `${command} ${args.join(' ')}`
+  )
+}
+
+function runExactLauncherSmoke({ consumerDirectory, options, runCommand }) {
+  smokeCommand(
+    runCommand,
+    'node',
+    [
+      path.join(
+        consumerDirectory,
+        'node_modules',
+        'primitree',
+        'bin',
+        'primitree.js'
+      ),
+      '--help',
+    ],
+    options
+  )
+  smokeCommand(
+    runCommand,
+    path.join(consumerDirectory, 'node_modules', '.bin', 'primitree'),
+    ['--help'],
+    options
   )
 }
 
@@ -1285,6 +1366,7 @@ export function runPackedTarballConsumer({
       commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
     )
     assertInstalledVersions(consumerDirectory, verified.version)
+    runExactLauncherSmoke({ consumerDirectory, options, runCommand })
     runInstalledPackageSmokeChecks({
       consumerDirectory,
       options,
@@ -1299,15 +1381,73 @@ export function runPackedTarballConsumer({
   }
 }
 
+function runPublicLauncherConsumer({
+  version,
+  environment,
+  registry,
+  runCommand,
+}) {
+  const commandContext = createNpmExecutionContext({
+    environment,
+    keepOidc: false,
+    prefix: 'primitree-public-launcher-consumer-',
+    registry,
+  })
+  const consumerDirectory = commandContext.workingDirectory
+  writeFileSync(
+    path.join(consumerDirectory, 'package.json'),
+    `${JSON.stringify(
+      {
+        name: 'primitree-public-launcher-consumer',
+        version: '0.0.0',
+        private: true,
+        type: 'module',
+      },
+      null,
+      2
+    )}\n`
+  )
+  const options = commandOptions(commandContext)
+
+  try {
+    assertNpmVersion(commandOutput('npm', ['--version'], options, runCommand))
+    assertEffectiveRegistry(commandContext, registry, runCommand)
+    smokeCommand(
+      runCommand,
+      'npm',
+      [
+        'install',
+        '--save-exact',
+        '--ignore-scripts',
+        '--engine-strict',
+        '--audit=false',
+        '--fund=false',
+        `--registry=${registry}`,
+        '--fetch-retries=0',
+        `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+        `primitree@${version}`,
+      ],
+      commandOptions(commandContext, INSTALL_COMMAND_TIMEOUT_MS)
+    )
+    assertInstalledVersions(
+      consumerDirectory,
+      version,
+      LAUNCHER_RUNTIME_PACKAGES
+    )
+    runExactLauncherSmoke({ consumerDirectory, options, runCommand })
+  } finally {
+    commandContext.cleanup()
+  }
+}
+
 export async function runPublicRegistryConsumer({
   version,
   environment = process.env,
   registry = PUBLIC_NPM_REGISTRY,
   runCommand = defaultRunCommand,
 }) {
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version ?? '')) {
-    throw new Error('public consumer version must be stable MAJOR.MINOR.PATCH')
-  }
+  releaseChannelForVersion(version)
+  runPublicLauncherConsumer({ version, environment, registry, runCommand })
   const commandContext = createNpmExecutionContext({
     environment,
     keepOidc: false,

@@ -4,7 +4,7 @@
 keeps the older commands for Figma variables exports during the 1.0 update.
 
 ```sh
-npx @primitree/cli build variables.json
+npx primitree@next build variables.json
 ```
 
 ## Requirements
@@ -129,7 +129,7 @@ and owner rules. Use `--source` when the config contains several sources.
 Install the CLI in the project before importing its config helper:
 
 ```sh
-npm install -D @primitree/cli
+npm install -D @primitree/cli@next
 ```
 
 ```ts
@@ -244,7 +244,7 @@ the REST API.
 - [`@primitree/mcp`](https://www.npmjs.com/package/@primitree/mcp) serves token data through MCP.
 
 Read the [Primitree documentation](https://primitree.com) or review the
-[1.0.0 changelog](CHANGELOG.md).
+[1.0.0-next.0 changelog](CHANGELOG.md).
 
 ## License
 
