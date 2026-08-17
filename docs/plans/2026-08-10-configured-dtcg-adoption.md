@@ -130,9 +130,9 @@ Node test runner, Fumadocs, Prettier, and Biome.
 
 - [ ] **Step 7: Review and commit the release set**
 
-  Run the code scanner on both files, inspect every signal, complete
-  OMP-CODE-000 through OMP-CODE-021, and scan their prose. Run the root release
-  tests, formatter check, Biome, and `git diff --check` in a disposable copy.
+  Run the code and prose review checks on both files and inspect every signal.
+  Run the root release tests, formatter check, Biome, and `git diff --check` in
+  a disposable copy.
 
   Commit subject:
 
