@@ -1170,7 +1170,11 @@ through GitHub Actions:
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
 VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
-RELEASE_CHANNEL=next
+RELEASE_CHANNEL=$(
+  node --input-type=module \
+    --eval='import { releaseChannelForVersion } from "./scripts/release-config.mjs"; process.stdout.write(releaseChannelForVersion(process.argv[1]))' \
+    "$VERSION"
+)
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org
@@ -1455,7 +1459,12 @@ trap - EXIT
 After all six versions return npm `E404`, keep the wrong tag as an immutable
 failed attempt and prepare a new candidate:
 
-1. Add a reviewed follow-up changeset for the correction.
+1. In the reviewed follow-up that adds the correction changeset, change the old
+   launch note to
+   `Status: Failed release attempt YYYY-MM-DD. npm publication did not start.`
+   Preserve its original UTC date. In all six package changelogs, add
+   `The immutable Git tag exists, but npm has no matching package version.`
+   under the old version heading.
 2. Let the Version Packages workflow create or update its version pull request.
    Require the review and CI process in **Version pull requests**. Advance the
    fixed package group to the next `-next.N` version.

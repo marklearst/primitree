@@ -3652,6 +3652,21 @@ test('freezes same-byte recovery queries and retries in dependency order', () =>
   assert.match(recovery, /sole\s+supported selective recovery path/i)
   assert.match(
     recovery,
+    /import \{ releaseChannelForVersion \} from ['"]\.\/scripts\/release-config\.mjs['"][\s\S]*releaseChannelForVersion\(process\.argv\[1\]\)/
+  )
+  assert.doesNotMatch(recovery, /^RELEASE_CHANNEL=next$/m)
+  assertInOrder(
+    recovery,
+    [
+      'VERSION=$(node -p',
+      'RELEASE_CHANNEL=$(',
+      'releaseChannelForVersion(process.argv[1])',
+      '(cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)',
+    ],
+    'artifact-derived release channel'
+  )
+  assert.match(
+    recovery,
     /`npm publish` commands[\s\S]*do not execute[\s\S]*from a local machine/i
   )
 })
@@ -3732,7 +3747,15 @@ test('preserves immutable tags and advances wrong-tag recovery to a new version'
   assert.match(wrongTag, /all six[\s\S]*npm `E404`/i)
   assert.match(
     wrongTag,
-    /reviewed follow-up changeset[\s\S]*version pull request[\s\S]*next `-next\.N` version/i
+    /reviewed follow-up[\s\S]*correction changeset[\s\S]*version pull request[\s\S]*next `-next\.N` version/i
+  )
+  assert.match(
+    wrongTag,
+    /launch note[\s\S]*`Status: Failed release attempt YYYY-MM-DD\. npm publication did not start\.`/i
+  )
+  assert.match(
+    wrongTag,
+    /all six package changelogs[\s\S]*`The immutable Git tag exists, but npm has no matching package version\.`/i
   )
   assert.match(
     wrongTag,
@@ -3762,7 +3785,9 @@ test('preserves immutable tags and advances wrong-tag recovery to a new version'
       'NPM_REGISTRY=https://registry.npmjs.org',
       ...registryPackages.map(name => `"${name}"`),
       'all six versions return npm `E404`',
-      'reviewed follow-up changeset',
+      'correction changeset',
+      'Status: Failed release attempt YYYY-MM-DD. npm publication did not start.',
+      'The immutable Git tag exists, but npm has no matching package version.',
       'version pull request',
       'next `-next.N` version',
       'Correct the release copy',
