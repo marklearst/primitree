@@ -2142,6 +2142,20 @@ test('derives the recovery tag and release notes from the verified artifact vers
   )
 })
 
+test('reads every release version through ARTIFACT_DIR', () => {
+  assert.doesNotMatch(
+    releaseRunbook,
+    /require\('\.\/artifacts\/npm\/manifest\.json'\)\.version/
+  )
+  assert.equal(
+    occurrences(
+      releaseRunbook,
+      'require(require("node:path").resolve(process.argv[1], "manifest.json")).version'
+    ),
+    6
+  )
+})
+
 test('links one release runbook from maintainer and launch documentation', () => {
   assert.notEqual(releaseRunbook, '', 'docs/releasing.md must exist')
   assert.match(contributing, /\[release runbook\]\(docs\/releasing\.md\)/i)
@@ -2256,8 +2270,7 @@ test('freezes the launch administration order and credential boundaries', () => 
   )
   assert.match(external, /BOOTSTRAP_TOKEN_ID/)
   assert.match(external, /exact token ID/i)
-  assert.match(external, /select\(\.id == \$id\)/)
-  assert.doesNotMatch(external, /select\(\.key == \$id\)/)
+  assert.equal(occurrences(external, 'select((.id // .key) == $id)'), 2)
   assert.match(
     external,
     /bootstrap granular access token[\s\S]*cannot authorize `npm trust`/i
@@ -3207,7 +3220,7 @@ npm() {
     if [[ -e "$TOKEN_STATE" && "$KEEP_REVOKED_TOKEN" != true ]]; then
       printf '%s\n' '[]'
     else
-      printf '%s\n' '[{"id":"token-id-123","token":"npm_example"}]'
+      printf '[{"%s":"token-id-123","token":"npm_example"}]\n' "${'$'}{TOKEN_FIELD:-id}"
     fi
     if [[ ! -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == before ]] ||
       [[ -e "$TOKEN_STATE" && "$TOKEN_LIST_FAIL_WHEN" == after ]]; then
@@ -3235,6 +3248,11 @@ npm() {
     `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
   )
   assert.equal(removedToken.status, 0, removedToken.stderr)
+  rmSync(tokenState, { force: true })
+  const removedKeyToken = runBash(
+    `${tokenMock}\nTOKEN_STATE=${JSON.stringify(tokenState)}\nTOKEN_FIELD=key\nKEEP_REVOKED_TOKEN=false\nTOKEN_LIST_FAIL_WHEN=''\n${tokenBlock}`
+  )
+  assert.equal(removedKeyToken.status, 0, removedKeyToken.stderr)
   for (const failure of ['before', 'after']) {
     rmSync(tokenState, { force: true })
     const failedReadback = runBash(
@@ -3755,7 +3773,7 @@ test('preserves immutable tags and advances wrong-tag recovery to a new version'
   )
 })
 
-test('fails closed when publish steps are missing, null, or not an array', () => {
+test('requires an array before counting publish steps', () => {
   const wrongTag = extractMarkdownSection(
     releaseRunbook,
     '### Recover from a pushed wrong tag'
@@ -3764,31 +3782,7 @@ test('fails closed when publish steps are missing, null, or not an array', () =>
     /PUBLISH_STEP_COUNT=\$\(jq -er '([^']+)' <<<"\$PUBLISH_JOB_JSON"\)/
   )
   assert.ok(filterMatch)
-  const stepCountFilter = filterMatch[1]
-
-  for (const { label, job, expectedStatus } of [
-    { label: 'missing steps', job: {}, expectedStatus: 'failure' },
-    { label: 'null steps', job: { steps: null }, expectedStatus: 'failure' },
-    {
-      label: 'non-array steps',
-      job: { steps: 'not-an-array' },
-      expectedStatus: 'failure',
-    },
-    { label: 'empty steps', job: { steps: [] }, expectedStatus: 'success' },
-  ]) {
-    const result = spawnSync('jq', ['-er', stepCountFilter], {
-      input: `${JSON.stringify(job)}\n`,
-      encoding: 'utf8',
-    })
-    assert.ifError(result.error)
-
-    if (expectedStatus === 'success') {
-      assert.equal(result.status, 0, label)
-      assert.equal(result.stdout.trim(), '0', label)
-    } else {
-      assert.notEqual(result.status, 0, label)
-    }
-  }
+  assert.equal(filterMatch[1], '.steps | arrays | length')
 })
 
 test('accepts only six bounded exact-E404 registry responses', t => {

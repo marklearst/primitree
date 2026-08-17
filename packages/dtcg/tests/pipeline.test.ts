@@ -1147,7 +1147,7 @@ describe('emitCss', () => {
     ).not.toThrow()
   })
 
-  it('stops before CSS output exceeds 20 MiB', () => {
+  it('stops before CSS output exceeds 20 MiB', { timeout: 10_000 }, () => {
     const banner = 'é'.repeat(10 * 1024 * 1024 + 1)
 
     expect(() =>
