@@ -17,6 +17,7 @@ import { verifyReleaseArtifacts } from './release-artifacts.mjs'
 import {
   PUBLIC_RELEASE_PACKAGES,
   isPrereleaseVersion,
+  isStableReleaseVersion,
   releaseChannelForVersion,
 } from './release-config.mjs'
 
@@ -28,7 +29,7 @@ const PUBLISH_COMMAND_TIMEOUT_MS = 5 * 60_000
 const INSTALL_COMMAND_TIMEOUT_MS = 5 * 60_000
 const AUDIT_COMMAND_TIMEOUT_MS = 3 * 60_000
 const FETCH_TIMEOUT_MS = 10_000
-const DEFAULT_POLL_ATTEMPTS = 10
+export const REGISTRY_POLL_ATTEMPTS = 120
 const DEFAULT_POLL_DELAY_MS = 3_000
 const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1'
 const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1'
@@ -255,12 +256,18 @@ function validateRegistryMetadata({ artifactPath, metadata, expected }) {
       `${label}: ${releaseChannel} dist-tag mismatch`
     ) && complete
   if (
-    expected.forbidPrereleaseLatest === true &&
+    expected.hasPublishedStableVersion === true &&
     isPrereleaseDistTagValue(distTags?.latest)
   ) {
     throw new Error(
-      `${label}: prerelease must not remain on the latest dist-tag`
+      `${label}: prerelease latest is invalid when a stable version exists`
     )
+  }
+  if (
+    isPrereleaseDistTagValue(distTags?.latest) &&
+    typeof expected.hasPublishedStableVersion !== 'boolean'
+  ) {
+    throw new Error(`${label}: published version history is required`)
   }
   complete =
     validateAvailableField(
@@ -513,6 +520,48 @@ function parseRegistryMetadata(name, version, result) {
   return { kind: 'present', metadata }
 }
 
+function parsePublishedVersions(name, version, result) {
+  if (result.status !== 0) {
+    if (/^npm (?:error|ERR!) code E404\s*$/m.test(result.stderr ?? '')) {
+      return { kind: 'pending' }
+    }
+    throw new Error(
+      `${name}@${version}: npm version inventory request failed${
+        result.stderr?.trim() ? `: ${result.stderr.trim()}` : ''
+      }`
+    )
+  }
+  let versions
+  try {
+    versions = JSON.parse(result.stdout)
+  } catch {
+    throw new Error(`${name}@${version}: version inventory is not valid JSON`)
+  }
+  if (
+    !Array.isArray(versions) ||
+    versions.length === 0 ||
+    versions.some(item => typeof item !== 'string')
+  ) {
+    throw new Error(`${name}@${version}: version inventory must be an array`)
+  }
+  for (const publishedVersion of versions) {
+    try {
+      releaseChannelForVersion(publishedVersion)
+    } catch {
+      throw new Error(
+        `${name}@${version}: version inventory contains an unsupported version`
+      )
+    }
+  }
+  if (!versions.includes(version)) {
+    return { kind: 'pending' }
+  }
+  return {
+    kind: 'ready',
+    hasPublishedStableVersion: versions.some(isStableReleaseVersion),
+  }
+}
+
 async function inspectRegistryPackage({
   artifact,
   commandContext,
@@ -522,7 +571,6 @@ async function inspectRegistryPackage({
   runCommand,
   tagRef,
   version,
-  forbidPrereleaseLatest = false,
 }) {
   const result = runCommand(
     'npm',
@@ -547,7 +595,32 @@ async function inspectRegistryPackage({
     tagRef,
     commitSha,
     registry,
-    forbidPrereleaseLatest,
+  }
+  if (
+    isPrereleaseVersion(version) &&
+    isPrereleaseDistTagValue(state.metadata?.['dist-tags']?.latest)
+  ) {
+    const inventory = parsePublishedVersions(
+      artifact.name,
+      version,
+      runCommand(
+        'npm',
+        [
+          'view',
+          artifact.name,
+          'versions',
+          '--json',
+          `--registry=${registry}`,
+          '--fetch-retries=0',
+          `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
+        ],
+        commandOptions(commandContext)
+      )
+    )
+    if (inventory.kind === 'pending') {
+      return { kind: 'pending', metadata: state.metadata }
+    }
+    expected.hasPublishedStableVersion = inventory.hasPublishedStableVersion
   }
   const metadataState = validateRegistryMetadata({
     artifactPath: artifact.path,
@@ -622,7 +695,7 @@ export async function runReleasePublish({
   fetchJson = fetchAttestationJson,
   githubRef,
   githubSha,
-  maxPollAttempts = DEFAULT_POLL_ATTEMPTS,
+  maxPollAttempts = REGISTRY_POLL_ATTEMPTS,
   registry = PUBLIC_NPM_REGISTRY,
   retryDelayMs = DEFAULT_POLL_DELAY_MS,
   runCommand = defaultRunCommand,
@@ -703,28 +776,6 @@ export async function runReleasePublish({
         )
       }
 
-      if (
-        isPrereleaseVersion(verified.version) &&
-        isPrereleaseDistTagValue(acceptedState.metadata?.['dist-tags']?.latest)
-      ) {
-        requireCommandSuccess(
-          runCommand(
-            'npm',
-            [
-              'dist-tag',
-              'rm',
-              artifact.name,
-              'latest',
-              `--registry=${registry}`,
-              '--fetch-retries=0',
-              `--fetch-timeout=${FETCH_TIMEOUT_MS}`,
-            ],
-            commandOptions(commandContext)
-          ),
-          `npm dist-tag rm ${artifact.name} latest`
-        )
-      }
-
       const state = await inspectRegistryPackage({
         artifact,
         commandContext,
@@ -734,7 +785,6 @@ export async function runReleasePublish({
         runCommand,
         tagRef: githubRef,
         version: verified.version,
-        forbidPrereleaseLatest: isPrereleaseVersion(verified.version),
       })
       if (state.kind !== 'present') {
         throw new Error(

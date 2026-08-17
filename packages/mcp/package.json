@@ -1,6 +1,6 @@
 {
   "name": "@primitree/mcp",
-  "version": "1.0.0-next.0",
+  "version": "1.0.0-next.1",
   "description": "MCP server for listing, resolving, searching, and comparing Primitree design tokens.",
   "author": "Mark Learst",
   "license": "MIT",

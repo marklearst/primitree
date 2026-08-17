@@ -89,7 +89,7 @@ characters, so do not log it.
 - [`@primitree/hooks`](https://www.npmjs.com/package/@primitree/hooks) provides React hooks.
 
 Read the [Primitree documentation](https://primitree.com) or review the
-[1.0.0-next.0 changelog](CHANGELOG.md).
+[1.0.0-next.1 changelog](CHANGELOG.md).
 
 ## License
 

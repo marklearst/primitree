@@ -139,7 +139,7 @@ Access Token or a network request. Enterprise teams can use the live API hooks.
   "mcpServers": {
     "design-tokens": {
       "command": "npx",
-      "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
+      "args": ["-y", "@primitree/mcp@next", "--tokens", "./variables.json"]
     }
   }
 }
