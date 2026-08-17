@@ -600,6 +600,87 @@ test('removes an accidental latest tag before accepting a first prerelease', asy
   }
 })
 
+test('removes an older prerelease from latest before accepting a later prerelease', async () => {
+  const version = '1.0.0-next.1'
+  const previousVersion = '1.0.0-next.0'
+  const fixture = fixtureArtifacts(version)
+  const metadataByName = new Map()
+  const attestationByUrl = new Map()
+  const calls = []
+  for (const config of PUBLIC_RELEASE_PACKAGES) {
+    const published = fakePublishedPackage(
+      fixture.directory,
+      config.name,
+      version,
+      { latest: previousVersion, next: version }
+    )
+    metadataByName.set(config.name, published.metadata)
+    attestationByUrl.set(
+      published.metadata.dist.attestations.url,
+      published.attestation
+    )
+  }
+
+  try {
+    const result = await runReleasePublish({
+      artifactDirectory: fixture.directory,
+      environment: { ...process.env, NPM_TOKEN: 'bootstrap-token' },
+      githubRef: `refs/tags/v${version}`,
+      githubSha: SHA,
+      retryDelayMs: 0,
+      sleep: async () => {},
+      fetchJson: async url => ({
+        status: 200,
+        value: attestationByUrl.get(url),
+      }),
+      runCommand(command, args, options = {}) {
+        calls.push([command, ...args])
+        const configResult = registryConfigResult(args, options)
+        if (configResult !== undefined) return configResult
+        if (args[0] === '--version') {
+          return { status: 0, stdout: '11.18.0\n', stderr: '' }
+        }
+        if (args[0] === 'view') {
+          const spec = args[1]
+          const name = spec.slice(0, spec.lastIndexOf('@'))
+          return {
+            status: 0,
+            stdout: JSON.stringify(metadataByName.get(name)),
+            stderr: '',
+          }
+        }
+        if (args[0] === 'dist-tag' && args[1] === 'rm') {
+          delete metadataByName.get(args[2])['dist-tags'].latest
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        throw new Error(`unexpected command ${command} ${args.join(' ')}`)
+      },
+    })
+
+    assert.equal(result.mode, 'bootstrap')
+    assert.deepEqual(
+      calls
+        .filter(call => call[1] === 'dist-tag')
+        .map(call => call.slice(1, 5)),
+      PUBLIC_RELEASE_PACKAGES.map(config => [
+        'dist-tag',
+        'rm',
+        config.name,
+        'latest',
+      ])
+    )
+    assert.equal(
+      calls.some(call => call[1] === 'publish'),
+      false
+    )
+    for (const metadata of metadataByName.values()) {
+      assert.deepEqual(metadata['dist-tags'], { next: version })
+    }
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
 test('cleans an accepted prerelease before a downstream publish failure', async () => {
   const version = '1.0.0-next.0'
   const fixture = fixtureArtifacts(version)
@@ -778,6 +859,70 @@ test('validates one exact identity-aware SLSA provenance statement', () => {
           }),
         Error,
         label
+      )
+    }
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('preserves stable latest while validating a prerelease', () => {
+  const version = '1.0.0-next.1'
+  const fixture = fixtureArtifacts(version)
+  try {
+    const published = fakePublishedPackage(
+      fixture.directory,
+      '@primitree/core',
+      version,
+      { latest: '1.0.0', next: version }
+    )
+    assert.doesNotThrow(() =>
+      validatePublishedPackage({
+        ...published,
+        expected: {
+          name: '@primitree/core',
+          version,
+          repository: REPOSITORY,
+          workflowPath: WORKFLOW_PATH,
+          tagRef: `refs/tags/v${version}`,
+          commitSha: SHA,
+          registry: PUBLIC_NPM_REGISTRY,
+          forbidPrereleaseLatest: true,
+        },
+      })
+    )
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+test('rejects any prerelease left on latest after cleanup', () => {
+  const version = '1.0.0-next.1'
+  const fixture = fixtureArtifacts(version)
+  try {
+    for (const latest of ['1.0.0-next.0', '2.0.0-beta.3']) {
+      const published = fakePublishedPackage(
+        fixture.directory,
+        '@primitree/core',
+        version,
+        { latest, next: version }
+      )
+      assert.throws(
+        () =>
+          validatePublishedPackage({
+            ...published,
+            expected: {
+              name: '@primitree/core',
+              version,
+              repository: REPOSITORY,
+              workflowPath: WORKFLOW_PATH,
+              tagRef: `refs/tags/v${version}`,
+              commitSha: SHA,
+              registry: PUBLIC_NPM_REGISTRY,
+              forbidPrereleaseLatest: true,
+            },
+          }),
+        /prerelease must not remain on the latest dist-tag/u
       )
     }
   } finally {
