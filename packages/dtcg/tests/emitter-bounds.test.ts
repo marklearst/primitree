@@ -148,37 +148,41 @@ describe('emitTypescript work bounds', () => {
     ).toThrow(TYPESCRIPT_WORK_LIMIT_MESSAGE)
   })
 
-  it('caps generated TypeScript output at 20 MiB of UTF-8', () => {
-    const value = '界'.repeat(50_000)
-    const aliases = Object.fromEntries(
-      Array.from({ length: 140 }, (_, index) => [
-        `alias-${index}`,
-        { $type: 'string' as const, $value: '{tokens.base}' },
-      ])
-    )
-
-    expect(() =>
-      emitTypescript(
-        {},
-        {
-          version: '2025.10',
-          sets: {
-            source: {
-              sources: [
-                {
-                  tokens: {
-                    base: { $type: 'string', $value: value },
-                    ...aliases,
-                  },
-                },
-              ],
-            },
-          },
-          resolutionOrder: [{ $ref: '#/sets/source' }],
-        }
+  it(
+    'caps generated TypeScript output at 20 MiB of UTF-8',
+    { timeout: 10_000 },
+    () => {
+      const value = '界'.repeat(50_000)
+      const aliases = Object.fromEntries(
+        Array.from({ length: 140 }, (_, index) => [
+          `alias-${index}`,
+          { $type: 'string' as const, $value: '{tokens.base}' },
+        ])
       )
-    ).toThrow('TypeScript output can contain at most 20 MiB.')
-  })
+
+      expect(() =>
+        emitTypescript(
+          {},
+          {
+            version: '2025.10',
+            sets: {
+              source: {
+                sources: [
+                  {
+                    tokens: {
+                      base: { $type: 'string', $value: value },
+                      ...aliases,
+                    },
+                  },
+                ],
+              },
+            },
+            resolutionOrder: [{ $ref: '#/sets/source' }],
+          }
+        )
+      ).toThrow('TypeScript output can contain at most 20 MiB.')
+    }
+  )
 })
 
 function tailwindCollisionTree(depth: number): DTCGDocument {

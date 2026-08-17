@@ -38,12 +38,46 @@ empty temporary npm configuration, and calls npm with
 blocks credential reads, OIDC discovery, and registry requests. A dry-run
 cannot prove npm access or provenance. The publish job provides that proof.
 
-Bind the release attempt to the saved artifact and validate the intended tag:
+Before running the tag-mode metadata check, bind the shared version and release
+notes path to the verified artifact:
 
 ```bash
 ARTIFACT_DIR=artifacts/npm
 pnpm run verify:release-artifacts
-VERSION=$(node -p "require('./artifacts/npm/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
+[[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-next\.(0|[1-9][0-9]*))?$ ]]
+RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"
+test -f "$RELEASE_NOTES_PATH"
+```
+
+The initial candidate resolves to `1.0.0-next.0`; a reviewed recovery candidate
+resolves to its later `-next.N` version. Finalize the release copy in the
+reviewed branch. In all six package changelogs, change the heading to
+`$VERSION (YYYY-MM-DD)`. In `$RELEASE_NOTES_PATH`, replace the draft status
+with `Status: Released YYYY-MM-DD.` Use the same UTC date in all seven files.
+
+Confirm that the committed release date is still the current UTC date:
+
+```bash
+RELEASE_DATE=$(
+  sed -n \
+    's/^Status: Released \([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)\.$/\1/p' \
+    "$RELEASE_NOTES_PATH"
+)
+[[ "$RELEASE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+CURRENT_UTC_DATE=$(date -u +%F)
+test "$RELEASE_DATE" = "$CURRENT_UTC_DATE"
+```
+
+Stop when the UTC-date guard fails. Update all seven files through a reviewed
+date-correction pull request, merge it, rebind `FINAL_COMMIT`, and rerun the
+tag-mode metadata and deployment verification before tagging. A working-tree
+edit after binding is not a release candidate.
+
+Bind the release attempt to the saved artifact and validate the intended tag:
+
+```bash
+test "$VERSION" = "$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")"
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
@@ -191,13 +225,19 @@ test "$(
 )" = true
 ```
 
-Configure the repository ruleset to block release tag updates and deletions
-before you push the tag. GitHub applies immutable-release protection after
-publication, so the ruleset covers the draft and asset-upload window.
+Configure the active repository ruleset `Protect release tags` with no bypass
+actors to block release tag updates and deletions before you push the tag.
+GitHub applies immutable-release protection after publication, so the ruleset
+covers the draft and asset-upload window.
 
 ### 2. Merge and bind exact main
 
 - [ ] Merge the reviewed branch and bind the release to the exact `main` commit.
+
+Before merging, confirm that the reviewed branch contains the finalized release
+copy described in **Local preflight**. Commit these release markers with the
+release-finalization changes, include them in review, and merge them before
+binding `FINAL_COMMIT`. Do not edit the release copy after binding the commit.
 
 Before merging, prove that Vercel links the docs project to the intended GitHub
 repository and production branch. `autoAssignCustomDomains` must be `true`.
@@ -295,7 +335,8 @@ printf 'Release alias-event baseline: %s\n' "$RELEASE_EVENT_BASELINE_ID"
 
 After every required review and check passes, merge, switch to `main`, and
 record the exact commit. The initial release may proceed without a fabricated
-version pull request because the public manifests are already at 1.0.0.
+version pull request because the public manifests are already at
+1.0.0-next.0.
 
 ```bash
 set -euo pipefail
@@ -936,23 +977,35 @@ test "$(jq '[.[] | select(.name == "NPM_TOKEN")] | length' <<<"$GH_ENV_SECRETS")
 
 ### 5. Tag, publish, and create the GitHub prerelease
 
-- [ ] Create `v1.0.0-next.0` at the final verified commit and no other commit, push the single intended tag, and approve publication.
+- [ ] Create `v$VERSION` at the final verified commit and no other commit, push the single intended tag, and approve publication. The initial candidate is `v1.0.0-next.0`.
 
-For the initial release, create one annotated prerelease tag at the recorded
-commit. Never use a blanket tag push.
+Create one annotated prerelease tag at the recorded commit. The verified
+artifact supplies the initial or recovery version. Never use a blanket tag
+push.
 
-Update the release copy before creating the tag. In all six package changelogs,
-change `1.0.0-next.0` to `1.0.0-next.0 (YYYY-MM-DD)`. In
-`docs/launch/v1.0.0-next.0.md`, replace the draft status with
-`Status: Released YYYY-MM-DD.` Use the same UTC date in all seven files. The
-tag-mode metadata check rejects a missing date, a mismatched date, or an
-`Unreleased` marker.
+The committed release copy must already contain the matching UTC date in all
+seven files before this step starts. Do not edit it after `FINAL_COMMIT` is
+bound. The tag-mode metadata check rejects a missing date, a mismatched date,
+or an `Unreleased` marker.
 
 Run `git tag -d` to clear a local tag from an earlier failed launch attempt
 before creating the release tag.
 
 ```bash
-VERSION=1.0.0-next.0
+ARTIFACT_DIR=artifacts/npm
+pnpm run verify:release-artifacts
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
+[[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-next\.(0|[1-9][0-9]*))?$ ]]
+RELEASE_NOTES_PATH="docs/launch/v$VERSION.md"
+test -f "$RELEASE_NOTES_PATH"
+RELEASE_DATE=$(
+  sed -n \
+    's/^Status: Released \([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)\.$/\1/p' \
+    "$RELEASE_NOTES_PATH"
+)
+[[ "$RELEASE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+CURRENT_UTC_DATE=$(date -u +%F)
+test "$RELEASE_DATE" = "$CURRENT_UTC_DATE"
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 git tag -d "v$VERSION" 2>/dev/null || true
 git tag -a "v$VERSION" "$FINAL_COMMIT" -m "Primitree $VERSION"
@@ -1018,20 +1071,21 @@ security while GitHub retains the secret.
 
 - [ ] Revoke the exact one-day bootstrap token by ID and verify its removal.
 
-List tokens as JSON so npm returns full token IDs without exposing full token
-values. Match the description and expiry recorded at creation, copy that exact
-token ID into `BOOTSTRAP_TOKEN_ID`, revoke it, and list again:
+List tokens as JSON so npm returns a revocation identifier without exposing the
+token value. Match the description and expiry recorded at creation, copy that
+identifier into `BOOTSTRAP_TOKEN_ID`, revoke it, and list again. The selector
+uses `id` when present and falls back to `key` for npm JSON that omits `id`:
 
 ```bash
 set -euo pipefail
 TOKENS_BEFORE=$(npm token list --json) ||
   return 1 2>/dev/null || exit 1
 BOOTSTRAP_TOKEN_ID='<exact token ID from npm token list --json>'
-test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select(.key == $id)] | length' <<<"$TOKENS_BEFORE")" = 1
+test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select((.id // .key) == $id)] | length' <<<"$TOKENS_BEFORE")" = 1
 npm token revoke "$BOOTSTRAP_TOKEN_ID" --registry=https://registry.npmjs.org/
 TOKENS_AFTER=$(npm token list --json) ||
   return 1 2>/dev/null || exit 1
-test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select(.key == $id)] | length' <<<"$TOKENS_AFTER")" = 0
+test "$(jq --arg id "$BOOTSTRAP_TOKEN_ID" '[.[] | select((.id // .key) == $id)] | length' <<<"$TOKENS_AFTER")" = 0
 ```
 
 Never substitute a token value for the ID.
@@ -1063,12 +1117,15 @@ workflow, and environment relationship.
 - [ ] Verify every replacement package, the production documentation site, and the migration page.
 
 ```bash
-npm view "@primitree/core@1.0.0-next.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/dtcg@1.0.0-next.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/cli@1.0.0-next.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/hooks@1.0.0-next.0" version --registry=https://registry.npmjs.org/
-npm view "@primitree/mcp@1.0.0-next.0" version --registry=https://registry.npmjs.org/
-npm view "primitree@1.0.0-next.0" version --registry=https://registry.npmjs.org/
+ARTIFACT_DIR=artifacts/npm
+pnpm run verify:release-artifacts
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
+npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org/
+npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org/
+npm view "@primitree/cli@$VERSION" version --registry=https://registry.npmjs.org/
+npm view "@primitree/hooks@$VERSION" version --registry=https://registry.npmjs.org/
+npm view "@primitree/mcp@$VERSION" version --registry=https://registry.npmjs.org/
+npm view "primitree@$VERSION" version --registry=https://registry.npmjs.org/
 curl --fail --silent --show-error https://primitree.com/ >/dev/null
 curl --fail --silent --show-error https://primitree.com/docs/hooks/migration >/dev/null
 ```
@@ -1110,9 +1167,14 @@ Audit the workflow's registry decisions with these commands. Run recovery
 through GitHub Actions:
 
 ```bash
-VERSION=1.0.0-next.0
-RELEASE_CHANNEL=next
 ARTIFACT_DIR=artifacts/npm
+pnpm run verify:release-artifacts
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
+RELEASE_CHANNEL=$(
+  node --input-type=module \
+    --eval='import { releaseChannelForVersion } from "./scripts/release-config.mjs"; process.stdout.write(releaseChannelForVersion(process.argv[1]))' \
+    "$VERSION"
+)
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
 npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org
@@ -1192,7 +1254,7 @@ verifyReleaseArtifacts({
   artifactDirectory: path.resolve(process.env.ARTIFACT_DIR),
 })
 NODE
-VERSION=$(node -p "require('$ARTIFACT_DIR/manifest.json').version")
+VERSION=$(node -p 'require(require("node:path").resolve(process.argv[1], "manifest.json")).version' "$ARTIFACT_DIR")
 GITHUB_REF_TYPE=tag GITHUB_REF_NAME="v$VERSION" pnpm run check:release-metadata
 (cd "$ARTIFACT_DIR" && shasum -a 256 -c SHA256SUMS)
 ```
@@ -1213,47 +1275,207 @@ The helper does not delete draft assets. Inspect and remove a known failed
 `starter` upload by hand before rerunning the failed job. Do not replace an
 asset that passed verification.
 
-### Replace a pushed wrong tag
+### Recover from a pushed wrong tag
 
-Deleting a tag does not stop its existing workflow run. Identify the exact old
-run ID and confirm its head SHA belongs to the wrong tag before cancellation.
-Cancel an active old run and wait until all jobs reach a terminal state.
-Inspect a terminal run without sending another cancellation request:
+A pushed release tag is immutable, including one that points to the wrong
+commit. Never disable `Protect release tags` for recovery. Never move or delete
+a pushed `v*` tag.
+
+Bind `OLD_RUN_ID` to the exact tag and require its exact head SHA to match the
+peeled remote commit before sending a cancellation request. Reject missing,
+duplicate, or malformed remote tag rows. Cancel the bound run when it remains
+active and wait for every job to reach a terminal state. Re-fetch the terminal
+run. Require GitHub to report a single `publish` job, a skipped or cancelled
+conclusion, and no steps:
 
 ```bash
+VERSION=${VERSION:-1.0.0-next.0}
+[[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-next\.(0|[1-9][0-9]*)$ ]]
 OLD_RUN_ID=123456789
-gh run view "$OLD_RUN_ID" --json headSha,headBranch,event,status,jobs
-gh run cancel "$OLD_RUN_ID"
-gh run watch "$OLD_RUN_ID"
-gh run view "$OLD_RUN_ID" --json status,conclusion,jobs
+set -euo pipefail
+
+OLD_RUN_JSON=$(
+  gh run view "$OLD_RUN_ID" \
+    --json headSha,headBranch,event,status,conclusion,jobs
+)
+test "$(jq -r '.event' <<<"$OLD_RUN_JSON")" = push
+test "$(jq -r '.headBranch' <<<"$OLD_RUN_JSON")" = "v$VERSION"
+OLD_RUN_STATUS=$(
+  jq -er '.status | strings | select(length > 0)' <<<"$OLD_RUN_JSON"
+)
+OLD_RUN_HEAD_SHA=$(
+  jq -er \
+    '.headSha | strings | select(test("^[0-9a-f]{40}$"))' \
+    <<<"$OLD_RUN_JSON"
+)
+
+TAG_REF="refs/tags/v$VERSION"
+PEELED_TAG_REF="$TAG_REF^{}"
+REMOTE_TAG_REFS=$(
+  git ls-remote --tags origin "$TAG_REF" "$PEELED_TAG_REF"
+)
+REMOTE_TAG_LINE_COUNT=$(
+  awk 'NF { count += 1 } END { print count + 0 }' <<<"$REMOTE_TAG_REFS"
+)
+VALID_REMOTE_TAG_LINE_COUNT=$(
+  awk -F '\t' \
+    -v tag_ref="$TAG_REF" \
+    -v peeled_ref="$PEELED_TAG_REF" '
+      NF == 2 &&
+      $1 ~ /^[0-9a-f]{40}$/ &&
+      ($2 == tag_ref || $2 == peeled_ref) {
+        count += 1
+      }
+      END { print count + 0 }
+    ' <<<"$REMOTE_TAG_REFS"
+)
+TAG_OBJECT_COUNT=$(
+  awk -F '\t' \
+    -v ref="$TAG_REF" \
+    '$2 == ref { count += 1 } END { print count + 0 }' \
+    <<<"$REMOTE_TAG_REFS"
+)
+PEELED_TAG_COUNT=$(
+  awk -F '\t' \
+    -v ref="$PEELED_TAG_REF" \
+    '$2 == ref { count += 1 } END { print count + 0 }' \
+    <<<"$REMOTE_TAG_REFS"
+)
+test "$REMOTE_TAG_LINE_COUNT" = 2
+test "$VALID_REMOTE_TAG_LINE_COUNT" = 2
+test "$TAG_OBJECT_COUNT" = 1
+test "$PEELED_TAG_COUNT" = 1
+REMOTE_TAG_COMMIT=$(
+  awk -F '\t' \
+    -v ref="$PEELED_TAG_REF" \
+    '$2 == ref { print $1 }' \
+    <<<"$REMOTE_TAG_REFS"
+)
+test "$REMOTE_TAG_COMMIT" = "$OLD_RUN_HEAD_SHA"
+
+if [ "$OLD_RUN_STATUS" != completed ]; then
+  gh run cancel "$OLD_RUN_ID"
+  gh run watch "$OLD_RUN_ID"
+fi
+
+TERMINAL_RUN_JSON=$(
+  gh run view "$OLD_RUN_ID" \
+    --json headSha,headBranch,event,status,conclusion,jobs
+)
+test "$(jq -r '.event' <<<"$TERMINAL_RUN_JSON")" = push
+test "$(jq -r '.headBranch' <<<"$TERMINAL_RUN_JSON")" = "v$VERSION"
+test "$(jq -r '.headSha' <<<"$TERMINAL_RUN_JSON")" = "$OLD_RUN_HEAD_SHA"
+test "$(jq -r '.status' <<<"$TERMINAL_RUN_JSON")" = completed
+
+PUBLISH_JOB_JSON=$(
+  jq -cer \
+    '[.jobs[] | select(.name == "publish")] | select(length == 1) | .[0]' \
+    <<<"$TERMINAL_RUN_JSON"
+)
+PUBLISH_CONCLUSION=$(
+  jq -er '.conclusion | strings | select(length > 0)' <<<"$PUBLISH_JOB_JSON"
+)
+case "$PUBLISH_CONCLUSION" in
+  skipped | cancelled) ;;
+  *) exit 1 ;;
+esac
+PUBLISH_STEP_COUNT=$(jq -er '.steps | arrays | length' <<<"$PUBLISH_JOB_JSON")
+test "$PUBLISH_STEP_COUNT" = 0
 ```
 
-Before continuing, require the output to prove the publish job never started.
-Re-query all six versions against the release registry and require all six
-commands to return npm `E404`:
+These machine checks prove that the publish job never started. Run this bounded
+checker against all six exact versions. Each query uses the public registry,
+disables retries, and has a 20-second fetch timeout. A zero exit status, stdout,
+or an npm error code other than a single `E404` stops recovery. Registry output
+stays in a mode-700 temporary directory and the exit trap removes it without
+printing it:
 
 ```bash
-VERSION=1.0.0-next.0
-npm view "@primitree/core@$VERSION" version --registry=https://registry.npmjs.org
-npm view "@primitree/dtcg@$VERSION" version --registry=https://registry.npmjs.org
-npm view "@primitree/cli@$VERSION" version --registry=https://registry.npmjs.org
-npm view "@primitree/hooks@$VERSION" version --registry=https://registry.npmjs.org
-npm view "@primitree/mcp@$VERSION" version --registry=https://registry.npmjs.org
-npm view "primitree@$VERSION" version --registry=https://registry.npmjs.org
+set -euo pipefail
+: "${VERSION:?Set VERSION to the wrong pushed tag version}"
+NPM_REGISTRY=https://registry.npmjs.org
+NPM_E404_CHECK_DIR=
+
+cleanup_npm_e404_check() {
+  test -z "$NPM_E404_CHECK_DIR" ||
+    rm -rf -- "$NPM_E404_CHECK_DIR"
+}
+
+trap 'exit 1' HUP INT TERM
+trap cleanup_npm_e404_check EXIT
+NPM_E404_CHECK_DIR=$(mktemp -d)
+chmod 700 "$NPM_E404_CHECK_DIR"
+
+require_version_e404() {
+  local package_name="$1"
+  local package_index="$2"
+  local stdout_path="$NPM_E404_CHECK_DIR/$package_index.stdout"
+  local stderr_path="$NPM_E404_CHECK_DIR/$package_index.stderr"
+  local npm_status
+  local npm_error_codes
+
+  : >"$stdout_path"
+  : >"$stderr_path"
+  set +e
+  npm view "$package_name@$VERSION" version \
+    --registry="$NPM_REGISTRY" \
+    --fetch-retries=0 \
+    --fetch-timeout=20000 \
+    --loglevel=error \
+    >"$stdout_path" 2>"$stderr_path"
+  npm_status=$?
+  set -e
+
+  test "$npm_status" -ne 0 || return 1
+  test ! -s "$stdout_path" || return 1
+  npm_error_codes=$(
+    awk '
+      $1 == "npm" && ($2 == "error" || $2 == "ERR!") && $3 == "code" {
+        print $4
+      }
+    ' "$stderr_path"
+  )
+  test "$npm_error_codes" = E404
+}
+
+package_index=0
+for package_name in \
+  "@primitree/core" \
+  "@primitree/dtcg" \
+  "@primitree/cli" \
+  "@primitree/hooks" \
+  "@primitree/mcp" \
+  "primitree"
+do
+  package_index=$((package_index + 1))
+  require_version_e404 "$package_name" "$package_index"
+done
+
+trap - HUP INT TERM
+cleanup_npm_e404_check
+trap - EXIT
 ```
 
-After cancellation is terminal, the publish job never started, and all six
-versions are absent, delete and recreate the tag at the verified commit and
-push that single ref:
+After all six versions return npm `E404`, keep the wrong tag as an immutable
+failed attempt and prepare a new candidate:
 
-```bash
-git tag -d "v$VERSION"
-git push origin ":refs/tags/v$VERSION"
-FINAL_COMMIT=0123456789abcdef0123456789abcdef01234567
-git tag "v$VERSION" "$FINAL_COMMIT"
-git push origin "refs/tags/v$VERSION"
-```
+1. In the reviewed follow-up that adds the correction changeset, change the old
+   launch note to
+   `Status: Failed release attempt YYYY-MM-DD. npm publication did not start.`
+   Preserve its original UTC date. In all six package changelogs, add
+   `The immutable Git tag exists, but npm has no matching package version.`
+   under the old version heading.
+2. Let the Version Packages workflow create or update its version pull request.
+   Require the review and CI process in **Version pull requests**. Advance the
+   fixed package group to the next `-next.N` version.
+3. Correct the release copy for the new version and UTC date in reviewed
+   changes. Merge them before binding the release commit.
+4. Switch to the merged `main`, rebind `FINAL_COMMIT`, and repeat the
+   tag-mode metadata and exact deployment verification from steps 2 and 3.
+5. Create and push the new version tag through step 5. Do not reuse the wrong
+   version or its tag.
 
-A started publish job or published package blocks tag movement. Treat uncertain
-state the same way. Preserve provenance, deprecate an invalid package when
-needed, and issue a new patch release.
+A started publish job or any published package blocks the unpublished-version
+path. Treat uncertain registry or workflow state the same way. Preserve
+provenance and use the same-byte partial-publication recovery or a later
+corrective release, as applicable.

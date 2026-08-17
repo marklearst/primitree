@@ -128,7 +128,7 @@ jobs:
         run: node scripts/release-publish.mjs packed-consumer
 
   publish:
-    if: github.ref_type == 'tag'
+    if: github.event.deleted != true && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     needs: [quality, packed-consumer]
     timeout-minutes: 30
@@ -176,7 +176,7 @@ jobs:
         run: node scripts/release-publish.mjs public-consumer
 
   github-release:
-    if: github.ref_type == 'tag'
+    if: github.event.deleted != true && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     needs: [publish]
     timeout-minutes: 15
