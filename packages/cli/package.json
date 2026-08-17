@@ -1,6 +1,6 @@
 {
   "name": "@primitree/cli",
-  "version": "1.0.0-next.0",
+  "version": "1.0.0-next.1",
   "description": "Build, compare, check, scaffold, and export Figma Variables token projects.",
   "author": "Mark Learst",
   "license": "MIT",

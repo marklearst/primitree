@@ -70,6 +70,10 @@ const nextReleaseNotes = readFileSync(
   new URL('../docs/launch/v1.0.0-next.0.md', import.meta.url),
   'utf8'
 )
+const nextOneReleaseNotes = readFileSync(
+  new URL('../docs/launch/v1.0.0-next.1.md', import.meta.url),
+  'utf8'
+)
 const releaseRunbookUrl = new URL('../docs/releasing.md', import.meta.url)
 const releaseRunbook = existsSync(releaseRunbookUrl)
   ? readFileSync(releaseRunbookUrl, 'utf8')
@@ -1331,7 +1335,7 @@ test('repository validation is independent of the process cwd', () => {
     assert.equal(result.status, 0, result.stderr)
     assert.match(
       result.stdout,
-      /Release metadata valid for 6 public packages at 1\.0\.0-next\.0/
+      /Release metadata valid for 6 public packages at 1\.0\.0-next\.1/
     )
   } finally {
     rmSync(cwd, { recursive: true, force: true })
@@ -1908,7 +1912,7 @@ test('publishes through one pinned dual-mode helper and then verifies the public
     publish,
     /if: github\.event\.deleted != true && github\.ref_type == 'tag'/
   )
-  assert.match(publish, /timeout-minutes: 30/)
+  assert.match(publish, /timeout-minutes: 45/)
   assert.match(publish, /node-version: 24\.18\.0/)
   assert.match(publish, /npm install --global npm@11\.18\.0/)
   assert.match(publish, /test "\$\(npm --version\)" = "11\.18\.0"/)
@@ -2007,13 +2011,29 @@ test('keeps reviewed v1 release notes project-focused', () => {
   assert.doesNotMatch(v1ReleaseNotes, /—/)
 })
 
-test('documents the unscoped launcher and next channel in prerelease notes', () => {
+test('documents the unscoped launcher and partial next zero release', () => {
   assert.match(nextReleaseNotes, /^# Primitree 1\.0\.0-next\.0$/m)
   assert.match(nextReleaseNotes, /npx primitree@next check/)
   assert.match(nextReleaseNotes, /forwards to `@primitree\/cli`/)
-  assert.match(nextReleaseNotes, /`latest` does not point to the prerelease/)
+  assert.match(nextReleaseNotes, /Status: Partial release 2026-08-17/)
+  assert.match(
+    nextReleaseNotes,
+    /`@primitree\/core` reached npm; five packages did not/
+  )
+  assert.doesNotMatch(nextReleaseNotes, /`latest` does not point/)
   assert.match(nextReleaseNotes, /blob\/v1\.0\.0-next\.0\/README\.md/)
   assert.doesNotMatch(nextReleaseNotes, /—/)
+})
+
+test('documents the complete next one package-family candidate', () => {
+  assert.match(nextOneReleaseNotes, /^# Primitree 1\.0\.0-next\.1$/m)
+  assert.match(nextOneReleaseNotes, /Status: Released 2026-08-17\./)
+  assert.match(nextOneReleaseNotes, /npx primitree@next check/)
+  assert.match(nextOneReleaseNotes, /forwards to `@primitree\/cli`/)
+  assert.match(nextOneReleaseNotes, /share version `1\.0\.0-next\.1`/)
+  assert.match(nextOneReleaseNotes, /`next` is the authoritative/)
+  assert.match(nextOneReleaseNotes, /blob\/v1\.0\.0-next\.1\/README\.md/)
+  assert.doesNotMatch(nextOneReleaseNotes, /—/)
 })
 
 test('finalizes dated public release copy before tag validation and final binding', () => {
@@ -3509,7 +3529,11 @@ test('documents stable and next channels with the exact eight-file artifact boun
   assert.match(semantics, /tag\s+must be the exact version prefixed with `v`/i)
   assert.match(semantics, /`latest` dist-tag/)
   assert.match(semantics, /`-next\.N` use `next`/i)
-  assert.match(semantics, /removes[\s\S]*unexpected `latest`/i)
+  assert.match(
+    semantics,
+    /prerelease `latest`[\s\S]*published history contains no stable version/i
+  )
+  assert.match(semantics, /does not mutate `latest`/i)
 
   const artifactBoundary = extractMarkdownSection(
     releaseRunbook,
@@ -3556,11 +3580,15 @@ test('keeps dry-run and external npm and GitHub proof boundaries explicit', () =
   assert.doesNotMatch(external, /stale `v4\.2\.0` tag/i)
   assert.match(
     branchPreflight,
-    /REMOTE_TAG_REFS=\$\([\s\S]*git ls-remote --tags origin[\s\S]*\)[\s\S]*test -z "\$REMOTE_TAG_REFS"/
+    /CANDIDATE_TAG_REFS=\$\([\s\S]*git ls-remote --tags origin[\s\S]*refs\/tags\/v\$VERSION[\s\S]*\)[\s\S]*test -z "\$CANDIDATE_TAG_REFS"/
   )
   assert.match(
     branchPreflight,
-    /GITHUB_RELEASES=\$\([\s\S]*gh release list --repo marklearst\/primitree --json tagName[\s\S]*\)[\s\S]*test "\$GITHUB_RELEASES" = '\[\]'/
+    /CANDIDATE_RELEASE_COUNT=\$\([\s\S]*gh release list[\s\S]*--jq "\[\.\[\] \| select\(\.tagName == \\"v\$VERSION\\"\)\] \| length"[\s\S]*\)[\s\S]*test "\$CANDIDATE_RELEASE_COUNT" = 0/
+  )
+  assert.match(
+    branchPreflight,
+    /Prior immutable tags and releases[\s\S]*may remain/
   )
   assert.match(
     tagPhase,
@@ -3679,7 +3707,6 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
   for (const command of [
     'npm dist-tag ls "@primitree/core" --registry=https://registry.npmjs.org',
     'npm dist-tag add "@primitree/core@$VERSION" next --registry=https://registry.npmjs.org',
-    'npm dist-tag rm "@primitree/core" latest --registry=https://registry.npmjs.org',
     'npm deprecate "@primitree/core@$VERSION" "Use 1.0.1; this release contains invalid package contents" --registry=https://registry.npmjs.org',
     'RUN_ID=123456789',
     'COMMIT_SHA=0123456789abcdef0123456789abcdef01234567',
@@ -3690,6 +3717,11 @@ test('documents dist-tag, invalid-content, and immutable artifact recovery', () 
   ]) {
     assert.ok(recovery.includes(command), `recovery must contain ${command}`)
   }
+  assert.doesNotMatch(recovery, /npm dist-tag rm .* latest/)
+  assert.match(
+    recovery,
+    /without a stable version[\s\S]*may keep a[\s\S]*prerelease on `latest`/i
+  )
   assert.match(recovery, /bad package contents[\s\S]*new patch version/i)
   assert.match(recovery, /do not[\s\S]*(?:overwrite|unpublish)/i)
   assert.match(recovery, /run ID and commit SHA/i)
@@ -3736,6 +3768,11 @@ test('preserves immutable tags and advances wrong-tag recovery to a new version'
   )
 
   assert.match(wrongTag, /exact tag[\s\S]*exact head SHA/i)
+  assert.match(
+    wrongTag,
+    /: "\$\{VERSION:\?Set VERSION to the wrong pushed tag version\}"/
+  )
+  assert.doesNotMatch(wrongTag, /VERSION=\$\{VERSION:-/)
   assert.match(
     wrongTag,
     /jq -r '\.event'[\s\S]*= push[\s\S]*jq -r '\.headBranch'[\s\S]*"v\$VERSION"/

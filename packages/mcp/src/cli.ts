@@ -18,7 +18,7 @@ Example MCP client config:
     "mcpServers": {
       "design-tokens": {
         "command": "npx",
-        "args": ["-y", "@primitree/mcp", "--tokens", "./variables.json"]
+        "args": ["-y", "@primitree/mcp@next", "--tokens", "./variables.json"]
       }
     }
   }

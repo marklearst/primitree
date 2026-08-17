@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   isPrereleaseVersion,
+  isStableReleaseVersion,
   releaseChannelForVersion,
 } from './release-config.mjs'
 
@@ -88,6 +89,9 @@ test('maps only stable and next versions to public release channels', () => {
   assert.equal(releaseChannelForVersion('1.0.0-next.0'), 'next')
   assert.equal(isPrereleaseVersion('1.0.0'), false)
   assert.equal(isPrereleaseVersion('1.0.0-next.0'), true)
+  assert.equal(isStableReleaseVersion('1.0.0'), true)
+  assert.equal(isStableReleaseVersion('1.0.0-next.0'), false)
+  assert.equal(isStableReleaseVersion('1.0.0-beta.1'), false)
   assert.throws(
     () => releaseChannelForVersion('1.0.0-beta.1'),
     /release version/i
