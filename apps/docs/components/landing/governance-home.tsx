@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { CopyCommand } from '@/components/landing/copy-command'
+import { HeroMark } from '@/components/landing/hero-mark'
 import { ProofPanel } from '@/components/landing/proof-panel'
 import {
   createGovernanceDemo,
@@ -49,21 +50,6 @@ const CONFIG_SNIPPET = `export default {
 export function GovernanceHome() {
   const demo = createGovernanceDemo()
   const deck = createProposalDeck()
-  const heroReport = [
-    '$ primitree check --source brand',
-    '',
-    `Check passed for source "brand" with ${demo.tokenCount} tokens.`,
-    '',
-    `$ primitree inspect ${demo.tokenPath}`,
-    '',
-    `Token: ${demo.tokenPath}`,
-    `Alias chain: ${demo.tokenPath} -> ${demo.aliasTarget}`,
-    `Value: ${demo.resolvedValue}`,
-    `Owners: ${demo.owner}`,
-    'Direct dependents:',
-    ...demo.directDependents.map(dependent => `  ${dependent.path}`),
-  ].join('\n')
-
   return (
     <div className='governance-home'>
       <section className='governance-hero'>
@@ -104,12 +90,7 @@ export function GovernanceHome() {
                 />
               </div>
             </div>
-            <div className='terminal hero-terminal'>
-              <p className='terminal-title'>primitree check · brand source</p>
-              <pre>
-                <code>{heroReport}</code>
-              </pre>
-            </div>
+            <HeroMark demo={demo} />
           </div>
         </div>
       </section>

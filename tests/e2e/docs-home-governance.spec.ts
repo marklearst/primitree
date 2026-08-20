@@ -225,7 +225,7 @@ async function expectChipKeyboardNavigation(page: Page) {
 
 test('homepage leads with truthful governance', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.hero-terminal')).toContainText(
+  await expect(page.locator('.hero-mark')).toContainText(
     'Check passed for source "brand" with 8 tokens.'
   )
   await expect(
