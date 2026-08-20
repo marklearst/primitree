@@ -122,7 +122,7 @@ export function GovernanceHome() {
             <p>
               Click a proposal below. Each verdict, consumer list, and emitted
               line comes from @primitree/core at this site&apos;s build time,
-              from the same graph the CLI reads.
+              through the same functions the CLI calls.
             </p>
           </div>
           <ProofPanel
@@ -138,9 +138,9 @@ export function GovernanceHome() {
             <p className='section-kicker'>Change review</p>
             <h2>See what a rename touches.</h2>
             <p>
-              primitree diff reads two revisions of a source through the graph.
-              A renamed token keeps its identity, and the report lists the
-              components that reference the old path.
+              primitree diff reads two revisions of a source through the graph
+              and pairs each change with the components that reference it. One
+              rename shows up as five changes.
             </p>
             <Link
               href='/docs/cli/diff'
