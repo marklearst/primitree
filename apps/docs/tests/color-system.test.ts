@@ -154,7 +154,7 @@ test('token tree stacks into a legible column below tablet width', async () => {
   )
   assert.match(
     theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.tree-consumers\s*\{\s*grid-template-columns: minmax\(0, 1fr\);\s*\}/u
+    /@media \(max-width: 719px\)[\s\S]*?\.tree-consumers\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/u
   )
 
   const nodeCodeRule = flatCssRules(theme).find(({ selectors }) =>

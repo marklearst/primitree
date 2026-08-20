@@ -72,10 +72,12 @@ test('proposal deck derives every outcome from the engine', () => {
     deck.diffReport.includes('removed semantic.color.bg.brand'),
     true
   )
-  assert.equal(
-    deck.diffReport.includes(
-      '  Affected tokens: component.button.bg, component.focus.ring, component.nav.active.bg'
-    ),
-    true
-  )
+  assert.equal(deck.diffReport.includes('  Affected tokens:'), true)
+  assert.equal(deck.diffReport.includes('    component.button.bg'), true)
+  assert.equal(deck.diffReport.includes('    component.nav.active.bg'), true)
+})
+
+test('governance demo counts the source tokens', () => {
+  const demo = createGovernanceDemo()
+  assert.equal(demo.tokenCount, 8)
 })

@@ -35,6 +35,7 @@ export interface GovernanceDemo {
     readonly reason: string
   }
   readonly outputs: readonly string[]
+  readonly tokenCount: number
 }
 
 export interface ProposalOutcome {
@@ -358,13 +359,14 @@ function buildDiffReport(
   ]
   for (const change of diff.changes) {
     lines.push(`${change.kind} ${describe(change.tokenId)}`)
-    lines.push(
-      `  Affected tokens: ${
-        change.impactedTokenIds.length === 0
-          ? 'none'
-          : change.impactedTokenIds.map(describe).join(', ')
-      }`
-    )
+    if (change.impactedTokenIds.length === 0) {
+      lines.push('  Affected tokens: none')
+    } else {
+      lines.push('  Affected tokens:')
+      for (const impacted of change.impactedTokenIds) {
+        lines.push(`    ${describe(impacted)}`)
+      }
+    }
   }
   lines.push('New findings: 0', 'Resolved findings: 0')
   return Object.freeze(lines)
@@ -457,6 +459,7 @@ export function createGovernanceDemo(
       reason: blockedFinding.message,
     }),
     outputs: buildOutputLabels(outputOptions),
+    tokenCount: compliantSnapshot.view.tokens.length,
   })
 }
 

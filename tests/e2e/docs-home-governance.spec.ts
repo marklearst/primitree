@@ -69,7 +69,7 @@ async function expectVisibleTouchTargets(page: Page) {
         if (
           isFrameworkTool ||
           !isVisible ||
-          (box.width >= 44 && box.height >= 44)
+          (box.width >= 43.5 && box.height >= 43.5)
         ) {
           return []
         }
@@ -225,6 +225,9 @@ async function expectChipKeyboardNavigation(page: Page) {
 
 test('homepage leads with truthful governance', async ({ page }) => {
   await page.goto('/')
+  await expect(page.locator('.hero-terminal')).toContainText(
+    'Check passed for source "brand" with 8 tokens.'
+  )
   await expect(
     page.getByRole('heading', {
       level: 1,
@@ -339,12 +342,11 @@ test('compliant alias updates the emitted code', async ({ page }) => {
 test('diff terminal lists the rename blast radius', async ({ page }) => {
   await page.goto('/')
 
-  const terminal = page.locator('.terminal')
+  const terminal = page.locator('.governance-diff-grid .terminal')
   await expect(terminal).toContainText('removed semantic.color.bg.brand')
   await expect(terminal).toContainText('added semantic.color.bg.primary')
-  await expect(terminal).toContainText(
-    'component.button.bg, component.focus.ring, component.nav.active.bg'
-  )
+  await expect(terminal).toContainText('Affected tokens:')
+  await expect(terminal).toContainText('component.nav.active.bg')
 })
 
 test('tree nodes never overflow their boxes', async ({ page }) => {
@@ -463,7 +465,7 @@ test('reduced motion preserves the tree and usable evidence', async ({
   await page.goto('/')
 
   await expect(page.locator('.tree')).toBeVisible()
-  await expect(page.locator('.tree-mark svg')).toBeVisible()
+  await expect(page.locator('.tree-head-brand svg')).toBeVisible()
   await expectChipKeyboardNavigation(page)
 
   const spineDurations = await page

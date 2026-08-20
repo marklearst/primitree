@@ -49,6 +49,20 @@ const CONFIG_SNIPPET = `export default {
 export function GovernanceHome() {
   const demo = createGovernanceDemo()
   const deck = createProposalDeck()
+  const heroReport = [
+    '$ primitree check --source brand',
+    '',
+    `Check passed for source "brand" with ${demo.tokenCount} tokens.`,
+    '',
+    `$ primitree inspect ${demo.tokenPath}`,
+    '',
+    `Token: ${demo.tokenPath}`,
+    `Alias chain: ${demo.tokenPath} -> ${demo.aliasTarget}`,
+    `Value: ${demo.resolvedValue}`,
+    `Owners: ${demo.owner}`,
+    'Direct dependents:',
+    ...demo.directDependents.map(dependent => `  ${dependent.path}`),
+  ].join('\n')
 
   return (
     <div className='governance-home'>
@@ -58,34 +72,44 @@ export function GovernanceHome() {
             <span>Govern token change.</span>
             <span>Know every consequence.</span>
           </h1>
-          <p className='governance-hero-lede'>
-            Turn a token edit into reviewable evidence: what it resolves to,
-            which components depend on it, who owns it, and whether the
-            configured policy allows the change to ship.
-          </p>
-          <div className='governance-actions'>
-            <Link
-              href='/docs/getting-started'
-              className='btn-primary governance-cta'>
-              Run the quickstart
-              <ArrowRight
-                aria-hidden='true'
-                size={16}
-                strokeWidth={1.8}
-              />
-            </Link>
-            <Link
-              href='/playground'
-              className='btn-ghost governance-cta'>
-              Open the playground
-            </Link>
-          </div>
-          <div className='hero-install'>
-            <code>{INSTALL_COMMAND}</code>
-            <CopyCommand
-              text={INSTALL_COMMAND}
-              label='Copy the install command'
-            />
+          <div className='governance-hero-split'>
+            <div className='governance-hero-copy-stack'>
+              <p className='governance-hero-lede'>
+                Turn a token edit into reviewable evidence: what it resolves to,
+                which components depend on it, who owns it, and whether the
+                configured policy allows the change to ship.
+              </p>
+              <div className='governance-actions'>
+                <Link
+                  href='/docs/getting-started'
+                  className='btn-primary governance-cta'>
+                  Run the quickstart
+                  <ArrowRight
+                    aria-hidden='true'
+                    size={16}
+                    strokeWidth={1.8}
+                  />
+                </Link>
+                <Link
+                  href='/playground'
+                  className='btn-ghost governance-cta'>
+                  Open the playground
+                </Link>
+              </div>
+              <div className='hero-install'>
+                <code>{INSTALL_COMMAND}</code>
+                <CopyCommand
+                  text={INSTALL_COMMAND}
+                  label='Copy the install command'
+                />
+              </div>
+            </div>
+            <div className='terminal hero-terminal'>
+              <p className='terminal-title'>primitree check · brand source</p>
+              <pre>
+                <code>{heroReport}</code>
+              </pre>
+            </div>
           </div>
         </div>
       </section>
@@ -141,6 +165,7 @@ export function GovernanceHome() {
       <section className='governance-quickstart'>
         <div className='governance-wrap governance-proof-copy-grid'>
           <div className='governance-proof-copy'>
+            <p className='section-kicker'>Configuration</p>
             <h2>Rules close to the tokens.</h2>
             <p>
               Define architecture and ownership beside the source. Check the
@@ -199,6 +224,10 @@ export function GovernanceHome() {
             Extensions under $extensions[&apos;com.primitree&apos;]
           </p>
           <p>
+            <span>Outputs</span>
+            DTCG · CSS · Tailwind · TypeScript, from one resolved graph
+          </p>
+          <p>
             <span>Sources</span>
             Local DTCG files · Figma variables export · Variables REST API
           </p>
@@ -223,9 +252,9 @@ export function GovernanceHome() {
               />
             </Link>
             <Link
-              href='/docs'
+              href='/playground'
               className='btn-ghost governance-cta'>
-              Browse the docs
+              Open the playground
             </Link>
           </div>
         </div>

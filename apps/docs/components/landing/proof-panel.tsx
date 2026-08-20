@@ -76,26 +76,40 @@ export function ProofPanel({
           aria-live='polite'
           className='proof-verdict'
           data-tone={outcome.verdictTone}>
-          {outcome.verdict}
+          <span
+            className='proof-swap'
+            key={outcome.id}>
+            {outcome.verdict}
+          </span>
         </p>
-        <p className='proof-detail'>{outcome.detail}</p>
+        <p className='proof-detail'>
+          <span
+            className='proof-swap'
+            key={outcome.id}>
+            {outcome.detail}
+          </span>
+        </p>
         <div className='proof-emitted'>
-          {outcome.emitted === null ? (
-            <p className='proof-blocked'>
-              No files ship. The build stops at the policy gate.
-            </p>
-          ) : (
-            <>
-              <p className='proof-emitted-label'>tokens.css</p>
-              <pre>
-                <code>{outcome.emitted.css}</code>
-              </pre>
-              <p className='proof-emitted-label'>tokens.ts</p>
-              <pre>
-                <code>{outcome.emitted.ts}</code>
-              </pre>
-            </>
-          )}
+          <div
+            className='proof-swap'
+            key={outcome.id}>
+            {outcome.emitted === null ? (
+              <p className='proof-blocked'>
+                No files ship. The build stops at the policy gate.
+              </p>
+            ) : (
+              <>
+                <p className='proof-emitted-label'>tokens.css</p>
+                <pre>
+                  <code>{outcome.emitted.css}</code>
+                </pre>
+                <p className='proof-emitted-label'>tokens.ts</p>
+                <pre>
+                  <code>{outcome.emitted.ts}</code>
+                </pre>
+              </>
+            )}
+          </div>
         </div>
         <p className='proof-owner'>
           <span>Owner</span>
