@@ -1,6 +1,7 @@
 import {
   composeGraph,
   createSourceView,
+  diffGraphViews,
   getDependents,
   inspectToken,
   type TokenId,
@@ -36,6 +37,24 @@ export interface GovernanceDemo {
   readonly outputs: readonly string[]
 }
 
+export interface ProposalOutcome {
+  readonly id: 'baseline' | 'alias' | 'violation' | 'rename'
+  readonly label: string
+  readonly tokenPath: string
+  readonly proposedValue: string
+  readonly verdict: string
+  readonly verdictTone: 'pass' | 'block' | 'review'
+  readonly detail: string
+  readonly resolvedValue: string | null
+  readonly emitted: { readonly css: string; readonly ts: string } | null
+  readonly description: string
+}
+
+export interface ProposalDeck {
+  readonly outcomes: readonly ProposalOutcome[]
+  readonly diffReport: readonly string[]
+}
+
 const tokenPath = 'semantic.color.bg.brand'
 const aliasTarget = 'primitives.color.blue.500'
 const expectedDependents = [
@@ -53,6 +72,16 @@ const compliantDocument = {
           $value: {
             colorSpace: 'srgb',
             components: [0.2, 0.4, 1],
+            alpha: 1,
+          },
+        },
+      },
+      green: {
+        '500': {
+          $type: 'color',
+          $value: {
+            colorSpace: 'srgb',
+            components: [0.372549, 0.498039, 0.184314],
             alpha: 1,
           },
         },
@@ -92,6 +121,44 @@ const blockedDocument = {
         brand: { $type: 'color', $value: '{component.color.brand}' },
       },
     },
+  },
+} as const
+
+const aliasDocument = {
+  ...compliantDocument,
+  semantic: {
+    color: {
+      bg: {
+        ...compliantDocument.semantic.color.bg,
+        brand: { $type: 'color', $value: '{primitives.color.green.500}' },
+      },
+    },
+  },
+} as const
+
+const renameDocument = {
+  primitives: compliantDocument.primitives,
+  semantic: {
+    color: {
+      bg: {
+        primary: { $type: 'color', $value: '{primitives.color.blue.500}' },
+        support: compliantDocument.semantic.color.bg.support,
+      },
+    },
+  },
+  component: {
+    button: {
+      bg: { $type: 'color', $value: '{semantic.color.bg.primary}' },
+    },
+    nav: {
+      active: {
+        bg: { $type: 'color', $value: '{semantic.color.bg.primary}' },
+      },
+    },
+    focus: {
+      ring: { $type: 'color', $value: '{semantic.color.bg.primary}' },
+    },
+    color: compliantDocument.component.color,
   },
 } as const
 
@@ -231,6 +298,78 @@ function buildOutputLabels(
   return Object.freeze(labels)
 }
 
+function emittedExcerpt(
+  document: unknown,
+  cssNeedle: string,
+  tsNeedle: string
+) {
+  const built = buildDTCGOutputs(
+    {
+      ...outputSet,
+      files: { 'living-canopy.tokens.json': document as DTCGDocument },
+    },
+    {}
+  )
+  const findLine = (path: string, needle: string) => {
+    const file = built.files.find(item => item.path === path)
+    const line = file?.contents.split('\n').find(item => item.includes(needle))
+    if (line === undefined) {
+      throw new Error(`Governance demo expected ${needle} in ${path}.`)
+    }
+    return line.trim()
+  }
+  return Object.freeze({
+    css: findLine('css/tokens.css', cssNeedle),
+    ts: findLine('ts/tokens.ts', tsNeedle),
+  })
+}
+
+function inspectResolvedHex(
+  snapshot: ReturnType<typeof buildSnapshot>,
+  path: readonly string[]
+): string {
+  const inspection = requireBuildValue(
+    inspectToken(snapshot, { kind: 'path', path: [...path] }),
+    'proposal inspection'
+  )
+  return resolveSrgbHex(inspection.resolution.value)
+}
+
+function buildDiffReport(
+  before: ReturnType<typeof buildSnapshot>,
+  after: ReturnType<typeof buildSnapshot>
+): readonly string[] {
+  const paths = new Map<TokenId, string>()
+  for (const token of [...before.view.tokens, ...after.view.tokens]) {
+    paths.set(token.tokenId, token.path.join('.'))
+  }
+  const diff = requireBuildValue(diffGraphViews(before, after), 'rename diff')
+  const describe = (tokenId: TokenId) => {
+    const path = paths.get(tokenId)
+    if (path === undefined) {
+      throw new Error('Governance demo expected a path for every diff token.')
+    }
+    return path
+  }
+  const lines: string[] = [
+    '$ primitree diff tokens.before.json tokens.json --config primitree.config.ts',
+    '',
+    `Diff found ${diff.changes.length} token changes.`,
+  ]
+  for (const change of diff.changes) {
+    lines.push(`${change.kind} ${describe(change.tokenId)}`)
+    lines.push(
+      `  Affected tokens: ${
+        change.impactedTokenIds.length === 0
+          ? 'none'
+          : change.impactedTokenIds.map(describe).join(', ')
+      }`
+    )
+  }
+  lines.push('New findings: 0', 'Resolved findings: 0')
+  return Object.freeze(lines)
+}
+
 /** Builds the serializable evidence projection rendered by the Living Canopy. */
 export function createGovernanceDemo(
   outputOptions: BuildOutputOptions = {}
@@ -319,4 +458,115 @@ export function createGovernanceDemo(
     }),
     outputs: buildOutputLabels(outputOptions),
   })
+}
+
+/** Builds the click-driven proposal outcomes for the homepage proof panel. */
+export function createProposalDeck(): ProposalDeck {
+  const policy = requireBuildValue(createPolicy(policyInput), 'policy creation')
+  const baselineSnapshot = buildSnapshot(compliantDocument)
+  const aliasSnapshot = buildSnapshot(aliasDocument)
+  const renameSnapshot = buildSnapshot(renameDocument)
+
+  const aliasReport = requireBuildValue(
+    evaluatePolicy(aliasSnapshot, policy),
+    'alias policy evaluation'
+  )
+  if (aliasReport.summary.active !== 0) {
+    throw new Error('Governance demo expected the alias proposal to pass.')
+  }
+  const blockedReport = requireBuildValue(
+    evaluatePolicy(buildSnapshot(blockedDocument), policy),
+    'blocked policy evaluation'
+  )
+  const blockedFinding = blockedReport.findings.find(
+    finding => finding.ruleId === 'PT1004'
+  )
+  if (blockedFinding === undefined) {
+    throw new Error('Governance demo expected the PT1004 finding.')
+  }
+
+  const dependentList = expectedDependents.join(', ')
+  const baselineHex = inspectResolvedHex(baselineSnapshot, [
+    'semantic',
+    'color',
+    'bg',
+    'brand',
+  ])
+  const aliasHex = inspectResolvedHex(aliasSnapshot, [
+    'semantic',
+    'color',
+    'bg',
+    'brand',
+  ])
+  if (aliasHex !== '#5f7f2f') {
+    throw new Error(
+      'Governance demo expected the green alias to resolve to #5f7f2f.'
+    )
+  }
+  const diffReport = buildDiffReport(baselineSnapshot, renameSnapshot)
+  if (!diffReport.includes('removed semantic.color.bg.brand')) {
+    throw new Error(
+      'Governance demo expected the rename diff to remove the old path.'
+    )
+  }
+
+  const brandCss = '--semantic-color-bg-brand:'
+  const brandTs = '["semantic.color.bg.brand"]: "color('
+  const outcomes: readonly ProposalOutcome[] = Object.freeze([
+    Object.freeze({
+      id: 'baseline' as const,
+      label: 'Current graph',
+      tokenPath,
+      proposedValue: `{${aliasTarget}}`,
+      verdict: 'PASS · 0 findings',
+      verdictTone: 'pass' as const,
+      detail: 'Each layer references the layer beneath it. The graph ships.',
+      resolvedValue: baselineHex,
+      emitted: emittedExcerpt(compliantDocument, brandCss, brandTs),
+      description: `${tokenPath} references ${aliasTarget}, resolves to ${baselineHex}, and feeds ${dependentList}.`,
+    }),
+    Object.freeze({
+      id: 'alias' as const,
+      label: 'Compliant alias',
+      tokenPath,
+      proposedValue: '{primitives.color.green.500}',
+      verdict: 'PASS · 0 findings',
+      verdictTone: 'pass' as const,
+      detail:
+        'semantic references primitives, within policy. The change ships.',
+      resolvedValue: aliasHex,
+      emitted: emittedExcerpt(aliasDocument, brandCss, brandTs),
+      description: `${tokenPath} references primitives.color.green.500, resolves to ${aliasHex}, and feeds ${dependentList}.`,
+    }),
+    Object.freeze({
+      id: 'violation' as const,
+      label: 'Layer violation',
+      tokenPath,
+      proposedValue: '{component.color.brand}',
+      verdict: 'BLOCK · PT1004',
+      verdictTone: 'block' as const,
+      detail: blockedFinding.message,
+      resolvedValue: null,
+      emitted: null,
+      description: `${tokenPath} proposes a reference to component.color.brand. Policy PT1004 blocks the change: ${blockedFinding.message}`,
+    }),
+    Object.freeze({
+      id: 'rename' as const,
+      label: 'Rename',
+      tokenPath: 'semantic.color.bg.primary',
+      proposedValue: `{${aliasTarget}}`,
+      verdict: '5 changes · 3 tokens affected',
+      verdictTone: 'review' as const,
+      detail: 'The rename reaches every consumer of the old path.',
+      resolvedValue: baselineHex,
+      emitted: emittedExcerpt(
+        renameDocument,
+        '--semantic-color-bg-primary:',
+        '["semantic.color.bg.primary"]: "color('
+      ),
+      description: `semantic.color.bg.brand becomes semantic.color.bg.primary. The diff lists ${dependentList} as affected consumers.`,
+    }),
+  ])
+
+  return Object.freeze({ outcomes, diffReport })
 }
