@@ -95,7 +95,7 @@ export function ProofPanel({
             key={outcome.id}>
             {outcome.emitted === null ? (
               <p className='proof-blocked'>
-                No files ship. The build stops at the policy gate.
+                primitree check exits 1. The build writes nothing.
               </p>
             ) : (
               <>

@@ -231,7 +231,7 @@ test('homepage leads with truthful governance', async ({ page }) => {
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Govern token change. Know every consequence.',
+      name: 'Change review for design tokens.',
     })
   ).toHaveCount(1)
   await expect(

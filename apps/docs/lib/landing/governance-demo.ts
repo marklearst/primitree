@@ -523,7 +523,8 @@ export function createProposalDeck(): ProposalDeck {
       proposedValue: `{${aliasTarget}}`,
       verdict: 'PASS · 0 findings',
       verdictTone: 'pass' as const,
-      detail: 'Each layer references the layer beneath it. The graph ships.',
+      detail:
+        'semantic points at primitives, component points at semantic. Nothing for policy to flag.',
       resolvedValue: baselineHex,
       emitted: emittedExcerpt(compliantDocument, brandCss, brandTs),
       description: `${tokenPath} references ${aliasTarget}, resolves to ${baselineHex}, and feeds ${dependentList}.`,
@@ -560,7 +561,8 @@ export function createProposalDeck(): ProposalDeck {
       proposedValue: `{${aliasTarget}}`,
       verdict: '5 changes · 3 tokens affected',
       verdictTone: 'review' as const,
-      detail: 'The rename reaches every consumer of the old path.',
+      detail:
+        'Three components referenced the old path. The diff lists each one.',
       resolvedValue: baselineHex,
       emitted: emittedExcerpt(
         renameDocument,

@@ -369,7 +369,7 @@ body {
 
 .governance-hero h1 {
   min-width: 0;
-  max-width: 1120px;
+  max-width: none;
   margin: 0;
   color: var(--color-primitree-text);
   font-size: clamp(3.25rem, 7.2vw, 6rem);
@@ -473,6 +473,25 @@ body {
   border-top: 1px solid var(--color-primitree-border);
 }
 
+@media (min-width: 1024px) {
+  .governance-proof-section .section-intro {
+    display: grid;
+    max-width: none;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    column-gap: 64px;
+    row-gap: 14px;
+    align-items: end;
+  }
+
+  .governance-proof-section .section-intro .section-kicker {
+    grid-column: 1 / -1;
+  }
+
+  .governance-proof-section .section-intro > p:last-of-type {
+    max-width: none;
+  }
+}
+
 .governance-diff-section {
   border-top: 1px solid var(--color-primitree-border);
 }
@@ -516,7 +535,8 @@ body {
   font-size: 13px;
   line-height: 1.7;
   color: var(--color-primitree-text);
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 1023px) {
@@ -550,7 +570,7 @@ body {
   text-wrap: balance;
 }
 
-.governance-proof-copy > p,
+.governance-proof-copy > h2 + p,
 .governance-final-inner > p {
   max-width: 520px;
   margin: 24px 0 0;
@@ -593,6 +613,7 @@ body {
   color: var(--color-primitree-muted);
   font-size: 16px;
   line-height: 1.65;
+  text-wrap: pretty;
 }
 
 /* ---------- real config proof ---------- */
@@ -645,7 +666,7 @@ body {
   margin: 0;
   color: var(--color-primitree-dim);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .governance-code-block pre {
@@ -671,7 +692,7 @@ body {
 .governance-command-row code,
 .governance-command-row span {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .governance-command-row code {
@@ -884,6 +905,11 @@ body {
   animation: proof-rise 240ms var(--ease-out-expo);
 }
 
+.proof-emitted .proof-swap {
+  animation-delay: 60ms;
+  animation-fill-mode: backwards;
+}
+
 @keyframes proof-rise {
   from {
     opacity: 0;
@@ -913,6 +939,7 @@ body {
   font-size: 14px;
   line-height: 1.6;
   color: var(--color-primitree-muted);
+  text-wrap: pretty;
 }
 
 .proof-emitted {
@@ -943,7 +970,8 @@ body {
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--color-primitree-text);
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .proof-blocked {
@@ -1184,13 +1212,13 @@ body {
 
 .tree-spine-junction {
   top: -56px;
-  height: 54px;
+  height: 56px;
   background: var(--color-primitree-border-strong);
 }
 
 .tree-spine-alias {
   top: -46px;
-  height: 44px;
+  height: 46px;
   transform-origin: top;
   animation: tree-spine-draw 300ms var(--ease-out-expo);
 }

@@ -68,16 +68,16 @@ export function GovernanceHome() {
     <div className='governance-home'>
       <section className='governance-hero'>
         <div className='governance-wrap governance-hero-inner'>
-          <h1 aria-label='Govern token change. Know every consequence.'>
-            <span>Govern token change.</span>
-            <span>Know every consequence.</span>
+          <h1 aria-label='Change review for design tokens.'>
+            <span>Change review</span>
+            <span>for design tokens.</span>
           </h1>
           <div className='governance-hero-split'>
             <div className='governance-hero-copy-stack'>
               <p className='governance-hero-lede'>
-                Turn a token edit into reviewable evidence: what it resolves to,
-                which components depend on it, who owns it, and whether the
-                configured policy allows the change to ship.
+                Primitree checks each change to a token source against the layer
+                and ownership rules in your config, shows the components the
+                change reaches, and builds files when the graph passes.
               </p>
               <div className='governance-actions'>
                 <Link
@@ -118,12 +118,11 @@ export function GovernanceHome() {
         <div className='governance-wrap'>
           <div className='section-intro'>
             <p className='section-kicker'>Evidence</p>
-            <h2>Propose a change. Read the verdict.</h2>
+            <h2>Try a change against the policy.</h2>
             <p>
-              Pick a proposal for the governed token. The panel shows the policy
-              verdict, the affected consumers, and the emitted code. The engine
-              computes every outcome at build time from the same graph the CLI
-              checks.
+              Click a proposal below. Each verdict, consumer list, and emitted
+              line comes from @primitree/core at this site&apos;s build time,
+              from the same graph the CLI reads.
             </p>
           </div>
           <ProofPanel
@@ -137,12 +136,11 @@ export function GovernanceHome() {
         <div className='governance-wrap governance-diff-grid'>
           <div className='section-intro'>
             <p className='section-kicker'>Change review</p>
-            <h2>The diff names every affected token.</h2>
+            <h2>See what a rename touches.</h2>
             <p>
-              Token files drift when changes land unseen. primitree diff
-              compares two revisions of one source through the graph and lists
-              each change beside the tokens that inherit it, before a merge
-              lands.
+              primitree diff reads two revisions of a source through the graph.
+              A renamed token keeps its identity, and the report lists the
+              components that reference the old path.
             </p>
             <Link
               href='/docs/cli/diff'
@@ -174,27 +172,25 @@ export function GovernanceHome() {
             </p>
             <div className='governance-argument-flow'>
               <article>
-                <h3>Govern the proposal</h3>
+                <h3>Layer policy</h3>
                 <p>
-                  Encode allowed layers, references, and owners as policy. A
-                  proposal either passes with evidence or stops with the exact
-                  rule it crossed.
+                  Layers, allowed references, and owners live in config. A
+                  change that crosses a rule stops with that rule&apos;s ID in
+                  the report.
                 </p>
               </article>
               <article>
-                <h3>Trace the blast radius</h3>
+                <h3>Change impact</h3>
                 <p>
-                  Follow resolved aliases and direct dependents through the same
-                  graph. Reviewers see what changed and which consumers inherit
-                  it.
+                  The graph resolves aliases and dependents, so a reviewer sees
+                  which components a change reaches before it merges.
                 </p>
               </article>
               <article>
-                <h3>Ship one contract</h3>
+                <h3>Build outputs</h3>
                 <p>
-                  After the graph passes, one configured build emits the
-                  selected DTCG, CSS, Tailwind, and TypeScript files from the
-                  same resolved values.
+                  One build writes the DTCG, CSS, Tailwind, and TypeScript files
+                  from the resolved graph.
                 </p>
               </article>
             </div>
@@ -238,10 +234,10 @@ export function GovernanceHome() {
 
       <section className='governance-final'>
         <div className='governance-wrap governance-final-inner'>
-          <h2>Make token change legible.</h2>
+          <h2>Your next token change, reviewed.</h2>
           <p>
-            Start with one source, one policy, and evidence your team can
-            review.
+            Point primitree at a tokens.json, write three layer rules, and read
+            the first report.
           </p>
           <div className='governance-actions'>
             <Link

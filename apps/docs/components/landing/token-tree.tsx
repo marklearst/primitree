@@ -47,7 +47,7 @@ export function TokenTree({
               d={MARK_PATH}
             />
           </svg>
-          <span>Living graph</span>
+          <span>Token graph</span>
         </span>
         <code>{demo.outputs.join(' · ')}</code>
       </div>
