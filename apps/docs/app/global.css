@@ -557,6 +557,7 @@ body {
   color: var(--color-primitree-muted);
   font-size: 16px;
   line-height: 1.65;
+  text-wrap: pretty;
 }
 
 .governance-final .governance-actions {
@@ -565,9 +566,17 @@ body {
 
 .governance-argument-flow {
   display: grid;
-  gap: 40px;
+  gap: 0;
   max-width: 640px;
-  margin-top: 56px;
+  margin-top: 40px;
+}
+
+.governance-argument-flow article {
+  padding-block: 28px;
+}
+
+.governance-argument-flow article + article {
+  border-top: 1px solid var(--color-primitree-border);
 }
 
 .governance-argument-flow h3 {

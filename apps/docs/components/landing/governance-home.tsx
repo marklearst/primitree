@@ -139,9 +139,10 @@ export function GovernanceHome() {
             <p className='section-kicker'>Change review</p>
             <h2>The diff names every affected token.</h2>
             <p>
-              primitree diff compares two revisions of one source through the
-              graph. The report lists each change beside the tokens that inherit
-              it, before a merge lands.
+              Token files drift when changes land unseen. primitree diff
+              compares two revisions of one source through the graph and lists
+              each change beside the tokens that inherit it, before a merge
+              lands.
             </p>
             <Link
               href='/docs/cli/diff'
@@ -220,8 +221,9 @@ export function GovernanceHome() {
         <div className='governance-wrap governance-facts'>
           <p>
             <span>Standard</span>
-            DTCG 2025.10 output · Resolver contexts in tokens.resolver.json ·
-            Extensions under $extensions[&apos;com.primitree&apos;]
+            DTCG Format Module 2025.10 output · Resolver contexts in
+            tokens.resolver.json · Extensions under
+            $extensions[&apos;com.primitree&apos;]
           </p>
           <p>
             <span>Outputs</span>
