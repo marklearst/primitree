@@ -257,8 +257,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 6px;
   border: 1px solid var(--color-primitree-border-strong);
   color: var(--color-primitree-muted);
@@ -347,7 +347,7 @@ body {
   border: 1px solid var(--color-primitree-border);
   border-radius: 6px;
   background: var(--color-primitree-surface);
-  padding: 8px 8px 8px 16px;
+  padding: 4px 4px 4px 16px;
 }
 
 .hero-install code {
@@ -661,7 +661,7 @@ body {
 
 .governance-facts span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-primitree-dim);
@@ -786,10 +786,11 @@ body {
 }
 
 .proof-chips button {
+  min-height: 44px;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 520;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--color-primitree-border-strong);
   color: var(--color-primitree-muted);
@@ -853,7 +854,7 @@ body {
 
 .proof-emitted-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-primitree-dim);
@@ -890,7 +891,7 @@ body {
   color: var(--color-primitree-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .proof-owner code {
@@ -945,7 +946,7 @@ body {
   font-weight: 520;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-primitree-dim);
+  color: var(--color-primitree-muted);
 }
 
 .tree-band-label em {
@@ -1021,7 +1022,7 @@ body {
 .tree-node-kicker {
   display: block;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-primitree-dim);

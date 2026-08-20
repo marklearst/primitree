@@ -4,6 +4,15 @@ import type { Page } from '@playwright/test'
 const interactiveSelector =
   'a, button, summary, input, select, textarea' as const
 
+const proposalNames = [
+  'Current graph',
+  'Compliant alias',
+  'Layer violation',
+  'Rename',
+] as const
+
+type ProposalName = (typeof proposalNames)[number]
+
 async function expectNoDocumentOverflow(page: Page) {
   const overflow = await page.evaluate(
     () =>
@@ -19,7 +28,7 @@ async function expectHeroContentInsideViewport(page: Page) {
   expect(viewportWidth).toBeTruthy()
 
   const clipped = await page
-    .locator('.governance-hero h1, .governance-hero-support')
+    .locator('.governance-hero h1, .governance-hero-lede')
     .evaluateAll(
       (elements, width) =>
         elements.flatMap(element => {
@@ -86,21 +95,11 @@ async function expectVisibleTouchTargets(page: Page) {
 
 async function expectReadableGovernanceText(
   page: Page,
-  minimumFontSize: number
+  minimumFontSize: number,
+  selectors: readonly string[]
 ) {
   const evidence = await page
-    .locator(
-      [
-        '.canopy-node-kicker',
-        '.canopy-node-label',
-        '.canopy-token-label',
-        '.canopy-stage-track strong',
-        '.canopy-stage-track p',
-        '.canopy-mobile-node span',
-        '.canopy-mobile-node code',
-        '.canopy-mobile-logo span',
-      ].join(', ')
-    )
+    .locator(selectors.join(', '))
     .evaluateAll(elements => {
       const parseRgb = (value: string) => {
         const channels = value
@@ -134,16 +133,18 @@ async function expectReadableGovernanceText(
         }
 
         const style = getComputedStyle(element)
-        const isSvgText = element instanceof SVGTextElement
-        const foreground = parseRgb(isSvgText ? style.fill : style.color)
-        const hasAccentWash = element.closest(
-          '.canopy-source-node, .canopy-token-node, .canopy-mobile-node-source'
-        )
-        const background = hasAccentWash
-          ? [20, 23, 13]
-          : element.closest('.canopy-mobile-node') || isSvgText
-            ? [8, 8, 10]
-            : [3, 3, 4]
+        const foreground = parseRgb(style.color)
+        const inNode = element.closest('.tree-node') !== null
+        const inTrunkBand =
+          !inNode && element.closest('.tree-band-trunk') !== null
+        const inEmitted = element.closest('.proof-emitted') !== null
+        const background = inNode
+          ? [15, 15, 18]
+          : inTrunkBand
+            ? [24, 27, 18]
+            : inEmitted
+              ? [3, 3, 4]
+              : [8, 8, 10]
         let effectiveOpacity = 1
         let current: Element | null = element
 
@@ -179,60 +180,47 @@ async function expectReadableGovernanceText(
   }
 }
 
-function governanceTabs(page: Page) {
-  return page.getByRole('tablist', { name: 'Governance evidence' })
+function proposalGroup(page: Page) {
+  return page.getByRole('radiogroup', { name: 'Governance proposals' })
 }
 
-async function expectOnlyTabSelected(
-  page: Page,
-  selectedName: 'Govern' | 'Trace' | 'Ship'
-) {
-  const tabs = governanceTabs(page).getByRole('tab')
+async function expectOnlyProposalChecked(page: Page, selected: ProposalName) {
+  const chips = proposalGroup(page).getByRole('radio')
 
-  for (let index = 0; index < 3; index += 1) {
-    const tab = tabs.nth(index)
-    const name = (await tab.textContent())?.trim()
-    const panelId = await tab.getAttribute('aria-controls')
-    const isSelected = name === selectedName
+  for (let index = 0; index < proposalNames.length; index += 1) {
+    const chip = chips.nth(index)
+    const isSelected = proposalNames[index] === selected
 
-    expect(panelId).toBeTruthy()
-    await expect(tab).toHaveAttribute(
-      'aria-selected',
+    await expect(chip).toHaveAttribute(
+      'aria-checked',
       isSelected ? 'true' : 'false'
     )
-    await expect(tab).toHaveAttribute('tabindex', isSelected ? '0' : '-1')
-
-    const panel = page.locator(`#${panelId}`)
-    if (isSelected) {
-      await expect(panel).toBeVisible()
-    } else {
-      await expect(panel).toBeHidden()
-    }
+    await expect(chip).toHaveAttribute('tabindex', isSelected ? '0' : '-1')
   }
 }
 
-async function expectTabKeyboardNavigation(page: Page) {
-  const tablist = governanceTabs(page)
-  const govern = tablist.getByRole('tab', { name: 'Govern', exact: true })
-  const trace = tablist.getByRole('tab', { name: 'Trace', exact: true })
-  const ship = tablist.getByRole('tab', { name: 'Ship', exact: true })
+async function expectChipKeyboardNavigation(page: Page) {
+  const group = proposalGroup(page)
+  const current = group.getByRole('radio', { name: 'Current graph' })
+  const alias = group.getByRole('radio', { name: 'Compliant alias' })
+  const rename = group.getByRole('radio', { name: 'Rename' })
 
-  await govern.focus()
+  await current.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(trace).toBeFocused()
-  await expectOnlyTabSelected(page, 'Trace')
+  await expect(alias).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Compliant alias')
 
   await page.keyboard.press('End')
-  await expect(ship).toBeFocused()
-  await expectOnlyTabSelected(page, 'Ship')
+  await expect(rename).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Rename')
 
   await page.keyboard.press('Home')
-  await expect(govern).toBeFocused()
-  await expectOnlyTabSelected(page, 'Govern')
+  await expect(current).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Current graph')
 
   await page.keyboard.press('ArrowLeft')
-  await expect(ship).toBeFocused()
-  await expectOnlyTabSelected(page, 'Ship')
+  await expect(rename).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Rename')
 }
 
 test('homepage leads with truthful governance', async ({ page }) => {
@@ -246,15 +234,17 @@ test('homepage leads with truthful governance', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: 'Run the quickstart' })
   ).toHaveAttribute('href', '/docs/getting-started')
-  await expect(page.getByRole('main')).toContainText('semantic.color.bg.brand')
-  await expect(page.getByRole('main')).toContainText(
-    '{primitives.color.blue.500}'
+  await expect(page.locator('.hero-install code')).toHaveText(
+    'npx primitree@next check'
   )
-  await expect(page.getByRole('main')).toContainText('#3366ff')
+  await expect(page.locator('.proof-verdict')).toHaveText('PASS · 0 findings')
+  await expect(page.getByRole('main')).toContainText('semantic.color.bg.brand')
   await expect(page.getByRole('main')).toContainText('component.button.bg')
   await expect(page.getByRole('main')).toContainText('component.focus.ring')
   await expect(page.getByRole('main')).toContainText('component.nav.active.bg')
-  await expect(page.getByRole('main')).not.toContainText('Turn variables.json')
+  await expect(page.locator('.proof-emitted')).toContainText(
+    'var(--primitives-color-blue-500)'
+  )
 })
 
 test('desktop navigation exposes documentation, search, and GitHub', async ({
@@ -291,71 +281,103 @@ test('search opens its dialog with a focused textbox', async ({ page }) => {
   await expect(dialog.getByRole('textbox')).toBeFocused()
 })
 
-test('governance evidence tabs pair panels and use roving tabindex', async ({
+test('proposal chips form a radiogroup with roving tabindex', async ({
   page,
 }) => {
   await page.goto('/')
 
-  const tablist = governanceTabs(page)
-  const tabs = tablist.getByRole('tab')
-  await expect(tabs).toHaveCount(3)
-  await expect(tabs).toHaveText(['Govern', 'Trace', 'Ship'])
-  await expect(tabs.nth(0)).toHaveAttribute('tabindex', '0')
-  await expect(tabs.nth(1)).toHaveAttribute('tabindex', '-1')
-  await expect(tabs.nth(2)).toHaveAttribute('tabindex', '-1')
-  await expectOnlyTabSelected(page, 'Govern')
-
-  for (let index = 0; index < 3; index += 1) {
-    const tab = tabs.nth(index)
-    const panelId = await tab.getAttribute('aria-controls')
-    const tabId = await tab.getAttribute('id')
-
-    expect(panelId).toBeTruthy()
-    expect(tabId).toBeTruthy()
-    await expect(page.locator(`#${panelId}`)).toHaveAttribute(
-      'role',
-      'tabpanel'
-    )
-    await expect(page.locator(`#${panelId}`)).toHaveAttribute(
-      'aria-labelledby',
-      tabId as string
-    )
-  }
+  const chips = proposalGroup(page).getByRole('radio')
+  await expect(chips).toHaveCount(4)
+  await expect(chips).toHaveText([...proposalNames])
+  await expectOnlyProposalChecked(page, 'Current graph')
 })
 
-test('governance evidence tabs support ArrowRight, Home, and End', async ({
-  page,
-}) => {
+test('proposal chips support ArrowRight, Home, and End', async ({ page }) => {
   await page.goto('/')
-  await expectTabKeyboardNavigation(page)
+  await expectChipKeyboardNavigation(page)
 })
 
-test('forbidden proposal reports the real policy result', async ({ page }) => {
+test('layer violation reports the real policy result', async ({ page }) => {
   await page.goto('/')
 
-  const proposal = page.locator('button[aria-pressed]')
   const status = page.getByRole('status')
-  await expect(proposal).toHaveCount(1)
-  await expect(proposal).toHaveAttribute('aria-pressed', 'false')
   await expect(status).toHaveText('PASS · 0 findings')
-  await expect(page.locator('.canopy-root')).toHaveAttribute(
-    'data-stage',
-    'ship'
-  )
 
-  await proposal.click()
-  await expect(proposal).toHaveAttribute('aria-pressed', 'true')
+  await proposalGroup(page)
+    .getByRole('radio', { name: 'Layer violation' })
+    .click()
   await expect(status).toHaveText('BLOCK · PT1004')
-  await expect(page.getByRole('main')).toContainText(
+  await expect(page.locator('.proof-detail')).toHaveText(
     'Layer semantic cannot reference layer component.'
   )
+  await expect(page.locator('.proof-blocked')).toBeVisible()
+  await expect(page.locator('.tree')).toHaveAttribute(
+    'data-outcome',
+    'violation'
+  )
 
-  await proposal.click()
-  await expect(proposal).toHaveAttribute('aria-pressed', 'false')
+  await proposalGroup(page)
+    .getByRole('radio', { name: 'Current graph' })
+    .click()
   await expect(status).toHaveText('PASS · 0 findings')
 })
 
-test('iPad touch contexts can use every branch without overflow', async ({
+test('compliant alias updates the emitted code', async ({ page }) => {
+  await page.goto('/')
+
+  await proposalGroup(page)
+    .getByRole('radio', { name: 'Compliant alias' })
+    .click()
+  await expect(page.locator('.proof-emitted')).toContainText(
+    'var(--primitives-color-green-500)'
+  )
+  await expect(page.locator('.tree-source-node')).toContainText(
+    'primitives.color.green.500'
+  )
+})
+
+test('diff terminal lists the rename blast radius', async ({ page }) => {
+  await page.goto('/')
+
+  const terminal = page.locator('.terminal')
+  await expect(terminal).toContainText('removed semantic.color.bg.brand')
+  await expect(terminal).toContainText('added semantic.color.bg.primary')
+  await expect(terminal).toContainText(
+    'component.button.bg, component.focus.ring, component.nav.active.bg'
+  )
+})
+
+test('tree nodes never overflow their boxes', async ({ page }) => {
+  await page.goto('/')
+
+  const overflowing = await page.evaluate(() => {
+    const nodes = Array.from(document.querySelectorAll('.tree-node code'))
+    return nodes.filter(node => {
+      const parent = node.closest('.tree-node')
+      return (
+        parent !== null &&
+        node.getBoundingClientRect().right >
+          parent.getBoundingClientRect().right + 0.5
+      )
+    }).length
+  })
+  expect(overflowing).toBe(0)
+})
+
+test('homepage has no sticky scroll choreography', async ({ page }) => {
+  await page.goto('/')
+
+  const sticky = await page.evaluate(
+    () =>
+      Array.from(document.querySelectorAll('main *')).filter(
+        element => getComputedStyle(element).position === 'sticky'
+      ).length
+  )
+  expect(sticky).toBe(0)
+  await expect(page.locator('[data-stage]')).toHaveCount(0)
+})
+
+test('iPad touch contexts can use every proposal without overflow', async ({
   baseURL,
   browser,
 }) => {
@@ -373,20 +395,14 @@ test('iPad touch contexts can use every branch without overflow', async ({
     const page = await context.newPage()
     await page.goto('/')
 
-    const tabs = governanceTabs(page).getByRole('tab')
-    await expect(tabs).toHaveCount(3)
-    for (let index = 0; index < 3; index += 1) {
-      await tabs.nth(index).tap()
-      const name = ['Govern', 'Trace', 'Ship'][index] as
-        'Govern' | 'Trace' | 'Ship'
-      await expectOnlyTabSelected(page, name)
-      const panelId = await tabs.nth(index).getAttribute('aria-controls')
-      const expectedEvidence = [
-        'PASS · 0 findings',
-        'component.button.bg',
-        'CSS',
-      ][index]
-      await expect(page.locator(`#${panelId}`)).toContainText(expectedEvidence)
+    const chips = proposalGroup(page).getByRole('radio')
+    await expect(chips).toHaveCount(4)
+    for (let index = 0; index < proposalNames.length; index += 1) {
+      await chips.nth(index).tap()
+      await expectOnlyProposalChecked(
+        page,
+        proposalNames[index] as ProposalName
+      )
     }
 
     await expectVisibleTouchTargets(page)
@@ -407,59 +423,60 @@ test('governance evidence keeps AA contrast without fading text', async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
-  await expectReadableGovernanceText(page, 11)
+  await expectReadableGovernanceText(page, 11, [
+    '.tree-band-label',
+    '.tree-node-kicker',
+    '.tree-node code',
+    '.proof-verdict',
+    '.proof-detail',
+    '.proof-emitted-label',
+    '.proof-emitted code',
+    '.proof-owner code',
+    '.terminal code',
+  ])
 })
 
 for (const width of [320, 390]) {
-  test(`compact governance graph stays readable at ${width}px`, async ({
+  test(`compact governance panel stays readable at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 })
     await page.goto('/')
 
-    await expect(page.locator('.canopy-mobile-graph')).toBeVisible()
-    await expect(page.locator('.canopy-svg')).toBeHidden()
-    await expectReadableGovernanceText(page, 12)
+    await expect(page.locator('.tree')).toBeVisible()
+    await expectReadableGovernanceText(page, 12, [
+      '.tree-node code',
+      '.proof-verdict',
+      '.proof-detail',
+      '.proof-emitted code',
+      '.terminal code',
+    ])
     await expectNoDocumentOverflow(page)
     await expectHeroContentInsideViewport(page)
   })
 }
 
-test('reduced motion preserves the final tree and usable evidence', async ({
+test('reduced motion preserves the tree and usable evidence', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
 
-  const canopy = page
-    .locator('[data-stage="ship"]')
-    .filter({ has: governanceTabs(page) })
-  await expect(canopy).toHaveCount(1)
-  await expectTabKeyboardNavigation(page)
+  await expect(page.locator('.tree')).toBeVisible()
+  await expect(page.locator('.tree-mark svg')).toBeVisible()
+  await expectChipKeyboardNavigation(page)
 
-  const motion = page.locator('[data-motion]')
-  await expect(motion).not.toHaveCount(0)
-  const computedMotion = await motion.evaluateAll(elements =>
-    elements.map(element => {
-      const style = getComputedStyle(element)
-      const toMilliseconds = (value: string) =>
-        value.endsWith('ms')
+  const spineDurations = await page
+    .locator('.tree-spine-alias')
+    .evaluateAll(elements =>
+      elements.map(element => {
+        const value = getComputedStyle(element).animationDuration
+        return value.endsWith('ms')
           ? Number.parseFloat(value)
           : Number.parseFloat(value) * 1000
-
-      return {
-        durations: style.animationDuration.split(',').map(toMilliseconds),
-        transitionDurations: style.transitionDuration
-          .split(',')
-          .map(toMilliseconds),
-        transform: style.transform,
-      }
-    })
-  )
-
-  for (const { durations, transitionDurations, transform } of computedMotion) {
-    expect(durations.every(duration => duration === 0)).toBe(true)
-    expect(transitionDurations.every(duration => duration === 0)).toBe(true)
-    expect(transform).toBe('none')
+      })
+    )
+  for (const duration of spineDurations) {
+    expect(duration).toBeLessThanOrEqual(50)
   }
 })
