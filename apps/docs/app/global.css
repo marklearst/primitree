@@ -255,6 +255,35 @@ body {
     background 180ms ease;
 }
 
+.copy-command {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primitree-border-strong);
+  color: var(--color-primitree-muted);
+  transition:
+    color 150ms var(--ease-out-expo),
+    border-color 150ms var(--ease-out-expo);
+}
+
+.copy-command:hover {
+  color: var(--color-primitree-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.copy-command[data-copied] {
+  color: var(--color-primitree-accent);
+  border-color: var(--color-primitree-accent);
+}
+
+.copy-command:focus-visible {
+  outline: 2px solid var(--color-primitree-text);
+  outline-offset: 2px;
+}
+
 /* ---------- governance homepage ---------- */
 .governance-home {
   overflow: clip;
