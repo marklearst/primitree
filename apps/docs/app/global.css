@@ -1268,3 +1268,246 @@ body {
     transition: none !important;
   }
 }
+
+/* ---------- token tree ---------- */
+.tree {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-primitree-border);
+  border-radius: 10px;
+  background: var(--color-primitree-surface);
+  overflow: hidden;
+}
+
+.tree-outputs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px dashed var(--color-primitree-border-strong);
+}
+
+.tree-outputs code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-primitree-muted);
+}
+
+.tree-band {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 16px;
+  padding: 20px;
+}
+
+.tree-band + .tree-band {
+  border-top: 1px solid var(--color-primitree-border);
+}
+
+.tree-band-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 520;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primitree-dim);
+}
+
+.tree-band-label em {
+  display: block;
+  font-style: normal;
+  margin-top: 2px;
+  color: var(--color-primitree-muted);
+}
+
+.tree-band-trunk {
+  background: var(--color-primitree-accent-wash);
+}
+
+.tree-consumers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.tree-consumers > li {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.tree-consumers > li::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 12px;
+  background: var(--color-primitree-border-strong);
+}
+
+.tree-consumers > li::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-primitree-border-strong);
+}
+
+.tree-consumers > li:first-child::after {
+  left: 50%;
+}
+
+.tree-consumers > li:last-child::after {
+  right: 50%;
+}
+
+.tree-node {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--color-primitree-border-strong);
+  border-radius: 6px;
+  background: var(--color-primitree-raised);
+  padding: 10px 14px;
+}
+
+.tree-node code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-primitree-text);
+  overflow-wrap: anywhere;
+}
+
+.tree-node-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primitree-dim);
+  margin-bottom: 4px;
+}
+
+.tree-token-node {
+  border-color: var(--color-primitree-accent);
+  padding-right: 34px;
+}
+
+.tree-root-node {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: var(--color-primitree-accent);
+}
+
+.tree-source-node {
+  padding-right: 34px;
+}
+
+.tree-swatch {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.tree-alias-slot {
+  position: relative;
+}
+
+.tree-spine {
+  position: absolute;
+  left: 24px;
+  width: 1px;
+  background: var(--color-primitree-accent);
+}
+
+.tree-spine-alias {
+  top: -21px;
+  height: 20px;
+  transform-origin: top;
+  animation: tree-spine-draw 300ms var(--ease-out-expo);
+}
+
+.tree[data-outcome='violation'] .tree-spine-alias {
+  background: var(--color-primitree-error);
+}
+
+.tree[data-outcome='violation'] .tree-source-node {
+  border-color: var(--color-primitree-error);
+}
+
+@keyframes tree-spine-draw {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-spine-alias {
+    animation: none;
+  }
+}
+
+.tree-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 24px;
+}
+
+.tree-trunk {
+  width: 1px;
+  height: 20px;
+  background: var(--color-primitree-accent);
+}
+
+.tree-mark svg {
+  width: 44px;
+  height: 40px;
+  margin-top: 6px;
+}
+
+.tree-mark-body {
+  fill: var(--color-primitree-text);
+}
+
+@media (max-width: 719px) {
+  .tree-band {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .tree-consumers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tree-consumers > li {
+    margin-bottom: 0;
+  }
+
+  .tree-consumers > li::before,
+  .tree-consumers > li::after {
+    content: none;
+  }
+
+  .tree-spine {
+    display: none;
+  }
+}
