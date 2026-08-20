@@ -125,10 +125,9 @@ test('documentation dim text clears AA contrast on every landing surface', async
   }
 })
 
-test('living canopy never fades text-bearing stages or graph nodes', async () => {
+test('token tree never fades text-bearing nodes or evidence', async () => {
   const theme = await read('../app/global.css')
-  const textBearingSelector =
-    /\.canopy-(?:source|token|dependent|output)-node|\.canopy-stage-track\s*>\s*li/u
+  const textBearingSelector = /\.tree-node|\.proof-(?:verdict|detail|emitted)/u
 
   const fadedTextRules = flatCssRules(theme).filter(
     ({ declarations, selectors }) =>
@@ -138,39 +137,39 @@ test('living canopy never fades text-bearing stages or graph nodes', async () =>
   assert.deepEqual(
     fadedTextRules,
     [],
-    'stage emphasis must change connectors and borders, never text opacity'
+    'outcome emphasis must change connectors and borders, never text opacity'
   )
 })
 
-test('living canopy provides a legible compact graph below tablet width', async () => {
-  const [theme, canopy] = await Promise.all([
+test('token tree stacks into a legible column below tablet width', async () => {
+  const [theme, tree] = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/living-canopy.tsx'),
+    read('../components/landing/token-tree.tsx'),
   ])
 
-  assert.match(canopy, /className='canopy-mobile-graph'/u)
-  assert.match(theme, /\.canopy-mobile-graph\s*\{[\s\S]*?display: none;/u)
+  assert.match(tree, /className='tree'/u)
   assert.match(
     theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.canopy-svg\s*\{\s*display: none;\s*\}/u
+    /@media \(max-width: 719px\)[\s\S]*?\.tree-band\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/u
   )
   assert.match(
     theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.canopy-mobile-graph\s*\{[\s\S]*?display: grid;/u
-  )
-  assert.match(
-    theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.canopy-stage-track strong\s*\{\s*font-size: 12px;\s*\}/u
+    /@media \(max-width: 719px\)[\s\S]*?\.tree-consumers\s*\{\s*grid-template-columns: minmax\(0, 1fr\);\s*\}/u
   )
 
-  const mobileNodeRule = flatCssRules(theme).find(({ selectors }) =>
-    selectors.trim().startsWith('.canopy-mobile-node')
+  const nodeCodeRule = flatCssRules(theme).find(({ selectors }) =>
+    selectors.trim().startsWith('.tree-node code')
   )
-  const fontSize = mobileNodeRule?.declarations.match(
+  const fontSize = nodeCodeRule?.declarations.match(
     /font-size:\s*([0-9.]+)px/u
   )?.[1]
-  assert.ok(fontSize, 'compact graph nodes must set a CSS-pixel font size')
-  assert.ok(Number(fontSize) >= 12, 'compact graph text must be at least 12px')
+  assert.ok(fontSize, 'tree nodes must set a CSS-pixel font size')
+  assert.ok(Number(fontSize) >= 12, 'tree node text must be at least 12px')
+  assert.match(
+    nodeCodeRule?.declarations ?? '',
+    /overflow-wrap: anywhere;/u,
+    'tree node text must wrap instead of overflowing'
+  )
 })
 
 test('documentation shell maps Fumadocs to the Lichen theme', async () => {
@@ -193,7 +192,8 @@ test('documentation shell maps Fumadocs to the Lichen theme', async () => {
 test('documentation brand files contain no former Primitree purple treatment', async () => {
   const sources = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/living-canopy.tsx'),
+    read('../components/landing/token-tree.tsx'),
+    read('../components/landing/proof-panel.tsx'),
     read('../components/playground/playground.css'),
     read('../public/favicon.svg'),
     read('../public/primitree-icon.svg'),
@@ -205,31 +205,28 @@ test('documentation brand files contain no former Primitree purple treatment', a
   }
 })
 
-test('living canopy makes the Bone mark a structural Lichen root', async () => {
-  const [theme, canopy] = await Promise.all([
+test('token tree makes the Bone mark a structural Lichen root', async () => {
+  const [theme, tree] = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/living-canopy.tsx'),
+    read('../components/landing/token-tree.tsx'),
   ])
 
-  assert.match(canopy, /className='canopy-logo'/u)
-  assert.match(
-    canopy,
-    /className='canopy-logo-body'\s+d=\{MARK_PATH\}\s+fill='var\(--color-primitree-text\)'/u
-  )
-  assert.match(canopy, /className='canopy-root-node'/u)
-  assert.doesNotMatch(canopy, /(?:linear|radial)Gradient|filter=|pointermove/u)
-  assert.doesNotMatch(canopy, /\binfinite\b/u)
+  assert.match(tree, /className='tree-mark-body'/u)
+  assert.match(tree, /className='tree-root-node'/u)
+  assert.match(tree, /className='tree-trunk'/u)
+  assert.doesNotMatch(tree, /(?:linear|radial)Gradient|filter=|pointermove/u)
+  assert.doesNotMatch(tree, /\binfinite\b/u)
   assert.match(
     theme,
-    /\.canopy-logo-body\s*\{\s*fill: var\(--color-primitree-text\);\s*\}/u
+    /\.tree-mark-body\s*\{\s*fill: var\(--color-primitree-text\);\s*\}/u
   )
   assert.match(
     theme,
-    /\.canopy-source-swatch,\s*\.canopy-root-node\s*\{\s*fill: var\(--color-primitree-accent\);\s*\}/u
+    /\.tree-root-node\s*\{[\s\S]*?background: var\(--color-primitree-accent\);/u
   )
   assert.match(
     theme,
-    /\.canopy-trunk\s*\{[\s\S]*stroke: var\(--color-primitree-accent\);/u
+    /\.tree-trunk\s*\{[\s\S]*?background: var\(--color-primitree-accent\);/u
   )
 })
 

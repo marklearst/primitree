@@ -370,7 +370,7 @@ function buildDiffReport(
   return Object.freeze(lines)
 }
 
-/** Builds the serializable evidence projection rendered by the Living Canopy. */
+/** Builds the serializable evidence projection for the homepage proof panel. */
 export function createGovernanceDemo(
   outputOptions: BuildOutputOptions = {}
 ): GovernanceDemo {

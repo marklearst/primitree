@@ -499,7 +499,7 @@ test('rejects final CSS declarations without semicolons', () => {
     [
       ':root { --color-primitree-accent: #111111 }',
       '::selection { background: #111111 }',
-      '.canopy-root-node { fill: #ff0000 }',
+      '.tree-root-node { background: #ff0000 }',
     ].join('\n')
   )
   const violations = findLichenColorViolations([
@@ -518,7 +518,7 @@ test('rejects final CSS declarations without semicolons', () => {
   )
   assert.equal(
     violations.some(
-      violation => violation.match === 'living canopy: missing Lichen root node'
+      violation => violation.match === 'token tree: missing Lichen root node'
     ),
     true
   )
@@ -528,7 +528,7 @@ test('rejects retired glow, rings, pointer tracking, and infinite motion', () =>
   const findLichenColorViolations = getLichenValidator()
   const violations = findLichenColorViolations([
     {
-      path: 'apps/docs/components/landing/living-canopy.tsx',
+      path: 'apps/docs/components/landing/token-tree.tsx',
       content: [
         `<div className='mark-glow mark-ring' />`,
         `window.addEventListener('pointermove', onMove)`,
@@ -536,19 +536,17 @@ test('rejects retired glow, rings, pointer tracking, and infinite motion', () =>
     },
     {
       path: 'apps/docs/app/global.css',
-      content: '.canopy-root { animation: drift 2s linear infinite; }',
+      content: '.tree { animation: drift 2s linear infinite; }',
     },
-  ]).filter(violation =>
-    violation.match.startsWith('living canopy regression:')
-  )
+  ]).filter(violation => violation.match.startsWith('homepage regression:'))
 
   assert.deepEqual(
     violations.map(violation => violation.match),
     [
-      'living canopy regression: retired mark glow',
-      'living canopy regression: retired mark ring',
-      'living canopy regression: global pointer tracking',
-      'living canopy regression: infinite homepage animation',
+      'homepage regression: retired mark glow',
+      'homepage regression: retired mark ring',
+      'homepage regression: global pointer tracking',
+      'homepage regression: infinite homepage animation',
     ]
   )
 })
@@ -566,7 +564,7 @@ test('rejects longhand infinite animation on governance homepage selectors', () 
     violations.some(
       violation =>
         violation.match ===
-        'living canopy: gradients, blur, and infinite motion are prohibited'
+        'token tree: gradients, blur, and infinite motion are prohibited'
     ),
     true
   )
@@ -578,19 +576,17 @@ test('rejects a later Living Canopy root override', () => {
   const globalCss = readFileSync(
     join(repositoryRoot, 'apps/docs/app/global.css'),
     'utf8'
-  ).concat('\n.canopy-root-node { fill: #ff0000; }\n')
+  ).concat('\n.tree-root-node { background: #ff0000; }\n')
 
   assert.deepEqual(
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).filter(violation =>
-      violation.match.startsWith('living canopy: missing')
-    ),
+    ]).filter(violation => violation.match.startsWith('token tree: missing')),
     [
       {
         path: 'apps/docs/app/global.css',
         line: null,
-        match: 'living canopy: missing Lichen root node',
+        match: 'token tree: missing Lichen root node',
       },
     ]
   )
@@ -602,13 +598,13 @@ test('rejects a qualified Living Canopy root override', () => {
   const globalCss = readFileSync(
     join(repositoryRoot, 'apps/docs/app/global.css'),
     'utf8'
-  ).concat('\n.canopy-root-node:first-child { fill: #ff0000; }\n')
+  ).concat('\n.tree-root-node:first-child { background: #ff0000; }\n')
 
   assert.equal(
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
     ]).some(
-      violation => violation.match === 'living canopy: missing Lichen root node'
+      violation => violation.match === 'token tree: missing Lichen root node'
     ),
     true
   )
@@ -618,7 +614,7 @@ test('rejects an earlier higher-specificity Living Canopy root override', () => 
   const findLichenColorViolations = getLichenValidator()
   const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
   const globalCss = [
-    '.governance-home .canopy-root-node { fill: #ff0000; }',
+    '.governance-home .tree-root-node { background: #ff0000; }',
     readFileSync(join(repositoryRoot, 'apps/docs/app/global.css'), 'utf8'),
   ].join('\n')
 
@@ -626,7 +622,7 @@ test('rejects an earlier higher-specificity Living Canopy root override', () => 
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
     ]).some(
-      violation => violation.match === 'living canopy: missing Lichen root node'
+      violation => violation.match === 'token tree: missing Lichen root node'
     ),
     true
   )

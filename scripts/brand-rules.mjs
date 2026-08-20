@@ -32,7 +32,7 @@ const BRAND_PATTERN =
 const LICHEN_CONTRACT_PATHS = new Set([
   'README.md',
   'apps/docs/app/global.css',
-  'apps/docs/components/landing/living-canopy.tsx',
+  'apps/docs/components/landing/token-tree.tsx',
   'apps/docs/components/playground/playground.css',
   'apps/docs/public/favicon.svg',
   'apps/docs/public/primitree-icon.svg',
@@ -383,27 +383,21 @@ function addSvgFillViolation(violations, path, content) {
 }
 
 function addLivingCanopyMarkupViolations(violations, path, content) {
-  if (path !== 'apps/docs/components/landing/living-canopy.tsx') return
+  if (path !== 'apps/docs/components/landing/token-tree.tsx') return
 
-  const body =
-    /<path\b(?=[^>]*\bclassName=['"]canopy-logo-body['"])[^>]*>/u.exec(content)
-  const fill = body && /\bfill=['"]([^'"]+)['"]/u.exec(body[0])
-  const actual = fill?.[1] ?? null
-  if (actual !== 'var(--color-primitree-text)') {
-    const offset =
-      body && fill ? (body.index ?? 0) + (fill.index ?? 0) : (body?.index ?? 0)
-    violations.push({
-      path,
-      line: body ? lineFromOffset(content, offset) : null,
-      match: `living canopy mark: expected Bone body, found ${actual ?? 'missing'}`,
-    })
-  }
-
-  if (!/\bclassName=['"]canopy-root-node['"]/u.test(content)) {
+  if (!/\bclassName=['"]tree-mark-body['"]/u.test(content)) {
     violations.push({
       path,
       line: null,
-      match: 'living canopy mark: missing structural Lichen root node',
+      match: 'token tree mark: missing Bone body class',
+    })
+  }
+
+  if (!/\bclassName=['"]tree-root-node['"]/u.test(content)) {
+    violations.push({
+      path,
+      line: null,
+      match: 'token tree mark: missing structural Lichen root node',
     })
   }
 }
@@ -443,7 +437,7 @@ function addHomepageRegressionViolations(violations, path, content) {
     violations.push({
       path,
       line: lineFromOffset(content, match.index ?? 0),
-      match: `living canopy regression: ${banned.label}`,
+      match: `homepage regression: ${banned.label}`,
     })
   }
 }
@@ -455,25 +449,25 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     {
       label: 'Bone logo body',
       property: 'fill',
-      selector: '.canopy-logo-body',
+      selector: '.tree-mark-body',
       value: 'var(--color-primitree-text)',
     },
     {
       label: 'Lichen root node',
-      property: 'fill',
-      selector: '.canopy-root-node',
+      property: 'background',
+      selector: '.tree-root-node',
       value: 'var(--color-primitree-accent)',
     },
     {
       label: 'Lichen structural trunk',
-      property: 'stroke',
-      selector: '.canopy-trunk',
+      property: 'background',
+      selector: '.tree-trunk',
       value: 'var(--color-primitree-accent)',
     },
     {
       label: 'Lichen governed-token border',
-      property: 'stroke',
-      selector: '.canopy-token-node rect',
+      property: 'border-color',
+      selector: '.tree-token-node',
       value: 'var(--color-primitree-accent)',
     },
   ]
@@ -501,7 +495,7 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     violations.push({
       path,
       line: null,
-      match: `living canopy: missing ${treatment.label}`,
+      match: `token tree: missing ${treatment.label}`,
     })
   }
 
@@ -509,7 +503,9 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     if (
       !rule.selectors.some(
         selector =>
-          selector.includes('.canopy') || selector.includes('.governance-')
+          selector.includes('.tree') ||
+          selector.includes('.proof') ||
+          selector.includes('.governance-')
       )
     ) {
       return
@@ -527,7 +523,7 @@ function addLivingCanopyStyleViolations(violations, path, root) {
         path,
         line: declaration.source?.start?.line ?? null,
         match:
-          'living canopy: gradients, blur, and infinite motion are prohibited',
+          'token tree: gradients, blur, and infinite motion are prohibited',
       })
     }
   })
