@@ -68,9 +68,9 @@ export function GovernanceHome() {
     <div className='governance-home'>
       <section className='governance-hero'>
         <div className='governance-wrap governance-hero-inner'>
-          <h1 aria-label='Change review for design tokens.'>
-            <span>Change review</span>
-            <span>for design tokens.</span>
+          <h1 aria-label='Govern token change. Review it like code.'>
+            <span>Govern token change.</span>
+            <span>Review it like code.</span>
           </h1>
           <div className='governance-hero-split'>
             <div className='governance-hero-copy-stack'>
