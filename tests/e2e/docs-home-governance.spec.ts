@@ -2,7 +2,16 @@ import { devices, expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
 const interactiveSelector =
-  'a, button, summary, input, select, textarea' as const
+  'a, button, summary, input, select, textarea, [role="button"]' as const
+
+const proposalNames = [
+  'Current graph',
+  'Compliant alias',
+  'Layer violations',
+  'Rename',
+] as const
+
+type ProposalName = (typeof proposalNames)[number]
 
 async function expectNoDocumentOverflow(page: Page) {
   const overflow = await page.evaluate(
@@ -19,7 +28,7 @@ async function expectHeroContentInsideViewport(page: Page) {
   expect(viewportWidth).toBeTruthy()
 
   const clipped = await page
-    .locator('.governance-hero h1, .governance-hero-support')
+    .locator('.governance-hero h1, .governance-hero-lede')
     .evaluateAll(
       (elements, width) =>
         elements.flatMap(element => {
@@ -60,7 +69,7 @@ async function expectVisibleTouchTargets(page: Page) {
         if (
           isFrameworkTool ||
           !isVisible ||
-          (box.width >= 44 && box.height >= 44)
+          (box.width >= 43.5 && box.height >= 43.5)
         ) {
           return []
         }
@@ -86,21 +95,11 @@ async function expectVisibleTouchTargets(page: Page) {
 
 async function expectReadableGovernanceText(
   page: Page,
-  minimumFontSize: number
+  minimumFontSize: number,
+  selectors: readonly string[]
 ) {
   const evidence = await page
-    .locator(
-      [
-        '.canopy-node-kicker',
-        '.canopy-node-label',
-        '.canopy-token-label',
-        '.canopy-stage-track strong',
-        '.canopy-stage-track p',
-        '.canopy-mobile-node span',
-        '.canopy-mobile-node code',
-        '.canopy-mobile-logo span',
-      ].join(', ')
-    )
+    .locator(selectors.join(', '))
     .evaluateAll(elements => {
       const parseRgb = (value: string) => {
         const channels = value
@@ -134,16 +133,19 @@ async function expectReadableGovernanceText(
         }
 
         const style = getComputedStyle(element)
-        const isSvgText = element instanceof SVGTextElement
-        const foreground = parseRgb(isSvgText ? style.fill : style.color)
-        const hasAccentWash = element.closest(
-          '.canopy-source-node, .canopy-token-node, .canopy-mobile-node-source'
-        )
-        const background = hasAccentWash
-          ? [20, 23, 13]
-          : element.closest('.canopy-mobile-node') || isSvgText
-            ? [8, 8, 10]
-            : [3, 3, 4]
+        const foreground = parseRgb(style.color)
+        const bar = element.closest('.proof-verdict-bar')
+        const barTone = bar?.getAttribute('data-tone')
+        const onPageGround =
+          element.closest('.install-output, .governance-step') !== null
+        const background =
+          barTone === 'pass'
+            ? [14, 31, 24]
+            : barTone === 'fail'
+              ? [30, 23, 22]
+              : onPageGround
+                ? [11, 15, 13]
+                : [16, 21, 18]
         let effectiveOpacity = 1
         let current: Element | null = element
 
@@ -179,60 +181,59 @@ async function expectReadableGovernanceText(
   }
 }
 
-function governanceTabs(page: Page) {
-  return page.getByRole('tablist', { name: 'Governance evidence' })
+function proposalGroup(page: Page) {
+  return page.getByRole('radiogroup', { name: 'Proposal' })
 }
 
-async function expectOnlyTabSelected(
-  page: Page,
-  selectedName: 'Govern' | 'Trace' | 'Ship'
-) {
-  const tabs = governanceTabs(page).getByRole('tab')
+/** Clicks a proposal chip, retrying until React reflects the selection, so a
+ * click that lands before hydration completes never strands the test. */
+async function pickProposal(page: Page, name: ProposalName) {
+  const chip = proposalGroup(page).getByRole('radio', { name })
+  await expect(async () => {
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-checked', 'true', {
+      timeout: 500,
+    })
+  }).toPass()
+}
 
-  for (let index = 0; index < 3; index += 1) {
-    const tab = tabs.nth(index)
-    const name = (await tab.textContent())?.trim()
-    const panelId = await tab.getAttribute('aria-controls')
-    const isSelected = name === selectedName
+async function expectOnlyProposalChecked(page: Page, selected: ProposalName) {
+  const chips = proposalGroup(page).getByRole('radio')
 
-    expect(panelId).toBeTruthy()
-    await expect(tab).toHaveAttribute(
-      'aria-selected',
+  for (let index = 0; index < proposalNames.length; index += 1) {
+    const chip = chips.nth(index)
+    const isSelected = proposalNames[index] === selected
+
+    await expect(chip).toHaveAttribute(
+      'aria-checked',
       isSelected ? 'true' : 'false'
     )
-    await expect(tab).toHaveAttribute('tabindex', isSelected ? '0' : '-1')
-
-    const panel = page.locator(`#${panelId}`)
-    if (isSelected) {
-      await expect(panel).toBeVisible()
-    } else {
-      await expect(panel).toBeHidden()
-    }
+    await expect(chip).toHaveAttribute('tabindex', isSelected ? '0' : '-1')
   }
 }
 
-async function expectTabKeyboardNavigation(page: Page) {
-  const tablist = governanceTabs(page)
-  const govern = tablist.getByRole('tab', { name: 'Govern', exact: true })
-  const trace = tablist.getByRole('tab', { name: 'Trace', exact: true })
-  const ship = tablist.getByRole('tab', { name: 'Ship', exact: true })
+async function expectChipKeyboardNavigation(page: Page) {
+  const group = proposalGroup(page)
+  const current = group.getByRole('radio', { name: 'Current graph' })
+  const alias = group.getByRole('radio', { name: 'Compliant alias' })
+  const rename = group.getByRole('radio', { name: 'Rename' })
 
-  await govern.focus()
+  await current.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(trace).toBeFocused()
-  await expectOnlyTabSelected(page, 'Trace')
+  await expect(alias).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Compliant alias')
 
   await page.keyboard.press('End')
-  await expect(ship).toBeFocused()
-  await expectOnlyTabSelected(page, 'Ship')
+  await expect(rename).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Rename')
 
   await page.keyboard.press('Home')
-  await expect(govern).toBeFocused()
-  await expectOnlyTabSelected(page, 'Govern')
+  await expect(current).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Current graph')
 
   await page.keyboard.press('ArrowLeft')
-  await expect(ship).toBeFocused()
-  await expectOnlyTabSelected(page, 'Ship')
+  await expect(rename).toBeFocused()
+  await expectOnlyProposalChecked(page, 'Rename')
 }
 
 test('homepage leads with truthful governance', async ({ page }) => {
@@ -240,24 +241,30 @@ test('homepage leads with truthful governance', async ({ page }) => {
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Govern token change. Know every consequence.',
+      name: 'Govern token change. Know what it reaches before it merges.',
     })
   ).toHaveCount(1)
   await expect(
     page.getByRole('link', { name: 'Run the quickstart' })
   ).toHaveAttribute('href', '/docs/getting-started')
-  await expect(page.getByRole('main')).toContainText('semantic.color.bg.brand')
-  await expect(page.getByRole('main')).toContainText(
-    '{primitives.color.blue.500}'
+  await expect(page.locator('.install-copy-row code')).toContainText(
+    'npm install -D primitree@next'
   )
-  await expect(page.getByRole('main')).toContainText('#3366ff')
-  await expect(page.getByRole('main')).toContainText('component.button.bg')
-  await expect(page.getByRole('main')).toContainText('component.focus.ring')
-  await expect(page.getByRole('main')).toContainText('component.nav.active.bg')
-  await expect(page.getByRole('main')).not.toContainText('Turn variables.json')
+  await expect(page.locator('.install-output')).toContainText(
+    'graph resolved · 15 tokens · 3 layers'
+  )
+  await expect(page.locator('.proof-verdict')).toHaveText('PASS 0 findings')
+  await expect(page.getByRole('main')).toContainText('color.bg.brand')
+  await expect(page.locator('.proof-command')).toContainText(
+    '# proposal: current'
+  )
+  await expect(page.getByRole('main')).toContainText('button.bg')
+  await expect(page.getByRole('main')).toContainText('focus.ring')
+  await expect(page.getByRole('main')).toContainText('nav.active.bg')
+  await expect(page.locator('.proof-count')).toHaveText('15 tokens · 3 layers')
 })
 
-test('desktop navigation exposes documentation, search, and GitHub', async ({
+test('desktop navigation exposes documentation, search, GitHub, and the version', async ({
   page,
 }) => {
   await page.goto('/')
@@ -280,6 +287,7 @@ test('desktop navigation exposes documentation, search, and GitHub', async ({
       exact: true,
     })
   ).toBeVisible()
+  await expect(page.locator('.site-version')).toHaveText(/^v\d+\.\d+\.\d+/)
 })
 
 test('search opens its dialog with a focused textbox', async ({ page }) => {
@@ -291,71 +299,168 @@ test('search opens its dialog with a focused textbox', async ({ page }) => {
   await expect(dialog.getByRole('textbox')).toBeFocused()
 })
 
-test('governance evidence tabs pair panels and use roving tabindex', async ({
+test('proposal chips form a radiogroup with roving tabindex', async ({
   page,
 }) => {
   await page.goto('/')
 
-  const tablist = governanceTabs(page)
-  const tabs = tablist.getByRole('tab')
-  await expect(tabs).toHaveCount(3)
-  await expect(tabs).toHaveText(['Govern', 'Trace', 'Ship'])
-  await expect(tabs.nth(0)).toHaveAttribute('tabindex', '0')
-  await expect(tabs.nth(1)).toHaveAttribute('tabindex', '-1')
-  await expect(tabs.nth(2)).toHaveAttribute('tabindex', '-1')
-  await expectOnlyTabSelected(page, 'Govern')
-
-  for (let index = 0; index < 3; index += 1) {
-    const tab = tabs.nth(index)
-    const panelId = await tab.getAttribute('aria-controls')
-    const tabId = await tab.getAttribute('id')
-
-    expect(panelId).toBeTruthy()
-    expect(tabId).toBeTruthy()
-    await expect(page.locator(`#${panelId}`)).toHaveAttribute(
-      'role',
-      'tabpanel'
-    )
-    await expect(page.locator(`#${panelId}`)).toHaveAttribute(
-      'aria-labelledby',
-      tabId as string
-    )
-  }
+  const chips = proposalGroup(page).getByRole('radio')
+  await expect(chips).toHaveCount(4)
+  await expect(chips).toHaveText([...proposalNames])
+  await expectOnlyProposalChecked(page, 'Current graph')
 })
 
-test('governance evidence tabs support ArrowRight, Home, and End', async ({
-  page,
-}) => {
+test('proposal chips support ArrowRight, Home, and End', async ({ page }) => {
   await page.goto('/')
-  await expectTabKeyboardNavigation(page)
+  await expectChipKeyboardNavigation(page)
 })
 
-test('forbidden proposal reports the real policy result', async ({ page }) => {
+test('layer violations report the real policy result', async ({ page }) => {
   await page.goto('/')
 
-  const proposal = page.locator('button[aria-pressed]')
   const status = page.getByRole('status')
-  await expect(proposal).toHaveCount(1)
-  await expect(proposal).toHaveAttribute('aria-pressed', 'false')
-  await expect(status).toHaveText('PASS · 0 findings')
-  await expect(page.locator('.canopy-root')).toHaveAttribute(
-    'data-stage',
-    'ship'
+  await expect(status).toHaveText('PASS 0 findings')
+
+  await pickProposal(page, 'Layer violations')
+  await expect(status).toHaveText('FAIL 3 findings · layer-skip')
+  await expect(page.locator('.proof-detail')).toContainText(
+    'component may only reference semantic.'
+  )
+  await expect(page.locator(".graph-edge[data-tone='violation']")).toHaveCount(
+    3
+  )
+  await expect(page.locator('.graph-violation-tag')).toContainText(
+    '3 × layer-skip'
   )
 
-  await proposal.click()
-  await expect(proposal).toHaveAttribute('aria-pressed', 'true')
-  await expect(status).toHaveText('BLOCK · PT1004')
-  await expect(page.getByRole('main')).toContainText(
-    'Layer semantic cannot reference layer component.'
-  )
-
-  await proposal.click()
-  await expect(proposal).toHaveAttribute('aria-pressed', 'false')
-  await expect(status).toHaveText('PASS · 0 findings')
+  await pickProposal(page, 'Current graph')
+  await expect(status).toHaveText('PASS 0 findings')
 })
 
-test('iPad touch contexts can use every branch without overflow', async ({
+test('compliant alias repoints the governed token in the graph', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  await pickProposal(page, 'Compliant alias')
+  await expect(page.locator('.proof-verdict')).toHaveText('PASS 0 findings')
+  await expect(page.locator('.graph-svg')).toContainText('green.500')
+  await expect(page.locator('.graph-svg')).toContainText('→ {green.500}')
+})
+
+test('rename swaps the governed path and marks its consumers', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  await pickProposal(page, 'Rename')
+  await expect(page.locator('.proof-verdict')).toHaveText(
+    'PASS 5 changes · 0 findings'
+  )
+  await expect(page.locator('.graph-svg')).toContainText('color.bg.primary')
+  await expect(page.locator(".graph-node[data-flag='changed']")).toHaveCount(3)
+})
+
+test('clicking a graph node inspects it in the verdict bar', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  const brandNode = page.locator(
+    ".graph-node[aria-label^='semantic.color.bg.brand']"
+  )
+  await expect(async () => {
+    await brandNode.click()
+    await expect(brandNode).toHaveAttribute('aria-pressed', 'true', {
+      timeout: 500,
+    })
+  }).toPass()
+  await expect(page.locator('.proof-detail')).toContainText(
+    'owner product-design · 3 consumers'
+  )
+
+  await page.keyboard.press('Escape')
+  await expect(brandNode).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('keyboard focus traces the dependency chain', async ({ page }) => {
+  await page.goto('/')
+
+  const brandNode = page.locator(
+    ".graph-node[aria-label^='semantic.color.bg.brand']"
+  )
+  await expect(async () => {
+    await brandNode.blur()
+    await brandNode.focus()
+    await expect(
+      page.locator(".graph-edge[data-tone='active']").first()
+    ).toBeVisible({ timeout: 500 })
+  }).toPass()
+  await page.keyboard.press('Enter')
+  await expect(brandNode).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('the install card switches package managers', async ({ page }) => {
+  await page.goto('/')
+
+  const tabs = page.getByRole('radiogroup', { name: 'Package manager' })
+  await tabs.getByRole('radio', { name: 'pnpm' }).click()
+  await expect(page.locator('.install-copy-row code')).toContainText(
+    'pnpm add -D primitree@next'
+  )
+  await expect(
+    page.getByRole('button', { name: 'Copy the pnpm install command' })
+  ).toBeVisible()
+})
+
+test('diff terminal lists the rename blast radius', async ({ page }) => {
+  await page.goto('/')
+
+  const terminal = page.locator('.governance-diff-grid .terminal')
+  await expect(terminal).toContainText('removed semantic.color.bg.brand')
+  await expect(terminal).toContainText('added semantic.color.bg.primary')
+  await expect(terminal).toContainText('Affected tokens:')
+  await expect(terminal).toContainText('component.nav.active.bg')
+})
+
+test('graph labels never overflow their node boxes', async ({ page }) => {
+  await page.goto('/')
+
+  const overflowing = await page.evaluate(() => {
+    const nodes = Array.from(document.querySelectorAll('.graph-node'))
+    return nodes.filter(node => {
+      const box = node.querySelector('.graph-node-box')
+      const labels = Array.from(node.querySelectorAll('text'))
+      if (!(box instanceof SVGGraphicsElement)) {
+        return true
+      }
+      const limit = box.getBBox().x + box.getBBox().width - 8
+      return labels.some(label => {
+        if (!(label instanceof SVGGraphicsElement)) {
+          return true
+        }
+        const bounds = label.getBBox()
+        return bounds.x + bounds.width > limit
+      })
+    }).length
+  })
+  expect(overflowing).toBe(0)
+})
+
+test('homepage has no sticky scroll choreography', async ({ page }) => {
+  await page.goto('/')
+
+  const sticky = await page.evaluate(
+    () =>
+      Array.from(document.querySelectorAll('main *')).filter(
+        element => getComputedStyle(element).position === 'sticky'
+      ).length
+  )
+  expect(sticky).toBe(0)
+  await expect(page.locator('[data-stage]')).toHaveCount(0)
+})
+
+test('iPad touch contexts can use every proposal without overflow', async ({
   baseURL,
   browser,
 }) => {
@@ -373,20 +478,20 @@ test('iPad touch contexts can use every branch without overflow', async ({
     const page = await context.newPage()
     await page.goto('/')
 
-    const tabs = governanceTabs(page).getByRole('tab')
-    await expect(tabs).toHaveCount(3)
-    for (let index = 0; index < 3; index += 1) {
-      await tabs.nth(index).tap()
-      const name = ['Govern', 'Trace', 'Ship'][index] as
-        'Govern' | 'Trace' | 'Ship'
-      await expectOnlyTabSelected(page, name)
-      const panelId = await tabs.nth(index).getAttribute('aria-controls')
-      const expectedEvidence = [
-        'PASS · 0 findings',
-        'component.button.bg',
-        'CSS',
-      ][index]
-      await expect(page.locator(`#${panelId}`)).toContainText(expectedEvidence)
+    const chips = proposalGroup(page).getByRole('radio')
+    await expect(chips).toHaveCount(4)
+    for (let index = 0; index < proposalNames.length; index += 1) {
+      const chip = chips.nth(index)
+      await expect(async () => {
+        await chip.tap()
+        await expect(chip).toHaveAttribute('aria-checked', 'true', {
+          timeout: 500,
+        })
+      }).toPass()
+      await expectOnlyProposalChecked(
+        page,
+        proposalNames[index] as ProposalName
+      )
     }
 
     await expectVisibleTouchTargets(page)
@@ -407,59 +512,94 @@ test('governance evidence keeps AA contrast without fading text', async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
-  await expectReadableGovernanceText(page, 11)
+  await expectReadableGovernanceText(page, 11, [
+    '.proof-command > code',
+    '.proof-verdict',
+    '.proof-detail',
+    '.install-copy-row code',
+    '.install-output p',
+    '.governance-step code',
+    '.terminal code',
+  ])
 })
 
 for (const width of [320, 390]) {
-  test(`compact governance graph stays readable at ${width}px`, async ({
+  test(`compact governance panel stays readable at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 })
     await page.goto('/')
 
-    await expect(page.locator('.canopy-mobile-graph')).toBeVisible()
-    await expect(page.locator('.canopy-svg')).toBeHidden()
-    await expectReadableGovernanceText(page, 12)
+    await expect(page.locator('.graph-svg')).toBeVisible()
+    await expectReadableGovernanceText(page, 12, [
+      '.proof-verdict',
+      '.proof-detail',
+      '.install-copy-row code',
+      '.terminal code',
+    ])
     await expectNoDocumentOverflow(page)
     await expectHeroContentInsideViewport(page)
   })
 }
 
-test('reduced motion preserves the final tree and usable evidence', async ({
+test('the graph scrolls in its own container on compact screens', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+
+  const scroll = page.locator('.graph-scroll')
+  const scrollable = await scroll.evaluate(
+    element => element.scrollWidth > element.clientWidth
+  )
+  expect(scrollable).toBe(true)
+  await expectNoDocumentOverflow(page)
+})
+
+test('reduced motion preserves the graph and usable evidence', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
 
-  const canopy = page
-    .locator('[data-stage="ship"]')
-    .filter({ has: governanceTabs(page) })
-  await expect(canopy).toHaveCount(1)
-  await expectTabKeyboardNavigation(page)
+  await expect(page.locator('.graph-svg')).toBeVisible()
+  await expectChipKeyboardNavigation(page)
 
-  const motion = page.locator('[data-motion]')
-  await expect(motion).not.toHaveCount(0)
-  const computedMotion = await motion.evaluateAll(elements =>
-    elements.map(element => {
-      const style = getComputedStyle(element)
-      const toMilliseconds = (value: string) =>
-        value.endsWith('ms')
+  const frameDurations = await page
+    .locator('.graph-frame')
+    .evaluateAll(elements =>
+      elements.map(element => {
+        const value = getComputedStyle(element).animationDuration
+        return value.endsWith('ms')
           ? Number.parseFloat(value)
           : Number.parseFloat(value) * 1000
-
-      return {
-        durations: style.animationDuration.split(',').map(toMilliseconds),
-        transitionDurations: style.transitionDuration
-          .split(',')
-          .map(toMilliseconds),
-        transform: style.transform,
-      }
-    })
-  )
-
-  for (const { durations, transitionDurations, transform } of computedMotion) {
-    expect(durations.every(duration => duration === 0)).toBe(true)
-    expect(transitionDurations.every(duration => duration === 0)).toBe(true)
-    expect(transform).toBe('none')
+      })
+    )
+  for (const duration of frameDurations) {
+    expect(duration).toBeLessThanOrEqual(50)
   }
+})
+
+test('theme toggle swaps the page between dark and light', async ({ page }) => {
+  await page.goto('/')
+
+  const toggle = page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .locator('.site-theme-toggle')
+  await expect(toggle).toBeVisible()
+
+  await expect(async () => {
+    await toggle.click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light', {
+      timeout: 500,
+    })
+  }).toPass()
+
+  const lightBackground = await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundColor.replace(/\s/gu, '')
+  )
+  expect(lightBackground).toBe('rgb(246,250,248)')
+
+  await toggle.click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 })

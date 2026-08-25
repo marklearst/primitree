@@ -260,7 +260,29 @@ export const PROSE_RULES = Object.freeze(RULES)
 
 // Keep exceptions exact and rare. Each entry must match one file, rule, and
 // complete matched phrase.
-export const PROSE_ALLOWLIST = Object.freeze([])
+export const PROSE_ALLOWLIST = Object.freeze([
+  // Homepage copy reproduced verbatim from the approved landing design.
+  {
+    file: 'apps/docs/components/landing/governance-home.tsx',
+    ruleId: 'wh-sentence-opener',
+    match: 'what',
+  },
+  {
+    file: 'apps/docs/components/landing/governance-home.tsx',
+    ruleId: 'ly-adverb',
+    match: 'locally',
+  },
+  {
+    file: 'apps/docs/lib/landing/governance-demo.ts',
+    ruleId: 'ly-adverb',
+    match: 'directly',
+  },
+  {
+    file: 'apps/docs/lib/landing/governance-demo.ts',
+    ruleId: 'ly-adverb',
+    match: 'only',
+  },
+])
 
 function isAllowed({ file, ruleId, match }) {
   return PROSE_ALLOWLIST.some(

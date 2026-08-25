@@ -345,7 +345,7 @@ describe('mutator', () => {
   })
 
   it('should truncate long text error responses', async () => {
-    const longHtml = '<html>' + 'x'.repeat(300) + '</html>'
+    const longHtml = `<html>${'x'.repeat(300)}</html>`
     mockFetch.mockResolvedValue({
       ok: false,
       status: 502,

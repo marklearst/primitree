@@ -1,19 +1,19 @@
 :root {
   color-scheme: dark;
-  --bg: #030304;
-  --bg-surface: #08080a;
-  --bg-raised: #0f0f12;
-  --bg-hover: #16161a;
-  --border: rgb(255 255 255 / 6%);
-  --text: #fafafa;
-  --text-dim: #9ca3af;
-  --accent: #a8c95f;
-  --accent-strong: #5f7f2f;
-  --accent-soft: #dde9b9;
-  --accent-wash: rgb(168 201 95 / 10%);
-  --good: #45c98b;
-  --warn: #f2b84b;
-  --error: #f27575;
+  --bg: #0b0f0d;
+  --bg-surface: #101512;
+  --bg-raised: #161c18;
+  --bg-hover: #1c241f;
+  --border: rgb(255 255 255 / 9%);
+  --text: #f0f5f2;
+  --text-dim: #8fa39a;
+  --accent: #34d399;
+  --accent-strong: #0b9464;
+  --accent-soft: #6ee7b7;
+  --accent-wash: rgb(52 211 153 / 10%);
+  --good: #34d399;
+  --warn: #fbbf24;
+  --error: #f87171;
   --radius: 12px;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
@@ -24,7 +24,7 @@
 }
 
 ::selection {
-  background: rgb(168 201 95 / 25%);
+  background: rgb(52 211 153 / 25%);
   color: #fff;
 }
 
@@ -204,7 +204,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 600;
@@ -223,8 +223,8 @@ body {
 }
 
 .button.primary {
-  background: #fafafa;
-  color: #09090b;
+  background: var(--accent);
+  color: #04251a;
 }
 
 .button.ghost {
@@ -237,8 +237,8 @@ body {
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: var(--radius);
-  border: 1px solid rgb(242 117 117 / 40%);
-  background: rgb(242 117 117 / 8%);
+  border: 1px solid rgb(248 113 113 / 40%);
+  background: rgb(248 113 113 / 8%);
   color: var(--error);
   font-size: 14px;
   font-family: var(--font-mono);
@@ -321,8 +321,8 @@ body {
 
 .warnings {
   margin: 0 0 16px;
-  border: 1px solid rgb(242 184 75 / 35%);
-  background: rgb(242 184 75 / 7%);
+  border: 1px solid rgb(251 191 36 / 35%);
+  background: rgb(251 191 36 / 7%);
   border-radius: var(--radius);
   padding: 10px 14px;
   font-size: 14px;
@@ -388,7 +388,7 @@ body {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-dim);
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 0 12px;
   font-size: 13px;
   cursor: pointer;
@@ -528,7 +528,7 @@ body {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgb(69 201 139 / 10%);
+  background: rgb(52 211 153 / 10%);
   color: var(--good);
   font-size: 12px;
   font-family: var(--font-sans);
@@ -625,7 +625,7 @@ body {
   }
 
   .button.primary:hover {
-    background: #e4e4e7;
+    background: var(--accent-soft);
   }
 
   .button.ghost:hover,

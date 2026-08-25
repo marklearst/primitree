@@ -143,7 +143,7 @@ test('marketing shell applies the approved Lichen background', async ({
 
   await expect(page.locator('body')).toHaveCSS(
     'background-color',
-    'rgb(3, 3, 4)'
+    'rgb(11, 15, 13)'
   )
 })
 
@@ -173,15 +173,15 @@ test('documentation shell resolves the approved Lichen theme', async ({
   })
 
   expect(colors).toEqual({
-    background: 'rgb(3, 3, 4)',
-    primary: 'rgb(168, 201, 95)',
+    background: 'rgb(11, 15, 13)',
+    primary: 'rgb(52, 211, 153)',
   })
 
   const currentPage = page.locator(
     '#nd-sidebar a[href="/docs/getting-started"][data-active="true"]'
   )
   await expect(currentPage).toBeVisible()
-  await expect(currentPage).toHaveCSS('color', 'rgb(168, 201, 95)')
+  await expect(currentPage).toHaveCSS('color', 'rgb(52, 211, 153)')
 })
 
 test('mobile navigation exposes the active page', async ({ page }) => {
@@ -192,10 +192,10 @@ test('mobile navigation exposes the active page', async ({ page }) => {
   const activeLinks = menu.locator('nav a[aria-current="page"]')
   await expect(activeLinks).toHaveCount(1)
   await expect(activeLinks).toHaveText('Playground')
-  await expect(activeLinks).toHaveCSS('color', 'rgb(168, 201, 95)')
+  await expect(activeLinks).toHaveCSS('color', 'rgb(52, 211, 153)')
   await expect(activeLinks).toHaveCSS(
     'background-color',
-    'rgba(168, 201, 95, 0.1)'
+    'rgba(52, 211, 153, 0.1)'
   )
 })
 

@@ -228,10 +228,10 @@ for (const width of widths) {
     await expect(summary).toContainText('warning')
     await expectEveryTouchTarget(summary)
     const warning = page.locator('.pg-warnings')
-    await expect(warning).toHaveCSS('color', 'rgb(242, 184, 75)')
+    await expect(warning).toHaveCSS('color', 'rgb(251, 191, 36)')
     await expect(warning).toHaveCSS(
       'background-color',
-      'rgba(242, 184, 75, 0.07)'
+      'rgba(251, 191, 36, 0.07)'
     )
 
     await page.getByRole('button', { name: 'Download pipeline (.zip)' }).focus()
@@ -283,29 +283,29 @@ test('embedded playground applies Lichen to sample output states', async ({
   await page.getByRole('button', { name: 'Try the sample' }).click()
 
   const selectedChip = page.locator('.pg-chip:has(input:checked)').first()
-  await expect(selectedChip).toHaveCSS('color', 'rgb(168, 201, 95)')
+  await expect(selectedChip).toHaveCSS('color', 'rgb(52, 211, 153)')
   await expect(selectedChip).toHaveCSS(
     'background-color',
-    'rgba(168, 201, 95, 0.1)'
+    'rgba(52, 211, 153, 0.1)'
   )
-  await expect(selectedChip).toHaveCSS('border-color', 'rgb(168, 201, 95)')
+  await expect(selectedChip).toHaveCSS('border-color', 'rgb(52, 211, 153)')
 
   const activeTab = page.getByRole('tab', { name: 'Tokens' })
-  await expect(activeTab).toHaveCSS('color', 'rgb(168, 201, 95)')
-  await expect(activeTab).toHaveCSS('border-bottom-color', 'rgb(168, 201, 95)')
+  await expect(activeTab).toHaveCSS('color', 'rgb(52, 211, 153)')
+  await expect(activeTab).toHaveCSS('border-bottom-color', 'rgb(52, 211, 153)')
 
   const successChip = page.locator('.pg-type-chip').first()
-  await expect(successChip).toHaveCSS('color', 'rgb(69, 201, 139)')
+  await expect(successChip).toHaveCSS('color', 'rgb(52, 211, 153)')
   await expect(successChip).toHaveCSS(
     'background-color',
-    'rgba(69, 201, 139, 0.1)'
+    'rgba(52, 211, 153, 0.1)'
   )
 
   const primary = page.getByRole('button', {
     name: 'Download pipeline (.zip)',
   })
-  await expect(primary).toHaveCSS('background-color', 'rgb(250, 250, 250)')
-  await expect(primary).toHaveCSS('color', 'rgb(9, 9, 11)')
+  await expect(primary).toHaveCSS('background-color', 'rgb(52, 211, 153)')
+  await expect(primary).toHaveCSS('color', 'rgb(4, 37, 26)')
 })
 
 test('embedded playground tabs and context radios support the keyboard', async ({
@@ -414,8 +414,8 @@ test('embedded playground announces malformed JSON', async ({ page }) => {
   const alert = page.locator('.pg-error[role="alert"]')
   await expect(alert).toHaveCount(1)
   await expect(alert).toBeVisible()
-  await expect(alert).toHaveCSS('color', 'rgb(242, 117, 117)')
-  await expect(alert).toHaveCSS('background-color', 'rgba(242, 117, 117, 0.08)')
+  await expect(alert).toHaveCSS('color', 'rgb(248, 113, 113)')
+  await expect(alert).toHaveCSS('background-color', 'rgba(248, 113, 113, 0.08)')
   expect((await alert.textContent())?.trim().length).toBeGreaterThan(0)
 })
 

@@ -2,6 +2,13 @@ import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { useMutation, mutationReducer } from '../../src/hooks/useMutation'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 describe('useMutation', () => {
   it('should initialize with idle state', () => {
     const mutationFn = vi.fn()
@@ -124,7 +131,7 @@ describe('useMutation', () => {
 
     // Complete the mutation
     await act(async () => {
-      resolveMutation!(mockData)
+      must(resolveMutation)(mockData)
       // Give a tick for any state updates
       await new Promise(resolve => setTimeout(resolve, 0))
     })
@@ -167,13 +174,13 @@ describe('useMutation', () => {
 
     // Complete first mutation (should be ignored)
     await act(async () => {
-      resolveFirst!(firstData)
+      must(resolveFirst)(firstData)
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 
     // Complete second mutation (should be used)
     await act(async () => {
-      resolveSecond!(secondData)
+      must(resolveSecond)(secondData)
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 

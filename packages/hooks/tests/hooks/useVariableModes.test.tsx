@@ -5,6 +5,13 @@ import { useVariableModes } from '../../src/hooks/useVariableModes'
 import { useVariables } from '../../src/hooks/useVariables'
 import { mockLocalVariablesResponse } from '../../tests/mocks/variables'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 vi.mock('../../src/hooks/useVariables')
 
 const mockedUseVariables = useVariables as Mock
@@ -27,8 +34,8 @@ describe('useVariableModes', () => {
     const { result } = renderHook(() => useVariableModes())
 
     const { variableCollections } = mockLocalVariablesResponse.meta
-    const collection1 = Object.values(variableCollections)[0]!
-    const collection2 = Object.values(variableCollections)[1]!
+    const collection1 = must(Object.values(variableCollections)[0])
+    const collection2 = must(Object.values(variableCollections)[1])
 
     expect(result.current.modes).toHaveLength(2)
     expect(result.current.modes[0]).toEqual(collection1.modes[0])
@@ -38,10 +45,10 @@ describe('useVariableModes', () => {
     expect(result.current.modesByCollectionId[collection2.id]).toEqual(
       collection2.modes
     )
-    expect(result.current.modesById[collection1.modes[0]!.modeId]).toEqual(
+    expect(result.current.modesById[must(collection1.modes[0]).modeId]).toEqual(
       collection1.modes[0]
     )
-    expect(result.current.modesById[collection2.modes[0]!.modeId]).toEqual(
+    expect(result.current.modesById[must(collection2.modes[0]).modeId]).toEqual(
       collection2.modes[0]
     )
   })

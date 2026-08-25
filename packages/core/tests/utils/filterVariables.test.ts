@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { filterVariables } from '../../src/utils/filterVariables'
 import type { FigmaVariable } from '../../src/types/figma'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 const mockVariables: FigmaVariable[] = [
   {
     id: 'var1',
@@ -66,8 +73,8 @@ describe('filterVariables', () => {
       name: 'Primary',
     })
     expect(result).toHaveLength(1)
-    expect(result[0]!.name).toBe('Primary Color')
-    expect(result[0]!.resolvedType).toBe('COLOR')
+    expect(must(result[0]).name).toBe('Primary Color')
+    expect(must(result[0]).resolvedType).toBe('COLOR')
   })
 
   it('should return empty array when no matches found', () => {
@@ -124,7 +131,7 @@ describe('filterVariables', () => {
         caseInsensitive: true,
       })
       expect(result).toHaveLength(1)
-      expect(result[0]!.name).toBe('Primary Color')
+      expect(must(result[0]).name).toBe('Primary Color')
     })
   })
 })

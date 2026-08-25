@@ -14,6 +14,13 @@ import {
   type Result,
 } from '../../src/index'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 function requireValue<Value>(result: Result<Value>): Value {
   expect(result.ok).toBe(true)
   if (!result.ok) {
@@ -64,7 +71,7 @@ describe('source-neutral graph', () => {
 
     const fragment = requireValue(createGraphFragment(input))
 
-    input.tokens[0]!.path[0] = 'changed'
+    must(input.tokens[0]).path[0] = 'changed'
     expect(fragment.source.id).toBe(sourceId)
     expect(fragment.groups).toHaveLength(1)
     expect(fragment.tokens).toHaveLength(1)
@@ -483,7 +490,9 @@ describe('source-neutral graph', () => {
     const graph = requireValue(composeGraph([fragment]))
     const view = requireValue(createSourceView(graph, { id: 'app' }))
 
-    expect(requireValue(resolveToken(graph, view, ids[0]!)).value).toBe('#36f')
+    expect(requireValue(resolveToken(graph, view, must(ids[0]))).value).toBe(
+      '#36f'
+    )
     expect(resolveView(graph, view).diagnostics[0]?.code).toBe(
       'graph.work-limit'
     )
@@ -699,7 +708,7 @@ describe('source-neutral graph', () => {
       ...view,
       tokens: Object.freeze([
         Object.freeze({ tokenId: baseId, path: ['theme', 'renamed'] }),
-        view.tokens[1]!,
+        must(view.tokens[1]),
       ]),
     })
     expect(
@@ -715,7 +724,7 @@ describe('source-neutral graph', () => {
 
     const reducedView = Object.freeze({
       ...view,
-      tokens: Object.freeze([view.tokens[0]!]),
+      tokens: Object.freeze([must(view.tokens[0])]),
     })
     expect(
       requireValue(
@@ -786,7 +795,7 @@ describe('source-neutral graph', () => {
       for (const key of keys) {
         value[key] = key.length
       }
-      const token = graph.tokens[0]!
+      const token = must(graph.tokens[0])
       return Object.freeze({
         ...graph,
         tokens: Object.freeze([
@@ -794,7 +803,7 @@ describe('source-neutral graph', () => {
             ...token,
             values: Object.freeze([
               Object.freeze({
-                ...token.values[0]!,
+                ...must(token.values[0]),
                 value: Object.freeze({ kind: 'literal' as const, value }),
               }),
             ]),

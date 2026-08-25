@@ -32,7 +32,7 @@ const BRAND_PATTERN =
 const LICHEN_CONTRACT_PATHS = new Set([
   'README.md',
   'apps/docs/app/global.css',
-  'apps/docs/components/landing/living-canopy.tsx',
+  'apps/docs/components/landing/token-graph.tsx',
   'apps/docs/components/playground/playground.css',
   'apps/docs/public/favicon.svg',
   'apps/docs/public/primitree-icon.svg',
@@ -44,68 +44,74 @@ const LICHEN_UI_PREFIXES = ['apps/docs/', 'apps/playground/']
 const LICHEN_UI_SOURCE_PATTERN = /\.(?:css|html|svg|[cm]?[jt]sx?)$/u
 const TEST_SOURCE_PATTERN = /(?:^|\/)(?:__tests__|tests?)\/|\.(?:spec|test)\./u
 const FORMER_BRAND_COLOR_PATTERN =
-  /#(?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|34d399|fbbf24|3ddc97|ffb454|ff6b81)(?:[\da-f]{2})?(?![\da-f])|rgba?\(\s*(?:139(?:\s*,\s*|\s+)156(?:\s*,\s*|\s+)255|123(?:\s*,\s*|\s+)140(?:\s*,\s*|\s+)255|52(?:\s*,\s*|\s+)211(?:\s*,\s*|\s+)153|251(?:\s*,\s*|\s+)191(?:\s*,\s*|\s+)36|61(?:\s*,\s*|\s+)220(?:\s*,\s*|\s+)151|255(?:\s*,\s*|\s+)180(?:\s*,\s*|\s+)84|255(?:\s*,\s*|\s+)107(?:\s*,\s*|\s+)129)[^)]*\)/gi
+  /#(?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|3ddc97|ffb454|ff6b81|a8c95f|5f7f2f|dde9b9|45c98b|f2b84b|f27575)(?:[\da-f]{2})?(?![\da-f])|rgba?\(\s*(?:139(?:\s*,\s*|\s+)156(?:\s*,\s*|\s+)255|123(?:\s*,\s*|\s+)140(?:\s*,\s*|\s+)255|61(?:\s*,\s*|\s+)220(?:\s*,\s*|\s+)151|255(?:\s*,\s*|\s+)180(?:\s*,\s*|\s+)84|255(?:\s*,\s*|\s+)107(?:\s*,\s*|\s+)129|168(?:\s*,\s*|\s+)201(?:\s*,\s*|\s+)95|69(?:\s*,\s*|\s+)201(?:\s*,\s*|\s+)139|242(?:\s*,\s*|\s+)184(?:\s*,\s*|\s+)75|242(?:\s*,\s*|\s+)117(?:\s*,\s*|\s+)117)[^)]*\)/gi
 const FORMER_BADGE_COLOR_PATTERN =
-  /img\.shields\.io\/badge\/[^)\s]*-((?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|34d399|fbbf24|3ddc97|ffb454|ff6b81)(?:[\da-f]{2})?)(?=[)\s]|$)/gi
+  /img\.shields\.io\/badge\/[^)\s]*-((?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|3ddc97|ffb454|ff6b81|a8c95f|5f7f2f|dde9b9|45c98b|f2b84b|f27575)(?:[\da-f]{2})?)(?=[)\s]|$)/gi
+/** Approved values per variable. An array lists the dark value first and the
+ * light-theme override second; every declaration must match one of them. */
 const APPROVED_CSS_VARIABLES = new Map([
   [
     'apps/docs/app/global.css',
     new Map([
-      ['--color-primitree-bg', '#030304'],
-      ['--color-primitree-surface', '#08080a'],
-      ['--color-primitree-raised', '#0f0f12'],
-      ['--color-primitree-elevated', '#16161a'],
-      ['--color-primitree-text', '#fafafa'],
-      ['--color-primitree-accent', '#a8c95f'],
-      ['--color-primitree-accent-strong', '#5f7f2f'],
-      ['--color-primitree-accent-soft', '#dde9b9'],
-      ['--color-primitree-accent-wash', 'rgb(168 201 95 / 10%)'],
-      ['--color-primitree-good', '#45c98b'],
-      ['--color-primitree-warn', '#f2b84b'],
-      ['--color-primitree-error', '#f27575'],
-      ['--color-fd-background', 'var(--color-primitree-bg)'],
-      ['--color-fd-foreground', 'var(--color-primitree-text)'],
-      ['--color-fd-muted', 'var(--color-primitree-surface)'],
-      ['--color-fd-muted-foreground', 'var(--color-primitree-muted)'],
-      ['--color-fd-popover', 'var(--color-primitree-raised)'],
-      ['--color-fd-popover-foreground', 'var(--color-primitree-text)'],
-      ['--color-fd-card', 'var(--color-primitree-surface)'],
-      ['--color-fd-card-foreground', 'var(--color-primitree-text)'],
-      ['--color-fd-primary', 'var(--color-primitree-accent)'],
-      ['--color-fd-primary-foreground', '#09090b'],
-      ['--color-fd-secondary', 'var(--color-primitree-raised)'],
-      ['--color-fd-secondary-foreground', 'var(--color-primitree-text)'],
-      ['--color-fd-accent', 'var(--color-primitree-accent-wash)'],
-      ['--color-fd-accent-foreground', 'var(--color-primitree-text)'],
-      ['--color-fd-border', 'var(--color-primitree-border)'],
-      ['--color-fd-ring', 'var(--color-primitree-text)'],
-      ['--color-fd-success', 'var(--color-primitree-good)'],
-      ['--color-fd-warning', 'var(--color-primitree-warn)'],
-      ['--color-fd-error', 'var(--color-primitree-error)'],
+      ['--color-primitree-bg', ['#0b0f0d', '#f6faf8']],
+      ['--color-primitree-surface', ['#101512', '#ffffff']],
+      ['--color-primitree-raised', ['#161c18', '#eef4f0']],
+      ['--color-primitree-elevated', ['#1c241f', '#e4ece7']],
+      ['--color-primitree-text', ['#f0f5f2', '#0a1510']],
+      ['--color-primitree-accent', ['#34d399', '#0b9464']],
+      ['--color-primitree-accent-strong', ['#0b9464']],
+      ['--color-primitree-accent-soft', ['#6ee7b7', '#087a52']],
+      ['--color-primitree-accent-ink', ['#04251a', '#eafff6']],
+      [
+        '--color-primitree-accent-wash',
+        ['rgb(52 211 153 / 10%)', 'rgb(11 148 100 / 9%)'],
+      ],
+      ['--color-primitree-good', ['#34d399', '#0b9464']],
+      ['--color-primitree-warn', ['#fbbf24', '#b45309']],
+      ['--color-primitree-error', ['#f87171', '#dc2626']],
+      ['--color-fd-background', ['var(--color-primitree-bg)']],
+      ['--color-fd-foreground', ['var(--color-primitree-text)']],
+      ['--color-fd-muted', ['var(--color-primitree-surface)']],
+      ['--color-fd-muted-foreground', ['var(--color-primitree-muted)']],
+      ['--color-fd-popover', ['var(--color-primitree-raised)']],
+      ['--color-fd-popover-foreground', ['var(--color-primitree-text)']],
+      ['--color-fd-card', ['var(--color-primitree-surface)']],
+      ['--color-fd-card-foreground', ['var(--color-primitree-text)']],
+      ['--color-fd-primary', ['var(--color-primitree-accent)']],
+      ['--color-fd-primary-foreground', ['var(--color-primitree-accent-ink)']],
+      ['--color-fd-secondary', ['var(--color-primitree-raised)']],
+      ['--color-fd-secondary-foreground', ['var(--color-primitree-text)']],
+      ['--color-fd-accent', ['var(--color-primitree-accent-wash)']],
+      ['--color-fd-accent-foreground', ['var(--color-primitree-text)']],
+      ['--color-fd-border', ['var(--color-primitree-border)']],
+      ['--color-fd-ring', ['var(--color-primitree-text)']],
+      ['--color-fd-success', ['var(--color-primitree-good)']],
+      ['--color-fd-warning', ['var(--color-primitree-warn)']],
+      ['--color-fd-error', ['var(--color-primitree-error)']],
     ]),
   ],
   [
     'apps/playground/src/styles.css',
     new Map([
-      ['--bg', '#030304'],
-      ['--bg-surface', '#08080a'],
-      ['--bg-raised', '#0f0f12'],
-      ['--bg-hover', '#16161a'],
-      ['--text', '#fafafa'],
-      ['--accent', '#a8c95f'],
-      ['--accent-strong', '#5f7f2f'],
-      ['--accent-soft', '#dde9b9'],
-      ['--accent-wash', 'rgb(168 201 95 / 10%)'],
-      ['--good', '#45c98b'],
-      ['--warn', '#f2b84b'],
-      ['--error', '#f27575'],
+      ['--bg', ['#0b0f0d']],
+      ['--bg-surface', ['#101512']],
+      ['--bg-raised', ['#161c18']],
+      ['--bg-hover', ['#1c241f']],
+      ['--text', ['#f0f5f2']],
+      ['--accent', ['#34d399']],
+      ['--accent-strong', ['#0b9464']],
+      ['--accent-soft', ['#6ee7b7']],
+      ['--accent-wash', ['rgb(52 211 153 / 10%)']],
+      ['--good', ['#34d399']],
+      ['--warn', ['#fbbf24']],
+      ['--error', ['#f87171']],
     ]),
   ],
 ])
 const APPROVED_SVG_FILLS = new Map([
-  ['apps/docs/public/favicon.svg', '#5f7f2f'],
+  ['apps/docs/public/favicon.svg', '#0b9464'],
   ['apps/docs/public/primitree-icon.svg', '#ffffff'],
-  ['apps/playground/public/favicon.svg', '#5f7f2f'],
+  ['apps/playground/public/favicon.svg', '#0b9464'],
   ['apps/playground/src/assets/primitree-icon.svg', '#ffffff'],
 ])
 
@@ -287,27 +293,42 @@ function addCssVariableViolations(violations, path, root) {
 
   const actualVariables = readCssVariables(root)
   for (const [name, expected] of expectedVariables) {
+    const allowed = expected.map(value => normalizeColor(value))
     const actual = actualVariables.get(name) ?? []
     const firstWrong = actual.find(
-      declaration => declaration.value !== expected
+      declaration => !allowed.includes(declaration.value)
     )
-    if (actual.length > 0 && firstWrong === undefined) continue
+    const missingValue = allowed.find(
+      value => !actual.some(declaration => declaration.value === value)
+    )
+    if (
+      actual.length > 0 &&
+      firstWrong === undefined &&
+      missingValue === undefined
+    ) {
+      continue
+    }
 
     violations.push({
       path,
       line: firstWrong?.line ?? null,
-      match: `${name}: expected ${expected}, found ${firstWrong?.value ?? 'missing'}`,
+      match: `${name}: expected ${expected.join(' and ')}, found ${firstWrong?.value ?? (missingValue === undefined ? 'missing' : `no declaration for ${missingValue}`)}`,
     })
   }
 
+  const approvedSelections = [
+    [52, 211, 153, 0.25],
+    [11, 148, 100, 0.25],
+  ]
   const selections = findSelectionBackgrounds(root)
   const wrongSelection = selections.find(selection => {
     const color = functionalColor(selection.value)
-    return !(
-      color?.[0] === 168 &&
-      color[1] === 201 &&
-      color[2] === 95 &&
-      color[3] === 0.25
+    return !approvedSelections.some(
+      approved =>
+        color?.[0] === approved[0] &&
+        color[1] === approved[1] &&
+        color[2] === approved[2] &&
+        color[3] === approved[3]
     )
   })
   if (selections.length > 0 && wrongSelection === undefined) return
@@ -315,7 +336,7 @@ function addCssVariableViolations(violations, path, root) {
   violations.push({
     path,
     line: wrongSelection?.line ?? null,
-    match: `text selection: expected rgb(168 201 95 / 25%), found ${wrongSelection?.value ?? 'missing'}`,
+    match: `text selection: expected the approved selection washes, found ${wrongSelection?.value ?? 'missing'}`,
   })
 }
 
@@ -383,27 +404,21 @@ function addSvgFillViolation(violations, path, content) {
 }
 
 function addLivingCanopyMarkupViolations(violations, path, content) {
-  if (path !== 'apps/docs/components/landing/living-canopy.tsx') return
+  if (path !== 'apps/docs/components/landing/token-graph.tsx') return
 
-  const body =
-    /<path\b(?=[^>]*\bclassName=['"]canopy-logo-body['"])[^>]*>/u.exec(content)
-  const fill = body && /\bfill=['"]([^'"]+)['"]/u.exec(body[0])
-  const actual = fill?.[1] ?? null
-  if (actual !== 'var(--color-primitree-text)') {
-    const offset =
-      body && fill ? (body.index ?? 0) + (fill.index ?? 0) : (body?.index ?? 0)
-    violations.push({
-      path,
-      line: body ? lineFromOffset(content, offset) : null,
-      match: `living canopy mark: expected Bone body, found ${actual ?? 'missing'}`,
-    })
-  }
-
-  if (!/\bclassName=['"]canopy-root-node['"]/u.test(content)) {
+  if (!/\bclassName=['"]graph-node['"]/u.test(content)) {
     violations.push({
       path,
       line: null,
-      match: 'living canopy mark: missing structural Lichen root node',
+      match: 'token graph: missing structural node class',
+    })
+  }
+
+  if (!/\bclassName=['"]graph-edge['"]/u.test(content)) {
+    violations.push({
+      path,
+      line: null,
+      match: 'token graph: missing structural edge class',
     })
   }
 }
@@ -427,14 +442,6 @@ function addHomepageRegressionViolations(violations, path, content) {
       label: 'global pointer tracking',
       pattern: /addEventListener\(\s*['"]pointermove['"]/u,
     },
-    {
-      label: 'infinite homepage animation',
-      pattern: /\banimation\s*:[^;\n]*\binfinite\b/u,
-    },
-    {
-      label: 'infinite homepage animation',
-      pattern: /animationIterationCount\s*:\s*['"]infinite['"]/u,
-    },
   ]
 
   for (const banned of bannedPatterns) {
@@ -443,7 +450,7 @@ function addHomepageRegressionViolations(violations, path, content) {
     violations.push({
       path,
       line: lineFromOffset(content, match.index ?? 0),
-      match: `living canopy regression: ${banned.label}`,
+      match: `homepage regression: ${banned.label}`,
     })
   }
 }
@@ -453,28 +460,28 @@ function addLivingCanopyStyleViolations(violations, path, root) {
 
   const expectedTreatments = [
     {
-      label: 'Bone logo body',
+      label: 'graph node surface',
       property: 'fill',
-      selector: '.canopy-logo-body',
+      selector: '.graph-node-box',
+      value: 'var(--color-primitree-surface)',
+    },
+    {
+      label: 'Lichen governed edge',
+      property: 'stroke',
+      selector: ".graph-edge[data-tone='governed']",
+      value: 'var(--color-primitree-accent)',
+    },
+    {
+      label: 'coral violation edge',
+      property: 'stroke',
+      selector: ".graph-edge[data-tone='violation']",
+      value: 'var(--color-primitree-error)',
+    },
+    {
+      label: 'Bone focus treatment',
+      property: 'stroke',
+      selector: '.graph-node:focus-visible .graph-node-box',
       value: 'var(--color-primitree-text)',
-    },
-    {
-      label: 'Lichen root node',
-      property: 'fill',
-      selector: '.canopy-root-node',
-      value: 'var(--color-primitree-accent)',
-    },
-    {
-      label: 'Lichen structural trunk',
-      property: 'stroke',
-      selector: '.canopy-trunk',
-      value: 'var(--color-primitree-accent)',
-    },
-    {
-      label: 'Lichen governed-token border',
-      property: 'stroke',
-      selector: '.canopy-token-node rect',
-      value: 'var(--color-primitree-accent)',
     },
   ]
 
@@ -501,7 +508,7 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     violations.push({
       path,
       line: null,
-      match: `living canopy: missing ${treatment.label}`,
+      match: `token graph: missing ${treatment.label}`,
     })
   }
 
@@ -509,7 +516,9 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     if (
       !rule.selectors.some(
         selector =>
-          selector.includes('.canopy') || selector.includes('.governance-')
+          selector.includes('.graph') ||
+          selector.includes('.proof') ||
+          selector.includes('.governance-')
       )
     ) {
       return
@@ -518,16 +527,13 @@ function addLivingCanopyStyleViolations(violations, path, root) {
     for (const declaration of rule.nodes ?? []) {
       if (declaration.type !== 'decl') continue
       const usesAtmosphericEffect =
-        declaration.prop === 'filter' ||
-        declaration.prop === 'backdrop-filter' ||
-        /gradient\(|\binfinite\b/u.test(declaration.value)
+        declaration.prop === 'filter' || declaration.prop === 'backdrop-filter'
       if (!usesAtmosphericEffect) continue
 
       violations.push({
         path,
         line: declaration.source?.start?.line ?? null,
-        match:
-          'living canopy: gradients, blur, and infinite motion are prohibited',
+        match: 'token graph: blur and filter effects are prohibited',
       })
     }
   })

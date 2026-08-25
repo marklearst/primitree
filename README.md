@@ -5,7 +5,7 @@
 Check a local DTCG source against project rules and build files for apps.
 
 [![CI](https://github.com/marklearst/primitree/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/primitree/actions/workflows/ci.yml)
-[![DTCG](https://img.shields.io/badge/DTCG-2025.10-5F7F2F)](https://www.designtokens.org)
+[![DTCG](https://img.shields.io/badge/DTCG-2025.10-0B9464)](https://www.designtokens.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
