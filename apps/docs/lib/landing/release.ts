@@ -1,8 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-/** Reads the published primitree package version at build time. */
+let cachedVersion: string | undefined
+
+/** Reads the published primitree package version once per process. */
 export function readPrimitreeVersion(): string {
+  if (cachedVersion !== undefined) {
+    return cachedVersion
+  }
   const packagePath = resolve(
     process.cwd(),
     '../../packages/primitree/package.json'
@@ -16,5 +21,6 @@ export function readPrimitreeVersion(): string {
   ) {
     throw new Error('The primitree package manifest has no version field.')
   }
-  return parsed.version
+  cachedVersion = parsed.version
+  return cachedVersion
 }
