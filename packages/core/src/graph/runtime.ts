@@ -968,7 +968,8 @@ function resolveTokenWithMaps(
   selected: ContextSelection,
   budget: WorkBudget
 ): Result<ResolvedToken> {
-  if (!paths.has(tokenId)) {
+  const tokenPath = paths.get(tokenId)
+  if (tokenPath === undefined) {
     return failure(
       'graph.unknown-token',
       'resolve',
@@ -1030,7 +1031,8 @@ function resolveTokenWithMaps(
     const winners = mostSpecific.filter(
       value => value.authored.priority === priority
     )
-    if (winners.length !== 1) {
+    const [soleWinner] = winners
+    if (winners.length !== 1 || soleWinner === undefined) {
       return failure(
         'graph.ambiguous-value',
         'resolve',
@@ -1038,7 +1040,7 @@ function resolveTokenWithMaps(
         { tokenId: currentId }
       )
     }
-    const winner = winners[0]!.authored
+    const winner = soleWinner.authored
     chain.push(currentId)
     if (winner.value.kind === 'literal') {
       resolvedToken = token
@@ -1067,12 +1069,20 @@ function resolveTokenWithMaps(
     visiting.add(currentId)
     currentId = winner.value.target
   }
+  if (resolvedValue === undefined) {
+    return failure(
+      'graph.unresolved-value',
+      'resolve',
+      'The token resolved without a value.',
+      { tokenId }
+    )
+  }
   return success(
     Object.freeze({
       tokenId,
-      path: paths.get(tokenId)!,
+      path: tokenPath,
       type: resolvedToken.type,
-      value: resolvedValue!,
+      value: resolvedValue,
       sourceSelection: selected,
       directReferences: Object.freeze(directReferences),
       referenceChain: Object.freeze(chain),

@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest'
 import { fetcher } from '../../src/api/fetcher'
 import { FIGMA_API_BASE_URL } from '../../src/constants'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 const DUMMY_URL = 'https://api.example.com/test'
 const DUMMY_TOKEN = 'dummy-token'
 
@@ -191,7 +198,7 @@ describe('fetcher', () => {
       const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
       expect(fetchCall).toBeDefined()
 
-      const fetchOptions = fetchCall![1] as RequestInit
+      const fetchOptions = must(fetchCall)[1] as RequestInit
 
       // Provided signal should take precedence, timeout should not create new signal
       expect(fetchOptions.signal).toBe(controller.signal)
@@ -216,7 +223,7 @@ describe('fetcher', () => {
       const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
       expect(fetchCall).toBeDefined()
 
-      const fetchOptions = fetchCall![1] as RequestInit
+      const fetchOptions = must(fetchCall)[1] as RequestInit
 
       // Verify that a signal was created (timeout creates AbortController internally)
       expect(fetchOptions.signal).toBeDefined()
@@ -423,7 +430,7 @@ describe('fetcher', () => {
       const mockHeaders = new Headers()
       mockHeaders.set('content-type', 'text/html')
 
-      const longHtml = '<html>' + 'x'.repeat(300) + '</html>'
+      const longHtml = `<html>${'x'.repeat(300)}</html>`
 
       mockFetch(
         {

@@ -218,7 +218,7 @@ export function TokenGraph({
       <g key={`edges-${outcome.id}`}>
         {outcome.edges.map(edge => {
           const inTrace =
-            trace !== null && trace.has(edge.from) && trace.has(edge.to)
+            (trace?.has(edge.from) ?? false) && (trace?.has(edge.to) ?? false)
           const inGoverned = governed.has(edge.from) && governed.has(edge.to)
           const tone = edge.violation
             ? 'violation'

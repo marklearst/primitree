@@ -78,7 +78,7 @@ describe('normalizeVariables', () => {
     const result = normalizeVariables(pluginShape)
     expect(result.variables[0]?.resolvedType).toBe('FLOAT')
     expect(result.variables[0]?.collectionId).toBe('c1')
-    expect(result.collectionsById['c1']?.variableIds).toEqual(['v1'])
+    expect(result.collectionsById.c1?.variableIds).toEqual(['v1'])
   })
 
   it('preserves hostile IDs as own entries in null-prototype ID maps', () => {

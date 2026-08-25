@@ -12,6 +12,13 @@ import {
   type PolicyInput,
 } from '../../src/policy/index'
 
+function must<Value>(value: Value | null | undefined): Value {
+  if (value == null) {
+    throw new Error('Expected a value.')
+  }
+  return value
+}
+
 type TestResult<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly diagnostics: readonly unknown[] }
@@ -375,7 +382,7 @@ describe('token policy checks', () => {
 
     const report = requireValue(
       evaluatePolicy(snapshot, policy, {
-        baseline: [first.findings[0]!.findingId],
+        baseline: [must(first.findings[0]).findingId],
       })
     )
 
@@ -429,12 +436,12 @@ describe('token policy checks', () => {
         localId: `a${'😀'.repeat(127)}`,
       })
     )
-    const blue = snapshot.graph.tokens.find(
-      token => token.id === snapshot.ids.blue
-    )!
-    const action = snapshot.graph.tokens.find(
-      token => token.id === snapshot.ids.action
-    )!
+    const blue = must(
+      snapshot.graph.tokens.find(token => token.id === snapshot.ids.blue)
+    )
+    const action = must(
+      snapshot.graph.tokens.find(token => token.id === snapshot.ids.action)
+    )
     const graph = Object.freeze({
       ...snapshot.graph,
       tokens: Object.freeze([
@@ -444,7 +451,7 @@ describe('token policy checks', () => {
           id: longAction,
           values: Object.freeze([
             Object.freeze({
-              ...action.values[0]!,
+              ...must(action.values[0]),
               value: Object.freeze({
                 kind: 'reference' as const,
                 target: longBase,
@@ -485,9 +492,9 @@ describe('token policy checks', () => {
     )
 
     const first = requireValue(evaluatePolicy({ graph, view }, policy))
-    const direction = first.findings.find(
-      finding => finding.ruleId === 'PT1004'
-    )!
+    const direction = must(
+      first.findings.find(finding => finding.ruleId === 'PT1004')
+    )
 
     expect(direction.findingId.length).toBeGreaterThan(2_048)
     const second = requireValue(
@@ -546,9 +553,9 @@ describe('token policy checks', () => {
 
   it('reports a known layer that references an unassigned token', () => {
     const snapshot = createSnapshot()
-    const card = snapshot.graph.tokens.find(
-      token => token.id === snapshot.ids.card
-    )!
+    const card = must(
+      snapshot.graph.tokens.find(token => token.id === snapshot.ids.card)
+    )
     const graph = Object.freeze({
       ...snapshot.graph,
       tokens: Object.freeze(
@@ -558,7 +565,7 @@ describe('token policy checks', () => {
                 ...token,
                 values: Object.freeze([
                   Object.freeze({
-                    ...token.values[0]!,
+                    ...must(token.values[0]),
                     value: Object.freeze({
                       kind: 'reference' as const,
                       target: snapshot.ids.loose,
