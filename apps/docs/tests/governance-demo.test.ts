@@ -161,7 +161,16 @@ test('graph projections keep every slot stable across proposals', () => {
 
 test('quickstart config excerpt mirrors the policy layers', () => {
   const snippet = describeLayersSnippet()
-  assert.match(snippet, /\{ id: 'primitives', values: 'literal' \}/u)
-  assert.match(snippet, /\{ id: 'semantic', references: \['primitives'\] \}/u)
-  assert.match(snippet, /\{ id: 'component', references: \['semantic'\] \}/u)
+  assert.match(
+    snippet,
+    /\{ id: 'primitives', roots: \['primitives'\], values: 'literal' \}/u
+  )
+  assert.match(
+    snippet,
+    /\{ id: 'semantic', roots: \['semantic'\], values: 'reference', references: \['primitives'\] \}/u
+  )
+  assert.match(
+    snippet,
+    /\{ id: 'component', roots: \['component'\], values: 'reference', references: \['semantic'\] \}/u
+  )
 })

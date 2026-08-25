@@ -204,7 +204,8 @@ export function GovernanceHome() {
             <h3>Review by graph</h3>
             <p className='governance-compare-copy'>
               The same rename arrives as five changes with three named
-              consumers. The rule it would break blocks the build before merge.
+              consumers. A reference left pointing at the old name blocks the
+              build before merge.
             </p>
             <p className='governance-reach'>
               what it reaches:{' '}
@@ -310,7 +311,7 @@ export function GovernanceHome() {
               </pre>
             </article>
             <article className='governance-step'>
-              <p className='governance-step-title'>Step 03 · Run the check</p>
+              <p className='governance-step-title'>Step 03 · Check and build</p>
               <pre>
                 <code>
                   <span className='mark-acc'>$</span> primitree check --source
@@ -320,6 +321,9 @@ export function GovernanceHome() {
                     <span className='mark-acc'>✓</span> policy passed ·{' '}
                     {demo.compliant.findings} findings
                   </span>
+                  {'\n'}
+                  <span className='mark-acc'>$</span> primitree build --source
+                  brand
                   {'\n'}
                   <span data-line='dim'>
                     → wrote dtcg ·{' '}

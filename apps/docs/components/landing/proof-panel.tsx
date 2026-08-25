@@ -101,8 +101,10 @@ export function ProofPanel({
     <div className='proof'>
       <div className='proof-command'>
         <code>
-          <span className='mark-acc'>$</span> primitree check --source brand
-          --proposal {PROPOSAL_FLAGS[outcome.id]}
+          <span className='mark-acc'>$</span> primitree check --source brand{' '}
+          <span className='proof-command-note'>
+            # proposal: {PROPOSAL_FLAGS[outcome.id]}
+          </span>
           <span
             className='proof-cursor'
             aria-hidden='true'>

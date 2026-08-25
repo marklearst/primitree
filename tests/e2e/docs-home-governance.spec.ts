@@ -256,7 +256,7 @@ test('homepage leads with truthful governance', async ({ page }) => {
   await expect(page.locator('.proof-verdict')).toHaveText('PASS 0 findings')
   await expect(page.getByRole('main')).toContainText('color.bg.brand')
   await expect(page.locator('.proof-command')).toContainText(
-    '--proposal current'
+    '# proposal: current'
   )
   await expect(page.getByRole('main')).toContainText('button.bg')
   await expect(page.getByRole('main')).toContainText('focus.ring')

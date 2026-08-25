@@ -106,10 +106,14 @@ export function InstallCard({
         aria-label={`Copy the ${active.id} install command`}
         data-copied={copied || undefined}
         onClick={() => {
-          navigator.clipboard?.writeText(active.command).catch(() => {})
-          setCopied(true)
-          clearTimeout(copyTimer.current)
-          copyTimer.current = setTimeout(() => setCopied(false), 1200)
+          navigator.clipboard
+            ?.writeText(active.command)
+            .then(() => {
+              setCopied(true)
+              clearTimeout(copyTimer.current)
+              copyTimer.current = setTimeout(() => setCopied(false), 1200)
+            })
+            .catch(() => {})
         }}>
         <code>
           <span className='mark-acc'>$</span> {active.command}
@@ -127,6 +131,9 @@ export function InstallCard({
         <p>
           <span className='mark-acc'>✓</span> policy passed · {findings}{' '}
           findings
+        </p>
+        <p>
+          <span className='mark-acc'>$</span> primitree build
         </p>
         <p>→ wrote {wroteLine}</p>
       </div>

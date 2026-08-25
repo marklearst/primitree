@@ -572,13 +572,15 @@ function buildDiffReport(
   }
 }
 
-/** Renders the policy layers as the config excerpt the quickstart shows. */
+/** Renders the policy layers as the config excerpt the quickstart shows,
+ * complete enough to satisfy config validation. */
 export function describeLayersSnippet(): string {
   const lines = policyInput.layers.map((layer, index) => {
-    const parts = [`id: '${layer.id}'`]
-    if (layer.values === 'literal') {
-      parts.push("values: 'literal'")
-    }
+    const parts = [
+      `id: '${layer.id}'`,
+      `roots: [${layer.roots.map(root => `'${root}'`).join(', ')}]`,
+      `values: '${layer.values}'`,
+    ]
     if (layer.references.length > 0) {
       parts.push(
         `references: [${layer.references.map(reference => `'${reference}'`).join(', ')}]`
