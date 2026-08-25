@@ -298,12 +298,21 @@ function addCssVariableViolations(violations, path, root) {
     const firstWrong = actual.find(
       declaration => !allowed.includes(declaration.value)
     )
-    if (actual.length > 0 && firstWrong === undefined) continue
+    const missingValue = allowed.find(
+      value => !actual.some(declaration => declaration.value === value)
+    )
+    if (
+      actual.length > 0 &&
+      firstWrong === undefined &&
+      missingValue === undefined
+    ) {
+      continue
+    }
 
     violations.push({
       path,
       line: firstWrong?.line ?? null,
-      match: `${name}: expected ${expected.join(' or ')}, found ${firstWrong?.value ?? 'missing'}`,
+      match: `${name}: expected ${expected.join(' and ')}, found ${firstWrong?.value ?? (missingValue === undefined ? 'missing' : `no declaration for ${missingValue}`)}`,
     })
   }
 

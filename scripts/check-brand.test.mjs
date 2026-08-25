@@ -439,7 +439,7 @@ test('rejects a changed approved palette role', () => {
         path: 'apps/docs/app/global.css',
         line: 7,
         match:
-          '--color-primitree-accent: expected #34d399 or #0b9464, found #111111',
+          '--color-primitree-accent: expected #34d399 and #0b9464, found #111111',
       },
     ]
   )
@@ -469,7 +469,7 @@ test('ignores CSS declarations in comments and rejects active overrides', () => 
         path: 'apps/docs/app/global.css',
         line: 16,
         match:
-          '--color-primitree-accent: expected #34d399 or #0b9464, found #111111',
+          '--color-primitree-accent: expected #34d399 and #0b9464, found #111111',
       },
     ]
   )
