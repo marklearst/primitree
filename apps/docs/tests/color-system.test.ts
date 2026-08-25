@@ -319,7 +319,7 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
   assert.match(chrome, /aria-label='Primitree on GitHub'/u)
   assert.match(
     theme,
-    /\.site-icon-control\s*\{[\s\S]*width: 44px !important;[\s\S]*height: 44px !important;/u
+    /\.site-icon-control\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px;/u
   )
 })
 

@@ -64,7 +64,9 @@ html {
 }
 
 html > body[data-scroll-locked] {
+  /* biome-ignore lint/complexity/noImportantStyles: react-remove-scroll sets this as an inline style; only !important can beat it. */
   margin-right: 0 !important;
+  /* biome-ignore lint/complexity/noImportantStyles: react-remove-scroll sets this custom property inline; only !important can beat it. */
   --removed-body-scroll-bar-size: 0 !important;
 }
 
@@ -112,7 +114,7 @@ body {
 }
 
 :root #nd-sidebar {
-  border-color: var(--color-primitree-border) !important;
+  border-color: var(--color-primitree-border);
 }
 
 .brand-logo-link {
@@ -218,17 +220,17 @@ body {
 }
 
 .site-icon-control {
-  display: inline-grid !important;
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   place-items: center;
-  border: 1px solid transparent !important;
-  border-radius: 6px !important;
-  padding: 0 !important;
-  background: transparent !important;
-  color: var(--color-primitree-muted) !important;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-primitree-muted);
   text-decoration: none;
 }
 
@@ -334,12 +336,19 @@ body {
 
 .site-version {
   font-family: var(--font-mono);
+  display: none;
   font-size: 11px;
   color: var(--color-primitree-muted);
   border: 1px solid var(--color-primitree-border);
   border-radius: 6px;
   padding: 2px 8px;
   white-space: nowrap;
+}
+
+@media (min-width: 430px) {
+  .site-version {
+    display: inline-block;
+  }
 }
 
 .site-theme-toggle {
@@ -372,6 +381,18 @@ body {
 .site-theme-toggle:focus-visible {
   outline: 2px solid var(--color-primitree-text);
   outline-offset: 2px;
+}
+
+.site-theme-toggle-to-dark {
+  display: none;
+}
+
+:root[data-theme='light'] .site-theme-toggle-to-light {
+  display: none;
+}
+
+:root[data-theme='light'] .site-theme-toggle-to-dark {
+  display: inline;
 }
 
 /* ---------- hero ---------- */
@@ -604,6 +625,10 @@ body {
 
 .proof-command-spacer {
   flex: 1;
+}
+
+.proof-command-note {
+  color: var(--color-primitree-muted);
 }
 
 .proof-cursor {
@@ -921,6 +946,10 @@ body {
   white-space: nowrap;
 }
 
+.proof-swap {
+  animation: proof-rise 240ms var(--ease-out-expo);
+}
+
 .proof-verdict .proof-swap {
   display: flex;
   align-items: center;
@@ -953,10 +982,6 @@ body {
   width: 1px;
   height: 18px;
   background: var(--color-primitree-border-strong);
-}
-
-.proof-swap {
-  animation: proof-rise 240ms var(--ease-out-expo);
 }
 
 @keyframes proof-rise {
@@ -1011,6 +1036,11 @@ body {
   display: grid;
 }
 
+.governance-compare-cell {
+  min-width: 0;
+  padding-block: 56px;
+}
+
 @media (min-width: 1024px) {
   .governance-compare-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1024,11 +1054,6 @@ body {
   .governance-compare-cell + .governance-compare-cell {
     padding-left: 48px;
   }
-}
-
-.governance-compare-cell {
-  min-width: 0;
-  padding-block: 56px;
 }
 
 .governance-compare-cell h3 {
@@ -1324,7 +1349,7 @@ body {
   color: var(--color-primitree-text);
 }
 
-.governance-facts span {
+.governance-facts p span {
   display: block;
   margin-bottom: 10px;
   font-size: 11px;
@@ -1430,14 +1455,14 @@ body {
   .site-footer-link:hover,
   .mobile-nav a:hover,
   .site-icon-control:hover {
-    color: var(--color-primitree-text) !important;
+    color: var(--color-primitree-text);
   }
 
   .site-icon-control:hover,
   .mobile-nav summary:hover,
   .btn-ghost:hover {
-    border-color: var(--color-primitree-border-strong) !important;
-    background: var(--color-primitree-hover-wash) !important;
+    border-color: var(--color-primitree-border-strong);
+    background: var(--color-primitree-hover-wash);
   }
 
   .btn-primary:hover {
@@ -1450,23 +1475,13 @@ body {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion kill switch must out-rank every animation rule by design. */
     animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion kill switch must out-rank every animation rule by design. */
     animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion kill switch must out-rank every animation rule by design. */
     scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion kill switch must out-rank every animation rule by design. */
     transition-duration: 0.01ms !important;
-  }
-
-  [data-motion] {
-    animation: none !important;
-    animation-duration: 0s !important;
-    transform: none !important;
-    transition: none !important;
-  }
-
-  .proof-cursor,
-  .graph-edge,
-  .graph-sweep,
-  .proof-swap {
-    animation: none !important;
   }
 }
