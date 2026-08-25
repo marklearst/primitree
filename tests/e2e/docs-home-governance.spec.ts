@@ -2,12 +2,12 @@ import { devices, expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
 const interactiveSelector =
-  'a, button, summary, input, select, textarea' as const
+  'a, button, summary, input, select, textarea, [role="button"]' as const
 
 const proposalNames = [
   'Current graph',
   'Compliant alias',
-  'Layer violation',
+  'Layer violations',
   'Rename',
 ] as const
 
@@ -134,17 +134,18 @@ async function expectReadableGovernanceText(
 
         const style = getComputedStyle(element)
         const foreground = parseRgb(style.color)
-        const inNode = element.closest('.tree-node') !== null
-        const inTrunkBand =
-          !inNode && element.closest('.tree-band-trunk') !== null
-        const inEmitted = element.closest('.proof-emitted') !== null
-        const background = inNode
-          ? [15, 15, 18]
-          : inTrunkBand
-            ? [24, 27, 18]
-            : inEmitted
-              ? [3, 3, 4]
-              : [8, 8, 10]
+        const bar = element.closest('.proof-verdict-bar')
+        const barTone = bar?.getAttribute('data-tone')
+        const onPageGround =
+          element.closest('.install-output, .governance-step') !== null
+        const background =
+          barTone === 'pass'
+            ? [14, 31, 24]
+            : barTone === 'fail'
+              ? [30, 23, 22]
+              : onPageGround
+                ? [11, 15, 13]
+                : [16, 21, 18]
         let effectiveOpacity = 1
         let current: Element | null = element
 
@@ -181,7 +182,19 @@ async function expectReadableGovernanceText(
 }
 
 function proposalGroup(page: Page) {
-  return page.getByRole('radiogroup', { name: 'Governance proposals' })
+  return page.getByRole('radiogroup', { name: 'Proposal' })
+}
+
+/** Clicks a proposal chip, retrying until React reflects the selection, so a
+ * click that lands before hydration completes never strands the test. */
+async function pickProposal(page: Page, name: ProposalName) {
+  const chip = proposalGroup(page).getByRole('radio', { name })
+  await expect(async () => {
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-checked', 'true', {
+      timeout: 500,
+    })
+  }).toPass()
 }
 
 async function expectOnlyProposalChecked(page: Page, selected: ProposalName) {
@@ -225,32 +238,33 @@ async function expectChipKeyboardNavigation(page: Page) {
 
 test('homepage leads with truthful governance', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.hero-mark')).toContainText(
-    'Check passed for source "brand" with 8 tokens.'
-  )
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Govern token change. Review it like code.',
+      name: 'Govern token change. Know what it reaches before it merges.',
     })
   ).toHaveCount(1)
   await expect(
     page.getByRole('link', { name: 'Run the quickstart' })
   ).toHaveAttribute('href', '/docs/getting-started')
-  await expect(page.locator('.hero-install code')).toHaveText(
-    'npx primitree@next check'
+  await expect(page.locator('.install-copy-row code')).toContainText(
+    'npm install -D primitree@next'
   )
-  await expect(page.locator('.proof-verdict')).toHaveText('PASS · 0 findings')
-  await expect(page.getByRole('main')).toContainText('semantic.color.bg.brand')
-  await expect(page.getByRole('main')).toContainText('component.button.bg')
-  await expect(page.getByRole('main')).toContainText('component.focus.ring')
-  await expect(page.getByRole('main')).toContainText('component.nav.active.bg')
-  await expect(page.locator('.proof-emitted')).toContainText(
-    'var(--primitives-color-blue-500)'
+  await expect(page.locator('.install-output')).toContainText(
+    'graph resolved · 15 tokens · 3 layers'
   )
+  await expect(page.locator('.proof-verdict')).toHaveText('PASS 0 findings')
+  await expect(page.getByRole('main')).toContainText('color.bg.brand')
+  await expect(page.locator('.proof-command')).toContainText(
+    '--proposal current'
+  )
+  await expect(page.getByRole('main')).toContainText('button.bg')
+  await expect(page.getByRole('main')).toContainText('focus.ring')
+  await expect(page.getByRole('main')).toContainText('nav.active.bg')
+  await expect(page.locator('.proof-count')).toHaveText('15 tokens · 3 layers')
 })
 
-test('desktop navigation exposes documentation, search, and GitHub', async ({
+test('desktop navigation exposes documentation, search, GitHub, and the version', async ({
   page,
 }) => {
   await page.goto('/')
@@ -273,6 +287,7 @@ test('desktop navigation exposes documentation, search, and GitHub', async ({
       exact: true,
     })
   ).toBeVisible()
+  await expect(page.locator('.site-version')).toHaveText(/^v\d+\.\d+\.\d+/)
 })
 
 test('search opens its dialog with a focused textbox', async ({ page }) => {
@@ -300,43 +315,102 @@ test('proposal chips support ArrowRight, Home, and End', async ({ page }) => {
   await expectChipKeyboardNavigation(page)
 })
 
-test('layer violation reports the real policy result', async ({ page }) => {
+test('layer violations report the real policy result', async ({ page }) => {
   await page.goto('/')
 
   const status = page.getByRole('status')
-  await expect(status).toHaveText('PASS · 0 findings')
+  await expect(status).toHaveText('PASS 0 findings')
 
-  await proposalGroup(page)
-    .getByRole('radio', { name: 'Layer violation' })
-    .click()
-  await expect(status).toHaveText('BLOCK · PT1004')
-  await expect(page.locator('.proof-detail')).toHaveText(
-    'Layer semantic cannot reference layer component.'
+  await pickProposal(page, 'Layer violations')
+  await expect(status).toHaveText('FAIL 3 findings · layer-skip')
+  await expect(page.locator('.proof-detail')).toContainText(
+    'component may only reference semantic.'
   )
-  await expect(page.locator('.proof-blocked')).toBeVisible()
-  await expect(page.locator('.tree')).toHaveAttribute(
-    'data-outcome',
-    'violation'
+  await expect(page.locator(".graph-edge[data-tone='violation']")).toHaveCount(
+    3
+  )
+  await expect(page.locator('.graph-violation-tag')).toContainText(
+    '3 × layer-skip'
   )
 
-  await proposalGroup(page)
-    .getByRole('radio', { name: 'Current graph' })
-    .click()
-  await expect(status).toHaveText('PASS · 0 findings')
+  await pickProposal(page, 'Current graph')
+  await expect(status).toHaveText('PASS 0 findings')
 })
 
-test('compliant alias updates the emitted code', async ({ page }) => {
+test('compliant alias repoints the governed token in the graph', async ({
+  page,
+}) => {
   await page.goto('/')
 
-  await proposalGroup(page)
-    .getByRole('radio', { name: 'Compliant alias' })
-    .click()
-  await expect(page.locator('.proof-emitted')).toContainText(
-    'var(--primitives-color-green-500)'
+  await pickProposal(page, 'Compliant alias')
+  await expect(page.locator('.proof-verdict')).toHaveText('PASS 0 findings')
+  await expect(page.locator('.graph-svg')).toContainText('green.500')
+  await expect(page.locator('.graph-svg')).toContainText('→ {green.500}')
+})
+
+test('rename swaps the governed path and marks its consumers', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  await pickProposal(page, 'Rename')
+  await expect(page.locator('.proof-verdict')).toHaveText(
+    'PASS 5 changes · 0 findings'
   )
-  await expect(page.locator('.tree-source-node')).toContainText(
-    'primitives.color.green.500'
+  await expect(page.locator('.graph-svg')).toContainText('color.bg.primary')
+  await expect(page.locator(".graph-node[data-flag='changed']")).toHaveCount(3)
+})
+
+test('clicking a graph node inspects it in the verdict bar', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  const brandNode = page.locator(
+    ".graph-node[aria-label^='semantic.color.bg.brand']"
   )
+  await expect(async () => {
+    await brandNode.click()
+    await expect(brandNode).toHaveAttribute('aria-pressed', 'true', {
+      timeout: 500,
+    })
+  }).toPass()
+  await expect(page.locator('.proof-detail')).toContainText(
+    'owner product-design · 3 consumers'
+  )
+
+  await page.keyboard.press('Escape')
+  await expect(brandNode).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('keyboard focus traces the dependency chain', async ({ page }) => {
+  await page.goto('/')
+
+  const brandNode = page.locator(
+    ".graph-node[aria-label^='semantic.color.bg.brand']"
+  )
+  await expect(async () => {
+    await brandNode.blur()
+    await brandNode.focus()
+    await expect(
+      page.locator(".graph-edge[data-tone='active']").first()
+    ).toBeVisible({ timeout: 500 })
+  }).toPass()
+  await page.keyboard.press('Enter')
+  await expect(brandNode).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('the install card switches package managers', async ({ page }) => {
+  await page.goto('/')
+
+  const tabs = page.getByRole('radiogroup', { name: 'Package manager' })
+  await tabs.getByRole('radio', { name: 'pnpm' }).click()
+  await expect(page.locator('.install-copy-row code')).toContainText(
+    'pnpm add -D primitree@next'
+  )
+  await expect(
+    page.getByRole('button', { name: 'Copy the pnpm install command' })
+  ).toBeVisible()
 })
 
 test('diff terminal lists the rename blast radius', async ({ page }) => {
@@ -349,18 +423,25 @@ test('diff terminal lists the rename blast radius', async ({ page }) => {
   await expect(terminal).toContainText('component.nav.active.bg')
 })
 
-test('tree nodes never overflow their boxes', async ({ page }) => {
+test('graph labels never overflow their node boxes', async ({ page }) => {
   await page.goto('/')
 
   const overflowing = await page.evaluate(() => {
-    const nodes = Array.from(document.querySelectorAll('.tree-node code'))
+    const nodes = Array.from(document.querySelectorAll('.graph-node'))
     return nodes.filter(node => {
-      const parent = node.closest('.tree-node')
-      return (
-        parent !== null &&
-        node.getBoundingClientRect().right >
-          parent.getBoundingClientRect().right + 0.5
-      )
+      const box = node.querySelector('.graph-node-box')
+      const labels = Array.from(node.querySelectorAll('text'))
+      if (!(box instanceof SVGGraphicsElement)) {
+        return true
+      }
+      const limit = box.getBBox().x + box.getBBox().width - 8
+      return labels.some(label => {
+        if (!(label instanceof SVGGraphicsElement)) {
+          return true
+        }
+        const bounds = label.getBBox()
+        return bounds.x + bounds.width > limit
+      })
     }).length
   })
   expect(overflowing).toBe(0)
@@ -400,7 +481,13 @@ test('iPad touch contexts can use every proposal without overflow', async ({
     const chips = proposalGroup(page).getByRole('radio')
     await expect(chips).toHaveCount(4)
     for (let index = 0; index < proposalNames.length; index += 1) {
-      await chips.nth(index).tap()
+      const chip = chips.nth(index)
+      await expect(async () => {
+        await chip.tap()
+        await expect(chip).toHaveAttribute('aria-checked', 'true', {
+          timeout: 500,
+        })
+      }).toPass()
       await expectOnlyProposalChecked(
         page,
         proposalNames[index] as ProposalName
@@ -426,14 +513,12 @@ test('governance evidence keeps AA contrast without fading text', async ({
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await expectReadableGovernanceText(page, 11, [
-    '.tree-band-label',
-    '.tree-node-kicker',
-    '.tree-node code',
+    '.proof-command > code',
     '.proof-verdict',
     '.proof-detail',
-    '.proof-emitted-label',
-    '.proof-emitted code',
-    '.proof-owner code',
+    '.install-copy-row code',
+    '.install-output p',
+    '.governance-step code',
     '.terminal code',
   ])
 })
@@ -445,12 +530,11 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 })
     await page.goto('/')
 
-    await expect(page.locator('.tree')).toBeVisible()
+    await expect(page.locator('.graph-svg')).toBeVisible()
     await expectReadableGovernanceText(page, 12, [
-      '.tree-node code',
       '.proof-verdict',
       '.proof-detail',
-      '.proof-emitted code',
+      '.install-copy-row code',
       '.terminal code',
     ])
     await expectNoDocumentOverflow(page)
@@ -458,18 +542,31 @@ for (const width of [320, 390]) {
   })
 }
 
-test('reduced motion preserves the tree and usable evidence', async ({
+test('the graph scrolls in its own container on compact screens', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+
+  const scroll = page.locator('.graph-scroll')
+  const scrollable = await scroll.evaluate(
+    element => element.scrollWidth > element.clientWidth
+  )
+  expect(scrollable).toBe(true)
+  await expectNoDocumentOverflow(page)
+})
+
+test('reduced motion preserves the graph and usable evidence', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
 
-  await expect(page.locator('.tree')).toBeVisible()
-  await expect(page.locator('.tree-head-brand svg')).toBeVisible()
+  await expect(page.locator('.graph-svg')).toBeVisible()
   await expectChipKeyboardNavigation(page)
 
-  const spineDurations = await page
-    .locator('.tree-spine-alias')
+  const frameDurations = await page
+    .locator('.graph-frame')
     .evaluateAll(elements =>
       elements.map(element => {
         const value = getComputedStyle(element).animationDuration
@@ -478,7 +575,31 @@ test('reduced motion preserves the tree and usable evidence', async ({
           : Number.parseFloat(value) * 1000
       })
     )
-  for (const duration of spineDurations) {
+  for (const duration of frameDurations) {
     expect(duration).toBeLessThanOrEqual(50)
   }
+})
+
+test('theme toggle swaps the page between dark and light', async ({ page }) => {
+  await page.goto('/')
+
+  const toggle = page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .locator('.site-theme-toggle')
+  await expect(toggle).toBeVisible()
+
+  await expect(async () => {
+    await toggle.click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light', {
+      timeout: 500,
+    })
+  }).toPass()
+
+  const lightBackground = await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundColor.replace(/\s/gu, '')
+  )
+  expect(lightBackground).toBe('rgb(246,250,248)')
+
+  await toggle.click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 })
