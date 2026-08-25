@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import {
   createGovernanceDemo,
   createProposalDeck,
+  describeLayersSnippet,
 } from '../lib/landing/governance-demo.ts'
 
 test('governance demo derives truthful graph and policy evidence', () => {
@@ -19,9 +20,12 @@ test('governance demo derives truthful graph and policy evidence', () => {
   assert.deepEqual(demo.blocked, {
     status: 'BLOCK',
     ruleId: 'PT1004',
-    reason: 'Layer semantic cannot reference layer component.',
+    reason: 'Layer component cannot reference layer primitives.',
+    findingCount: 3,
   })
   assert.deepEqual(demo.outputs, ['CSS', 'Tailwind', 'TypeScript'])
+  assert.equal(demo.tokenCount, 15)
+  assert.equal(demo.layerCount, 3)
 })
 
 test('governance demo derives output labels from the DTCG build result', () => {
@@ -43,41 +47,121 @@ test('proposal deck derives every outcome from the engine', () => {
   )
 
   const [baseline, alias, violation, rename] = deck.outcomes
-  assert.equal(baseline?.verdict, 'PASS · 0 findings')
-  assert.equal(baseline?.resolvedValue, '#3366ff')
-  assert.match(
-    baseline?.emitted?.css ?? '',
-    /--semantic-color-bg-brand: var\(--primitives-color-blue-500\);/u
+  assert.equal(baseline?.status, 'PASS')
+  assert.equal(baseline?.findingsLine, '0 findings')
+  const baselineBrand = baseline?.nodes.find(
+    node => node.slot === 'semantic.color.bg.brand'
+  )
+  assert.equal(baselineBrand?.label, 'color.bg.brand')
+  assert.equal(baselineBrand?.display, '→ {blue.500}')
+  assert.equal(baselineBrand?.consumers, 3)
+  assert.equal(baselineBrand?.owner, 'product-design')
+  const baselineBlue = baseline?.nodes.find(
+    node => node.slot === 'primitives.color.blue.500'
+  )
+  assert.equal(baselineBlue?.label, 'blue.500')
+  assert.equal(baselineBlue?.swatch, '#3366ff')
+  const baselineButton = baseline?.nodes.find(
+    node => node.slot === 'component.button.bg'
+  )
+  assert.equal(baselineButton?.display, '→ {bg.brand}')
+
+  assert.equal(alias?.status, 'PASS')
+  const aliasBrand = alias?.nodes.find(
+    node => node.slot === 'semantic.color.bg.brand'
+  )
+  assert.equal(aliasBrand?.display, '→ {green.500}')
+  const aliasGreen = alias?.nodes.find(
+    node => node.slot === 'primitives.color.green.500'
+  )
+  assert.equal(aliasGreen?.swatch, '#34d399')
+
+  assert.equal(violation?.status, 'FAIL')
+  assert.equal(violation?.findingsLine, '3 findings · layer-skip')
+  assert.equal(violation?.edges.filter(edge => edge.violation).length, 3)
+  const violationBrand = violation?.nodes.find(
+    node => node.slot === 'semantic.color.bg.brand'
+  )
+  assert.equal(violationBrand?.consumers, 3)
+  assert.deepEqual(
+    violation?.nodes
+      .filter(node => node.finding !== null)
+      .map(node => node.path)
+      .sort(),
+    ['component.button.bg', 'component.card.inset', 'component.focus.ring']
+  )
+  assert.deepEqual(
+    violation?.edges
+      .filter(edge => edge.violation)
+      .map(edge => `${edge.from}>${edge.to}`)
+      .sort(),
+    [
+      'primitives.color.blue.500>component.button.bg',
+      'primitives.color.green.500>component.focus.ring',
+      'primitives.space.4>component.card.inset',
+    ]
   )
 
-  assert.equal(alias?.verdict, 'PASS · 0 findings')
-  assert.equal(alias?.resolvedValue, '#5f7f2f')
-  assert.match(
-    alias?.emitted?.css ?? '',
-    /--semantic-color-bg-brand: var\(--primitives-color-green-500\);/u
+  assert.equal(rename?.status, 'PASS')
+  assert.equal(rename?.findingsLine, '5 changes · 0 findings')
+  const renamed = rename?.nodes.find(
+    node => node.slot === 'semantic.color.bg.brand'
   )
-  assert.match(alias?.emitted?.ts ?? '', /color\(srgb 0\.372549/u)
-
-  assert.equal(violation?.verdict, 'BLOCK · PT1004')
-  assert.equal(
-    violation?.detail,
-    'Layer semantic cannot reference layer component.'
+  assert.equal(renamed?.path, 'semantic.color.bg.primary')
+  assert.equal(renamed?.change, 'added')
+  const renamedButton = rename?.nodes.find(
+    node => node.slot === 'component.button.bg'
   )
-  assert.equal(violation?.emitted, null)
-  assert.equal(violation?.resolvedValue, null)
+  assert.equal(renamedButton?.display, '→ {bg.primary}')
+  assert.deepEqual(
+    rename?.nodes
+      .filter(node => node.change === 'changed')
+      .map(node => node.path)
+      .sort(),
+    ['component.button.bg', 'component.focus.ring', 'component.nav.active.bg']
+  )
 
-  assert.equal(rename?.tokenPath, 'semantic.color.bg.primary')
-  assert.equal(rename?.verdict, '5 changes · 3 tokens affected')
   assert.equal(
     deck.diffReport.includes('removed semantic.color.bg.brand'),
     true
   )
-  assert.equal(deck.diffReport.includes('  Affected tokens:'), true)
-  assert.equal(deck.diffReport.includes('    component.button.bg'), true)
-  assert.equal(deck.diffReport.includes('    component.nav.active.bg'), true)
+  assert.equal(
+    deck.diffReport.includes(
+      '  Affected tokens: component.button.bg, component.focus.ring, component.nav.active.bg'
+    ),
+    true
+  )
+  assert.equal(
+    deck.diffReport.includes('New findings: 0 · Resolved findings: 0'),
+    true
+  )
+  assert.deepEqual(deck.renameImpact, {
+    removedPath: 'semantic.color.bg.brand',
+    addedPath: 'semantic.color.bg.primary',
+    consumers: ['button.bg', 'focus.ring', 'nav.active.bg'],
+  })
 })
 
-test('governance demo counts the source tokens', () => {
-  const demo = createGovernanceDemo()
-  assert.equal(demo.tokenCount, 8)
+test('graph projections keep every slot stable across proposals', () => {
+  const deck = createProposalDeck()
+  const [baseline] = deck.outcomes
+  const slots = baseline?.nodes.map(node => node.slot).sort() ?? []
+  assert.equal(slots.length, 15)
+
+  for (const outcome of deck.outcomes) {
+    assert.deepEqual(outcome.nodes.map(node => node.slot).sort(), slots)
+    const known = new Set(slots)
+    for (const edge of outcome.edges) {
+      assert.equal(known.has(edge.from), true)
+      assert.equal(known.has(edge.to), true)
+    }
+    assert.equal(outcome.edges.length, outcome.id === 'violation' ? 12 : 9)
+  }
+})
+
+test('quickstart config excerpt mirrors the policy layers', () => {
+  const snippet = describeLayersSnippet()
+  assert.match(snippet, /\{ id: 'primitives', values: 'literal' \}/u)
+  assert.match(snippet, /\{ id: 'semantic', references: \['primitives'\] \}/u)
+  assert.match(snippet, /\{ id: 'component', references: \['semantic'\] \}/u)
 })
