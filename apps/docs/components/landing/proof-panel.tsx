@@ -1,12 +1,37 @@
 'use client'
 
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import type {
   GovernanceDemo,
   ProposalDeck,
   ProposalOutcome,
 } from '@/lib/landing/governance-demo'
-import { TokenTree } from '@/components/landing/token-tree'
+import { TokenGraph } from '@/components/landing/token-graph'
+
+const PROPOSAL_FLAGS: Record<ProposalOutcome['id'], string> = {
+  baseline: 'current',
+  alias: 'alias',
+  violation: 'violation',
+  rename: 'rename',
+}
+
+function nodeSummary(outcome: ProposalOutcome, slot: string | null) {
+  if (slot === null) {
+    return null
+  }
+  const node = outcome.nodes.find(item => item.slot === slot)
+  if (node === undefined) {
+    return null
+  }
+  const consumerCount =
+    node.consumers === 1 ? '1 consumer' : `${node.consumers} consumers`
+  return `${node.path} · ${node.kind} ${node.display} · owner ${node.owner} · ${consumerCount}`
+}
 
 export function ProofPanel({
   demo,
@@ -16,17 +41,37 @@ export function ProofPanel({
   deck: ProposalDeck
 }) {
   const [activeId, setActiveId] = useState<ProposalOutcome['id']>('baseline')
+  const [traceSlot, setTraceSlot] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  )
+  useEffect(() => {
+    return () => {
+      clearTimeout(checkTimer.current)
+    }
+  }, [])
   const outcome =
     deck.outcomes.find(item => item.id === activeId) ?? deck.outcomes[0]
   if (outcome === undefined) {
     return null
   }
 
+  function pick(id: ProposalOutcome['id']) {
+    setActiveId(id)
+    setTraceSlot(null)
+    setSelectedSlot(null)
+    setChecking(true)
+    clearTimeout(checkTimer.current)
+    checkTimer.current = setTimeout(() => setChecking(false), 700)
+  }
+
   function moveTo(index: number) {
     const next =
       deck.outcomes[(index + deck.outcomes.length) % deck.outcomes.length]
     if (next !== undefined) {
-      setActiveId(next.id)
+      pick(next.id)
       document.getElementById(`proof-chip-${next.id}`)?.focus()
     }
   }
@@ -50,12 +95,29 @@ export function ProofPanel({
     }
   }
 
+  const inspected = nodeSummary(outcome, traceSlot ?? selectedSlot)
+
   return (
     <div className='proof'>
-      <div className='proof-evidence'>
+      <div className='proof-command'>
+        <code>
+          <span className='mark-acc'>$</span> primitree check --source brand
+          --proposal {PROPOSAL_FLAGS[outcome.id]}
+          <span
+            className='proof-cursor'
+            aria-hidden='true'>
+            ▌
+          </span>
+        </code>
+        <span className='proof-command-spacer' />
+        <span
+          className='proof-command-label'
+          id='proof-proposal-label'>
+          Proposal
+        </span>
         <div
           role='radiogroup'
-          aria-label='Governance proposals'
+          aria-labelledby='proof-proposal-label'
           className='proof-chips'>
           {deck.outcomes.map((item, index) => (
             <button
@@ -65,61 +127,97 @@ export function ProofPanel({
               role='radio'
               aria-checked={item.id === outcome.id}
               tabIndex={item.id === outcome.id ? 0 : -1}
-              onClick={() => setActiveId(item.id)}
+              onClick={() => pick(item.id)}
               onKeyDown={event => onChipKeyDown(event, index)}>
               {item.label}
             </button>
           ))}
         </div>
+      </div>
+      <p className='sr-only'>{outcome.description}</p>
+      <div className='graph-scroll'>
+        <div
+          className='graph-frame'
+          key={outcome.id}>
+          <TokenGraph
+            outcome={outcome}
+            checking={checking}
+            traceSlot={traceSlot}
+            selectedSlot={selectedSlot}
+            onTraceSlot={setTraceSlot}
+            onSelectSlot={setSelectedSlot}
+          />
+          {checking ? (
+            <div
+              className='graph-sweep'
+              aria-hidden='true'
+            />
+          ) : null}
+        </div>
+      </div>
+      <div
+        className='proof-verdict-bar'
+        data-tone={checking ? 'checking' : outcome.verdictTone}>
+        {checking ? (
+          <>
+            <span className='proof-checking-label'>
+              checking
+              <span
+                className='proof-cursor'
+                aria-hidden='true'>
+                ▌
+              </span>
+            </span>
+            <span className='proof-checking-sub'>
+              resolving aliases · applying policy
+            </span>
+          </>
+        ) : null}
         <p
           role='status'
           aria-live='polite'
           className='proof-verdict'
-          data-tone={outcome.verdictTone}>
+          data-tone={outcome.verdictTone}
+          hidden={checking}>
           <span
             className='proof-swap'
             key={outcome.id}>
-            {outcome.verdict}
+            <span className='proof-verdict-chip'>{outcome.status}</span>{' '}
+            <span className='proof-findings'>{outcome.findingsLine}</span>
           </span>
         </p>
-        <p className='proof-detail'>
-          <span
-            className='proof-swap'
-            key={outcome.id}>
-            {outcome.detail}
-          </span>
-        </p>
-        <div className='proof-emitted'>
-          <div
-            className='proof-swap'
-            key={outcome.id}>
-            {outcome.emitted === null ? (
-              <p className='proof-blocked'>
-                primitree check exits 1. The build writes nothing.
-              </p>
-            ) : (
+        {checking ? null : (
+          <>
+            <span
+              className='proof-divider'
+              aria-hidden='true'
+            />
+            <p className='proof-detail'>
+              <span
+                className='proof-swap'
+                key={`${outcome.id}-${inspected ?? 'outcome'}`}>
+                {inspected ?? outcome.detail}
+              </span>
+            </p>
+            {traceSlot === null && selectedSlot === null ? (
               <>
-                <p className='proof-emitted-label'>tokens.css</p>
-                <pre>
-                  <code>{outcome.emitted.css}</code>
-                </pre>
-                <p className='proof-emitted-label'>tokens.ts</p>
-                <pre>
-                  <code>{outcome.emitted.ts}</code>
-                </pre>
+                <span
+                  className='proof-hint'
+                  aria-hidden='true'>
+                  hover to trace · click to inspect
+                </span>
+                <span
+                  className='proof-divider'
+                  aria-hidden='true'
+                />
               </>
-            )}
-          </div>
-        </div>
-        <p className='proof-owner'>
-          <span>Owner</span>
-          <code>{demo.owner}</code>
-        </p>
+            ) : null}
+            <p className='proof-count'>
+              {demo.tokenCount} tokens · {demo.layerCount} layers
+            </p>
+          </>
+        )}
       </div>
-      <TokenTree
-        demo={demo}
-        outcome={outcome}
-      />
     </div>
   )
 }
