@@ -9,14 +9,18 @@ const formerBrandColors = [
   '#7b8cff',
   '#c7d2fe',
   '#a78bfa',
-  '#34d399',
-  '#fbbf24',
   '#ff6b81',
+  '#a8c95f',
+  '#5f7f2f',
+  '#dde9b9',
+  '#45c98b',
+  '#f2b84b',
+  '#f27575',
   'rgba(139, 156, 255',
   'rgba(123, 140, 255',
-  'rgba(52, 211, 153',
-  'rgba(251, 191, 36',
   'rgba(255, 107, 129',
+  'rgb(168 201 95',
+  'rgb(69 201 139',
 ] as const
 
 async function read(relativePath: string) {
@@ -85,23 +89,47 @@ function flatCssRules(theme: string) {
   )
 }
 
-test('documentation theme exposes the approved Lichen palette', async () => {
+test('documentation theme exposes the approved brand palette', async () => {
   const theme = await read('../app/global.css')
 
-  assert.match(theme, /--color-primitree-accent: #a8c95f;/u)
-  assert.match(theme, /--color-primitree-accent-strong: #5f7f2f;/u)
-  assert.match(theme, /--color-primitree-accent-soft: #dde9b9;/u)
+  assert.match(theme, /--color-primitree-accent: #34d399;/u)
+  assert.match(theme, /--color-primitree-accent-strong: #0b9464;/u)
+  assert.match(theme, /--color-primitree-accent-soft: #6ee7b7;/u)
+  assert.match(theme, /--color-primitree-accent-ink: #04251a;/u)
   assert.match(
     theme,
-    /--color-primitree-accent-wash: rgb\(168 201 95 \/ 10%\);/u
+    /--color-primitree-accent-wash: rgb\(52 211 153 \/ 10%\);/u
   )
-  assert.match(theme, /--color-primitree-good: #45c98b;/u)
-  assert.match(theme, /--color-primitree-warn: #f2b84b;/u)
-  assert.match(theme, /--color-primitree-error: #f27575;/u)
+  assert.match(theme, /--color-primitree-good: #34d399;/u)
+  assert.match(theme, /--color-primitree-warn: #fbbf24;/u)
+  assert.match(theme, /--color-primitree-error: #f87171;/u)
   assert.match(
     theme,
-    /::selection\s*\{\s*background: rgb\(168 201 95 \/ 25%\);/u
+    /::selection\s*\{\s*background: rgb\(52 211 153 \/ 25%\);/u
   )
+})
+
+test('documentation theme carries a complete light overlay', async () => {
+  const theme = await read('../app/global.css')
+  const lightBlock = theme.match(
+    /:root\[data-theme='light'\] \{[\s\S]*?\n\}/u
+  )?.[0]
+  assert.ok(lightBlock, 'the light theme overlay must exist')
+
+  for (const variable of [
+    '--color-primitree-bg: #f6faf8;',
+    '--color-primitree-surface: #ffffff;',
+    '--color-primitree-text: #0a1510;',
+    '--color-primitree-accent: #0b9464;',
+    '--color-primitree-accent-ink: #eafff6;',
+    '--color-primitree-warn: #b45309;',
+    '--color-primitree-error: #dc2626;',
+  ]) {
+    assert.ok(
+      lightBlock.includes(variable),
+      `light theme must define ${variable}`
+    )
+  }
 })
 
 test('documentation dim text clears AA contrast on every landing surface', async () => {
@@ -125,50 +153,65 @@ test('documentation dim text clears AA contrast on every landing surface', async
   }
 })
 
-test('token tree never fades text-bearing nodes or evidence', async () => {
+test('token graph fades text only for the transient hover trace', async () => {
   const theme = await read('../app/global.css')
-  const textBearingSelector = /\.tree-node|\.proof-(?:verdict|detail|emitted)/u
+  const textBearingSelector =
+    /\.graph-node(?!-swatch)|\.graph-violation-tag|\.proof-(?:verdict|detail)/u
 
   const fadedTextRules = flatCssRules(theme).filter(
     ({ declarations, selectors }) =>
-      textBearingSelector.test(selectors) && /\bopacity\s*:/u.test(declarations)
+      textBearingSelector.test(selectors) &&
+      /\bopacity\s*:/u.test(declarations) &&
+      !selectors.includes('[data-dim]')
   )
 
   assert.deepEqual(
     fadedTextRules,
     [],
-    'outcome emphasis must change connectors and borders, never text opacity'
+    'static outcome emphasis must change connectors and borders, never text opacity'
   )
 })
 
-test('token tree stacks into a legible column below tablet width', async () => {
-  const [theme, tree] = await Promise.all([
+test('token graph scrolls in place and keeps its labels legible', async () => {
+  const [theme, graph] = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/token-tree.tsx'),
+    read('../components/landing/token-graph.tsx'),
   ])
 
-  assert.match(tree, /className='tree'/u)
+  assert.match(graph, /className='graph-svg'/u)
+  assert.match(graph, /viewBox=\{`0 0 \$\{VIEW_WIDTH\} \$\{VIEW_HEIGHT\}`\}/u)
+  const viewWidth = graph.match(/const VIEW_WIDTH = (\d+)/u)?.[1]
+  assert.ok(viewWidth, 'the graph must declare its viewBox width')
+
+  const ruleFor = (selector: string) =>
+    flatCssRules(theme).find(
+      ({ selectors }) =>
+        selectors.replace(/\/\*[\s\S]*?\*\//gu, '').trim() === selector
+    )
+  const scrollRule = ruleFor('.graph-scroll')
   assert.match(
-    theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.tree-band\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/u
-  )
-  assert.match(
-    theme,
-    /@media \(max-width: 719px\)[\s\S]*?\.tree-consumers\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/u
+    scrollRule?.declarations ?? '',
+    /overflow-x: auto;/u,
+    'the graph must scroll inside its own container on small screens'
   )
 
-  const nodeCodeRule = flatCssRules(theme).find(({ selectors }) =>
-    selectors.trim().startsWith('.tree-node code')
-  )
-  const fontSize = nodeCodeRule?.declarations.match(
+  const frameRule = ruleFor('.graph-frame')
+  const minWidth = frameRule?.declarations.match(
+    /min-width:\s*([0-9.]+)px/u
+  )?.[1]
+  assert.ok(minWidth, 'the graph frame must set a minimum width')
+
+  const labelRule = ruleFor('.graph-node-label')
+  const fontSize = labelRule?.declarations.match(
     /font-size:\s*([0-9.]+)px/u
   )?.[1]
-  assert.ok(fontSize, 'tree nodes must set a CSS-pixel font size')
-  assert.ok(Number(fontSize) >= 12, 'tree node text must be at least 12px')
-  assert.match(
-    nodeCodeRule?.declarations ?? '',
-    /overflow-wrap: anywhere;/u,
-    'tree node text must wrap instead of overflowing'
+  assert.ok(fontSize, 'graph labels must set a CSS-pixel font size')
+
+  const effectiveFontSize =
+    (Number(minWidth) / Number(viewWidth)) * Number(fontSize)
+  assert.ok(
+    effectiveFontSize >= 12,
+    `graph labels must stay at least 12px when scaled (got ${effectiveFontSize.toFixed(2)}px)`
   )
 })
 
@@ -179,7 +222,10 @@ test('documentation shell maps Fumadocs to the Lichen theme', async () => {
   assert.match(theme, /--color-fd-background: var\(--color-primitree-bg\);/u)
   assert.match(theme, /--color-fd-foreground: var\(--color-primitree-text\);/u)
   assert.match(theme, /--color-fd-primary: var\(--color-primitree-accent\);/u)
-  assert.match(theme, /--color-fd-primary-foreground: #09090b;/u)
+  assert.match(
+    theme,
+    /--color-fd-primary-foreground: var\(--color-primitree-accent-ink\);/u
+  )
   assert.match(
     theme,
     /--color-fd-accent: var\(--color-primitree-accent-wash\);/u
@@ -192,8 +238,10 @@ test('documentation shell maps Fumadocs to the Lichen theme', async () => {
 test('documentation brand files contain no former Primitree purple treatment', async () => {
   const sources = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/token-tree.tsx'),
+    read('../components/landing/token-graph.tsx'),
     read('../components/landing/proof-panel.tsx'),
+    read('../components/landing/install-card.tsx'),
+    read('../components/landing/governance-home.tsx'),
     read('../components/playground/playground.css'),
     read('../public/favicon.svg'),
     read('../public/primitree-icon.svg'),
@@ -205,28 +253,31 @@ test('documentation brand files contain no former Primitree purple treatment', a
   }
 })
 
-test('token tree makes the Bone mark a structural Lichen root', async () => {
-  const [theme, tree] = await Promise.all([
+test('token graph keeps the structural Lichen contract', async () => {
+  const [theme, graph] = await Promise.all([
     read('../app/global.css'),
-    read('../components/landing/token-tree.tsx'),
+    read('../components/landing/token-graph.tsx'),
   ])
 
-  assert.match(tree, /className='tree-mark-body'/u)
-  assert.match(tree, /className='tree-root-node'/u)
-  assert.match(tree, /className='tree-trunk'/u)
-  assert.doesNotMatch(tree, /(?:linear|radial)Gradient|filter=|pointermove/u)
-  assert.doesNotMatch(tree, /\binfinite\b/u)
+  assert.match(graph, /className='graph-node'/u)
+  assert.match(graph, /className='graph-edge'/u)
+  assert.doesNotMatch(graph, /(?:linear|radial)Gradient|filter=|pointermove/u)
+  assert.doesNotMatch(graph, /\binfinite\b/u)
   assert.match(
     theme,
-    /\.tree-mark-body\s*\{\s*fill: var\(--color-primitree-text\);\s*\}/u
+    /\.graph-node-box\s*\{[\s\S]*?fill: var\(--color-primitree-surface\);/u
   )
   assert.match(
     theme,
-    /\.tree-root-node\s*\{[\s\S]*?background: var\(--color-primitree-accent\);/u
+    /\.graph-edge\[data-tone='governed'\]\s*\{[\s\S]*?stroke: var\(--color-primitree-accent\);/u
   )
   assert.match(
     theme,
-    /\.tree-trunk\s*\{[\s\S]*?background: var\(--color-primitree-accent\);/u
+    /\.graph-edge\[data-tone='violation'\]\s*\{[\s\S]*?stroke: var\(--color-primitree-error\);/u
+  )
+  assert.match(
+    theme,
+    /\.graph-node:focus-visible \.graph-node-box\s*\{[\s\S]*?stroke: var\(--color-primitree-text\);/u
   )
 })
 
@@ -244,7 +295,7 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
   )
   assert.match(
     playground,
-    /\.pg-button\.primary\s*\{\s*background: #fafafa;\s*color: #09090b;\s*\}/u
+    /\.pg-button\.primary\s*\{\s*background: var\(--color-primitree-accent\);\s*color: #04251a;\s*\}/u
   )
   assert.match(playground, /outline: 2px solid var\(--color-primitree-text\);/u)
   assert.match(
@@ -264,8 +315,7 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
     chrome,
     /import\s*\{\s*FullSearchTrigger,\s*SearchTrigger,\s*\}\s*from 'fumadocs-ui\/layouts\/shared\/slots\/search-trigger'/u
   )
-  assert.match(chrome, /function GithubMark\(\)/u)
-  assert.match(chrome, /fill='currentColor'/u)
+  assert.match(chrome, /GithubLogoIcon/u)
   assert.match(chrome, /aria-label='Primitree on GitHub'/u)
   assert.match(
     theme,
@@ -273,14 +323,14 @@ test('documentation UI uses solid accents, neutral actions, and neutral focus', 
   )
 })
 
-test('documentation static mark stays white and favicon uses the light-surface Lichen accent', async () => {
+test('documentation static mark stays white and favicon uses the light-surface accent', async () => {
   const [mark, favicon] = await Promise.all([
     read('../public/primitree-icon.svg'),
     read('../public/favicon.svg'),
   ])
 
   assert.match(mark, /fill="(?:white|#ffffff)"/iu)
-  assert.match(favicon, /fill="#5f7f2f"/iu)
+  assert.match(favicon, /fill="#0b9464"/iu)
   assert.equal((mark.match(/\bfill="(?:white|#ffffff)"/giu) ?? []).length, 1)
-  assert.equal((favicon.match(/\bfill="#5f7f2f"/giu) ?? []).length, 1)
+  assert.equal((favicon.match(/\bfill="#0b9464"/giu) ?? []).length, 1)
 })

@@ -284,7 +284,7 @@ test('rejects product copy and runtime identifiers in approved files', () => {
 test('rejects former brand colors only in the approved UI targets', () => {
   const findLichenColorViolations = getLichenValidator()
   const formerAccent = legacy('#8b', '9cff')
-  const formerSuccess = legacy('rgba(52, 211, 153', ', 0.1)')
+  const formerSuccess = legacy('rgba(168, 201, 95', ', 0.1)')
   const records = [
     {
       path: 'apps/docs/components/playground/playground.css',
@@ -411,20 +411,20 @@ test('rejects a changed approved palette role', () => {
       path: 'apps/docs/app/global.css',
       content: [
         '@theme {',
-        '  --color-primitree-bg: #030304;',
-        '  --color-primitree-surface: #08080a;',
-        '  --color-primitree-raised: #0f0f12;',
-        '  --color-primitree-elevated: #16161a;',
-        '  --color-primitree-text: #fafafa;',
+        '  --color-primitree-bg: #0b0f0d;',
+        '  --color-primitree-surface: #101512;',
+        '  --color-primitree-raised: #161c18;',
+        '  --color-primitree-elevated: #1c241f;',
+        '  --color-primitree-text: #f0f5f2;',
         '  --color-primitree-accent: #111111;',
-        '  --color-primitree-accent-strong: #5f7f2f;',
-        '  --color-primitree-good: #45c98b;',
-        '  --color-primitree-warn: #f2b84b;',
-        '  --color-primitree-error: #f27575;',
+        '  --color-primitree-accent-strong: #0b9464;',
+        '  --color-primitree-good: #34d399;',
+        '  --color-primitree-warn: #fbbf24;',
+        '  --color-primitree-error: #f87171;',
         '}',
         '',
         '::selection {',
-        '  background: rgb(168 201 95 / 25%);',
+        '  background: rgb(52 211 153 / 25%);',
         '}',
       ].join('\n'),
     },
@@ -438,7 +438,8 @@ test('rejects a changed approved palette role', () => {
       {
         path: 'apps/docs/app/global.css',
         line: 7,
-        match: '--color-primitree-accent: expected #a8c95f, found #111111',
+        match:
+          '--color-primitree-accent: expected #34d399 or #0b9464, found #111111',
       },
     ]
   )
@@ -452,10 +453,10 @@ test('ignores CSS declarations in comments and rejects active overrides', () => 
     'utf8'
   )
     .replace(
-      '--color-primitree-accent: #a8c95f;',
+      '--color-primitree-accent: #34d399;',
       '--color-primitree-accent: #111111;'
     )
-    .concat('\n/* --color-primitree-accent: #a8c95f; */\n')
+    .concat('\n/* --color-primitree-accent: #34d399; */\n')
 
   assert.deepEqual(
     findLichenColorViolations([
@@ -466,8 +467,9 @@ test('ignores CSS declarations in comments and rejects active overrides', () => 
     [
       {
         path: 'apps/docs/app/global.css',
-        line: 15,
-        match: '--color-primitree-accent: expected #a8c95f, found #111111',
+        line: 16,
+        match:
+          '--color-primitree-accent: expected #34d399 or #0b9464, found #111111',
       },
     ]
   )
@@ -499,7 +501,7 @@ test('rejects final CSS declarations without semicolons', () => {
     [
       ':root { --color-primitree-accent: #111111 }',
       '::selection { background: #111111 }',
-      '.tree-root-node { background: #ff0000 }',
+      '.graph-node-box { fill: #ff0000 }',
     ].join('\n')
   )
   const violations = findLichenColorViolations([
@@ -518,25 +520,21 @@ test('rejects final CSS declarations without semicolons', () => {
   )
   assert.equal(
     violations.some(
-      violation => violation.match === 'token tree: missing Lichen root node'
+      violation => violation.match === 'token graph: missing graph node surface'
     ),
     true
   )
 })
 
-test('rejects retired glow, rings, pointer tracking, and infinite motion', () => {
+test('rejects retired glow, rings, and pointer tracking', () => {
   const findLichenColorViolations = getLichenValidator()
   const violations = findLichenColorViolations([
     {
-      path: 'apps/docs/components/landing/token-tree.tsx',
+      path: 'apps/docs/components/landing/token-graph.tsx',
       content: [
-        `<div className='mark-glow mark-ring' />`,
+        `<div className='mark-glow mark-ring graph-node graph-edge' />`,
         `window.addEventListener('pointermove', onMove)`,
       ].join('\n'),
-    },
-    {
-      path: 'apps/docs/app/global.css',
-      content: '.tree { animation: drift 2s linear infinite; }',
     },
   ]).filter(violation => violation.match.startsWith('homepage regression:'))
 
@@ -546,17 +544,16 @@ test('rejects retired glow, rings, pointer tracking, and infinite motion', () =>
       'homepage regression: retired mark glow',
       'homepage regression: retired mark ring',
       'homepage regression: global pointer tracking',
-      'homepage regression: infinite homepage animation',
     ]
   )
 })
 
-test('rejects longhand infinite animation on governance homepage selectors', () => {
+test('rejects blur filters on governance homepage selectors', () => {
   const findLichenColorViolations = getLichenValidator()
   const violations = findLichenColorViolations([
     {
       path: 'apps/docs/app/global.css',
-      content: '.governance-hero { animation-iteration-count: infinite; }',
+      content: '.governance-hero { backdrop-filter: blur(12px); }',
     },
   ])
 
@@ -564,7 +561,7 @@ test('rejects longhand infinite animation on governance homepage selectors', () 
     violations.some(
       violation =>
         violation.match ===
-        'token tree: gradients, blur, and infinite motion are prohibited'
+        'token graph: blur and filter effects are prohibited'
     ),
     true
   )
@@ -576,17 +573,17 @@ test('rejects a later Living Canopy root override', () => {
   const globalCss = readFileSync(
     join(repositoryRoot, 'apps/docs/app/global.css'),
     'utf8'
-  ).concat('\n.tree-root-node { background: #ff0000; }\n')
+  ).concat("\n.graph-edge[data-tone='governed'] { stroke: #ff0000; }\n")
 
   assert.deepEqual(
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).filter(violation => violation.match.startsWith('token tree: missing')),
+    ]).filter(violation => violation.match.startsWith('token graph: missing')),
     [
       {
         path: 'apps/docs/app/global.css',
         line: null,
-        match: 'token tree: missing Lichen root node',
+        match: 'token graph: missing Lichen governed edge',
       },
     ]
   )
@@ -598,13 +595,13 @@ test('rejects a qualified Living Canopy root override', () => {
   const globalCss = readFileSync(
     join(repositoryRoot, 'apps/docs/app/global.css'),
     'utf8'
-  ).concat('\n.tree-root-node:first-child { background: #ff0000; }\n')
+  ).concat('\n.graph-node-box:first-child { fill: #ff0000; }\n')
 
   assert.equal(
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
     ]).some(
-      violation => violation.match === 'token tree: missing Lichen root node'
+      violation => violation.match === 'token graph: missing graph node surface'
     ),
     true
   )
@@ -614,7 +611,7 @@ test('rejects an earlier higher-specificity Living Canopy root override', () => 
   const findLichenColorViolations = getLichenValidator()
   const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
   const globalCss = [
-    '.governance-home .tree-root-node { background: #ff0000; }',
+    '.governance-home .graph-node-box { fill: #ff0000; }',
     readFileSync(join(repositoryRoot, 'apps/docs/app/global.css'), 'utf8'),
   ].join('\n')
 
@@ -622,7 +619,7 @@ test('rejects an earlier higher-specificity Living Canopy root override', () => 
     findLichenColorViolations([
       { path: 'apps/docs/app/global.css', content: globalCss },
     ]).some(
-      violation => violation.match === 'token tree: missing Lichen root node'
+      violation => violation.match === 'token graph: missing graph node surface'
     ),
     true
   )
@@ -635,7 +632,7 @@ test('rejects a gradient in a static brand asset', () => {
     findLichenColorViolations([
       {
         path: 'apps/docs/public/favicon.svg',
-        content: '<svg><linearGradient id="fill"/><path fill="#5F7F2F"/></svg>',
+        content: '<svg><linearGradient id="fill"/><path fill="#0B9464"/></svg>',
       },
     ]),
     [
@@ -656,14 +653,14 @@ test('rejects an extra fill in a static brand asset', () => {
       {
         path: 'apps/docs/public/favicon.svg',
         content:
-          '<svg fill="none"><path fill="#5F7F2F"/><path fill="#ff0000"/></svg>',
+          '<svg fill="none"><path fill="#0B9464"/><path fill="#ff0000"/></svg>',
       },
     ]),
     [
       {
         path: 'apps/docs/public/favicon.svg',
         line: 1,
-        match: 'mark fill: expected #5f7f2f, found #ff0000',
+        match: 'mark fill: expected #0b9464, found #ff0000',
       },
     ]
   )
@@ -675,7 +672,7 @@ test('rejects style paint and strokes in a static brand asset', () => {
     {
       path: 'apps/docs/public/favicon.svg',
       content:
-        '<svg fill="none"><path fill="#5F7F2F" stroke="#ff0000" style="fill:#ff0000"/></svg>',
+        '<svg fill="none"><path fill="#0B9464" stroke="#ff0000" style="fill:#ff0000"/></svg>',
     },
   ])
 

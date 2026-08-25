@@ -93,13 +93,24 @@ async function loadBrandLogo() {
 test('linked BrandLogo exposes one Primitree name with the compact tree mark', async () => {
   const BrandLogo = await loadBrandLogo()
   const logo = BrandLogo({ linked: true })
-  const inner = logo?.props.children as ElementNode
-  const mark = (inner.props.children as ElementNode[])[0]
+  const nodes = elementNodes(logo)
+  const markComponent = nodes.find(
+    node =>
+      typeof node.type === 'function' &&
+      (node.type as { name?: string }).name === 'BrandMark'
+  )
+  assert.ok(markComponent, 'the logo must render the inline BrandMark')
+  const mark = (markComponent.type as (props: object) => ElementNode)(
+    markComponent.props
+  )
+  const markBody = elementNodes(mark).find(
+    node => node.props.className === 'brand-mark-body'
+  )
 
   assert.equal(textContent(logo), 'Primitree')
   assert.equal(logo.props.href, '/')
-  assert.equal(mark.props.src, '/primitree-icon.svg')
-  assert.equal(mark.props.alt, '')
+  assert.equal(mark.type, 'svg')
+  assert.ok(markBody, 'the mark body must carry the themable brand class')
 })
 
 test('unlinked BrandLogo keeps the mark and wordmark in one caller-styled layout wrapper', async () => {
