@@ -120,6 +120,7 @@ export function ProofPanel({
           aria-labelledby='proof-proposal-label'
           className='proof-chips'>
           {deck.outcomes.map((item, index) => (
+            // biome-ignore lint/a11y/useSemanticElements: proposal chips form a WAI-ARIA radio group of buttons with roving tabindex; native radio inputs cannot take this styling.
             <button
               key={item.id}
               id={`proof-chip-${item.id}`}

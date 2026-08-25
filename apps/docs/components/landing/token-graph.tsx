@@ -192,6 +192,7 @@ export function TokenGraph({
     trace !== null && [...violationSlots].some(slot => trace.has(slot))
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an SVG cannot become a fieldset; role=group names the graph for assistive technology.
     <svg
       viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       className='graph-svg'
@@ -277,6 +278,7 @@ export function TokenGraph({
         const selected = selectedSlot === node.slot
         const textX = node.swatch === null ? x + 14 : x + 32
         return (
+          // biome-ignore lint/a11y/useSemanticElements: HTML buttons cannot exist inside SVG; the node group carries role=button with full keyboard handling.
           <g
             key={node.slot}
             className='graph-node'

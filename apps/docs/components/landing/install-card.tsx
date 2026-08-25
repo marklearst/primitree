@@ -80,6 +80,7 @@ export function InstallCard({
           aria-label='Package manager'
           className='install-tabs'>
           {PACKAGE_MANAGERS.map((manager, index) => (
+            // biome-ignore lint/a11y/useSemanticElements: the design's tab row is a WAI-ARIA radio group of buttons with roving tabindex; native radio inputs cannot take this styling.
             <button
               key={manager.id}
               id={`install-tab-${manager.id}`}

@@ -13,15 +13,19 @@ import { readPrimitreeVersion } from '@/lib/landing/release'
  * block spacing. */
 function DiffReportLines({ lines }: { lines: readonly string[] }) {
   let firstChangeSeen = false
+  const seen = new Map<string, number>()
   return (
     <div className='terminal-lines'>
-      {lines.map((line, index) => {
+      {lines.map(line => {
         if (line === '') {
           return null
         }
+        const occurrence = (seen.get(line) ?? 0) + 1
+        seen.set(line, occurrence)
+        const key = `${line}#${occurrence}`
         if (line.startsWith('$ ')) {
           return (
-            <div key={index}>
+            <div key={key}>
               <span className='mark-acc'>$</span> {line.slice(2)}
             </div>
           )
@@ -30,7 +34,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         if (foundMatch !== null) {
           return (
             <div
-              key={index}
+              key={key}
               data-gap='block'>
               Diff found <span className='mark-acc'>{foundMatch[1]}</span> token
               changes.
@@ -40,7 +44,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         if (line.startsWith('  Affected tokens')) {
           return (
             <div
-              key={index}
+              key={key}
               data-line='dim'>
               {line}
             </div>
@@ -49,7 +53,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         if (line.startsWith('removed ')) {
           return (
             <div
-              key={index}
+              key={key}
               data-line='removed'>
               {line}
             </div>
@@ -58,7 +62,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         if (line.startsWith('added ')) {
           return (
             <div
-              key={index}
+              key={key}
               data-line='added'>
               {line}
             </div>
@@ -67,7 +71,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         if (line.startsWith('New findings:')) {
           return (
             <div
-              key={index}
+              key={key}
               data-gap='block'>
               {line}
             </div>
@@ -79,7 +83,7 @@ function DiffReportLines({ lines }: { lines: readonly string[] }) {
         }
         return (
           <div
-            key={index}
+            key={key}
             data-gap={isFirstChange ? 'block' : undefined}>
             {line}
           </div>
