@@ -20,9 +20,7 @@ function readPort(name: string, fallback: number) {
 }
 
 const docsPort = readPort('PLAYWRIGHT_DOCS_PORT', 3100)
-const playgroundPort = readPort('PLAYWRIGHT_PLAYGROUND_PORT', 4273)
 const docsBaseUrl = `http://127.0.0.1:${docsPort}`
-const playgroundBaseUrl = `http://127.0.0.1:${playgroundPort}`
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -40,22 +38,11 @@ export default defineConfig({
       testMatch: /docs-.*\.spec\.ts/,
       use: { baseURL: docsBaseUrl },
     },
-    {
-      name: 'standalone-playground',
-      testMatch: /standalone-playground\.spec\.ts/,
-      use: { baseURL: playgroundBaseUrl },
-    },
   ],
   webServer: [
     {
       command: `pnpm --filter primitree-docs exec next dev --webpack --hostname 127.0.0.1 --port ${docsPort}`,
       url: docsBaseUrl,
-      reuseExistingServer: false,
-      timeout: 120_000,
-    },
-    {
-      command: `pnpm --filter primitree-playground dev --host 127.0.0.1 --port ${playgroundPort} --strictPort`,
-      url: playgroundBaseUrl,
       reuseExistingServer: false,
       timeout: 120_000,
     },

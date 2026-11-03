@@ -19,9 +19,8 @@ This is a pnpm + Turborepo monorepo:
 | `packages/cli`           | `@primitree/cli`: `build`, `diff`, `check`, `init`, and `export`      |
 | `packages/hooks`         | `@primitree/hooks`: React hooks for token files and the live REST API |
 | `packages/mcp`           | `@primitree/mcp`: MCP tools for token files                           |
-| `apps/docs`              | Documentation site                                                    |
+| `apps/docs`              | Documentation site and browser playground (`/playground`)             |
 | `apps/figma-plugin`      | Figma plugin                                                          |
-| `apps/playground`        | Browser playground                                                    |
 | `packages/plugin-export` | Shared Figma plugin export code                                       |
 
 ## Getting started
@@ -41,7 +40,7 @@ Work on a single package:
 
 ```bash
 pnpm --filter @primitree/dtcg test:watch
-pnpm --filter primitree-playground dev
+pnpm --filter primitree-docs dev
 ```
 
 ## Making changes
