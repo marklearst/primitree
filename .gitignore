@@ -67,3 +67,8 @@ apps/*/public/fonts/monolisa/*.woff2
 # Example build output
 examples/*/generated/
 examples/*/generated-*/
+
+# Impeccable critique archives and review captures stay local
+**/.impeccable/critique/
+**/.impeccable/review/
+**/.impeccable/surfaces/

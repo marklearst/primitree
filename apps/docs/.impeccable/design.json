@@ -1,154 +1,554 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-13T00:00:00.000Z",
-  "title": "Design System: Primitree Living Governance",
+  "generatedAt": "2026-10-31T15:06:32.000Z",
+  "title": "Design System: Primitree",
   "extensions": {
     "colorMeta": {
-      "root-black": {
+      "neutral-1": {
         "role": "neutral",
-        "displayName": "Root Black",
-        "canonical": "#030304",
+        "displayName": "Neutral 1",
+        "canonical": "oklch(0.1025 0.008 150)",
         "tonalRamp": [
-          "#030304",
-          "#08080A",
-          "#0F0F12",
-          "#16161A",
-          "#7A818C",
-          "#9CA3AF",
-          "#DDE9B9",
-          "#FAFAFA"
-        ]
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "surface.sunken, surface.code, and surface.island in dark."
       },
-      "lichen": {
+      "neutral-4": {
+        "role": "neutral",
+        "displayName": "Neutral 4",
+        "canonical": "oklch(0.1633 0.008 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "surface.island and border.island in light; surface.page and text.onAccent in dark."
+      },
+      "neutral-8": {
+        "role": "neutral",
+        "displayName": "Neutral 8",
+        "canonical": "oklch(0.2053 0.014 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "text.primary, border.focus, border.panel, and surface.code in light; surface.raised in dark."
+      },
+      "neutral-20": {
+        "role": "neutral",
+        "displayName": "Neutral 20",
+        "canonical": "oklch(0.309 0.012 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "border.subtle and border.island in dark."
+      },
+      "neutral-35": {
+        "role": "neutral",
+        "displayName": "Neutral 35",
+        "canonical": "oklch(0.4383 0.012 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "text.secondary in light; border.panel in dark."
+      },
+      "neutral-45": {
+        "role": "neutral",
+        "displayName": "Neutral 45",
+        "canonical": "oklch(0.5245 0.012 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "text.muted in light; border.strong in dark."
+      },
+      "neutral-60": {
+        "role": "neutral",
+        "displayName": "Neutral 60",
+        "canonical": "oklch(0.6538 0.012 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "border.strong in light; holds 3:1 on the page."
+      },
+      "neutral-72": {
+        "role": "neutral",
+        "displayName": "Neutral 72",
+        "canonical": "oklch(0.7572 0.012 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "syntax.comment and syntax.punctuation; text.muted in dark."
+      },
+      "neutral-80": {
+        "role": "neutral",
+        "displayName": "Neutral 80",
+        "canonical": "oklch(0.8265 0.009 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "text.secondary in dark."
+      },
+      "neutral-90": {
+        "role": "neutral",
+        "displayName": "Neutral 90",
+        "canonical": "oklch(0.913 0.007 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "border.subtle in light; syntax.key."
+      },
+      "neutral-94": {
+        "role": "neutral",
+        "displayName": "Neutral 94",
+        "canonical": "oklch(0.9477 0.005 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "surface.sunken in light."
+      },
+      "neutral-97": {
+        "role": "neutral",
+        "displayName": "Neutral 97",
+        "canonical": "oklch(0.9737 0.004 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "surface.raised in light; text.primary and border.focus in dark; text.onIsland and syntax.base in both."
+      },
+      "neutral-100": {
+        "role": "neutral",
+        "displayName": "Neutral 100",
+        "canonical": "oklch(1 0 150)",
+        "tonalRamp": [
+          "#020403",
+          "#0c0f0c",
+          "#131914",
+          "#2c322d",
+          "#4e544f",
+          "#8b928c",
+          "#c2c8c3",
+          "#f4f7f5"
+        ],
+        "purpose": "surface.page and text.onAccent in light."
+      },
+      "brand-15": {
         "role": "primary",
-        "displayName": "Electric Lichen",
-        "canonical": "#A8C95F",
-        "tonalRamp": [
-          "#141A0A",
-          "#263614",
-          "#3F561F",
-          "#5F7F2F",
-          "#829F46",
-          "#A8C95F",
-          "#DDE9B9",
-          "#F3F8E8"
-        ]
+        "displayName": "Brand 15",
+        "canonical": "oklch(0.2607 0.06 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.subtle in dark."
       },
-      "blocked": {
+      "brand-35": {
+        "role": "primary",
+        "displayName": "Brand 35",
+        "canonical": "oklch(0.4269 0.1177 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.solidHover in light; accent.edge in dark."
+      },
+      "brand-45": {
+        "role": "primary",
+        "displayName": "Brand 45",
+        "canonical": "oklch(0.5107 0.1407 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.solid and accent.text in light."
+      },
+      "brand-72": {
+        "role": "primary",
+        "displayName": "Brand 72",
+        "canonical": "oklch(0.7381 0.19 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.onIsland and syntax.reference in both themes; accent.solid and accent.text in dark."
+      },
+      "brand-85": {
+        "role": "primary",
+        "displayName": "Brand 85",
+        "canonical": "oklch(0.852 0.17 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.edge in light; accent.solidHover in dark."
+      },
+      "brand-95": {
+        "role": "primary",
+        "displayName": "Brand 95",
+        "canonical": "oklch(0.9529 0.035 150)",
+        "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
+        "purpose": "accent.subtle in light."
+      },
+      "red-15": {
         "role": "secondary",
-        "displayName": "Blocked Coral",
-        "canonical": "#F27575",
-        "tonalRamp": [
-          "#260E0E",
-          "#4C1C1C",
-          "#792E2E",
-          "#A84545",
-          "#D25D5D",
-          "#F27575",
-          "#FAB0B0",
-          "#FDE1E1"
-        ]
+        "displayName": "Red 15",
+        "canonical": "oklch(0.2742 0.06 27)",
+        "tonalRamp": ["#401a17", "#cc2827", "#ff9287", "#fff4f3"],
+        "purpose": "status.failSubtle in dark."
+      },
+      "red-45": {
+        "role": "secondary",
+        "displayName": "Red 45",
+        "canonical": "oklch(0.55 0.2 27)",
+        "tonalRamp": ["#401a17", "#cc2827", "#ff9287", "#fff4f3"],
+        "purpose": "status.fail in light. Locked at hue 27."
+      },
+      "red-72": {
+        "role": "secondary",
+        "displayName": "Red 72",
+        "canonical": "oklch(0.7737 0.133 27)",
+        "tonalRamp": ["#401a17", "#cc2827", "#ff9287", "#fff4f3"],
+        "purpose": "status.fail in dark; syntax.keyword."
+      },
+      "red-97": {
+        "role": "secondary",
+        "displayName": "Red 97",
+        "canonical": "oklch(0.9754 0.012 27)",
+        "tonalRamp": ["#401a17", "#cc2827", "#ff9287", "#fff4f3"],
+        "purpose": "status.failSubtle in light."
+      },
+      "amber-45": {
+        "role": "secondary",
+        "displayName": "Amber 45",
+        "canonical": "oklch(0.5293 0.1097 80)",
+        "tonalRamp": ["#8c6300", "#e6a500"],
+        "purpose": "status.warn in light. Locked at hue 80."
+      },
+      "amber-72": {
+        "role": "secondary",
+        "displayName": "Amber 72",
+        "canonical": "oklch(0.7636 0.1582 80)",
+        "tonalRamp": ["#8c6300", "#e6a500"],
+        "purpose": "status.warn in dark; syntax.string."
+      },
+      "blue-72": {
+        "role": "tertiary",
+        "displayName": "Blue 72",
+        "canonical": "oklch(0.7599 0.1231 260)",
+        "tonalRamp": ["#82b2ff"],
+        "purpose": "syntax.number. Locked at hue 260."
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The homepage claim only."
+        "purpose": "The hero headline on two forced lines; wears MonoLisa at 400 while the page compiles and cuts to Wotfard at 500 as the family token lands."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "One per section."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Workflow steps, rule names, the Crown's hue value."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The hero paragraph."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Proof and explanation capped near 65 characters."
+        "purpose": "Section copy."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Chooser segments, the hero invite, notes."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons."
       },
       "label": {
-        "displayName": "Evidence Label",
-        "purpose": "Real token paths, states, controls, and commands."
+        "displayName": "Label",
+        "purpose": "The Island text and graph band labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Source lines and graph type labels."
+      },
+      "glyph": {
+        "displayName": "Glyph",
+        "purpose": "Labels inside the graph SVG, scaled by its viewBox."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Code samples, commands, token paths."
       }
     },
     "shadows": [],
     "motion": [
       {
-        "name": "state-change",
-        "value": "220ms cubic-bezier(0.22, 1, 0.36, 1)",
-        "purpose": "Finite branch selection and evidence replacement."
+        "name": "duration.causal",
+        "value": "70ms",
+        "purpose": "One step of delay as a change travels primitive to semantic to component to the page; the page waits 3 steps (210ms)."
       },
       {
-        "name": "path-trace",
-        "value": "520ms cubic-bezier(0.33, 1, 0.68, 1)",
-        "purpose": "Trace the active causal path after an explicit action."
+        "name": "duration.feedback",
+        "value": "140ms",
+        "purpose": "Button hover, switch thumbs, ribbon opacity."
+      },
+      {
+        "name": "duration.reveal",
+        "value": "280ms",
+        "purpose": "Page elements recoloring, graph wave, page threads drawing in."
+      },
+      {
+        "name": "duration.handoff",
+        "value": "440ms",
+        "purpose": "The Island resizing to a new message."
+      },
+      {
+        "name": "ease.enter",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Fast start, long settle; every transition on the page."
+      },
+      {
+        "name": "ease.move",
+        "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "purpose": "Things moving between two resting places."
+      },
+      {
+        "name": "reduced",
+        "value": "data-motion='reduced' sets every semantic duration to 0ms",
+        "purpose": "Every state stays, nothing animates."
       }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "tablet", "value": "768px" },
-      { "name": "desktop", "value": "1024px" },
-      { "name": "wide", "value": "1280px" }
+      {
+        "name": "install-container",
+        "value": "460px"
+      },
+      {
+        "name": "narrow-graph",
+        "value": "719px"
+      },
+      {
+        "name": "hero-split",
+        "value": "1000px"
+      },
+      {
+        "name": "wide-sections",
+        "value": "1100px"
+      },
+      {
+        "name": "site-wrap-max",
+        "value": "1760px"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Action",
+      "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The single quickstart action.",
-      "html": "<a class=\"ds-btn-primary\" href=\"/docs/getting-started\">Run the quickstart</a>",
-      "css": ".ds-btn-primary{display:inline-flex;min-height:48px;align-items:center;justify-content:center;border:1px solid #A8C95F;border-radius:6px;background:#A8C95F;color:#030304;padding:14px 18px;font:520 12px/1.4 ui-monospace,monospace;text-decoration:none;transition:background 220ms cubic-bezier(.22,1,.36,1)}.ds-btn-primary:hover{background:#DDE9B9}.ds-btn-primary:focus-visible{outline:2px solid #FAFAFA;outline-offset:3px}"
+      "description": "The solid brand action; hover moves one step darker over the feedback duration.",
+      "html": "<a class=\"ds-btn-primary\" href=\"/docs\">Read the quickstart</a>",
+      "css": ".ds-btn-primary{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:var(--semantic-space-inline-default,0.5rem);padding:var(--component-button-paddingBlock,0.5rem) var(--component-button-paddingInline,1rem);border-radius:var(--component-button-radius,6px);background:var(--component-button-primary-background,#007b37);color:var(--component-button-primary-text,#fff);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:var(--semantic-type-control-fontSize,1rem);font-weight:var(--semantic-type-control-fontWeight,500);text-decoration:none;transition:background-color var(--component-button-transition-duration,140ms) var(--component-button-transition-timingFunction,cubic-bezier(0.16,1,0.3,1)),transform var(--component-button-transition-duration,140ms)}.ds-btn-primary:hover{background:var(--component-button-primary-backgroundHover,#006029)}.ds-btn-primary:active{transform:scale(0.96)}.ds-btn-primary:focus-visible{outline:2px solid var(--component-focus-ring,#131914);outline-offset:3px}"
     },
     {
-      "name": "Branch Control",
-      "kind": "button",
-      "description": "Selects Govern, Trace, or Ship evidence.",
-      "html": "<button class=\"ds-branch\" role=\"tab\" aria-selected=\"true\">Govern</button>",
-      "css": ".ds-branch{min-height:44px;border:0;border-bottom:1px solid rgba(255,255,255,.1);background:transparent;color:#9CA3AF;padding:10px 4px;font:520 12px/1.4 ui-monospace,monospace}.ds-branch[aria-selected=true]{border-color:#A8C95F;color:#FAFAFA}.ds-branch:focus-visible{outline:2px solid #FAFAFA;outline-offset:3px}"
-    },
-    {
-      "name": "Evidence Surface",
+      "name": "Island",
       "kind": "custom",
-      "description": "A rooted proof surface attached to an active branch.",
-      "html": "<section class=\"ds-evidence\"><code>semantic.color.action.primary</code><strong>Allowed</strong></section>",
-      "css": ".ds-evidence{display:grid;gap:12px;border:1px solid rgba(255,255,255,.1);border-left-color:#A8C95F;background:#08080A;color:#FAFAFA;padding:20px}.ds-evidence code{color:#9CA3AF;font:520 12px/1.4 ui-monospace,monospace}.ds-evidence strong{font:540 20px/1.15 Inter,system-ui,sans-serif}"
+      "refersTo": "island",
+      "description": "The one status capsule, dark in both themes, stating the real result of the last check; a pass prints with no dot.",
+      "html": "<div class=\"ds-island\" role=\"status\"><span class=\"ds-island-dot\" data-tone=\"plain\"></span><span>0 findings, exit 0</span></div>",
+      "css": ".ds-island{display:inline-flex;height:36px;align-items:center;gap:var(--semantic-space-inline-default,0.5rem);padding:0 var(--semantic-space-inline-loose,1rem);border:1px solid var(--component-island-border,#0c0f0c);border-radius:var(--semantic-radius-pill,999px);background:var(--component-island-background,#0c0f0c);color:var(--component-island-text,#f4f7f5);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:var(--semantic-type-label-fontSize,0.8125rem);font-variant-numeric:tabular-nums;font-weight:var(--semantic-type-label-fontWeight,500);transition:width var(--component-island-transition-duration,440ms) var(--semantic-motion-ease-enter,cubic-bezier(0.16,1,0.3,1))}.ds-island-dot{width:8px;height:8px;flex:none;border-radius:50%;background:currentColor}.ds-island-dot[data-tone=plain]{display:none}.ds-island-dot[data-tone=accent]{background:var(--component-island-accent,#2cca65)}.ds-island-dot[data-tone=warn]{background:var(--semantic-status-warn,#8c6300)}.ds-island-dot[data-tone=fail]{background:var(--semantic-status-fail,#cc2827)}"
+    },
+    {
+      "name": "Install Chooser",
+      "kind": "input",
+      "refersTo": "chooser",
+      "description": "Package manager radios in a sunken well; the selected segment lifts to the page surface with a 1px strong ring.",
+      "html": "<fieldset class=\"ds-chooser\"><label class=\"ds-seg\"><input type=\"radio\" name=\"ds-pm\" checked>npm</label><label class=\"ds-seg\"><input type=\"radio\" name=\"ds-pm\">pnpm</label><label class=\"ds-seg\"><input type=\"radio\" name=\"ds-pm\">yarn</label><label class=\"ds-seg\"><input type=\"radio\" name=\"ds-pm\">bun</label></fieldset>",
+      "css": ".ds-chooser{display:flex;margin:0;border:0;border-radius:var(--component-button-radius,6px);padding:var(--semantic-space-inline-tight,0.25rem);background:var(--component-chooser-background,#ebefec);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif}.ds-seg{position:relative;display:grid;flex:1;min-height:44px;place-items:center;padding:0 var(--semantic-space-inline-default,0.5rem);border-radius:calc(var(--component-button-radius,6px) - 2px);color:var(--component-chooser-text,#4e544f);font-size:var(--semantic-type-small-fontSize,0.9375rem);font-weight:var(--semantic-type-control-fontWeight,500);cursor:pointer}.ds-seg input{position:absolute;inset:0;margin:0;opacity:0;cursor:pointer}.ds-seg:has(:checked){background:var(--component-chooser-selected,#fff);box-shadow:inset 0 0 0 1px var(--component-chooser-selectedBorder,#8b928c);color:var(--component-chooser-selectedText,#131914)}.ds-seg:has(:focus-visible){outline:2px solid var(--component-focus-ring,#131914);outline-offset:2px}"
+    },
+    {
+      "name": "Rule Switch",
+      "kind": "custom",
+      "refersTo": "rule-switch",
+      "description": "Breaks one layer rule and runs the real check in the browser; the track turns to the fail color while the rule stays broken.",
+      "html": "<button type=\"button\" class=\"ds-rule-switch\" role=\"switch\" aria-checked=\"true\"><span class=\"ds-rule-track\"><span class=\"ds-rule-thumb\"></span></span>Skip a layer</button>",
+      "css": ".ds-rule-switch{display:inline-flex;min-height:44px;align-items:center;gap:var(--semantic-space-inline-default,0.5rem);border:0;border-radius:var(--component-button-radius,6px);padding-inline:var(--component-button-paddingBlock,0.5rem);background:var(--semantic-surface-raised,#f4f7f5);color:var(--semantic-text-primary,#131914);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:var(--semantic-type-label-fontSize,0.8125rem);font-weight:500;cursor:pointer}.ds-rule-track{position:relative;width:30px;height:18px;flex:none;border-radius:var(--semantic-radius-pill,999px);background:var(--semantic-text-muted,#666c67)}.ds-rule-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--semantic-surface-page,#fff);transition:transform var(--semantic-motion-duration-feedback,140ms) var(--semantic-motion-ease-enter,cubic-bezier(0.16,1,0.3,1))}.ds-rule-switch[aria-checked=true] .ds-rule-track{background:var(--semantic-status-fail,#cc2827)}.ds-rule-switch[aria-checked=true] .ds-rule-thumb{transform:translateX(12px)}.ds-rule-switch:focus-visible{outline:2px solid var(--component-focus-ring,#131914);outline-offset:3px}"
+    },
+    {
+      "name": "Code Panel",
+      "kind": "card",
+      "refersTo": "code-panel",
+      "description": "A real file on the code surface, dark in both themes; the DTCG alias takes the reference color.",
+      "html": "<pre class=\"ds-code\"><code><span class=\"p\">{</span> <span class=\"k\">\"$value\"</span><span class=\"p\">:</span> <span class=\"r\">\"{primitives.color.brand.45}\"</span> <span class=\"p\">}</span></code></pre>",
+      "css": ".ds-code{margin:0;padding:var(--component-code-padding,1rem);border-radius:var(--component-code-radius,10px);background:var(--component-code-background,#131914);color:var(--semantic-syntax-base,#f4f7f5);font-family:MonoLisa,'MonoLisa fallback',ui-monospace,monospace;font-size:var(--semantic-type-code-fontSize,0.875rem);line-height:1.55;overflow-x:auto}.ds-code .p{color:var(--semantic-syntax-punctuation,#abb2ac)}.ds-code .k{color:var(--semantic-syntax-key,#dfe4e0)}.ds-code .r{color:var(--semantic-syntax-reference,#2cca65)}.ds-code:focus-visible{outline:2px solid var(--component-focus-ring,#131914);outline-offset:3px}"
+    },
+    {
+      "name": "Finding",
+      "kind": "card",
+      "refersTo": "finding",
+      "description": "A printed finding from the real check; a pass prints as plain text with no wash.",
+      "html": "<p class=\"ds-finding\"><code>PT1004</code> component.button.primary.background references a primitive</p>",
+      "css": ".ds-finding{margin:0;padding:var(--semantic-space-inline-default,0.5rem) var(--semantic-space-inline-loose,1rem);border-radius:var(--semantic-radius-control,6px);background:var(--component-finding-background,#fff4f3);color:var(--component-finding-text,#cc2827);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:0.9375rem;line-height:1.55}.ds-finding code{font-family:MonoLisa,'MonoLisa fallback',ui-monospace,monospace;font-size:0.875rem}"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Secondary text at rest; primary on hover and on the current page, which also takes an accent underline.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link\" aria-current=\"page\" href=\"/docs\">Docs</a><a class=\"ds-nav-link\" href=\"/playground\">Playground</a></nav>",
+      "css": ".ds-nav{display:flex;gap:var(--semantic-space-inline-tight,0.25rem);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif}.ds-nav-link{display:inline-flex;min-height:44px;align-items:center;padding:0 0.875rem;color:var(--component-nav-text,#4e544f);font-size:0.875rem;font-weight:400;text-decoration:none;transition:color var(--semantic-motion-duration-feedback,140ms) var(--semantic-motion-ease-enter,cubic-bezier(0.16,1,0.3,1))}.ds-nav-link:hover{color:var(--component-nav-textHover,#131914)}.ds-nav-link[aria-current=page]{color:var(--component-nav-textHover,#131914)}.ds-nav-link:focus-visible{outline:2px solid var(--component-focus-ring,#131914);outline-offset:3px}"
     }
   ],
   "narrative": {
-    "northStar": "The Living Specification",
-    "overview": "One rooted token change branches into policy, dependency, and build evidence. Motion is finite and stateful, and the mark is the graph root rather than decoration.",
+    "northStar": "The Page Compiles Itself",
+    "overview": "The homepage runs on its own token file. Three layers under `tokens/` (`primitives.tokens.json`, `semantic.tokens.json`, `component.tokens.json`) resolve through `tokens.resolver.json` into `tokens/generated/tokens.css`, and every color, font, size, space, radius, and duration on the page reads one of those custom properties. `@primitree/core` checks the layers: primitives hold literals, semantic tokens reference primitives, component tokens reference semantic tokens. Elements declare what they read through `bind()` in `lib/tokens/bind.ts`, so the graph on the page and the paint in the browser come from the same call.\n\nCode solves the color; nobody picks it. `lib/tokens/solver.ts` takes one hue from `tokens/theme.config.json` (150, the brand green) and produces every neutral and brand step; a step number is CIE L*, so two steps hold the same WCAG ratio at any hue, and red, amber, and blue stay locked at their own hues so a failure always looks like a failure. A theme (`theme/light.tokens.json`, `theme/dark.tokens.json`) re-aliases the semantic layer and changes no primitive; a motion context (`motion/full`, `motion/reduced`) does the same for durations.\n\nThe signature is the token graph: tapered ribbons, each colored with its resolved value, joining three labeled bands and rising as threads into the headline and controls above. The Crown is a rotary hue dial whose segments are the solver's own output. The Island is one pill capsule in the site bar that states the real result of the last check. Rule switches run the real check in the browser and show what breaks. Wotfard sets prose and MonoLisa sets code, commands, and token paths.",
     "keyCharacteristics": [
-      "One dominant living graph",
-      "Asymmetric editorial scale",
-      "Thin structural rules and rare lichen emphasis",
-      "Real governance language",
-      "Touch, keyboard, screen-reader, and reduced-motion parity"
+      "Three token layers, one resolver, one generated stylesheet; site CSS reads semantic and component tokens and nothing else.",
+      "Solved OKLCH color from one hue, with steps named by CIE L*; warn and fail hues locked.",
+      "A theme swaps aliases, never values; reduced motion zeroes durations the same way.",
+      "Two faces: Wotfard for prose, MonoLisa for code, commands, and token paths; weights 400 and 500.",
+      "No shadows: depth comes from neutral steps and 1px borders, because composite tokens are not supported.",
+      "A pass prints as plain text; warn and fail alone carry a color.",
+      "Governance is visible: a hovered token names its owners and reach, and a broken rule prints the owners the check returned.",
+      "Motion is causal: a preset or a rule switch recolors the page 210ms after the click, one `duration.causal` per layer. A drag cuts every color on the frame it lands, and so does a jump across the ink arc; the wave runs 400ms after the dial rests."
     ],
     "rules": [
       {
-        "name": "The Signal Rule",
-        "body": "Electric Lichen occupies less than ten percent of a screen.",
+        "name": "The Step Is Luminance Rule",
+        "body": "A step number is CIE L*. Steps 51 apart reach 4.5:1 at any hue, so step arithmetic decides contrast, not sampling.",
         "section": "colors"
       },
       {
-        "name": "The Consequence Rule",
-        "body": "Coral means blocked or unsafe and is never decorative.",
+        "name": "The One Hue Rule",
+        "body": "The solver derives neutrals and brand steps from the one hue in `tokens/theme.config.json`; changing the hue changes every value and no name. Red 27, amber 80, and blue 260 never follow it.",
         "section": "colors"
       },
       {
-        "name": "The One Claim Rule",
-        "body": "Only one display-scale statement appears in a viewport.",
+        "name": "The Theme Re-aliases Rule",
+        "body": "A theme file touches `semantic.*` aliases and nothing else. No theme declares a primitive.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Primitive Read Rule",
+        "body": "Site CSS (`home.css`, `global.css`) reads `--semantic-*` and `--component-*`; `--primitives-*` appears in neither. `global.css` maps the legacy `--color-primitree-*` names onto semantic tokens.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Literal Rule",
+        "body": "`home.css` holds no hex, rgb, hsl, or raw `oklch()` color and no raw duration. The one computed color is a relative `oklch(from var(--edge-color) ...)` that clamps a ribbon's lightness from a token.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pass Is Plain Text Rule",
+        "body": "A pass prints as plain text in the current text color. `status.warn` and `status.fail` alone carry a hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Faces Rule",
+        "body": "Wotfard sets prose and MonoLisa sets code. Neither face has a role outside that split.",
         "section": "typography"
       },
       {
-        "name": "The Rooted Surface Rule",
-        "body": "Every evidence panel touches a branch, rule, or parent surface.",
+        "name": "The Weight Ladder Rule",
+        "body": "Two weights: 400 for reading, 500 for headings, controls, and labels. Wotfard ships nothing heavier that this site loads.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Composite Rule",
+        "body": "No drop shadow, gradient fill, or filter anywhere on the page. The one gradient is the mask that fades the component stubs (`.graph-stub`). A surface that needs to lift moves one neutral step, not up.",
         "section": "elevation"
+      },
+      {
+        "name": "The Causal Motion Rule",
+        "body": "Motion explains resolution and nothing else. Each layer adds one `duration.causal` (70ms) of delay, so a page element recolors `3 × causal` (210ms) after a preset moves the primitives or a rule switch edits a token, and settles over `duration.reveal` (280ms) on `ease.enter`. A moving dial sets `data-dragging`, which turns off every bound transition so each frame cuts to its value, and a jump across the ink arc cuts its colors the same way while the Island capsule keeps its width ease; the graph wave runs when the dial rests, 400ms after the last move. Under `data-motion='reduced'` every semantic duration reads `duration.0` and every state stays.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Do make every animated path correspond to a selected dependency or policy result.",
-      "Do use the same token change to explain Govern, Trace, and Ship.",
-      "Do preserve touch, keyboard, and reduced-motion parity."
+      "Do read every color, font, size, space, radius, and duration from `--semantic-*` or `--component-*` in `tokens/generated/tokens.css`, and declare what an element reads with `bind()` or `reads()`.",
+      "Do add a new color as a step on a solved ramp in `primitives.tokens.json`, alias it in `semantic.tokens.json`, and theme it by re-aliasing.",
+      "Do print a pass as plain text; give a color to warn and fail and nothing else.",
+      "Do set code in MonoLisa and prose in Wotfard, and keep weights to 400 and 500.",
+      "Do run the real check for any state the page claims, and print what it returned.",
+      "Do keep 44px targets, the 2px `focus.ring` outline, and a still page under reduced motion."
     ],
     "donts": [
-      "Don't recreate the generic dark dev-tool template.",
-      "Don't draw an ornamental tree that does not explain governance.",
-      "Don't animate continuously."
+      "Don't write a hex, rgb, hsl, or raw oklch color or a raw millisecond value in `home.css`.",
+      "Don't read a `--primitives-*` variable from site CSS or declare a primitive in a theme file.",
+      "Don't add a shadow, gradient, filter, or any composite token. The stub mask is the one gradient on the page.",
+      "Don't change the hue of red, amber, or blue, or let the brand hue leak into them.",
+      "Don't ship the theme lab: `/lab/theme` returns not found outside development.",
+      "Don't put a pass in a pill or badge, add a kicker above a heading, or bring in a third type family."
     ]
   }
 }

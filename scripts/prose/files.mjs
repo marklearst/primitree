@@ -9,6 +9,7 @@ const execFileAsync = promisify(execFile)
 
 const SKIP_DIRECTORIES = new Set([
   '.git',
+  '.impeccable',
   '.next',
   '.turbo',
   'artifacts',
