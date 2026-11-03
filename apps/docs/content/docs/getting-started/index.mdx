@@ -9,7 +9,7 @@ You need Node.js 24 or newer. Contributors working in this monorepo need pnpm
 ## 1. Install the CLI
 
 ```bash
-pnpm add -D @primitree/cli@next
+npm install -D @primitree/cli@next
 ```
 
 ## 2. Add a DTCG token file
@@ -97,13 +97,14 @@ export default {
 ```
 
 The config gives the source the name `brand`. It allows literal values in
-`base` and aliases in `semantic`. Paths are relative to the config file.
+`base` and aliases in `semantic`. Paths are relative to the config file. For
+your own DTCG file, set `file` to its path and `roots` to its top-level groups.
 
 ## 4. Check and inspect the source
 
 ```bash
-pnpm exec primitree check --source brand
-pnpm exec primitree inspect semantic.motion.control --source brand
+npx primitree check --source brand
+npx primitree inspect semantic.motion.control --source brand
 ```
 
 `check` reports layer and owner findings. It rejects invalid token types,
@@ -122,7 +123,7 @@ Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
 Compare the files:
 
 ```bash
-pnpm exec primitree diff before.tokens.json tokens.json --source brand
+npx primitree diff before.tokens.json tokens.json --source brand
 ```
 
 `diff` reports the tokens that changed between the saved file and the edited
@@ -131,7 +132,7 @@ file.
 ## 6. Build the files
 
 ```bash
-pnpm exec primitree build --source brand
+npx primitree build --source brand
 ```
 
 The build writes these files to `generated/`:
@@ -149,7 +150,7 @@ generated/
 ## 7. Check generated files in CI
 
 ```bash
-pnpm exec primitree build --source brand --check
+npx primitree build --source brand --check
 ```
 
 `build --check` reports missing, changed, and unexpected output files without
@@ -160,11 +161,11 @@ differ.
 
 Use the [Primitree export plugin](/docs/figma-plugin) when local Figma
 variables are the starting point. The plugin saves a `variables.json` export.
-Run `pnpm exec primitree build variables.json` to convert that export. Figma
+Run `npx primitree build variables.json` to convert that export. Figma
 REST access requires access to the Figma file, a Figma Enterprise seat, and a
 Personal Access Token with `file_variables:read`. Set the token in
 `FIGMA_TOKEN` or `FIGMA_PAT`, and set the file key in `FIGMA_FILE_KEY`. Run
-`pnpm exec primitree export`.
+`npx primitree export`.
 
 ## Use the generated tokens
 

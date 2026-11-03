@@ -6,7 +6,7 @@ description: Check local DTCG sources, build output files, compare changes, and 
 The CLI requires Node.js 24 or newer. Add it as a development dependency:
 
 ```bash
-pnpm add -D @primitree/cli@next
+npm install -D @primitree/cli@next
 ```
 
 Binary name: `primitree`.
@@ -23,7 +23,7 @@ Binary name: `primitree`.
 | `export`  | Download variables through the Figma REST API                        |
 
 ```bash
-pnpm exec primitree <command> --help
+npx primitree <command> --help
 ```
 
 ## Typical workflow
@@ -33,8 +33,8 @@ its layers, owners, and output files. This example uses the `brand` source from
 [Getting started](/docs/getting-started).
 
 ```bash
-pnpm exec primitree check --source brand
-pnpm exec primitree inspect semantic.motion.control --source brand
+npx primitree check --source brand
+npx primitree inspect semantic.motion.control --source brand
 cp tokens.json before.tokens.json
 ```
 
@@ -42,9 +42,9 @@ Change `base.motion.quick.$value.value` in `tokens.json` from `0.2` to `0.3`.
 Compare the files and build the output:
 
 ```bash
-pnpm exec primitree diff before.tokens.json tokens.json --source brand
-pnpm exec primitree build --source brand
-pnpm exec primitree build --source brand --check
+npx primitree diff before.tokens.json tokens.json --source brand
+npx primitree build --source brand
+npx primitree build --source brand --check
 ```
 
 `check` reports source findings. `inspect` shows one resolved token and its
@@ -88,9 +88,9 @@ without writing.
 ## Figma variables export
 
 The older commands remain available for Figma variables exports. Build an
-export with `pnpm exec primitree build variables.json`. See
+export with `npx primitree build variables.json`. See
 [primitree build](/docs/cli/build) for its output options. Figma REST access
 requires access to the Figma file, a Figma Enterprise seat, and a Personal
 Access Token with `file_variables:read`. Set the token in `FIGMA_TOKEN` or
 `FIGMA_PAT`, and set the file key in `FIGMA_FILE_KEY`. Run
-`pnpm exec primitree export`.
+`npx primitree export`.
