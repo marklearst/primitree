@@ -1,0 +1,80 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/resolver.json",
+  "name": "primitree-site",
+  "version": "2025.10",
+  "description": "Tokens for primitree.com. The theme and motion modifiers touch separate tokens.",
+  "sets": {
+    "primitives": {
+      "sources": [
+        {
+          "$ref": "primitives.tokens.json"
+        }
+      ]
+    },
+    "semantic": {
+      "sources": [
+        {
+          "$ref": "semantic.tokens.json"
+        }
+      ]
+    },
+    "component": {
+      "sources": [
+        {
+          "$ref": "component.tokens.json"
+        }
+      ]
+    }
+  },
+  "modifiers": {
+    "theme": {
+      "description": "next-themes sets html[data-theme].",
+      "default": "light",
+      "contexts": {
+        "light": [
+          {
+            "$ref": "theme/light.tokens.json"
+          }
+        ],
+        "dark": [
+          {
+            "$ref": "theme/dark.tokens.json"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "description": "A pre-paint script mirrors prefers-reduced-motion to html[data-motion].",
+      "default": "full",
+      "contexts": {
+        "full": [
+          {
+            "$ref": "motion/full.tokens.json"
+          }
+        ],
+        "reduced": [
+          {
+            "$ref": "motion/reduced.tokens.json"
+          }
+        ]
+      }
+    }
+  },
+  "resolutionOrder": [
+    {
+      "$ref": "#/sets/primitives"
+    },
+    {
+      "$ref": "#/sets/semantic"
+    },
+    {
+      "$ref": "#/sets/component"
+    },
+    {
+      "$ref": "#/modifiers/theme"
+    },
+    {
+      "$ref": "#/modifiers/motion"
+    }
+  ]
+}

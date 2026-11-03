@@ -1,0 +1,208 @@
+{
+  "component": {
+    "button": {
+      "primary": {
+        "$type": "color",
+        "background": {
+          "$value": "{semantic.accent.solid}"
+        },
+        "backgroundHover": {
+          "$value": "{semantic.accent.solidHover}"
+        },
+        "text": {
+          "$value": "{semantic.text.onAccent}"
+        }
+      },
+      "radius": {
+        "$type": "dimension",
+        "$value": "{semantic.radius.control}"
+      },
+      "paddingInline": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.controlInline}"
+      },
+      "paddingBlock": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.controlBlock}"
+      },
+      "transition": {
+        "$description": "The DTCG transition composite, spelled out by its property names.",
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.feedback}"
+        },
+        "timingFunction": {
+          "$type": "cubicBezier",
+          "$value": "{semantic.motion.ease.enter}"
+        }
+      }
+    },
+    "link": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.accent.text}"
+      },
+      "underline": {
+        "$type": "color",
+        "$value": "{semantic.accent.edge}"
+      }
+    },
+    "nav": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.secondary}"
+      },
+      "textHover": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "code": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.code}"
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{semantic.border.panel}"
+      },
+      "radius": {
+        "$type": "dimension",
+        "$value": "{semantic.radius.panel}"
+      },
+      "padding": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.code}"
+      },
+      "prompt": {
+        "$type": "color",
+        "$value": "{semantic.syntax.reference}"
+      }
+    },
+    "island": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.island}",
+        "$description": "The status capsule in the site bar. At rest it states the result of the last check."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.onIsland}"
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{semantic.border.island}"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "{semantic.accent.onIsland}"
+      },
+      "transition": {
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.handoff}"
+        }
+      }
+    },
+    "chooser": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.sunken}"
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{semantic.surface.page}"
+      },
+      "selectedBorder": {
+        "$type": "color",
+        "$value": "{semantic.border.strong}"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.secondary}"
+      },
+      "selectedText": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "crown": {
+      "center": {
+        "$type": "color",
+        "$value": "{semantic.accent.solid}",
+        "$description": "The hub of the hue dial in the hero."
+      },
+      "centerText": {
+        "$type": "color",
+        "$value": "{semantic.text.onAccent}"
+      },
+      "knob": {
+        "$type": "color",
+        "$value": "{semantic.surface.page}"
+      },
+      "knobBorder": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "graph": {
+      "edge": {
+        "$type": "color",
+        "$value": "{semantic.text.muted}"
+      },
+      "lit": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      },
+      "fail": {
+        "$type": "color",
+        "$value": "{semantic.status.fail}"
+      },
+      "nodeBorder": {
+        "$type": "color",
+        "$value": "{semantic.border.subtle}"
+      },
+      "label": {
+        "$type": "color",
+        "$value": "{semantic.text.muted}"
+      },
+      "wave": {
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.reveal}"
+        },
+        "step": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.causal}"
+        }
+      }
+    },
+    "close": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.accent.solid}",
+        "$description": "The last section of the homepage, with the install chooser."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.onAccent}"
+      }
+    },
+    "finding": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.status.fail}"
+      },
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.status.failSubtle}"
+      }
+    },
+    "focus": {
+      "ring": {
+        "$type": "color",
+        "$value": "{semantic.border.focus}"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "semantic": {
+    "motion": {
+      "duration": {
+        "$type": "duration",
+        "feedback": {
+          "$value": "{primitives.duration.140}"
+        },
+        "reveal": {
+          "$value": "{primitives.duration.280}"
+        },
+        "handoff": {
+          "$value": "{primitives.duration.440}"
+        },
+        "causal": {
+          "$value": "{primitives.duration.70}",
+          "$description": "One step of delay as a change travels from primitive to semantic to component to the page."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,291 @@
+{
+  "semantic": {
+    "text": {
+      "$type": "color",
+      "onIsland": {
+        "$value": "{primitives.color.neutral.97}"
+      }
+    },
+    "accent": {
+      "$type": "color",
+      "onIsland": {
+        "$value": "{primitives.color.brand.72}",
+        "$description": "The same step in both themes, because the island is dark in both."
+      }
+    },
+    "syntax": {
+      "$type": "color",
+      "$description": "Code sits on surface.code, which stays dark in both themes, so one palette serves both.",
+      "base": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "comment": {
+        "$value": "{primitives.color.neutral.72}"
+      },
+      "punctuation": {
+        "$value": "{primitives.color.neutral.72}"
+      },
+      "key": {
+        "$value": "{primitives.color.neutral.90}"
+      },
+      "string": {
+        "$value": "{primitives.color.amber.72}"
+      },
+      "number": {
+        "$value": "{primitives.color.blue.72}"
+      },
+      "keyword": {
+        "$value": "{primitives.color.red.72}"
+      },
+      "reference": {
+        "$value": "{primitives.color.brand.72}",
+        "$description": "A DTCG alias in sample code: the thing Primitree checks."
+      },
+      "fail": {
+        "$value": "{primitives.color.red.72}",
+        "$description": "A failure printed on surface.code, which stays dark in both themes."
+      }
+    },
+    "motion": {
+      "ease": {
+        "$type": "cubicBezier",
+        "enter": {
+          "$value": "{primitives.easing.out}"
+        },
+        "move": {
+          "$value": "{primitives.easing.inOut}"
+        }
+      }
+    },
+    "type": {
+      "$description": "Each role spells out the DTCG typography composite by its property names, because Primitree reads no composite types. CSS assembles the role.",
+      "display": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.sans}"
+        },
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontWeightFrom": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.400}",
+          "$description": "Where the headline starts while the page compiles, before it resolves to fontWeight."
+        },
+        "fontSizeMin": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.44}",
+          "$description": "Lower bound of the CSS clamp(). DTCG has no fluid dimension."
+        },
+        "fontSizeMax": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.92}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.98}"
+        },
+        "letterSpacing": {
+          "$type": "number",
+          "$value": "{primitives.font.letterSpacing.minus30}"
+        },
+        "fontFamilyFrom": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.mono}",
+          "$description": "What the headline wears while the page compiles, before it resolves to fontFamily."
+        },
+        "fontScaleFrom": {
+          "$type": "number",
+          "$value": "{primitives.font.ratio.86}",
+          "$description": "MonoLisa runs wider than Wotfard, so the compile sets it smaller and the headline keeps its two lines."
+        }
+      },
+      "heading": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.36}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.115}"
+        },
+        "letterSpacing": {
+          "$type": "number",
+          "$value": "{primitives.font.letterSpacing.minus15}"
+        }
+      },
+      "title": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.20}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.140}"
+        }
+      },
+      "lede": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.20}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.140}"
+        }
+      },
+      "body": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.sans}"
+        },
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.400}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.17}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.155}"
+        }
+      },
+      "small": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.15}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.155}"
+        }
+      },
+      "control": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.16}"
+        }
+      },
+      "label": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.13}"
+        }
+      },
+      "caption": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.13}"
+        }
+      },
+      "glyph": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.10}",
+          "$description": "Inside the graph, whose viewBox scales it with the drawing."
+        }
+      },
+      "code": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.mono}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.14}"
+        },
+        "inlineScale": {
+          "$type": "number",
+          "$value": "{primitives.font.ratio.92}"
+        }
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "inline": {
+        "tight": {
+          "$value": "{primitives.space.4}"
+        },
+        "default": {
+          "$value": "{primitives.space.8}"
+        },
+        "loose": {
+          "$value": "{primitives.space.16}"
+        }
+      },
+      "stack": {
+        "tight": {
+          "$value": "{primitives.space.8}"
+        },
+        "default": {
+          "$value": "{primitives.space.16}"
+        },
+        "loose": {
+          "$value": "{primitives.space.32}"
+        },
+        "wide": {
+          "$value": "{primitives.space.56}"
+        }
+      },
+      "inset": {
+        "controlInline": {
+          "$value": "{primitives.space.16}"
+        },
+        "controlBlock": {
+          "$value": "{primitives.space.8}"
+        },
+        "code": {
+          "$value": "{primitives.space.16}"
+        }
+      },
+      "layout": {
+        "gutterMin": {
+          "$value": "{primitives.space.16}"
+        },
+        "gutterMax": {
+          "$value": "{primitives.space.40}"
+        },
+        "sectionMin": {
+          "$value": "{primitives.space.72}"
+        },
+        "sectionMax": {
+          "$value": "{primitives.space.128}"
+        },
+        "gap": {
+          "$value": "{primitives.space.12}"
+        }
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "control": {
+        "$value": "{primitives.radius.6}"
+      },
+      "pill": {
+        "$value": "{primitives.radius.999}"
+      },
+      "panel": {
+        "$value": "{primitives.radius.10}"
+      }
+    }
+  }
+}

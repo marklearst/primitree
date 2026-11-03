@@ -1,0 +1,100 @@
+{
+  "semantic": {
+    "surface": {
+      "$type": "color",
+      "page": {
+        "$value": "{primitives.color.neutral.100}"
+      },
+      "raised": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "sunken": {
+        "$value": "{primitives.color.neutral.94}"
+      },
+      "code": {
+        "$value": "{primitives.color.neutral.8}",
+        "$description": "Dark in both themes. Only syntax.* is checked against it."
+      },
+      "island": {
+        "$value": "{primitives.color.neutral.4}",
+        "$description": "The status capsule in the site bar. Dark in both themes."
+      },
+      "inverse": {
+        "$value": "{primitives.color.neutral.8}",
+        "$description": "A selected control, the opposite of the page."
+      }
+    },
+    "text": {
+      "$type": "color",
+      "primary": {
+        "$value": "{primitives.color.neutral.8}"
+      },
+      "secondary": {
+        "$value": "{primitives.color.neutral.35}"
+      },
+      "onAccent": {
+        "$value": "{primitives.color.neutral.100}",
+        "$description": "On accent.solid and accent.solidHover. A hue that only holds its chroma as a light tone reroutes this alias to a dark label."
+      },
+      "muted": {
+        "$value": "{primitives.color.neutral.45}",
+        "$description": "Must reach 4.5:1 on surface.page and surface.raised."
+      },
+      "onInverse": {
+        "$value": "{primitives.color.neutral.100}"
+      }
+    },
+    "border": {
+      "$type": "color",
+      "subtle": {
+        "$value": "{primitives.color.neutral.90}"
+      },
+      "strong": {
+        "$value": "{primitives.color.neutral.60}",
+        "$description": "Must reach 3:1 on surface.page, for controls."
+      },
+      "focus": {
+        "$value": "{primitives.color.neutral.8}"
+      },
+      "island": {
+        "$value": "{primitives.color.neutral.4}",
+        "$description": "Separates the island from a page of nearly the same lightness. Disappears on the light page."
+      },
+      "panel": {
+        "$value": "{primitives.color.neutral.8}",
+        "$description": "A ring on the ink panels. Matches the ink on the light page and gives the panel an edge on the dark one."
+      }
+    },
+    "accent": {
+      "$type": "color",
+      "solid": {
+        "$value": "{primitives.color.brand.45}"
+      },
+      "solidHover": {
+        "$value": "{primitives.color.brand.35}"
+      },
+      "text": {
+        "$value": "{primitives.color.brand.45}"
+      },
+      "subtle": {
+        "$value": "{primitives.color.brand.95}"
+      },
+      "edge": {
+        "$value": "{primitives.color.brand.85}"
+      }
+    },
+    "status": {
+      "$type": "color",
+      "$description": "A pass has no color: it prints as plain text. These two hues stay locked wherever the brand goes.",
+      "warn": {
+        "$value": "{primitives.color.amber.45}"
+      },
+      "fail": {
+        "$value": "{primitives.color.red.45}"
+      },
+      "failSubtle": {
+        "$value": "{primitives.color.red.97}"
+      }
+    }
+  }
+}
