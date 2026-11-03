@@ -14,14 +14,30 @@ import * as brandRules from './brand-rules.mjs'
 
 const legacy = (...parts) => parts.join('')
 const { findBrandViolations, readBrandRecords } = brandRules
+const GLOBAL_CSS = 'apps/docs/app/global.css'
+const HOME_CSS = 'apps/docs/components/landing/home.css'
+const PLAYGROUND_CSS = 'apps/docs/components/playground/playground.css'
+const TOKEN_GRAPH = 'apps/docs/components/landing/token-graph.tsx'
+const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 function getLichenValidator() {
   assert.equal(
     typeof brandRules.findLichenColorViolations,
     'function',
-    'brand rules must expose the scoped Lichen color validator'
+    'brand rules must expose the scoped color validator'
   )
   return brandRules.findLichenColorViolations
+}
+
+function readRepositoryFile(path) {
+  return readFileSync(join(REPOSITORY_ROOT, path), 'utf8')
+}
+
+/** The violations of one rule, by the prefix its messages start with. */
+function matchesWith(records, prefix) {
+  return getLichenValidator()(records)
+    .filter(violation => violation.match.startsWith(prefix))
+    .map(violation => violation.match)
 }
 
 test('rejects legacy product names in public surfaces', () => {
@@ -402,29 +418,27 @@ test('rejects a former brand color in a public badge URL', () => {
       },
     ]
   )
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'README.md',
+        content:
+          '[![DTCG](https://img.shields.io/badge/DTCG-2025.10-429c5a)](https://www.designtokens.org)',
+      },
+    ]),
+    []
+  )
 })
 
 test('rejects a changed approved palette role', () => {
   const findLichenColorViolations = getLichenValidator()
   const records = [
     {
-      path: 'apps/docs/app/global.css',
+      path: GLOBAL_CSS,
       content: [
-        '@theme {',
-        '  --color-primitree-bg: #0b0f0d;',
-        '  --color-primitree-surface: #101512;',
-        '  --color-primitree-raised: #161c18;',
-        '  --color-primitree-elevated: #1c241f;',
-        '  --color-primitree-text: #f0f5f2;',
-        '  --color-primitree-accent: #111111;',
-        '  --color-primitree-accent-strong: #0b9464;',
-        '  --color-primitree-good: #34d399;',
-        '  --color-primitree-warn: #fbbf24;',
-        '  --color-primitree-error: #f87171;',
-        '}',
-        '',
-        '::selection {',
-        '  background: rgb(52 211 153 / 25%);',
+        '@theme inline {',
+        '  --color-primitree-bg: var(--semantic-surface-page);',
+        '  --color-primitree-accent: var(--semantic-accent-solid);',
         '}',
       ].join('\n'),
     },
@@ -436,76 +450,115 @@ test('rejects a changed approved palette role', () => {
     ),
     [
       {
-        path: 'apps/docs/app/global.css',
-        line: 7,
+        path: GLOBAL_CSS,
+        line: 3,
         match:
-          '--color-primitree-accent: expected #34d399 and #0b9464, found #111111',
+          '--color-primitree-accent: expected var(--semantic-accent-text), found var(--semantic-accent-solid)',
       },
     ]
   )
 })
 
+test('rejects a role whose alias differs from its token only by case', () => {
+  const globalCss = readRepositoryFile(GLOBAL_CSS).replace(
+    '--color-primitree-accent-soft: var(--semantic-accent-solidHover);',
+    '--color-primitree-accent-soft: var(--semantic-accent-solidhover);'
+  )
+
+  assert.deepEqual(
+    matchesWith(
+      [{ path: GLOBAL_CSS, content: globalCss }],
+      '--color-primitree-accent-soft:'
+    ),
+    [
+      '--color-primitree-accent-soft: expected var(--semantic-accent-solidHover), found var(--semantic-accent-solidhover)',
+    ]
+  )
+})
+
+test('requires every approved role to stay declared', () => {
+  const globalCss = readRepositoryFile(GLOBAL_CSS).replace(
+    '--color-primitree-warn: var(--semantic-status-warn);',
+    ''
+  )
+
+  assert.deepEqual(
+    matchesWith(
+      [{ path: GLOBAL_CSS, content: globalCss }],
+      '--color-primitree-warn:'
+    ),
+    [
+      '--color-primitree-warn: expected var(--semantic-status-warn), found missing',
+    ]
+  )
+})
+
+test('holds a new palette role to a semantic alias', () => {
+  const content = (value, name = '--color-primitree-new') =>
+    readRepositoryFile(GLOBAL_CSS).concat(`\n:root { ${name}: ${value}; }\n`)
+  const check = value =>
+    matchesWith(
+      [{ path: GLOBAL_CSS, content: content(value) }],
+      '--color-primitree-new:'
+    )
+
+  assert.deepEqual(check('var(--component-link-text)'), [
+    '--color-primitree-new: expected a semantic alias, found var(--component-link-text)',
+  ])
+  assert.deepEqual(check('var(--semantic-accent-edge)'), [])
+})
+
 test('ignores CSS declarations in comments and rejects active overrides', () => {
   const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = readFileSync(
-    join(repositoryRoot, 'apps/docs/app/global.css'),
-    'utf8'
-  )
-    .replace(
-      '--color-primitree-accent: #34d399;',
-      '--color-primitree-accent: #111111;'
-    )
-    .concat('\n/* --color-primitree-accent: #34d399; */\n')
+  const approved = '--color-primitree-accent: var(--semantic-accent-text);'
+  const source = readRepositoryFile(GLOBAL_CSS)
+  const line = source.slice(0, source.indexOf(approved)).split('\n').length
+  const globalCss = source
+    .replace(approved, '--color-primitree-accent: #111111;')
+    .concat(`\n/* ${approved} */\n`)
 
   assert.deepEqual(
     findLichenColorViolations([
-      { path: 'apps/docs/app/global.css', content: globalCss },
+      { path: GLOBAL_CSS, content: globalCss },
     ]).filter(violation =>
       violation.match.startsWith('--color-primitree-accent:')
     ),
     [
       {
-        path: 'apps/docs/app/global.css',
-        line: 16,
+        path: GLOBAL_CSS,
+        line,
         match:
-          '--color-primitree-accent: expected #34d399 and #0b9464, found #111111',
+          '--color-primitree-accent: expected var(--semantic-accent-text), found #111111',
       },
     ]
   )
 })
 
 test('rejects a later text selection override', () => {
-  const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = readFileSync(
-    join(repositoryRoot, 'apps/docs/app/global.css'),
-    'utf8'
-  ).concat('\n::selection { background: #111111; }\n')
+  const globalCss = readRepositoryFile(GLOBAL_CSS).concat(
+    '\n::selection { background: #111111; }\n'
+  )
 
-  assert.equal(
-    findLichenColorViolations([
-      { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).some(violation => violation.match.startsWith('text selection:')),
-    true
+  assert.deepEqual(
+    matchesWith([{ path: GLOBAL_CSS, content: globalCss }], 'text selection:'),
+    ['text selection: expected var(--semantic-accent-subtle), found #111111']
   )
 })
 
 test('rejects final CSS declarations without semicolons', () => {
   const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = readFileSync(
-    join(repositoryRoot, 'apps/docs/app/global.css'),
-    'utf8'
-  ).concat(
+  const globalCss = readRepositoryFile(GLOBAL_CSS).concat(
     [
       ':root { --color-primitree-accent: #111111 }',
       '::selection { background: #111111 }',
-      '.graph-node-box { fill: #ff0000 }',
     ].join('\n')
   )
+  const homeCss = readRepositoryFile(HOME_CSS).concat(
+    '\n.graph-node.is-lit .node-swatch { stroke: #ff0000 }'
+  )
   const violations = findLichenColorViolations([
-    { path: 'apps/docs/app/global.css', content: globalCss },
+    { path: GLOBAL_CSS, content: globalCss },
+    { path: HOME_CSS, content: homeCss },
   ])
 
   assert.equal(
@@ -520,9 +573,272 @@ test('rejects final CSS declarations without semicolons', () => {
   )
   assert.equal(
     violations.some(
-      violation => violation.match === 'token graph: missing graph node surface'
+      violation => violation.match === 'token graph: missing lit node outline'
     ),
     true
+  )
+})
+
+test('rejects a stylesheet that does not parse', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      { path: PLAYGROUND_CSS, content: '.pg-title { color: var(--x);' },
+    ]),
+    [
+      {
+        path: PLAYGROUND_CSS,
+        line: 1,
+        match: 'CSS syntax must parse before checking the color contract',
+      },
+    ]
+  )
+})
+
+for (const path of [GLOBAL_CSS, HOME_CSS]) {
+  test(`rejects each form of color literal in ${path}`, () => {
+    const declarations = {
+      'color: #abc': '#abc',
+      'color: #AABBCC': '#AABBCC',
+      'color: #aabbcc80': '#aabbcc80',
+      'color: rgb(1 2 3)': 'rgb()',
+      'color: rgba(1, 2, 3, 0.5)': 'rgba()',
+      'color: hsl(10 20% 30%)': 'hsl()',
+      'color: hwb(10 20% 30%)': 'hwb()',
+      'color: lab(40% 10 10)': 'lab()',
+      'color: lch(40% 10 10)': 'lch()',
+      'color: oklab(40% 0.1 0.1)': 'oklab()',
+      'color: oklch(0.5 0.1 150)': 'oklch()',
+      'color: color(display-p3 1 0 0)': 'color()',
+      'color: rebeccapurple': 'rebeccapurple',
+      'color: RED': 'RED',
+      'background: linear-gradient(#123456, var(--semantic-accent-subtle))':
+        '#123456',
+      'border: 1px solid tomato': 'tomato',
+      '--local: #fff': '#fff',
+      'color: color-mix(in srgb, white 40%, var(--semantic-text-primary))':
+        'white',
+      'fill: oklch(from red l c h)': 'red',
+      'fill: oklch(from #123456 l c h)': '#123456',
+    }
+
+    for (const [declaration, literal] of Object.entries(declarations)) {
+      const [property] = declaration.split(':')
+      assert.deepEqual(
+        matchesWith(
+          [{ path, content: `.hero { ${declaration}; }` }],
+          'color literal'
+        ),
+        [`color literal in ${property}: ${literal}`],
+        declaration
+      )
+    }
+  })
+
+  test(`allows token reads and colorless keywords in ${path}`, () => {
+    const declarations = [
+      'color: var(--semantic-text-primary)',
+      'color: var(--semantic-text-primary, #fff)',
+      'color: var(--semantic-text-primary, var(--semantic-text-muted, rgb(1 2 3)))',
+      'background: transparent',
+      'color: currentColor',
+      'color: inherit',
+      'fill: oklch(from var(--edge-color) clamp(0.2, l, 0.6) c h)',
+      'transform: rotate(45deg)',
+      'margin: calc(tan(45deg) * 1px)',
+      'font-family: "Tomato Sans", Wotfard',
+      'background-image: url(#red)',
+      'mask-image: linear-gradient(to top, black, transparent)',
+      '-webkit-mask-image: radial-gradient(circle, transparent 56%, black 57%)',
+      'white-space: nowrap',
+      'grid-area: red-zone',
+    ]
+
+    for (const declaration of declarations) {
+      assert.deepEqual(
+        matchesWith(
+          [{ path, content: `.hero { ${declaration}; }` }],
+          'color literal'
+        ),
+        [],
+        declaration
+      )
+    }
+    assert.deepEqual(
+      matchesWith(
+        [
+          {
+            path,
+            content:
+              '/* #abcdef */ @supports (color: oklch(from red l c h)) { .hero { color: var(--semantic-text-primary); } }',
+          },
+        ],
+        'color literal'
+      ),
+      []
+    )
+  })
+}
+
+test('a mask keyword stays a literal everywhere a mask does not read it', () => {
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: HOME_CSS,
+          content: [
+            '.hero { color: black; }',
+            '.hero { mask-image: linear-gradient(red, black); }',
+            '.hero { mask-image: linear-gradient(#123456, black); }',
+          ].join('\n'),
+        },
+      ],
+      'color literal'
+    ),
+    [
+      'color literal in color: black',
+      'color literal in mask-image: red',
+      'color literal in mask-image: #123456',
+    ]
+  )
+})
+
+test('scopes the color literal rule to the site stylesheets', () => {
+  assert.deepEqual(
+    matchesWith(
+      [{ path: PLAYGROUND_CSS, content: '.pg-title { color: #123456; }' }],
+      'color literal'
+    ),
+    []
+  )
+})
+
+test('rejects a primitive read in any site stylesheet', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  for (const path of [GLOBAL_CSS, HOME_CSS, PLAYGROUND_CSS]) {
+    assert.deepEqual(
+      findLichenColorViolations([
+        {
+          path,
+          content: [
+            '.a { color: var(--semantic-text-primary); }',
+            '.b { color: var(--primitives-color-brand-45); }',
+            '.c { color: var(--semantic-text-primary, var(--primitives-color-brand-45)); }',
+          ].join('\n'),
+        },
+      ]).filter(violation =>
+        violation.match.startsWith('site CSS reads a primitive:')
+      ),
+      [
+        {
+          path,
+          line: 2,
+          match: 'site CSS reads a primitive: --primitives-color-brand-45',
+        },
+        {
+          path,
+          line: 3,
+          match: 'site CSS reads a primitive: --primitives-color-brand-45',
+        },
+      ]
+    )
+  }
+})
+
+test('allows semantic reads, comments, and the generated token file', () => {
+  const generated = readRepositoryFile('apps/docs/tokens/generated/tokens.css')
+  assert.match(generated, /--primitives-color-brand-45/u)
+
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: PLAYGROUND_CSS,
+          content:
+            '/* never var(--primitives-color-brand-45) */ .a { color: var(--semantic-text-primary); }',
+        },
+        { path: 'apps/docs/tokens/generated/tokens.css', content: generated },
+      ],
+      'site CSS'
+    ),
+    []
+  )
+})
+
+test('rejects a stylesheet that redeclares a token', () => {
+  const findLichenColorViolations = getLichenValidator()
+  const homeCss = readRepositoryFile(HOME_CSS).concat(
+    [
+      '',
+      '.close { --semantic-accent-solid: var(--semantic-accent-text); }',
+      '.close { --component-link-text: var(--semantic-accent-text); }',
+      '.close { --primitives-color-brand-45: var(--semantic-accent-text); }',
+    ].join('\n')
+  )
+
+  assert.deepEqual(
+    findLichenColorViolations([{ path: HOME_CSS, content: homeCss }]).map(
+      violation => violation.match
+    ),
+    [
+      'site CSS redeclares a token: --semantic-accent-solid',
+      'site CSS redeclares a token: --component-link-text',
+      'site CSS redeclares a token: --primitives-color-brand-45',
+    ]
+  )
+})
+
+test('allows a stylesheet its own local variables', () => {
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: HOME_CSS,
+          content: '.graph-edge { --edge-color: var(--component-graph-edge); }',
+        },
+      ],
+      'site CSS'
+    ),
+    []
+  )
+})
+
+test('requires global.css to import the generated tokens', () => {
+  const message = 'global.css must import ../tokens/generated/tokens.css'
+  const globalCss = readRepositoryFile(GLOBAL_CSS)
+
+  assert.deepEqual(
+    matchesWith([{ path: GLOBAL_CSS, content: globalCss }], 'global.css must'),
+    []
+  )
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: GLOBAL_CSS,
+          content: globalCss.replace(
+            "@import '../tokens/generated/tokens.css';",
+            ''
+          ),
+        },
+      ],
+      'global.css must'
+    ),
+    [message]
+  )
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: HOME_CSS,
+          content: readRepositoryFile(HOME_CSS),
+        },
+      ],
+      'global.css must'
+    ),
+    []
   )
 })
 
@@ -530,7 +846,7 @@ test('rejects retired glow, rings, and pointer tracking', () => {
   const findLichenColorViolations = getLichenValidator()
   const violations = findLichenColorViolations([
     {
-      path: 'apps/docs/components/landing/token-graph.tsx',
+      path: TOKEN_GRAPH,
       content: [
         `<div className='mark-glow mark-ring graph-node graph-edge' />`,
         `window.addEventListener('pointermove', onMove)`,
@@ -548,80 +864,295 @@ test('rejects retired glow, rings, and pointer tracking', () => {
   )
 })
 
-test('rejects blur filters on governance homepage selectors', () => {
-  const findLichenColorViolations = getLichenValidator()
-  const violations = findLichenColorViolations([
-    {
-      path: 'apps/docs/app/global.css',
-      content: '.governance-hero { backdrop-filter: blur(12px); }',
-    },
-  ])
+test('rejects pointer tracking on every global target', () => {
+  for (const line of [
+    `window.addEventListener('pointermove', onMove)`,
+    `window?.addEventListener("pointermove", onMove)`,
+    `globalThis.addEventListener('pointermove', onMove)`,
+    `self.addEventListener('pointermove', onMove)`,
+    `document.addEventListener('pointermove', onMove)`,
+    `document.body.addEventListener('pointermove', onMove)`,
+    `document.documentElement.addEventListener('pointermove', onMove)`,
+    `window.addEventListener('mousemove', onMove)`,
+    `addEventListener('pointermove', onMove)`,
+    `  addEventListener(\n    'pointermove',\n    onMove\n  )`,
+  ]) {
+    assert.deepEqual(
+      matchesWith(
+        [{ path: 'apps/docs/components/landing/new-panel.tsx', content: line }],
+        'homepage regression:'
+      ),
+      ['homepage regression: global pointer tracking'],
+      line
+    )
+  }
+})
 
-  assert.equal(
-    violations.some(
-      violation =>
-        violation.match ===
-        'token graph: blur and filter effects are prohibited'
+test('allows a pointer listener scoped to one element', () => {
+  for (const line of [
+    `svg.addEventListener('pointermove', onGraphMove)`,
+    `element?.addEventListener('pointermove', onMove)`,
+    `dial.current.addEventListener('pointermove', onMove)`,
+    `document.addEventListener('pointerover', onPageOver)`,
+    `window.addEventListener('pointerdown', onPress)`,
+  ]) {
+    assert.deepEqual(
+      matchesWith(
+        [{ path: 'apps/docs/components/landing/new-panel.tsx', content: line }],
+        'homepage regression:'
+      ),
+      [],
+      line
+    )
+  }
+})
+
+test('the retired mark and board stay out of homepage source', () => {
+  for (const [content, label] of [
+    [`<g className='board-token' />`, 'retired token board'],
+    [`<path className='tree-edge' />`, 'retired token board'],
+    [`import { TokenBoard } from './token-board'`, 'retired token board'],
+    [`import { useTrace } from './use-tree-trace'`, 'retired token board'],
+    [`import { W } from '@/lib/landing/board-geometry'`, 'retired token board'],
+    [
+      `import { brand } from '@/lib/landing/brand-example'`,
+      'retired token board',
+    ],
+    ['.close { color: var(--home-lit); }', 'retired token board'],
+    [`<div style={{ filter: 'blur(2px)' }} />`, 'inline filter effect'],
+    [`<div style={{ backdropFilter: 'blur(2px)' }} />`, 'inline filter effect'],
+    [`<g filter='url(#glow)' />`, 'inline filter effect'],
+    [`<div className='backdrop-blur' />`, 'inline filter effect'],
+    [`<h1 className='bg-clip-text' />`, 'inline gradient text'],
+    [`<h1 style={{ backgroundClip: 'text' }} />`, 'inline gradient text'],
+  ]) {
+    assert.deepEqual(
+      matchesWith(
+        [{ path: 'apps/docs/components/landing/new-panel.tsx', content }],
+        'homepage regression:'
+      ),
+      [`homepage regression: ${label}`],
+      content
+    )
+  }
+})
+
+test('the regression rules leave ordinary homepage source and other folders alone', () => {
+  for (const content of [
+    `<g className='graph-node' />`,
+    'const rows = tokens.filter(token => token.layer === layer)',
+    `<div className='board' style={{ color: tokenVar(path) }} />`,
+  ]) {
+    assert.deepEqual(
+      matchesWith(
+        [{ path: 'apps/docs/components/landing/new-panel.tsx', content }],
+        'homepage regression:'
+      ),
+      [],
+      content
+    )
+  }
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: 'apps/docs/components/playground/panel.tsx',
+          content: `window.addEventListener('pointermove', onMove)`,
+        },
+      ],
+      'homepage regression:'
     ),
-    true
+    []
   )
 })
 
-test('rejects a later Living Canopy root override', () => {
+test('rejects blur filters on homepage selectors', () => {
   const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = readFileSync(
-    join(repositoryRoot, 'apps/docs/app/global.css'),
-    'utf8'
-  ).concat("\n.graph-edge[data-tone='governed'] { stroke: #ff0000; }\n")
+  const violations = findLichenColorViolations([
+    {
+      path: HOME_CSS,
+      content: [
+        '.home-hero { backdrop-filter: blur(12px); }',
+        '.graph-edge { filter: drop-shadow(0 0 4px var(--x)); }',
+        '.crown { filter: blur(2px); }',
+        '.island { -webkit-backdrop-filter: blur(2px); }',
+      ].join('\n'),
+    },
+    {
+      path: GLOBAL_CSS,
+      content: '.site-header { backdrop-filter: blur(8px); }',
+    },
+  ])
+
+  assert.deepEqual(
+    violations
+      .filter(
+        violation =>
+          violation.match === 'homepage: blur and filter effects are prohibited'
+      )
+      .map(violation => [violation.path, violation.line]),
+    [
+      [HOME_CSS, 1],
+      [HOME_CSS, 2],
+      [HOME_CSS, 3],
+      [HOME_CSS, 4],
+      [GLOBAL_CSS, 1],
+    ]
+  )
+})
+
+test('rejects gradient text on homepage selectors', () => {
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: HOME_CSS,
+          content: [
+            '.hero-title { background-clip: text; }',
+            '.hero-title { -webkit-background-clip: text; }',
+            '.hero-title { -webkit-text-fill-color: transparent; }',
+            '.hero-title { background: linear-gradient(var(--a), var(--b)) text; }',
+          ].join('\n'),
+        },
+      ],
+      'homepage: gradient text'
+    ),
+    Array.from({ length: 4 }, () => 'homepage: gradient text is prohibited')
+  )
+})
+
+test('the effect rules allow masks, token backgrounds, and other files', () => {
+  assert.deepEqual(
+    matchesWith(
+      [
+        {
+          path: HOME_CSS,
+          content: [
+            '.graph-stub { mask-image: linear-gradient(to top, black, transparent); }',
+            '.crown-button { background: var(--semantic-text-primary); }',
+            '.crown-button { background-clip: padding-box; }',
+            '.hero { transition-property: filter; }',
+          ].join('\n'),
+        },
+        {
+          path: PLAYGROUND_CSS,
+          content: '.pg-title { filter: blur(2px); background-clip: text; }',
+        },
+      ],
+      'homepage:'
+    ),
+    []
+  )
+})
+
+test('requires the structural classes in the token graph', () => {
+  const findLichenColorViolations = getLichenValidator()
 
   assert.deepEqual(
     findLichenColorViolations([
-      { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).filter(violation => violation.match.startsWith('token graph: missing')),
+      {
+        path: TOKEN_GRAPH,
+        content: `<g className='node' /><path className='edge' />`,
+      },
+    ]),
     [
       {
-        path: 'apps/docs/app/global.css',
+        path: TOKEN_GRAPH,
         line: null,
-        match: 'token graph: missing Lichen governed edge',
+        match: 'token graph: missing structural node class',
+      },
+      {
+        path: TOKEN_GRAPH,
+        line: null,
+        match: 'token graph: missing structural edge class',
       },
     ]
   )
 })
 
-test('rejects a qualified Living Canopy root override', () => {
-  const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = readFileSync(
-    join(repositoryRoot, 'apps/docs/app/global.css'),
-    'utf8'
-  ).concat('\n.graph-node-box:first-child { fill: #ff0000; }\n')
-
-  assert.equal(
-    findLichenColorViolations([
-      { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).some(
-      violation => violation.match === 'token graph: missing graph node surface'
+test('the token graph carries its structural classes', () => {
+  assert.deepEqual(
+    matchesWith(
+      [{ path: TOKEN_GRAPH, content: readRepositoryFile(TOKEN_GRAPH) }],
+      'token graph:'
     ),
-    true
+    []
   )
 })
 
-test('rejects an earlier higher-specificity Living Canopy root override', () => {
+test('rejects a later token graph override', () => {
   const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-  const globalCss = [
-    '.governance-home .graph-node-box { fill: #ff0000; }',
-    readFileSync(join(repositoryRoot, 'apps/docs/app/global.css'), 'utf8'),
+  const homeCss = readRepositoryFile(HOME_CSS).concat(
+    '\n.graph-svg .graph-break { --edge-color: var(--component-graph-lit); }\n'
+  )
+
+  assert.deepEqual(
+    findLichenColorViolations([{ path: HOME_CSS, content: homeCss }]).filter(
+      violation => violation.match.startsWith('token graph: missing')
+    ),
+    [
+      {
+        path: HOME_CSS,
+        line: null,
+        match: 'token graph: missing fail-colored broken reference',
+      },
+    ]
+  )
+})
+
+test('rejects a qualified token graph override', () => {
+  const homeCss = readRepositoryFile(HOME_CSS).concat(
+    '\n.graph-node:focus-visible > *:first-child { stroke: var(--component-graph-lit); }\n'
+  )
+
+  assert.deepEqual(
+    matchesWith([{ path: HOME_CSS, content: homeCss }], 'token graph: missing'),
+    ['token graph: missing node focus outline']
+  )
+})
+
+test('rejects an earlier higher-specificity token graph override', () => {
+  const homeCss = [
+    '.home .graph-node.is-lit .node-swatch { stroke: var(--component-graph-fail); }',
+    readRepositoryFile(HOME_CSS),
   ].join('\n')
 
-  assert.equal(
+  assert.deepEqual(
+    matchesWith([{ path: HOME_CSS, content: homeCss }], 'token graph: missing'),
+    ['token graph: missing lit node outline']
+  )
+})
+
+test('rejects an important token graph override', () => {
+  const homeCss = readRepositoryFile(HOME_CSS).concat(
+    '\n.graph-svg .graph-edge.is-lit { fill-opacity: 0.5 !important; }\n'
+  )
+
+  assert.deepEqual(
+    matchesWith([{ path: HOME_CSS, content: homeCss }], 'token graph: missing'),
+    ['token graph: missing lit lineage edge']
+  )
+})
+
+test('the homepage stylesheet satisfies the token graph contract', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
     findLichenColorViolations([
-      { path: 'apps/docs/app/global.css', content: globalCss },
-    ]).some(
-      violation => violation.match === 'token graph: missing graph node surface'
-    ),
-    true
+      { path: HOME_CSS, content: readRepositoryFile(HOME_CSS) },
+    ]),
+    []
+  )
+})
+
+test('the site stylesheet satisfies the color contract', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      { path: GLOBAL_CSS, content: readRepositoryFile(GLOBAL_CSS) },
+    ]),
+    []
   )
 })
 
@@ -632,7 +1163,7 @@ test('rejects a gradient in a static brand asset', () => {
     findLichenColorViolations([
       {
         path: 'apps/docs/public/favicon.svg',
-        content: '<svg><linearGradient id="fill"/><path fill="#0B9464"/></svg>',
+        content: '<svg><linearGradient id="fill"/><path fill="#429C5A"/></svg>',
       },
     ]),
     [
@@ -653,14 +1184,34 @@ test('rejects an extra fill in a static brand asset', () => {
       {
         path: 'apps/docs/public/favicon.svg',
         content:
-          '<svg fill="none"><path fill="#0B9464"/><path fill="#ff0000"/></svg>',
+          '<svg fill="none"><path fill="#429C5A"/><path fill="#ff0000"/></svg>',
       },
     ]),
     [
       {
         path: 'apps/docs/public/favicon.svg',
         line: 1,
-        match: 'mark fill: expected #0b9464, found #ff0000',
+        match: 'mark fill: expected #429c5a, found #ff0000',
+      },
+    ]
+  )
+})
+
+test('rejects a static brand asset with no fill', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/public/primitree-icon.svg',
+        content: '<svg fill="none"><path d="M0 0"/></svg>',
+      },
+    ]),
+    [
+      {
+        path: 'apps/docs/public/primitree-icon.svg',
+        line: null,
+        match: 'mark fill: expected #ffffff, found missing',
       },
     ]
   )
@@ -672,7 +1223,7 @@ test('rejects style paint and strokes in a static brand asset', () => {
     {
       path: 'apps/docs/public/favicon.svg',
       content:
-        '<svg fill="none"><path fill="#0B9464" stroke="#ff0000" style="fill:#ff0000"/></svg>',
+        '<svg fill="none"><path fill="#429C5A" stroke="#ff0000" style="fill:#ff0000"/></svg>',
     },
   ])
 
@@ -690,12 +1241,29 @@ test('rejects style paint and strokes in a static brand asset', () => {
   ])
 })
 
-test('the repository satisfies the approved Lichen color contract', () => {
+test('a static brand asset with one approved fill passes', () => {
   const findLichenColorViolations = getLichenValidator()
-  const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 
   assert.deepEqual(
-    findLichenColorViolations(readBrandRecords(repositoryRoot)),
+    findLichenColorViolations([
+      {
+        path: 'apps/docs/public/favicon.svg',
+        content: '<svg fill="none"><path fill="#429C5A"/></svg>',
+      },
+      {
+        path: 'apps/docs/public/primitree-icon.svg',
+        content: '<svg fill="none"><path fill="white"/></svg>',
+      },
+    ]),
+    []
+  )
+})
+
+test('the repository satisfies the approved color contract', () => {
+  const findLichenColorViolations = getLichenValidator()
+
+  assert.deepEqual(
+    findLichenColorViolations(readBrandRecords(REPOSITORY_ROOT)),
     []
   )
 })

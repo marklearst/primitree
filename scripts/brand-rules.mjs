@@ -17,6 +17,7 @@ const APPROVED_REFERENCE_PATHS = new Set([
 ])
 const EXCLUDED_DIRECTORIES = new Set([
   '.git',
+  '.impeccable',
   '.review-state',
   '.next',
   '.turbo',
@@ -29,91 +30,280 @@ const EXCLUDED_DIRECTORIES = new Set([
 ])
 const BRAND_PATTERN =
   /@figma[-]vars\/hooks(?:@\d+\.\d+\.\d+)?|@figma[-]vars\/|@figma(?:vars)\/|figma(?:[-_]|)vars|--[\w-]*fv-[\w-]+|\b(?:bg|text|border|ring|fill|stroke)-fv-[\w-]+/gi
-const LICHEN_CONTRACT_PATHS = new Set([
+const SITE_STYLES_PATH = 'apps/docs/app/global.css'
+const HOMEPAGE_STYLES_PATH = 'apps/docs/components/landing/home.css'
+const TOKEN_GRAPH_PATH = 'apps/docs/components/landing/token-graph.tsx'
+const GENERATED_TOKENS_IMPORT = '../tokens/generated/tokens.css'
+const GENERATED_TOKENS_PREFIX = 'apps/docs/tokens/generated/'
+const COLOR_CONTRACT_PATHS = new Set([
   'README.md',
-  'apps/docs/app/global.css',
-  'apps/docs/components/landing/token-graph.tsx',
+  SITE_STYLES_PATH,
+  HOMEPAGE_STYLES_PATH,
+  TOKEN_GRAPH_PATH,
   'apps/docs/components/playground/playground.css',
   'apps/docs/public/favicon.svg',
   'apps/docs/public/primitree-icon.svg',
-  'apps/playground/public/favicon.svg',
-  'apps/playground/src/assets/primitree-icon.svg',
-  'apps/playground/src/styles.css',
 ])
-const LICHEN_UI_PREFIXES = ['apps/docs/', 'apps/playground/']
-const LICHEN_UI_SOURCE_PATTERN = /\.(?:css|html|svg|[cm]?[jt]sx?)$/u
+const COLOR_UI_PREFIXES = ['apps/docs/', 'apps/playground/']
+const COLOR_UI_SOURCE_PATTERN = /\.(?:css|html|svg|[cm]?[jt]sx?)$/u
 const TEST_SOURCE_PATTERN = /(?:^|\/)(?:__tests__|tests?)\/|\.(?:spec|test)\./u
 const FORMER_BRAND_COLOR_PATTERN =
   /#(?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|3ddc97|ffb454|ff6b81|a8c95f|5f7f2f|dde9b9|45c98b|f2b84b|f27575)(?:[\da-f]{2})?(?![\da-f])|rgba?\(\s*(?:139(?:\s*,\s*|\s+)156(?:\s*,\s*|\s+)255|123(?:\s*,\s*|\s+)140(?:\s*,\s*|\s+)255|61(?:\s*,\s*|\s+)220(?:\s*,\s*|\s+)151|255(?:\s*,\s*|\s+)180(?:\s*,\s*|\s+)84|255(?:\s*,\s*|\s+)107(?:\s*,\s*|\s+)129|168(?:\s*,\s*|\s+)201(?:\s*,\s*|\s+)95|69(?:\s*,\s*|\s+)201(?:\s*,\s*|\s+)139|242(?:\s*,\s*|\s+)184(?:\s*,\s*|\s+)75|242(?:\s*,\s*|\s+)117(?:\s*,\s*|\s+)117)[^)]*\)/gi
 const FORMER_BADGE_COLOR_PATTERN =
   /img\.shields\.io\/badge\/[^)\s]*-((?:8b9cff|6d82ff|c7d2fe|a78bfa|7b8cff|5e70ff|b18cff|3ddc97|ffb454|ff6b81|a8c95f|5f7f2f|dde9b9|45c98b|f2b84b|f27575)(?:[\da-f]{2})?)(?=[)\s]|$)/gi
-/** Approved values per variable. An array lists the dark value first and the
- * light-theme override second; every declaration must match one of them. */
+/** The alias each site role must hold. A theme re-aliases the semantic layer,
+ * so a role that names a semantic token follows every theme and the dial. */
 const APPROVED_CSS_VARIABLES = new Map([
   [
-    'apps/docs/app/global.css',
+    SITE_STYLES_PATH,
     new Map([
-      ['--color-primitree-bg', ['#0b0f0d', '#f6faf8']],
-      ['--color-primitree-surface', ['#101512', '#ffffff']],
-      ['--color-primitree-raised', ['#161c18', '#eef4f0']],
-      ['--color-primitree-elevated', ['#1c241f', '#e4ece7']],
-      ['--color-primitree-text', ['#f0f5f2', '#0a1510']],
-      ['--color-primitree-accent', ['#34d399', '#0b9464']],
-      ['--color-primitree-accent-strong', ['#0b9464']],
-      ['--color-primitree-accent-soft', ['#6ee7b7', '#087a52']],
-      ['--color-primitree-accent-ink', ['#04251a', '#eafff6']],
+      ['--color-primitree-bg', 'var(--semantic-surface-page)'],
+      ['--color-primitree-surface', 'var(--semantic-surface-raised)'],
+      ['--color-primitree-raised', 'var(--semantic-surface-sunken)'],
+      ['--color-primitree-elevated', 'var(--semantic-surface-sunken)'],
+      ['--color-primitree-border', 'var(--semantic-border-subtle)'],
+      ['--color-primitree-border-strong', 'var(--semantic-border-strong)'],
+      ['--color-primitree-edge', 'var(--semantic-border-strong)'],
+      ['--color-primitree-text', 'var(--semantic-text-primary)'],
+      ['--color-primitree-muted', 'var(--semantic-text-muted)'],
+      ['--color-primitree-dim', 'var(--semantic-text-muted)'],
+      ['--color-primitree-accent', 'var(--semantic-accent-text)'],
+      ['--color-primitree-accent-strong', 'var(--semantic-accent-solid)'],
+      ['--color-primitree-accent-soft', 'var(--semantic-accent-solidHover)'],
+      ['--color-primitree-accent-ink', 'var(--semantic-text-onAccent)'],
+      ['--color-primitree-accent-fill', 'var(--semantic-accent-solid)'],
       [
-        '--color-primitree-accent-wash',
-        ['rgb(52 211 153 / 10%)', 'rgb(11 148 100 / 9%)'],
+        '--color-primitree-accent-fill-hover',
+        'var(--semantic-accent-solidHover)',
       ],
-      ['--color-primitree-good', ['#34d399', '#0b9464']],
-      ['--color-primitree-warn', ['#fbbf24', '#b45309']],
-      ['--color-primitree-error', ['#f87171', '#dc2626']],
-      ['--color-fd-background', ['var(--color-primitree-bg)']],
-      ['--color-fd-foreground', ['var(--color-primitree-text)']],
-      ['--color-fd-muted', ['var(--color-primitree-surface)']],
-      ['--color-fd-muted-foreground', ['var(--color-primitree-muted)']],
-      ['--color-fd-popover', ['var(--color-primitree-raised)']],
-      ['--color-fd-popover-foreground', ['var(--color-primitree-text)']],
-      ['--color-fd-card', ['var(--color-primitree-surface)']],
-      ['--color-fd-card-foreground', ['var(--color-primitree-text)']],
-      ['--color-fd-primary', ['var(--color-primitree-accent)']],
-      ['--color-fd-primary-foreground', ['var(--color-primitree-accent-ink)']],
-      ['--color-fd-secondary', ['var(--color-primitree-raised)']],
-      ['--color-fd-secondary-foreground', ['var(--color-primitree-text)']],
-      ['--color-fd-accent', ['var(--color-primitree-accent-wash)']],
-      ['--color-fd-accent-foreground', ['var(--color-primitree-text)']],
-      ['--color-fd-border', ['var(--color-primitree-border)']],
-      ['--color-fd-ring', ['var(--color-primitree-text)']],
-      ['--color-fd-success', ['var(--color-primitree-good)']],
-      ['--color-fd-warning', ['var(--color-primitree-warn)']],
-      ['--color-fd-error', ['var(--color-primitree-error)']],
-    ]),
-  ],
-  [
-    'apps/playground/src/styles.css',
-    new Map([
-      ['--bg', ['#0b0f0d']],
-      ['--bg-surface', ['#101512']],
-      ['--bg-raised', ['#161c18']],
-      ['--bg-hover', ['#1c241f']],
-      ['--text', ['#f0f5f2']],
-      ['--accent', ['#34d399']],
-      ['--accent-strong', ['#0b9464']],
-      ['--accent-soft', ['#6ee7b7']],
-      ['--accent-wash', ['rgb(52 211 153 / 10%)']],
-      ['--good', ['#34d399']],
-      ['--warn', ['#fbbf24']],
-      ['--error', ['#f87171']],
+      ['--color-primitree-accent-wash', 'var(--semantic-accent-subtle)'],
+      ['--color-primitree-good', 'var(--semantic-accent-text)'],
+      ['--color-primitree-warn', 'var(--semantic-status-warn)'],
+      ['--color-primitree-error', 'var(--semantic-status-fail)'],
+      ['--color-primitree-error-ink', 'var(--semantic-text-onAccent)'],
+      ['--color-primitree-tint-pass', 'var(--semantic-accent-subtle)'],
+      ['--color-primitree-tint-fail', 'var(--semantic-status-failSubtle)'],
+      ['--color-primitree-hover-wash', 'var(--semantic-surface-raised)'],
+      ['--font-sans', 'var(--semantic-type-body-fontFamily)'],
+      ['--font-mono', 'var(--semantic-type-code-fontFamily)'],
+      ['--color-fd-background', 'var(--color-primitree-bg)'],
+      ['--color-fd-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-muted', 'var(--color-primitree-surface)'],
+      ['--color-fd-muted-foreground', 'var(--color-primitree-muted)'],
+      ['--color-fd-popover', 'var(--color-primitree-raised)'],
+      ['--color-fd-popover-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-card', 'var(--color-primitree-surface)'],
+      ['--color-fd-card-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-primary', 'var(--color-primitree-accent)'],
+      ['--color-fd-primary-foreground', 'var(--color-primitree-bg)'],
+      ['--color-fd-secondary', 'var(--color-primitree-raised)'],
+      ['--color-fd-secondary-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-accent', 'var(--color-primitree-accent-wash)'],
+      ['--color-fd-accent-foreground', 'var(--color-primitree-text)'],
+      ['--color-fd-border', 'var(--color-primitree-border)'],
+      ['--color-fd-ring', 'var(--color-primitree-text)'],
+      ['--color-fd-success', 'var(--color-primitree-good)'],
+      ['--color-fd-warning', 'var(--color-primitree-warn)'],
+      ['--color-fd-error', 'var(--color-primitree-error)'],
     ]),
   ],
 ])
+const APPROVED_SELECTION_BACKGROUND = 'var(--semantic-accent-subtle)'
 const APPROVED_SVG_FILLS = new Map([
-  ['apps/docs/public/favicon.svg', '#0b9464'],
+  ['apps/docs/public/favicon.svg', '#429c5a'],
   ['apps/docs/public/primitree-icon.svg', '#ffffff'],
-  ['apps/playground/public/favicon.svg', '#0b9464'],
-  ['apps/playground/src/assets/primitree-icon.svg', '#ffffff'],
 ])
+/** The graph's states, each drawn from the graph's own tokens. A broken
+ * reference has to read as the failure it is, in both themes. */
+const APPROVED_GRAPH_TREATMENTS = [
+  {
+    label: 'lit lineage edge',
+    property: 'fill-opacity',
+    selector: '.graph-svg .graph-edge.is-lit',
+    value: '1',
+  },
+  {
+    label: 'fail-colored broken reference',
+    property: '--edge-color',
+    selector: '.graph-svg .graph-break',
+    value: 'var(--component-graph-fail)',
+  },
+  {
+    label: 'lit node outline',
+    property: 'stroke',
+    selector: '.graph-node.is-lit .node-swatch',
+    value: 'var(--component-graph-lit)',
+  },
+  {
+    label: 'node focus outline',
+    property: 'stroke',
+    selector: '.graph-node:focus-visible > *',
+    value: 'var(--component-focus-ring)',
+  },
+]
+const NO_LITERAL_STYLESHEETS = new Set([SITE_STYLES_PATH, HOMEPAGE_STYLES_PATH])
+const CSS_NAMED_COLORS = [
+  'aliceblue',
+  'antiquewhite',
+  'aqua',
+  'aquamarine',
+  'azure',
+  'beige',
+  'bisque',
+  'black',
+  'blanchedalmond',
+  'blue',
+  'blueviolet',
+  'brown',
+  'burlywood',
+  'cadetblue',
+  'chartreuse',
+  'chocolate',
+  'coral',
+  'cornflowerblue',
+  'cornsilk',
+  'crimson',
+  'cyan',
+  'darkblue',
+  'darkcyan',
+  'darkgoldenrod',
+  'darkgray',
+  'darkgreen',
+  'darkgrey',
+  'darkkhaki',
+  'darkmagenta',
+  'darkolivegreen',
+  'darkorange',
+  'darkorchid',
+  'darkred',
+  'darksalmon',
+  'darkseagreen',
+  'darkslateblue',
+  'darkslategray',
+  'darkslategrey',
+  'darkturquoise',
+  'darkviolet',
+  'deeppink',
+  'deepskyblue',
+  'dimgray',
+  'dimgrey',
+  'dodgerblue',
+  'firebrick',
+  'floralwhite',
+  'forestgreen',
+  'fuchsia',
+  'gainsboro',
+  'ghostwhite',
+  'gold',
+  'goldenrod',
+  'gray',
+  'green',
+  'greenyellow',
+  'grey',
+  'honeydew',
+  'hotpink',
+  'indianred',
+  'indigo',
+  'ivory',
+  'khaki',
+  'lavender',
+  'lavenderblush',
+  'lawngreen',
+  'lemonchiffon',
+  'lightblue',
+  'lightcoral',
+  'lightcyan',
+  'lightgoldenrodyellow',
+  'lightgray',
+  'lightgreen',
+  'lightgrey',
+  'lightpink',
+  'lightsalmon',
+  'lightseagreen',
+  'lightskyblue',
+  'lightslategray',
+  'lightslategrey',
+  'lightsteelblue',
+  'lightyellow',
+  'lime',
+  'limegreen',
+  'linen',
+  'magenta',
+  'maroon',
+  'mediumaquamarine',
+  'mediumblue',
+  'mediumorchid',
+  'mediumpurple',
+  'mediumseagreen',
+  'mediumslateblue',
+  'mediumspringgreen',
+  'mediumturquoise',
+  'mediumvioletred',
+  'midnightblue',
+  'mintcream',
+  'mistyrose',
+  'moccasin',
+  'navajowhite',
+  'navy',
+  'oldlace',
+  'olive',
+  'olivedrab',
+  'orange',
+  'orangered',
+  'orchid',
+  'palegoldenrod',
+  'palegreen',
+  'paleturquoise',
+  'palevioletred',
+  'papayawhip',
+  'peachpuff',
+  'peru',
+  'pink',
+  'plum',
+  'powderblue',
+  'purple',
+  'rebeccapurple',
+  'red',
+  'rosybrown',
+  'royalblue',
+  'saddlebrown',
+  'salmon',
+  'sandybrown',
+  'seagreen',
+  'seashell',
+  'sienna',
+  'silver',
+  'skyblue',
+  'slateblue',
+  'slategray',
+  'slategrey',
+  'snow',
+  'springgreen',
+  'steelblue',
+  'tan',
+  'teal',
+  'thistle',
+  'tomato',
+  'turquoise',
+  'violet',
+  'wheat',
+  'white',
+  'whitesmoke',
+  'yellow',
+  'yellowgreen',
+]
+/** Hex, color functions, and named colors. Relative color syntax derives from
+ * another color, so `oklch(from var(--token) ...)` is not a literal, and
+ * `transparent` and `currentcolor` carry no hue of their own. */
+const COLOR_LITERAL_PATTERN = new RegExp(
+  `#[\\da-f]{3,8}(?![\\w-])|\\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\((?!\\s*from\\b)|(?<![\\w-])(?:${CSS_NAMED_COLORS.join('|')})(?![\\w(-])`,
+  'giu'
+)
+const CSS_MASK_PROPERTY_PATTERN = /^(?:-webkit-)?mask(?:-image)?$/u
+const CSS_STRING_PATTERN = /"[^"]*"|'[^']*'/gu
+const TOKEN_PROPERTY_PATTERN = /^--(?:primitives|semantic|component)-/u
+const PRIMITIVE_READ_PATTERN = /--primitives-[\w-]+/u
+const SEMANTIC_ALIAS_PATTERN = /^var\(--semantic-[\w-]+\)$/u
 
 function normalizePath(path) {
   return path.replaceAll('\\', '/')
@@ -129,7 +319,9 @@ function isFormerScopeGuard(line) {
 }
 
 function isApprovedReference(path, line, match) {
-  if (!APPROVED_REFERENCE_PATHS.has(path)) return false
+  if (!APPROVED_REFERENCE_PATHS.has(path)) {
+    return false
+  }
   if (/^@figma[-]vars\/hooks(?:@\d+\.\d+\.\d+)?$/i.test(match)) {
     return true
   }
@@ -146,8 +338,12 @@ function lineFromOffset(content, offset) {
 
 function normalizeColor(value) {
   const normalized = value.trim().toLowerCase()
-  if (normalized === 'white') return '#ffffff'
-  if (normalized === 'black') return '#000000'
+  if (normalized === 'white') {
+    return '#ffffff'
+  }
+  if (normalized === 'black') {
+    return '#000000'
+  }
   if (/^#[\da-f]{3}$/u.test(normalized)) {
     return `#${[...normalized.slice(1)].map(digit => digit.repeat(2)).join('')}`
   }
@@ -158,40 +354,18 @@ function readCssVariables(root) {
   const variables = new Map()
 
   root.walkDecls(declaration => {
-    if (!declaration.prop.startsWith('--')) return
+    if (!declaration.prop.startsWith('--')) {
+      return
+    }
     const declarations = variables.get(declaration.prop) ?? []
     declarations.push({
       line: declaration.source?.start?.line ?? null,
-      value: normalizeColor(declaration.value),
+      value: declaration.value.trim(),
     })
     variables.set(declaration.prop, declarations)
   })
 
   return variables
-}
-
-function functionalColor(value) {
-  const match = value
-    .trim()
-    .toLowerCase()
-    .match(
-      /^rgba?\(\s*(\d+)(?:\s*,\s*|\s+)(\d+)(?:\s*,\s*|\s+)(\d+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/u
-    )
-  if (!match) return null
-
-  const alpha =
-    match[4] === undefined
-      ? 1
-      : match[4].endsWith('%')
-        ? Number.parseFloat(match[4]) / 100
-        : Number.parseFloat(match[4])
-
-  return [
-    Number.parseInt(match[1], 10),
-    Number.parseInt(match[2], 10),
-    Number.parseInt(match[3], 10),
-    alpha,
-  ]
 }
 
 function findSelectionBackgrounds(root) {
@@ -235,7 +409,9 @@ function findCssPropertyDeclarations(root, selector, property) {
     const matchingSelectors = rule.selectors.filter(candidate =>
       selectorPattern.test(candidate)
     )
-    if (matchingSelectors.length === 0) return
+    if (matchingSelectors.length === 0) {
+      return
+    }
 
     for (const declaration of rule.nodes ?? []) {
       if (declaration.type === 'decl' && declaration.prop === property) {
@@ -266,9 +442,38 @@ function parseCss(violations, path, content) {
         typeof error.line === 'number'
           ? error.line
           : null,
-      match: 'CSS syntax must parse before checking the Lichen color contract',
+      match: 'CSS syntax must parse before checking the color contract',
     })
     return null
+  }
+}
+
+/** Removes each call to one of `names`, nested parentheses included. */
+function withoutCssCalls(value, names) {
+  const call = new RegExp(`(?<![\\w-])(?:${names.join('|')})\\(`, 'giu')
+  let kept = ''
+  let index = 0
+
+  for (;;) {
+    call.lastIndex = index
+    const match = call.exec(value)
+    if (match === null) {
+      return kept + value.slice(index)
+    }
+
+    kept += value.slice(index, match.index)
+    let depth = 1
+    let cursor = match.index + match[0].length
+    while (cursor < value.length && depth > 0) {
+      if (value[cursor] === '(') {
+        depth += 1
+      }
+      if (value[cursor] === ')') {
+        depth -= 1
+      }
+      cursor += 1
+    }
+    index = cursor
   }
 }
 
@@ -289,60 +494,137 @@ function addFormerColorViolations(violations, path, content) {
 
 function addCssVariableViolations(violations, path, root) {
   const expectedVariables = APPROVED_CSS_VARIABLES.get(path)
-  if (!expectedVariables || root === null) return
+  if (!expectedVariables || root === null) {
+    return
+  }
 
   const actualVariables = readCssVariables(root)
   for (const [name, expected] of expectedVariables) {
-    const allowed = expected.map(value => normalizeColor(value))
     const actual = actualVariables.get(name) ?? []
     const firstWrong = actual.find(
-      declaration => !allowed.includes(declaration.value)
+      declaration => declaration.value !== expected
     )
-    const missingValue = allowed.find(
-      value => !actual.some(declaration => declaration.value === value)
-    )
-    if (
-      actual.length > 0 &&
-      firstWrong === undefined &&
-      missingValue === undefined
-    ) {
+    if (actual.length > 0 && firstWrong === undefined) {
       continue
     }
 
     violations.push({
       path,
       line: firstWrong?.line ?? null,
-      match: `${name}: expected ${expected.join(' and ')}, found ${firstWrong?.value ?? (missingValue === undefined ? 'missing' : `no declaration for ${missingValue}`)}`,
+      match: `${name}: expected ${expected}, found ${firstWrong?.value ?? 'missing'}`,
     })
   }
 
-  const approvedSelections = [
-    [52, 211, 153, 0.25],
-    [11, 148, 100, 0.25],
-  ]
-  const selections = findSelectionBackgrounds(root)
-  const wrongSelection = selections.find(selection => {
-    const color = functionalColor(selection.value)
-    return !approvedSelections.some(
-      approved =>
-        color?.[0] === approved[0] &&
-        color[1] === approved[1] &&
-        color[2] === approved[2] &&
-        color[3] === approved[3]
+  for (const [name, declarations] of actualVariables) {
+    if (!name.startsWith('--color-primitree-') || expectedVariables.has(name)) {
+      continue
+    }
+    const firstWrong = declarations.find(
+      declaration => !SEMANTIC_ALIAS_PATTERN.test(declaration.value)
     )
-  })
-  if (selections.length > 0 && wrongSelection === undefined) return
+    if (firstWrong === undefined) {
+      continue
+    }
+
+    violations.push({
+      path,
+      line: firstWrong.line,
+      match: `${name}: expected a semantic alias, found ${firstWrong.value}`,
+    })
+  }
+
+  const selections = findSelectionBackgrounds(root)
+  const wrongSelection = selections.find(
+    selection => selection.value.trim() !== APPROVED_SELECTION_BACKGROUND
+  )
+  if (selections.length > 0 && wrongSelection === undefined) {
+    return
+  }
 
   violations.push({
     path,
     line: wrongSelection?.line ?? null,
-    match: `text selection: expected the approved selection washes, found ${wrongSelection?.value ?? 'missing'}`,
+    match: `text selection: expected ${APPROVED_SELECTION_BACKGROUND}, found ${wrongSelection?.value ?? 'missing'}`,
+  })
+}
+
+function addColorLiteralViolations(violations, path, root) {
+  if (!NO_LITERAL_STYLESHEETS.has(path) || root === null) {
+    return
+  }
+
+  root.walkDecls(declaration => {
+    // A fallback inside var() only paints when the token is missing, and a
+    // mask reads coverage, so its black never reaches the screen.
+    const value = withoutCssCalls(declaration.value, ['var', 'url']).replace(
+      CSS_STRING_PATTERN,
+      ''
+    )
+    const scanned = CSS_MASK_PROPERTY_PATTERN.test(declaration.prop)
+      ? value.replace(/\bblack\b/giu, '')
+      : value
+    for (const literal of scanned.matchAll(COLOR_LITERAL_PATTERN)) {
+      violations.push({
+        path,
+        line: declaration.source?.start?.line ?? null,
+        match: `color literal in ${declaration.prop}: ${literal[0].replace(/\($/u, '()')}`,
+      })
+    }
+  })
+}
+
+function addTokenLayerViolations(violations, path, root) {
+  if (root === null) {
+    return
+  }
+
+  root.walkDecls(declaration => {
+    const line = declaration.source?.start?.line ?? null
+    if (TOKEN_PROPERTY_PATTERN.test(declaration.prop)) {
+      violations.push({
+        path,
+        line,
+        match: `site CSS redeclares a token: ${declaration.prop}`,
+      })
+    }
+    const read = PRIMITIVE_READ_PATTERN.exec(declaration.value)
+    if (read !== null) {
+      violations.push({
+        path,
+        line,
+        match: `site CSS reads a primitive: ${read[0]}`,
+      })
+    }
+  })
+}
+
+function addGeneratedTokensImportViolation(violations, path, root) {
+  if (path !== SITE_STYLES_PATH || root === null) {
+    return
+  }
+
+  let imported = false
+  root.walkAtRules('import', rule => {
+    if (rule.params.replace(/['"]/gu, '') === GENERATED_TOKENS_IMPORT) {
+      imported = true
+    }
+  })
+  if (imported) {
+    return
+  }
+
+  violations.push({
+    path,
+    line: null,
+    match: `global.css must import ${GENERATED_TOKENS_IMPORT}`,
   })
 }
 
 function addSvgFillViolation(violations, path, content) {
   const expected = APPROVED_SVG_FILLS.get(path)
-  if (!expected) return
+  if (!expected) {
+    return
+  }
 
   const fills = Array.from(
     content.matchAll(/\bfill=["']([^"']+)["']/gu),
@@ -403,8 +685,10 @@ function addSvgFillViolation(violations, path, content) {
   }
 }
 
-function addLivingCanopyMarkupViolations(violations, path, content) {
-  if (path !== 'apps/docs/components/landing/token-graph.tsx') return
+function addTokenGraphMarkupViolations(violations, path, content) {
+  if (path !== TOKEN_GRAPH_PATH) {
+    return
+  }
 
   if (!/\bclassName=['"]graph-node['"]/u.test(content)) {
     violations.push({
@@ -425,9 +709,11 @@ function addLivingCanopyMarkupViolations(violations, path, content) {
 
 function addHomepageRegressionViolations(violations, path, content) {
   const isHomepageSource =
-    path === 'apps/docs/app/global.css' ||
+    path === SITE_STYLES_PATH ||
     path.startsWith('apps/docs/components/landing/')
-  if (!isHomepageSource) return
+  if (!isHomepageSource) {
+    return
+  }
 
   const bannedPatterns = [
     {
@@ -439,14 +725,32 @@ function addHomepageRegressionViolations(violations, path, content) {
       pattern: /(?:\.|className=['"])[\w -]*mark-ring/u,
     },
     {
+      // The rule retired a mark that tilted after the cursor from a listener on
+      // the window. A listener on one element answers that element alone.
       label: 'global pointer tracking',
-      pattern: /addEventListener\(\s*['"]pointermove['"]/u,
+      pattern:
+        /(?:^|[^\w$.])(?:(?:window|globalThis|self|document(?:\.(?:body|documentElement))?)\??\.)?addEventListener\(\s*['"](?:pointermove|mousemove)['"]/mu,
+    },
+    {
+      label: 'retired token board',
+      pattern:
+        /--home-[\w-]+|\b(?:board-token|tree-edge|token-board|use-tree-trace|board-geometry|brand-example)\b/u,
+    },
+    {
+      label: 'inline filter effect',
+      pattern: /\b(?:backdropFilter|filter)\s*[:=]\s*['"{`]|\bbackdrop-blur\b/u,
+    },
+    {
+      label: 'inline gradient text',
+      pattern: /\b(?:WebkitBackgroundClip|backgroundClip)\b|\bbg-clip-text\b/u,
     },
   ]
 
   for (const banned of bannedPatterns) {
     const match = banned.pattern.exec(content)
-    if (match === null) continue
+    if (match === null) {
+      continue
+    }
     violations.push({
       path,
       line: lineFromOffset(content, match.index ?? 0),
@@ -455,37 +759,12 @@ function addHomepageRegressionViolations(violations, path, content) {
   }
 }
 
-function addLivingCanopyStyleViolations(violations, path, root) {
-  if (path !== 'apps/docs/app/global.css' || root === null) return
+function addGraphTreatmentViolations(violations, path, root) {
+  if (path !== HOMEPAGE_STYLES_PATH || root === null) {
+    return
+  }
 
-  const expectedTreatments = [
-    {
-      label: 'graph node surface',
-      property: 'fill',
-      selector: '.graph-node-box',
-      value: 'var(--color-primitree-surface)',
-    },
-    {
-      label: 'Lichen governed edge',
-      property: 'stroke',
-      selector: ".graph-edge[data-tone='governed']",
-      value: 'var(--color-primitree-accent)',
-    },
-    {
-      label: 'coral violation edge',
-      property: 'stroke',
-      selector: ".graph-edge[data-tone='violation']",
-      value: 'var(--color-primitree-error)',
-    },
-    {
-      label: 'Bone focus treatment',
-      property: 'stroke',
-      selector: '.graph-node:focus-visible .graph-node-box',
-      value: 'var(--color-primitree-text)',
-    },
-  ]
-
-  for (const treatment of expectedTreatments) {
+  for (const treatment of APPROVED_GRAPH_TREATMENTS) {
     const declarations = findCssPropertyDeclarations(
       root,
       treatment.selector,
@@ -511,29 +790,43 @@ function addLivingCanopyStyleViolations(violations, path, root) {
       match: `token graph: missing ${treatment.label}`,
     })
   }
+}
 
-  root.walkRules(rule => {
+function addHomepageEffectViolations(violations, path, root) {
+  if (!NO_LITERAL_STYLESHEETS.has(path) || root === null) {
+    return
+  }
+
+  root.walkDecls(declaration => {
+    const property = declaration.prop.toLowerCase()
+    const line = declaration.source?.start?.line ?? null
     if (
-      !rule.selectors.some(
-        selector =>
-          selector.includes('.graph') ||
-          selector.includes('.proof') ||
-          selector.includes('.governance-')
-      )
+      property === 'filter' ||
+      property === 'backdrop-filter' ||
+      property === '-webkit-backdrop-filter'
     ) {
-      return
-    }
-
-    for (const declaration of rule.nodes ?? []) {
-      if (declaration.type !== 'decl') continue
-      const usesAtmosphericEffect =
-        declaration.prop === 'filter' || declaration.prop === 'backdrop-filter'
-      if (!usesAtmosphericEffect) continue
-
       violations.push({
         path,
-        line: declaration.source?.start?.line ?? null,
-        match: 'token graph: blur and filter effects are prohibited',
+        line,
+        match: 'homepage: blur and filter effects are prohibited',
+      })
+    }
+
+    const clipsToText =
+      (property === 'background' ||
+        property === 'background-clip' ||
+        property === '-webkit-background-clip') &&
+      /(?<![\w-])text(?![\w-])/u.test(
+        withoutCssCalls(declaration.value, ['var'])
+      )
+    const hidesTextFill =
+      property === '-webkit-text-fill-color' &&
+      /\btransparent\b/u.test(declaration.value)
+    if (clipsToText || hidesTextFill) {
+      violations.push({
+        path,
+        line,
+        match: 'homepage: gradient text is prohibited',
       })
     }
   })
@@ -547,7 +840,9 @@ export function findBrandViolations(records) {
     for (const match of matchesIn(path)) {
       violations.push({ path, line: null, match })
     }
-    if (record.content === null) continue
+    if (record.content === null) {
+      continue
+    }
 
     for (const [index, line] of record.content.split(/\r?\n/).entries()) {
       for (const match of matchesIn(line)) {
@@ -567,24 +862,32 @@ export function findLichenColorViolations(records) {
   for (const record of records) {
     const path = normalizePath(record.path)
     const isUiSource =
-      LICHEN_CONTRACT_PATHS.has(path) ||
-      (LICHEN_UI_PREFIXES.some(prefix => path.startsWith(prefix)) &&
-        LICHEN_UI_SOURCE_PATTERN.test(path) &&
+      COLOR_CONTRACT_PATHS.has(path) ||
+      (COLOR_UI_PREFIXES.some(prefix => path.startsWith(prefix)) &&
+        COLOR_UI_SOURCE_PATTERN.test(path) &&
         !TEST_SOURCE_PATTERN.test(path))
-    if (!isUiSource || record.content === null) continue
+    if (!isUiSource || record.content === null) {
+      continue
+    }
 
-    const needsCssContract =
-      APPROVED_CSS_VARIABLES.has(path) || path === 'apps/docs/app/global.css'
-    const cssRoot = needsCssContract
+    const isSiteStylesheet =
+      path.startsWith('apps/docs/') &&
+      path.endsWith('.css') &&
+      !path.startsWith(GENERATED_TOKENS_PREFIX)
+    const cssRoot = isSiteStylesheet
       ? parseCss(violations, path, record.content)
       : null
 
     addFormerColorViolations(violations, path, record.content)
     addCssVariableViolations(violations, path, cssRoot)
+    addColorLiteralViolations(violations, path, cssRoot)
+    addTokenLayerViolations(violations, path, cssRoot)
+    addGeneratedTokensImportViolation(violations, path, cssRoot)
     addSvgFillViolation(violations, path, record.content)
-    addLivingCanopyMarkupViolations(violations, path, record.content)
+    addTokenGraphMarkupViolations(violations, path, record.content)
     addHomepageRegressionViolations(violations, path, record.content)
-    addLivingCanopyStyleViolations(violations, path, cssRoot)
+    addGraphTreatmentViolations(violations, path, cssRoot)
+    addHomepageEffectViolations(violations, path, cssRoot)
   }
 
   return violations
@@ -600,15 +903,21 @@ export function readBrandRecords(repositoryRoot) {
 
   function visit(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      if (entry.isSymbolicLink()) continue
+      if (entry.isSymbolicLink()) {
+        continue
+      }
       const absolutePath = resolve(directory, entry.name)
       const path = normalizePath(relative(root, absolutePath))
 
       if (entry.isDirectory()) {
-        if (!EXCLUDED_DIRECTORIES.has(entry.name)) visit(absolutePath)
+        if (!EXCLUDED_DIRECTORIES.has(entry.name)) {
+          visit(absolutePath)
+        }
         continue
       }
-      if (!entry.isFile()) continue
+      if (!entry.isFile()) {
+        continue
+      }
 
       const buffer = readFileSync(absolutePath)
       records.push({
