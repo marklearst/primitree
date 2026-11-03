@@ -1,0 +1,256 @@
+/*!
+* @preserve
+* MonoLisa 2.017
+* This font is subject to a EULA. A user-licence can be acquired at:
+*   https://www.monolisa.dev/license
+* © 2025 FaceType Foundry. All Rights Reserved.
+*/
+
+@font-face {
+  src: url(/fonts/monolisa/0-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/1-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0020-007F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/2-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0080-00FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/3-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0080-00FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/4-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-017F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/5-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-017F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/6-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1E00-1EFF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/7-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+1E00-1EFF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/8-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2100-214F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/9-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2100-214F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/10-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2190-21FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/11-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2190-21FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/12-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2B00-2BFF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/13-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2B00-2BFF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/14-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20A0-20CF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/15-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+20A0-20CF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/16-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2200-22FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/17-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2200-22FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/18-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2580-259F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/19-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2580-259F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/20-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+25A0-25FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/21-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+25A0-25FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/22-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+2500-257F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/23-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+2500-257F;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/24-MonoLisa-normal.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+E000-F8FF;
+}
+
+@font-face {
+  src: url(/fonts/monolisa/25-MonoLisa-italic.woff2) format('woff2');
+  font-family: MonoLisa;
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+E000-F8FF;
+}
+
+/* A local monospace sized to MonoLisa's metrics, so code keeps its width and
+ * line breaks while MonoLisa loads. Where one of these fonts is installed,
+ * nothing shifts when MonoLisa swaps in. */
+@font-face {
+  font-family: 'MonoLisa fallback';
+  src:
+    local('Courier New'), local('CourierNewPSMT'), local('Courier'),
+    local('Menlo Regular'), local('Menlo-Regular'), local('Droid Sans Mono'),
+    local('DroidSansMono');
+  size-adjust: 106.7%;
+  ascent-override: 99.6%;
+  descent-override: 29.3%;
+  line-gap-override: 0%;
+}

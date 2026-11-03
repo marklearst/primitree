@@ -1,0 +1,60 @@
+/* Licensed Wotfard webfonts. Use the supplied files without conversion. */
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-light-webfont.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+  font-display: fallback;
+}
+
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-lightitalic-webfont.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 300;
+  font-display: fallback;
+}
+
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-regular-webfont.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: fallback;
+}
+
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-regularitalic-webfont.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 400;
+  font-display: fallback;
+}
+
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-medium-webfont.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: fallback;
+}
+
+@font-face {
+  font-family: Wotfard;
+  src: url('/fonts/wotfard/wotfard-mediumitalic-webfont.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 500;
+  font-display: fallback;
+}
+
+/* A local sans sized to Wotfard's metrics, so the hero keeps its line breaks
+ * while Wotfard loads. Arial runs 2.75% narrower at the same size, and the
+ * vertical metrics divide by that same ratio. */
+@font-face {
+  font-family: 'Wotfard fallback';
+  src: local('Arial'), local('ArialMT');
+  size-adjust: 102.75%;
+  ascent-override: 95.5%;
+  descent-override: 23.7%;
+  line-gap-override: 0%;
+}

@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "wotfard fallback",
+        "createdAt": "2026-10-31T08:41:44.856Z",
+        "reason": "audit batch A impeccable#5, skeptic-verified: a metric-matched local face (Arial, size-adjust 102.75%) for the Wotfard swap window; it removes the 0.185 hero CLS and the type stays Wotfard"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "monolisa fallback",
+        "createdAt": "2026-10-31T08:43:11.891Z",
+        "reason": "audit batch A impeccable#5, skeptic-verified: the metric-matched local face monolisa.css already declared, now second in the mono stack so code keeps its width while MonoLisa loads"
+      }
+    ]
+  }
+}
