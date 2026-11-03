@@ -1,13 +1,13 @@
-import { GovernanceHome } from '@/components/landing/governance-home'
+import { HomePage } from '@/components/landing/home-page'
 import { MarketingShell } from '@/components/landing/site-chrome'
 import { readPrimitreeVersion } from '@/lib/landing/release'
 
-export default function HomePage() {
+export default function Page() {
   return (
     <MarketingShell
       active='home'
       versionLabel={`v${readPrimitreeVersion()}`}>
-      <GovernanceHome />
+      <HomePage />
     </MarketingShell>
   )
 }

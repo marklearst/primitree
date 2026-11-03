@@ -1,0 +1,2301 @@
+/* The homepage. Every color, font, size, space, radius, and duration here reads a
+   token from tokens/generated/tokens.css. Raw numbers in this file set layout:
+   tracks, breakpoints, and hairline widths. */
+
+.home {
+  overflow-x: clip;
+  --gutter: max(var(--site-gutter), calc((100% - var(--site-wrap-max)) / 2));
+  --section: clamp(
+    var(--semantic-space-layout-sectionMin),
+    9vw,
+    var(--semantic-space-layout-sectionMax)
+  );
+
+  color: var(--semantic-text-primary);
+  font-size: var(--semantic-type-body-fontSize);
+  font-weight: var(--semantic-type-body-fontWeight);
+  line-height: var(--semantic-type-body-lineHeight);
+}
+
+.home [id] {
+  scroll-margin-top: var(--semantic-space-layout-sectionMin);
+}
+
+/* A change reaches the page three steps after it leaves the primitives. */
+.home [data-tokens] {
+  transition-property: color, background-color, border-color;
+  transition-duration: var(--semantic-motion-duration-reveal);
+  transition-timing-function: var(--semantic-motion-ease-enter);
+  transition-delay: calc(3 * var(--semantic-motion-duration-causal));
+}
+
+/* The ring lands with the thread that reaches it, not before. Both stay brand:
+   they trace the accent through the page, where the focus ring stays neutral. */
+.is-reached {
+  outline: 2px dashed var(--semantic-accent-solid);
+  outline-offset: var(--semantic-space-inline-tight);
+  animation: reach-in var(--semantic-motion-duration-reveal) steps(1, end) both;
+}
+
+@keyframes reach-in {
+  from {
+    outline-color: transparent;
+  }
+}
+
+.crown-dial.is-reached {
+  border-radius: 50%;
+}
+
+/* The threads that carry a lit token up into the page: the fourth layer. */
+.page-threads {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.page-thread {
+  fill: none;
+  stroke: var(--semantic-accent-solid);
+  stroke-dasharray: 1;
+  stroke-linecap: round;
+  stroke-width: 2;
+  animation: thread-draw var(--semantic-motion-duration-reveal)
+    var(--semantic-motion-ease-enter) both;
+}
+
+@keyframes thread-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.home :where(a, button, summary, input):focus-visible {
+  outline: 2px solid var(--component-focus-ring);
+  outline-offset: 3px;
+}
+
+/* On an ink panel the neutral ring would sink into the panel, so a control
+   there takes the panel's own text color and draws inside its own box, where
+   every edge of the ring lies over the ink. */
+.home :where(.install-command, .code-panel) button:focus-visible {
+  outline-color: var(--semantic-syntax-base);
+  outline-offset: -3px;
+}
+
+.home :where(h1, h2, h3) {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.home :where(p) {
+  margin: 0;
+}
+
+.home :where(p, dd, li, figcaption) {
+  text-wrap-style: pretty;
+}
+
+.home :where(code) {
+  overflow-wrap: anywhere;
+  font-size: inherit;
+}
+
+/* MonoLisa runs wider and taller than Wotfard, so code set inside a sentence steps
+   down to match it. A code block keeps its own size. */
+.home :where(:not(pre) > code) {
+  font-size: max(
+    calc(var(--semantic-type-code-inlineScale) * 1em),
+    var(--semantic-type-caption-fontSize)
+  );
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ---------- actions ---------- */
+
+.button-primary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--semantic-space-inline-default);
+  padding: var(--component-button-paddingBlock)
+    var(--component-button-paddingInline);
+  font-size: var(--semantic-type-control-fontSize);
+  font-weight: var(--semantic-type-control-fontWeight);
+  white-space: nowrap;
+  text-decoration: none;
+  background-color: var(--component-button-primary-background);
+  border-radius: var(--component-button-radius);
+  color: var(--component-button-primary-text);
+}
+
+/* A press and a hover answer at once, both ways. A retheme still arrives on the
+   wave: the store marks the root while it writes, and a transition keeps the
+   timing it started with. */
+.home a.button-primary {
+  transition-property: color, background-color, transform;
+  transition-duration: var(--component-button-transition-duration);
+  transition-delay: calc(0 * var(--semantic-motion-duration-causal));
+}
+
+:root[data-settling] .home a.button-primary {
+  transition-duration:
+    var(--semantic-motion-duration-reveal),
+    var(--semantic-motion-duration-reveal),
+    var(--component-button-transition-duration);
+  transition-delay:
+    calc(3 * var(--semantic-motion-duration-causal)),
+    calc(3 * var(--semantic-motion-duration-causal)),
+    calc(0 * var(--semantic-motion-duration-causal));
+}
+
+/* Every control answers a pointer: a press-in one neutral step, a heavier
+   underline, or the panel's brighter ink. */
+@media (hover: hover) {
+  .home a.button-primary:hover {
+    background-color: var(--component-button-primary-backgroundHover);
+  }
+
+  .crown-button:not([aria-pressed='true']):hover,
+  .crown-switch:hover,
+  .rule-switch:hover {
+    background: var(--semantic-surface-sunken);
+  }
+
+  .install-manager:not(:has(:checked)):hover {
+    color: var(--component-chooser-selectedText);
+  }
+
+  .close .install-manager:not(:has(:checked)):hover {
+    color: var(--semantic-syntax-base);
+  }
+
+  .text-link:hover,
+  .close-links a:hover {
+    text-decoration-thickness: 3px;
+  }
+
+  .install-command .copy-button:hover {
+    color: var(--component-code-prompt);
+  }
+
+  .code-panel-head .copy-button:hover {
+    color: var(--semantic-syntax-base);
+  }
+
+  .ledger-details summary:hover {
+    color: var(--component-link-text);
+  }
+}
+
+.button-primary:active {
+  transform: scale(0.96);
+}
+
+.text-link {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: var(--semantic-space-inline-tight);
+}
+
+.run-prompt {
+  color: var(--component-code-prompt);
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  position: relative;
+  display: grid;
+  row-gap: var(--semantic-space-layout-gap);
+  padding: var(--semantic-space-stack-default) var(--gutter) 0;
+}
+
+.hero-title {
+  font-family: var(--semantic-type-display-fontFamily);
+  font-size: clamp(
+    var(--semantic-type-display-fontSizeMin),
+    6.2vw,
+    var(--semantic-type-display-fontSizeMax)
+  );
+  font-weight: var(--semantic-type-display-fontWeight);
+  letter-spacing: calc(var(--semantic-type-display-letterSpacing) * 1em);
+  line-height: var(--semantic-type-display-lineHeight);
+}
+
+.hero-title span {
+  display: block;
+}
+
+.hero-body {
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+}
+
+.hero-lede,
+.hero-invite,
+.hero-action {
+  max-width: 49rem;
+}
+
+.hero-lede {
+  font-size: var(--semantic-type-lede-fontSize);
+  line-height: var(--semantic-type-lede-lineHeight);
+}
+
+.hero-invite {
+  font-size: var(--semantic-type-small-fontSize);
+  line-height: var(--semantic-type-small-lineHeight);
+}
+
+.hero-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--semantic-space-stack-default);
+}
+
+.hero-source {
+  max-width: 60rem;
+  padding-bottom: var(--semantic-space-stack-default);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+/* The copy stacks in the first column and the dial stands beside it, from the
+   lede down, so the markup reads in the order the phone shows. */
+@media (min-width: 1000px) {
+  .hero-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    align-items: start;
+    column-gap: var(--semantic-space-stack-wide);
+  }
+
+  .hero-lede,
+  .hero-action,
+  .hero-invite {
+    grid-column: 1;
+  }
+
+  .crown {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+}
+
+/* A short window: the headline drops to its floor and the hero tightens, so the
+   semantic row clears the fold at 1280 by 600. */
+@media (max-height: 719px) and (min-width: 1000px) {
+  .hero-title {
+    font-size: var(--semantic-type-display-fontSizeMin);
+  }
+
+  .hero,
+  .hero-body {
+    row-gap: var(--semantic-space-stack-tight);
+  }
+}
+
+/* ---------- install ---------- */
+
+.install {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--semantic-space-inline-default);
+  flex: 1 1 22rem;
+  min-width: 0;
+  max-width: 34rem;
+}
+
+.install-managers {
+  display: flex;
+  margin: 0;
+  border: 0;
+  border-radius: var(--component-button-radius);
+  padding: var(--semantic-space-inline-tight);
+  background: var(--component-chooser-background);
+}
+
+.install-manager {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-height: 44px;
+  place-items: center;
+  border-radius: calc(
+    var(--component-button-radius) - var(--semantic-space-inline-tight) / 2
+  );
+  color: var(--component-chooser-text);
+  font-size: var(--semantic-type-small-fontSize);
+  font-weight: var(--semantic-type-control-fontWeight);
+  cursor: pointer;
+  transition: color var(--component-button-transition-duration)
+    var(--component-button-transition-timingFunction);
+}
+
+.install-manager:has(:checked) {
+  background: var(--component-chooser-selected);
+  box-shadow: inset 0 0 0 1px var(--component-chooser-selectedBorder);
+  color: var(--component-chooser-selectedText);
+}
+
+.install-manager:has(:focus-visible) {
+  outline: 2px solid var(--component-focus-ring);
+  outline-offset: 2px;
+}
+
+.install-manager-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.install-command {
+  display: flex;
+  min-height: 44px;
+  align-items: stretch;
+  border: 1px solid var(--component-code-border);
+  border-radius: var(--component-code-radius);
+  background: var(--component-code-background);
+  color: var(--semantic-syntax-base);
+}
+
+.install-code {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  align-items: center;
+  gap: var(--semantic-space-inline-default);
+  padding-inline: var(--component-code-padding);
+  font-size: var(--semantic-type-code-fontSize);
+}
+
+.install-prompt {
+  color: var(--component-code-prompt);
+}
+
+.install-text {
+  white-space: nowrap;
+}
+
+.pm-only {
+  display: none;
+}
+
+:root:not([data-package-manager]) .pm-only[data-pm='npm']:not(.install-text),
+:root[data-package-manager='npm'] .pm-only[data-pm='npm'],
+:root[data-package-manager='pnpm'] .pm-only[data-pm='pnpm'],
+:root[data-package-manager='yarn'] .pm-only[data-pm='yarn'],
+:root[data-package-manager='bun'] .pm-only[data-pm='bun'] {
+  display: inline;
+}
+
+/* Until the root carries a choice, a chooser's command follows its own radio,
+   so the page without script stays consistent. */
+:root:not([data-package-manager])
+  .install:has(.install-manager-input[value='npm']:checked)
+  .install-text[data-pm='npm'],
+:root:not([data-package-manager])
+  .install:has(.install-manager-input[value='pnpm']:checked)
+  .install-text[data-pm='pnpm'],
+:root:not([data-package-manager])
+  .install:has(.install-manager-input[value='yarn']:checked)
+  .install-text[data-pm='yarn'],
+:root:not([data-package-manager])
+  .install:has(.install-manager-input[value='bun']:checked)
+  .install-text[data-pm='bun'] {
+  display: inline;
+}
+
+/* ---------- copy ---------- */
+
+.copy-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--semantic-space-inline-default);
+  border: 0;
+  padding-inline: var(--component-code-padding);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--semantic-type-label-fontSize);
+  font-weight: var(--semantic-type-label-fontWeight);
+  cursor: pointer;
+}
+
+/* The command's ring sits inside its box, so the control keeps its own floor. */
+.install-command .copy-button {
+  min-height: 44px;
+}
+
+.copy-button-icons,
+.copy-button-label {
+  display: inline-grid;
+}
+
+.copy-button-icons > *,
+.copy-button-label > * {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.copy-button-label > * {
+  text-align: start;
+}
+
+.copy-button[data-state='idle'] .copy-button-icons > :nth-child(1),
+.copy-button[data-state='copied'] .copy-button-icons > :nth-child(2),
+.copy-button[data-state='failed'] .copy-button-icons > :nth-child(3),
+.copy-button[data-state='idle'] [data-for='idle'],
+.copy-button[data-state='copied'] [data-for='copied'],
+.copy-button[data-state='failed'] [data-for='failed'] {
+  visibility: visible;
+}
+
+.copy-button[data-state='copied'] {
+  color: var(--semantic-syntax-reference);
+}
+
+.copy-button[data-state='failed'] {
+  color: var(--semantic-syntax-keyword);
+}
+
+.copy-status[data-visible] {
+  position: static;
+  width: auto;
+  height: auto;
+  clip-path: none;
+  color: var(--semantic-syntax-fail);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+@container (max-width: 460px) {
+  .copy-button-label {
+    display: none;
+  }
+
+  .install-code {
+    gap: var(--semantic-space-inline-tight);
+    padding-inline: var(--semantic-space-inline-default);
+    font-size: var(--semantic-type-label-fontSize);
+  }
+
+  .install-command .copy-button {
+    min-width: 44px;
+    justify-content: center;
+    padding-inline: var(--semantic-space-inline-default);
+  }
+}
+
+/* ---------- graph ---------- */
+
+.graph {
+  margin: 0 calc(-1 * var(--gutter));
+}
+
+.graph-canvas {
+  position: relative;
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* The phone's drawing mounts on the client, so its space is held from the start
+   and the drawing fades into it. */
+@media (max-width: 719px) {
+  .graph-svg-wide {
+    display: none;
+  }
+
+  .graph-canvas {
+    aspect-ratio: 358 / 308;
+  }
+
+  .graph-svg-narrow {
+    animation: graph-in var(--semantic-motion-duration-feedback)
+      var(--semantic-motion-ease-enter) both;
+  }
+}
+
+@keyframes graph-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.graph-types {
+  position: relative;
+  height: 1.5em;
+  margin: 0;
+  padding: 0;
+  color: var(--component-graph-label);
+  font-family: var(--semantic-type-code-fontFamily);
+  font-size: var(--semantic-type-caption-fontSize);
+  list-style: none;
+}
+
+.graph-types li {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.graph-types li:last-child {
+  justify-content: flex-end;
+}
+
+.graph-node {
+  outline: none;
+  transition: opacity var(--semantic-motion-duration-feedback)
+    var(--semantic-motion-ease-enter);
+}
+
+.graph-edge {
+  --edge-color: var(--component-graph-edge);
+  --rest: 0.6;
+
+  fill: var(--edge-color);
+  fill-opacity: var(--rest);
+  stroke: var(--edge-color);
+  stroke-opacity: 0;
+  stroke-width: 1.2;
+  transition:
+    fill-opacity var(--semantic-motion-duration-feedback)
+      var(--semantic-motion-ease-enter),
+    stroke-opacity var(--semantic-motion-duration-feedback)
+      var(--semantic-motion-ease-enter);
+}
+
+/* A token at the far end of the ramp would vanish on its own ground, so a ribbon
+   clamps its lightness. Its node keeps the true value. */
+@supports (color: oklch(from red l c h)) {
+  .graph-edge {
+    --edge-light: 0.22;
+    --edge-dark: 0.68;
+
+    fill: oklch(
+      from var(--edge-color) clamp(var(--edge-light), l, var(--edge-dark)) c h
+    );
+    stroke: oklch(
+      from var(--edge-color) clamp(var(--edge-light), l, var(--edge-dark)) c h
+    );
+  }
+
+  :root[data-theme='dark'] .graph-edge {
+    --edge-light: 0.56;
+    --edge-dark: 0.9;
+  }
+}
+
+.graph-stub {
+  fill: none;
+  stroke: var(--component-graph-edge);
+  stroke-linecap: round;
+  stroke-width: 1.4;
+  opacity: 0.4;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+:root[data-theme='dark'] .graph-edge[data-only='light'],
+:root:not([data-theme='dark']) .graph-edge[data-only='dark'] {
+  display: none;
+}
+
+.graph-svg.is-focusing .graph-edge {
+  fill-opacity: 0.14;
+}
+
+.graph-svg.is-focusing .graph-stub {
+  opacity: 0.12;
+}
+
+.graph-svg.is-focusing .graph-node {
+  opacity: 0.32;
+}
+
+.graph-svg .graph-edge.is-lit {
+  fill-opacity: 1;
+  stroke-opacity: 1;
+}
+
+.graph-svg .graph-stub.is-lit {
+  opacity: 1;
+}
+
+.graph-svg .graph-node.is-lit {
+  opacity: 1;
+}
+
+.node-swatch {
+  stroke: var(--component-graph-nodeBorder);
+  stroke-width: 1;
+}
+
+.graph-node.is-lit .node-swatch {
+  stroke: var(--component-graph-lit);
+  stroke-width: 2.5;
+}
+
+.graph-node:focus-visible > * {
+  stroke: var(--component-focus-ring);
+  stroke-width: 2.5;
+}
+
+.node-bar {
+  fill: var(--component-graph-lit);
+}
+
+.node-axis {
+  fill: none;
+  stroke: var(--component-graph-lit);
+  stroke-width: 1.2;
+}
+
+.node-curve {
+  fill: none;
+  stroke: var(--component-graph-lit);
+  stroke-width: 1.2;
+}
+
+.node-glyph {
+  fill: var(--component-graph-lit);
+  font-size: var(--semantic-type-glyph-fontSize);
+}
+
+/* The wave: a bright run of outline climbs both sides of each ribbon at once,
+   root to tip, so the new hue reads as light travelling up the references. The
+   dash pattern lives on a normalised path length, so one keyframe fits every
+   ribbon and no gradient is built. */
+.graph-edge.is-hot {
+  stroke-width: 2;
+  animation:
+    graph-wave var(--component-graph-wave-duration)
+      var(--semantic-motion-ease-enter)
+      calc(var(--hop, 0) * var(--component-graph-wave-step)) both,
+    graph-pulse var(--component-graph-wave-duration)
+      var(--semantic-motion-ease-move)
+      calc(var(--hop, 0) * var(--component-graph-wave-step)) both;
+}
+
+.graph-stub.is-hot {
+  animation:
+    graph-stub-wave var(--component-graph-wave-duration)
+      var(--semantic-motion-ease-enter)
+      calc(2 * var(--component-graph-wave-step)) both,
+    graph-stub-pulse var(--component-graph-wave-duration)
+      var(--semantic-motion-ease-move)
+      calc(2 * var(--component-graph-wave-step)) both;
+}
+
+/* A lit ribbon holds full light, so a dash could do nothing but thin it. The
+   pulse keeps running with no dash: dropping it by name would start a fresh one
+   when the light leaves, and the wave's end would cut that one part way. */
+.graph-svg .graph-edge.is-lit.is-hot {
+  --pulse-from: none;
+  --pulse-to: none;
+
+  stroke-width: 1.2;
+}
+
+.graph-svg .graph-stub.is-lit.is-hot {
+  --pulse-from: none;
+  --pulse-to: none;
+}
+
+@keyframes graph-pulse {
+  0% {
+    stroke-opacity: 1;
+    stroke-dasharray: var(--pulse-from, 0 0 12 76 12 0);
+  }
+
+  80% {
+    stroke-opacity: 1;
+  }
+
+  100% {
+    stroke-dasharray: var(--pulse-to, 0 38 12 0 12 38);
+  }
+}
+
+@keyframes graph-stub-pulse {
+  0% {
+    stroke-dasharray: var(--pulse-from, 0 0 14 86);
+  }
+
+  100% {
+    stroke-dasharray: var(--pulse-to, 0 86 14 0);
+  }
+}
+
+.graph-edge[data-layer='component'] {
+  --hop: 1;
+}
+
+@keyframes graph-wave {
+  0% {
+    fill-opacity: 1;
+  }
+}
+
+@keyframes graph-stub-wave {
+  0% {
+    opacity: 1;
+  }
+}
+
+.graph-band {
+  position: absolute;
+  top: var(--band-wide);
+  left: var(--gutter);
+  display: grid;
+  width: 11%;
+  transform: translateY(-50%);
+  color: var(--component-graph-label);
+  font-size: var(--semantic-type-caption-fontSize);
+  line-height: var(--semantic-type-title-lineHeight);
+  pointer-events: none;
+}
+
+.graph-band-name {
+  color: var(--semantic-text-primary);
+  font-weight: var(--semantic-type-label-fontWeight);
+}
+
+.graph-band-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transform: translate(-50%, calc(-100% - var(--semantic-space-stack-default)));
+  border-radius: var(--semantic-radius-control);
+  padding: 0 var(--semantic-space-inline-default);
+  background: var(--component-island-background);
+  color: var(--component-island-text);
+  font-family: var(--semantic-type-code-fontFamily);
+  font-size: var(--semantic-type-caption-fontSize);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.graph-tooltip[data-side='start'] {
+  transform: translate(0, calc(-100% - var(--semantic-space-stack-default)));
+}
+
+.graph-tooltip[data-side='end'] {
+  transform: translate(
+    -100%,
+    calc(-100% - var(--semantic-space-stack-default))
+  );
+}
+
+.graph-note {
+  min-height: 2.8em;
+  padding: var(--semantic-space-inline-default) var(--gutter) 0;
+  color: var(--component-graph-label);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.graph-note-chain {
+  font-size: inherit;
+  white-space: pre-line;
+}
+
+.graph-note-chain[data-idle] {
+  font-family: var(--semantic-type-body-fontFamily);
+}
+
+/* Nothing reads the number, weight, and family slabs from above, so their corner
+   of the component band holds the readout. */
+@media (min-width: 1100px) {
+  .graph {
+    position: relative;
+  }
+
+  .graph-note {
+    position: absolute;
+    top: var(--semantic-space-inline-default);
+    left: 15.5%;
+    width: 19rem;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .graph-note-chain {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 7;
+  }
+}
+
+/* A broken rule shows in the graph too: the reference it breaks turns to the
+   fail color, and the tokens it leaves behind take a ring. */
+.graph-break,
+.graph-stray {
+  display: none;
+}
+
+:root[data-breaks~='skip'] .graph-break[data-break='skip'],
+:root[data-breaks~='stray'] .graph-stray {
+  display: inline;
+}
+
+.graph-svg .graph-break {
+  --edge-color: var(--component-graph-fail);
+
+  fill-opacity: 1;
+}
+
+:root[data-breaks~='skip']
+  .graph-edge[data-from='component.link.text']:not(.graph-break) {
+  display: none;
+}
+
+/* A literal holds no reference, so its ribbon is gone. */
+:root[data-breaks~='literal'] .graph-edge[data-from='semantic.accent.solid'] {
+  display: none;
+}
+
+:root[data-breaks~='literal']
+  .graph-node[data-path='semantic.accent.solid']
+  .node-swatch,
+:root[data-breaks~='skip']
+  .graph-node[data-path='component.link.text']
+  .node-swatch,
+:root[data-breaks~='owner'] .graph-node[data-layer='component'] .node-swatch,
+:root[data-breaks~='owner'] .graph-node[data-layer='primitives'] .node-swatch {
+  stroke: var(--component-graph-fail);
+  stroke-width: 2.5;
+}
+
+/* The owner switch reaches every token outside the semantic layer, in any glyph. */
+:root[data-breaks~='owner']
+  .graph-node:is([data-layer='component'], [data-layer='primitives'])
+  :is(.node-bar, .node-glyph, .node-curve, .node-axis) {
+  fill: var(--component-graph-fail);
+  stroke: var(--component-graph-fail);
+}
+
+.graph-stray-ring {
+  fill: none;
+  stroke: var(--component-graph-fail);
+  stroke-width: 2;
+}
+
+/* ---------- the Crown ---------- */
+
+.crown {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--semantic-space-stack-default);
+  max-width: 40rem;
+}
+
+/* The knob reads the hue the pre-paint script replays, so it points right
+   before the store mounts. */
+.crown-dial {
+  --dial-hue: var(--page-hue, var(--dial-hue-shipped));
+
+  position: relative;
+  width: 176px;
+  height: 176px;
+}
+
+.crown-dial:has(.crown-input:focus-visible) {
+  border-radius: 50%;
+  outline: 2px solid var(--component-focus-ring);
+  outline-offset: 2px;
+}
+
+.crown-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.crown-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.crown-grip {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.crown-grip:active {
+  cursor: grabbing;
+}
+
+.crown-hub {
+  fill: var(--component-crown-center);
+}
+
+.crown-value {
+  fill: var(--component-crown-centerText);
+  font-size: var(--semantic-type-title-fontSize);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--semantic-type-title-fontWeight);
+}
+
+/* With a stored hue, the digits wait for the store to mount rather than print
+   the shipped hue. */
+:root[data-hue]:not([data-mounted]) .crown-value {
+  visibility: hidden;
+}
+
+.crown-unit {
+  fill: var(--component-crown-centerText);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.crown-knob-arm {
+  transform-origin: 100px 100px;
+  transform: rotate(calc(var(--dial-hue) * 1deg));
+}
+
+.crown-knob {
+  fill: var(--component-crown-knob);
+  stroke: var(--component-crown-knobBorder);
+  stroke-width: 3;
+}
+
+.crown-zone {
+  stroke-width: 3;
+}
+
+/* Both themes' arcs are in the markup; the page's theme picks one set. */
+:root[data-theme='dark'] .crown-zone[data-theme='light'],
+:root:not([data-theme='dark']) .crown-zone[data-theme='dark'] {
+  display: none;
+}
+
+.crown-zone-fail {
+  stroke: var(--semantic-status-fail);
+}
+
+.crown-zone-warn {
+  stroke: var(--semantic-status-warn);
+}
+
+.crown-controls {
+  display: grid;
+  gap: var(--semantic-space-inline-loose);
+  min-width: 0;
+}
+
+.crown-readout {
+  display: grid;
+  gap: var(--semantic-space-inline-tight);
+  margin: 0;
+  font-size: var(--semantic-type-small-fontSize);
+  font-variant-numeric: tabular-nums;
+}
+
+.crown-readout div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--semantic-space-inline-loose);
+}
+
+.crown-readout dd {
+  margin: 0;
+  color: var(--semantic-text-primary);
+  font-weight: var(--semantic-type-control-fontWeight);
+}
+
+.for-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .for-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .for-dark {
+  display: inline;
+}
+
+.crown-readout dd[data-fail] {
+  color: var(--semantic-status-fail);
+}
+
+.crown-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  gap: var(--semantic-space-inline-tight);
+}
+
+.crown-button,
+.crown-switch,
+.rule-switch {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--semantic-space-inline-default);
+  border: 0;
+  border-radius: var(--component-button-radius);
+  padding-inline: var(--semantic-space-inline-default);
+  background: var(--semantic-surface-raised);
+  color: var(--semantic-text-primary);
+  font: inherit;
+  font-size: var(--semantic-type-label-fontSize);
+  font-weight: var(--semantic-type-label-fontWeight);
+  cursor: pointer;
+  transition-duration: var(--component-button-transition-duration);
+  transition-property: background-color, color, transform;
+  transition-timing-function: var(--component-button-transition-timingFunction);
+}
+
+.crown-button[aria-pressed='true'] {
+  background: var(--semantic-surface-inverse);
+  color: var(--semantic-text-onInverse);
+}
+
+.crown-button:active,
+.crown-switch:active,
+.rule-switch:active {
+  transform: scale(0.96);
+}
+
+.crown-track,
+.rule-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--semantic-radius-pill);
+  background: var(--semantic-text-muted);
+  transition: background-color var(--semantic-motion-duration-feedback)
+    var(--semantic-motion-ease-enter);
+}
+
+.crown-thumb,
+.rule-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--semantic-surface-page);
+  transition: transform var(--semantic-motion-duration-feedback)
+    var(--semantic-motion-ease-enter);
+}
+
+[aria-checked='true'] > .crown-track,
+[aria-checked='true'] > .rule-track {
+  background: var(--semantic-status-fail);
+}
+
+[aria-checked='true'] > * > .crown-thumb,
+[aria-checked='true'] > * > .rule-thumb {
+  transform: translateX(12px);
+}
+
+/* ---------- the Island ---------- */
+
+.island {
+  display: inline-flex;
+  max-width: min(36rem, 100%);
+  height: 36px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: var(--semantic-radius-pill);
+  font-size: var(--semantic-type-label-fontSize);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--semantic-type-label-fontWeight);
+  transition: width var(--component-island-transition-duration)
+    var(--semantic-motion-ease-enter);
+}
+
+.island-inner {
+  display: inline-flex;
+  flex: none;
+  width: max-content;
+  min-width: 0;
+  max-width: min(36rem, calc(100cqi - 2px));
+  align-items: center;
+  gap: var(--semantic-space-inline-default);
+  padding-inline: var(--semantic-space-inline-loose);
+  white-space: nowrap;
+}
+
+/* New words fade in over the time the capsule takes to grow, on the in-out
+   curve, so they stay faint while the capsule is still too narrow for them.
+   The words the page loads with sit still. */
+.island-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: island-in var(--component-island-transition-duration)
+    var(--semantic-motion-ease-move) both;
+}
+
+.island-text[data-loaded] {
+  animation: none;
+}
+
+@keyframes island-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.island-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+/* A pass prints as plain words. */
+.island-dot[data-tone='plain'] {
+  display: none;
+}
+
+.island-dot[data-tone='accent'] {
+  background: var(--component-island-accent);
+}
+
+.island-dot[data-tone='warn'] {
+  background: var(--semantic-status-warn);
+}
+
+.island-dot[data-tone='fail'] {
+  background: var(--semantic-status-fail);
+}
+
+/* ---------- sections ---------- */
+
+.section {
+  padding: var(--section) var(--gutter) 0;
+  contain-intrinsic-size: auto 700px;
+}
+
+/* A moving dial skips the sections past the rules. Each holds its remembered
+   height. The rules stay out: they share a screen with the dial, and paint
+   containment moves their text a pixel. A key can turn the dial with a later
+   section on screen, and that section's text moves a pixel while the marker
+   holds. */
+:root[data-dragging=''] .section:not(.rules) {
+  content-visibility: auto;
+}
+
+.section-head p,
+.workflow-copy p {
+  color: var(--semantic-text-secondary);
+}
+
+.limits-note,
+.hero-source,
+.rules-proof figcaption {
+  color: var(--semantic-text-muted);
+}
+
+.section-head {
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+  max-width: 46rem;
+  margin-bottom: var(--semantic-space-stack-loose);
+}
+
+/* The heading takes the column; the paragraph under it keeps a reading measure. */
+.section-head p {
+  max-width: 36rem;
+}
+
+.section-head h2,
+.close-copy h2,
+.ledger-details h2 {
+  font-size: var(--semantic-type-heading-fontSize);
+  font-weight: var(--semantic-type-heading-fontWeight);
+  letter-spacing: calc(var(--semantic-type-heading-letterSpacing) * 1em);
+  line-height: var(--semantic-type-heading-lineHeight);
+}
+
+.section-more {
+  margin-top: var(--semantic-space-stack-default);
+}
+
+/* ---------- rules ---------- */
+
+.rules-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+  border-top: 1px solid var(--semantic-border-subtle);
+  padding-block: var(--semantic-space-stack-loose);
+}
+
+.rule-head {
+  display: grid;
+  align-content: start;
+  gap: var(--semantic-space-stack-default);
+}
+
+.rule-diagram {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  overflow: visible;
+}
+
+/* Ribbon shapes take the group's fill; a broken one is an outline. */
+.rule-ribbons {
+  stroke: none;
+}
+
+.rule-ribbons .rule-ribbon-broken {
+  fill: none;
+  stroke: var(--component-graph-fail);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 5;
+  stroke-linecap: round;
+}
+
+.rule-quiet {
+  opacity: 0.25;
+}
+
+.rule-dot {
+  stroke: var(--component-graph-nodeBorder);
+}
+
+.rule-ring {
+  fill: none;
+  stroke: var(--component-graph-fail);
+  stroke-width: 2;
+}
+
+.rule-label {
+  fill: var(--semantic-text-secondary);
+  font-family: var(--semantic-type-code-fontFamily);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.rule-note {
+  fill: var(--component-finding-text);
+  font-size: var(--semantic-type-caption-fontSize);
+  font-weight: var(--semantic-type-label-fontWeight);
+}
+
+.rule-diagram .when-on {
+  display: none;
+}
+
+:root[data-breaks~='literal'] [data-rule='literal'] .when-on,
+:root[data-breaks~='skip'] [data-rule='skip'] .when-on,
+:root[data-breaks~='stray'] [data-rule='stray'] .when-on,
+:root[data-breaks~='owner'] [data-rule='owner'] .when-on {
+  display: inline;
+}
+
+:root[data-breaks~='literal'] [data-rule='literal'] .when-off,
+:root[data-breaks~='skip'] [data-rule='skip'] .when-off,
+:root[data-breaks~='stray'] [data-rule='stray'] .when-off,
+:root[data-breaks~='owner'] [data-rule='owner'] .when-off {
+  display: none;
+}
+
+.rule-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--semantic-space-inline-default);
+  font-size: var(--semantic-type-title-fontSize);
+  font-weight: var(--semantic-type-title-fontWeight);
+  line-height: var(--semantic-type-title-lineHeight);
+}
+
+/* A pass stays calm: the code takes the fail color only while its rule is broken. */
+.rule-code {
+  border-radius: var(--semantic-radius-control);
+  padding: 0 var(--semantic-space-inline-default);
+  background: var(--semantic-surface-raised);
+  color: var(--semantic-text-secondary);
+  font-size: var(--semantic-type-label-fontSize);
+}
+
+:root[data-breaks~='literal'] #pt1003 .rule-code,
+:root[data-breaks~='skip'] #pt1004 .rule-code,
+:root[data-breaks~='stray'] #pt1001 .rule-code,
+:root[data-breaks~='owner'] #pt1005 .rule-code {
+  background: var(--component-finding-background);
+  color: var(--component-finding-text);
+}
+
+.rule-details {
+  display: grid;
+  gap: var(--semantic-space-stack-tight);
+  margin: 0;
+  font-size: var(--semantic-type-small-fontSize);
+  line-height: var(--semantic-type-small-lineHeight);
+}
+
+.rule-details dt {
+  color: var(--semantic-text-muted);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.rule-details dd {
+  margin: 0;
+}
+
+.rule-demo {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--semantic-space-stack-tight);
+}
+
+.rule-control {
+  display: grid;
+  gap: var(--semantic-space-stack-tight);
+  width: 100%;
+}
+
+.rule-output {
+  min-height: 3em;
+  color: var(--component-finding-text);
+  font-size: var(--semantic-type-caption-fontSize);
+  white-space: pre-wrap;
+}
+
+.rule-output code {
+  font-size: inherit;
+}
+
+@media (min-width: 1000px) {
+  .rule {
+    grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: var(--semantic-space-stack-loose);
+  }
+}
+
+.rules-proof {
+  margin: var(--semantic-space-stack-loose) 0 0;
+}
+
+.rules-proof figcaption {
+  margin-bottom: var(--semantic-space-inline-default);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.home pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--component-code-padding);
+  font-size: var(--semantic-type-code-fontSize);
+  line-height: var(--semantic-type-small-lineHeight);
+  white-space: pre-wrap;
+}
+
+/* A bound panel takes its ring color with its ink, as the Island does. */
+.home pre[data-tokens] {
+  border: 1px solid;
+}
+
+/* ---------- theme ---------- */
+
+.theme {
+  padding-inline: 0;
+}
+
+.theme .section-head {
+  margin-inline: var(--gutter);
+}
+
+/* The semantic row: each node holds its current value, so a theme flip re-plugs
+   the whole row above the two ramps it reads from. */
+.theme-semantic {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--semantic-space-inline-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1000px) {
+  .theme-semantic {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 0;
+  }
+
+  .theme-node code {
+    writing-mode: vertical-rl;
+    height: 11.5em;
+    margin-inline: auto;
+  }
+}
+
+.theme-node {
+  display: grid;
+  gap: var(--semantic-space-inline-tight);
+  min-width: 0;
+  color: var(--semantic-text-secondary);
+  font-family: var(--semantic-type-code-fontFamily);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.theme-node code {
+  overflow: hidden;
+  padding-inline: var(--semantic-space-inline-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The ribbons run from the row to the neutral ramp, and on through it to the
+   brand ramp, so each theme's own references are the ones on screen. */
+.theme-ribbons {
+  display: block;
+  width: 100%;
+  height: 140px;
+  pointer-events: none;
+}
+
+.theme-ribbon {
+  fill-opacity: 0.85;
+  transition: fill-opacity var(--semantic-motion-duration-feedback)
+    var(--semantic-motion-ease-enter);
+}
+
+:root[data-theme='dark'] .theme-ribbon[data-only='light'],
+:root:not([data-theme='dark']) .theme-ribbon[data-only='dark'] {
+  display: none;
+}
+
+/* Pointing at a token lights its ribbon here as it does in the hero. */
+.theme-ribbons.is-focusing .theme-ribbon {
+  fill-opacity: 0.14;
+}
+
+.theme-ribbons .theme-ribbon.is-lit {
+  fill-opacity: 1;
+}
+
+.theme-node-swatch {
+  display: block;
+  height: 64px;
+  border: 1px solid var(--component-graph-nodeBorder);
+  transition: background-color var(--semantic-motion-duration-reveal)
+    var(--semantic-motion-ease-enter);
+}
+
+/* One row, one step width across both families, so every ribbon lands on the
+   same edge and none crosses a label. */
+.theme-ramps {
+  display: flex;
+}
+
+.ramp {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ramp-step {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 176px;
+  align-items: flex-end;
+  padding: var(--semantic-space-inline-default);
+}
+
+/* A family name runs wider than its first step, so that step paints above the next. */
+.ramp-step:first-child {
+  position: relative;
+  z-index: 1;
+}
+
+.ramp-family {
+  display: block;
+  white-space: nowrap;
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.ramp-label {
+  font-family: var(--semantic-type-code-fontFamily);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+/* The ramps run full-bleed, so the CSS they wrote steps back into the gutter. */
+.theme-css {
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+  margin: var(--semantic-space-stack-loose) var(--gutter) 0;
+}
+
+/* ---------- config ---------- */
+
+.config-body {
+  display: grid;
+  gap: var(--semantic-space-stack-loose);
+}
+
+.config-notes {
+  align-self: start;
+  display: grid;
+  align-content: start;
+  gap: var(--semantic-space-stack-default);
+  margin: 0;
+  font-size: var(--semantic-type-small-fontSize);
+  line-height: var(--semantic-type-small-lineHeight);
+}
+
+.config-notes dd {
+  margin: 0;
+  color: var(--semantic-text-secondary);
+}
+
+@media (min-width: 1100px) {
+  .config-body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
+
+/* ---------- code ---------- */
+
+.code-panel {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--component-code-border);
+  border-radius: var(--component-code-radius);
+  background: var(--component-code-background);
+  color: var(--semantic-syntax-base);
+}
+
+.code-panel-head .copy-button {
+  min-height: 44px;
+  margin-block: calc(-1 * var(--semantic-space-stack-tight));
+}
+
+.code-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--semantic-space-inline-loose);
+  padding: var(--semantic-space-stack-tight) var(--component-code-padding) 0;
+  color: var(--semantic-syntax-comment);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.code-panel-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--semantic-space-inline-default);
+}
+
+.code-panel-title {
+  font-size: inherit;
+}
+
+.code-panel-pre {
+  scroll-margin-block: var(--semantic-space-layout-sectionMin);
+}
+
+.home .code-panel-pre {
+  white-space: pre;
+}
+
+/* A panel that scrolls sideways draws a thin bar in its own comment ink, and a
+   trackpad swipe past its end stays on the page. */
+.code-panel-pre,
+.install-code {
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--semantic-syntax-comment) transparent;
+}
+
+/* A sample written for the page sits on the raised card, so an ink panel holds
+   a file from this repo or output from a run on these tokens. */
+.code-panel[data-plain] {
+  border-color: var(--semantic-border-subtle);
+  background: var(--semantic-surface-raised);
+  color: var(--semantic-text-primary);
+}
+
+.code-panel[data-plain] .code-panel-head {
+  color: var(--semantic-text-secondary);
+}
+
+.code-panel[data-plain] .code-panel-pre {
+  scrollbar-color: var(--semantic-text-secondary) transparent;
+}
+
+/* The panel clips its own edges, so the ring a focused panel draws sits on the
+   figure around it. */
+.code-panel-pre:focus-visible {
+  outline: none;
+}
+
+.code-panel:has(.code-panel-pre:focus-visible) {
+  outline: 2px solid var(--component-focus-ring);
+  outline-offset: 3px;
+}
+
+.copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* ---------- workflow ---------- */
+
+.workflow-steps {
+  display: grid;
+  gap: var(--semantic-space-stack-wide);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A step's transcript is its proof, so it takes the larger size. */
+.workflow-step > pre {
+  font-size: var(--semantic-type-small-fontSize);
+}
+
+.workflow-step {
+  align-items: start;
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+}
+
+.workflow-copy {
+  display: grid;
+  align-content: start;
+  gap: var(--semantic-space-stack-tight);
+}
+
+.workflow-copy h3,
+.limits-list h3 {
+  font-size: var(--semantic-type-title-fontSize);
+  font-weight: var(--semantic-type-title-fontWeight);
+  line-height: var(--semantic-type-title-lineHeight);
+}
+
+@media (min-width: 1000px) {
+  .workflow-step {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+    gap: var(--semantic-space-stack-loose);
+  }
+}
+
+.workflow-ci {
+  margin-top: var(--semantic-space-stack-wide);
+}
+
+/* ---------- reach ---------- */
+
+.reach-library {
+  margin-block: 0 var(--semantic-space-stack-wide);
+}
+
+.reach-lede {
+  max-width: 65ch;
+  margin-bottom: var(--semantic-space-stack-default);
+}
+
+.reach-body {
+  display: grid;
+  gap: var(--semantic-space-stack-loose);
+  align-items: start;
+}
+
+.reach-proof {
+  margin: 0;
+}
+
+.reach-proof figcaption {
+  margin-bottom: var(--semantic-space-inline-default);
+  color: var(--semantic-text-muted);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+@media (min-width: 1100px) {
+  .reach-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- limits ---------- */
+
+.limits-body {
+  display: grid;
+  gap: var(--semantic-space-stack-loose);
+}
+
+.limits-list {
+  display: grid;
+  align-content: start;
+  gap: var(--semantic-space-stack-tight);
+}
+
+/* The limits read as a spec: one dense column per side, each entry on its own
+   line of the same lattice as the ledger. */
+.limits-list ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  color: var(--semantic-text-secondary);
+  list-style: none;
+}
+
+.limits-list li {
+  border-top: 1px solid var(--semantic-border-subtle);
+  padding-block: var(--semantic-space-inline-loose);
+}
+
+.limits-list li:last-child {
+  border-bottom: 1px solid var(--semantic-border-subtle);
+}
+
+.limits-list code {
+  color: var(--semantic-text-primary);
+}
+
+.limits-facts {
+  display: grid;
+  gap: var(--semantic-space-stack-default);
+  margin: 0;
+  font-size: var(--semantic-type-small-fontSize);
+}
+
+.limits-facts dt {
+  color: var(--semantic-text-muted);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.limits-facts dd {
+  margin: 0;
+}
+
+@media (min-width: 720px) {
+  .limits-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .limits-facts {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- every token ---------- */
+
+.ledger-details summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--semantic-space-inline-default);
+  cursor: pointer;
+}
+
+.ledger-details h2 {
+  display: inline;
+}
+
+.ledger-details summary::before {
+  color: var(--component-link-text);
+  content: '+';
+  font-size: var(--semantic-type-heading-fontSize);
+  font-weight: var(--semantic-type-heading-fontWeight);
+}
+
+.ledger-details[open] summary::before {
+  content: '\2212';
+}
+
+.ledger-note {
+  margin-block-start: var(--semantic-space-stack-default);
+  color: var(--semantic-text-secondary);
+  font-size: var(--semantic-type-small-fontSize);
+}
+
+.ledger-table {
+  width: 100%;
+  margin-top: var(--semantic-space-stack-default);
+  border-collapse: collapse;
+  font-size: var(--semantic-type-caption-fontSize);
+  text-align: left;
+}
+
+.ledger-table th,
+.ledger-table td {
+  border-bottom: 1px solid var(--semantic-border-subtle);
+  padding-block: var(--semantic-space-inline-tight);
+  padding-right: var(--semantic-space-inline-loose);
+  font-weight: inherit;
+  vertical-align: baseline;
+}
+
+.ledger-table code {
+  font-size: inherit;
+}
+
+/* The Token column gets the room a path needs, so a path breaks at its dots and
+   the long font stack wraps in its own cell. */
+.ledger-table tbody th {
+  width: 38%;
+}
+
+@media (min-width: 1100px) {
+  .ledger-table tbody th {
+    width: 28%;
+  }
+}
+
+@media (max-width: 719px) {
+  .ledger-table th,
+  .ledger-table td {
+    padding-right: var(--semantic-space-inline-default);
+  }
+
+  .ledger-table :is(th, td):last-child {
+    padding-right: 0;
+  }
+}
+
+/* ---------- close ---------- */
+
+/* The last screen is the brand solid, so it retunes with the dial and its label
+   flips with the ink arc. */
+.close {
+  display: grid;
+  gap: var(--semantic-space-stack-loose);
+  margin-top: var(--section);
+  padding: var(--section) var(--gutter);
+}
+
+.close-copy {
+  display: grid;
+  gap: var(--semantic-space-stack-loose);
+}
+
+.close-copy h2 {
+  font-size: clamp(
+    var(--semantic-type-heading-fontSize),
+    5vw,
+    var(--semantic-type-display-fontSizeMax)
+  );
+  font-weight: var(--semantic-type-display-fontWeight);
+  letter-spacing: calc(var(--semantic-type-display-letterSpacing) * 1em);
+  line-height: var(--semantic-type-display-lineHeight);
+}
+
+.close-steps {
+  display: grid;
+  gap: var(--semantic-space-stack-tight);
+  margin: 0;
+  padding-left: var(--semantic-space-stack-default);
+  font-size: var(--semantic-type-lede-fontSize);
+  line-height: var(--semantic-type-lede-lineHeight);
+  list-style: decimal;
+}
+
+.close-install {
+  align-self: start;
+  max-width: none;
+}
+
+.close .install-managers {
+  background: var(--component-code-background);
+}
+
+.close .install-manager {
+  color: var(--semantic-syntax-comment);
+}
+
+.close .install-manager:has(:checked) {
+  background: var(--semantic-syntax-base);
+  box-shadow: none;
+  color: var(--component-code-background);
+}
+
+.close-links {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: var(--semantic-space-inline-tight) var(--semantic-space-inline-loose);
+}
+
+.close-links a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: var(--semantic-space-inline-tight);
+}
+
+.close-colophon {
+  display: grid;
+  gap: var(--semantic-space-inline-tight);
+  grid-column: 1 / -1;
+  color: inherit;
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.close-chain {
+  font-size: inherit;
+}
+
+.close :where(a, button, input):focus-visible,
+.close .install-manager:has(:focus-visible) {
+  outline-color: currentColor;
+}
+
+@media (min-width: 1000px) {
+  .close {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: var(--semantic-space-stack-loose) var(--semantic-space-stack-wide);
+  }
+}
+
+/* The first visit in a session: the page compiles primitive, semantic, component,
+   and the headline resolves from MonoLisa to Wotfard as its family token lands.
+   Everything stays readable, and any key or pointer skips it. */
+:root.is-compiling .hero-title {
+  font-family: var(--semantic-type-display-fontFamilyFrom);
+  font-weight: var(--semantic-type-display-fontWeightFrom);
+}
+
+/* Same line boxes as the Wotfard headline, so the cut to it moves nothing. */
+:root.is-compiling .hero-title span {
+  font-size: calc(var(--semantic-type-display-fontScaleFrom) * 1em);
+  line-height: calc(
+    var(--semantic-type-display-lineHeight) /
+      var(--semantic-type-display-fontScaleFrom)
+  );
+  white-space: nowrap;
+}
+
+:root.is-compiling .graph-node {
+  opacity: 0;
+  transition: opacity var(--semantic-motion-duration-reveal)
+    var(--semantic-motion-ease-enter);
+}
+
+/* Each band's ribbons land inside its step, and the transition lives on the
+   base rule, so a skip mid-flight eases home instead of cutting. */
+.graph-ribbons {
+  clip-path: inset(0);
+  transition: clip-path var(--semantic-motion-duration-reveal)
+    var(--semantic-motion-ease-move);
+}
+
+:root.is-compiling .graph-ribbons {
+  clip-path: inset(100% 0 0 0);
+}
+
+:root.is-compiling .graph-stub {
+  opacity: 0;
+  transition: opacity var(--semantic-motion-duration-reveal)
+    var(--semantic-motion-ease-enter);
+}
+
+:root.show-component .graph-stub {
+  opacity: 0.4;
+}
+
+/* Each line of the narration fades in with its band. */
+:root.is-compiling .island-text {
+  animation-duration: var(--semantic-motion-duration-reveal);
+  animation-timing-function: var(--semantic-motion-ease-enter);
+}
+
+:root.show-primitives .graph-node[data-layer='primitives'],
+:root.show-semantic .graph-node[data-layer='semantic'],
+:root.show-component .graph-node[data-layer='component'] {
+  opacity: 1;
+}
+
+:root.show-semantic .graph-ribbons[data-layer='semantic'],
+:root.show-component .graph-ribbons[data-layer='component'] {
+  clip-path: inset(0);
+}
+
+/* While a dial moves, colors cut straight to the new value, chrome included. */
+:root[data-dragging] .theme-node-swatch,
+:root[data-dragging] .theme-ribbon,
+:root[data-dragging] .site-header,
+:root[data-dragging] .site-nav-link,
+:root[data-dragging] .site-icon-control,
+:root[data-dragging] .site-footer-link,
+:root[data-dragging] .crown-button,
+:root[data-dragging] .crown-switch,
+:root[data-dragging] .crown-track,
+:root[data-dragging] .rule-switch,
+:root[data-dragging] .rule-track,
+:root[data-dragging] .install-manager,
+:root[data-dragging] .home [data-tokens],
+:root[data-dragging] .island,
+:root[data-dragging] .node-swatch,
+:root[data-dragging] .graph-edge {
+  transition: none;
+}
+
+/* The dial rewrites the capsule every frame, so its words cut as well. */
+:root[data-dragging] .island-text {
+  animation-duration: calc(0 * var(--component-island-transition-duration));
+}
+
+/* A jump writes once, so the capsule keeps its growth and its words keep a
+   short fade. */
+:root[data-dragging='jump'] .island {
+  transition: width var(--component-island-transition-duration)
+    var(--semantic-motion-ease-enter);
+}
+
+:root[data-dragging='jump'] .island-text {
+  animation-duration: calc(0.5 * var(--component-island-transition-duration));
+}
+
+/* ---------- narrow screens ---------- */
+
+@media (max-width: 1099px) {
+  .graph-types {
+    display: none;
+  }
+
+  .graph-band-rule {
+    display: none;
+  }
+}
+
+/* A long token name wraps here, because its exact spelling is the point. */
+@media (max-width: 999px) {
+  .theme-node code {
+    white-space: normal;
+  }
+
+  .ramp-step {
+    padding: var(--semantic-space-inline-tight);
+  }
+}
+
+@media (max-width: 719px) {
+  .hero {
+    row-gap: var(--semantic-space-stack-default);
+  }
+
+  .hero-title span {
+    display: inline;
+  }
+
+  /* The lede, the dial, and the install make the first screen. The graph comes
+     next, so a screen scrolled to the dial holds all three bands, and the
+     invite closes the hero. */
+  .hero-body {
+    display: contents;
+  }
+
+  .hero-invite {
+    order: 1;
+  }
+
+  .hero-source {
+    order: 2;
+  }
+
+  .crown {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: var(--semantic-space-layout-gap);
+    max-width: none;
+  }
+
+  .hero-action {
+    display: grid;
+  }
+
+  /* MonoLisa is wider and would rewrap the headline on a phone. */
+  :root.is-compiling .hero-title {
+    font-family: var(--semantic-type-display-fontFamily);
+    font-weight: var(--semantic-type-display-fontWeight);
+  }
+
+  :root.is-compiling .hero-title span {
+    font-size: inherit;
+    line-height: inherit;
+    white-space: normal;
+  }
+
+  .crown-dial {
+    width: 112px;
+    height: 112px;
+  }
+
+  .crown-value {
+    font-size: var(--semantic-type-lede-fontSize);
+  }
+
+  .crown-controls {
+    display: contents;
+  }
+
+  .crown-readout {
+    align-self: center;
+  }
+
+  .crown-readout div {
+    white-space: nowrap;
+  }
+
+  .crown-row {
+    grid-column: 1 / -1;
+  }
+
+  .crown-row > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .install {
+    max-width: none;
+  }
+
+  .hero-action .button-primary {
+    width: 100%;
+  }
+
+  .install-code {
+    overflow-x: auto;
+  }
+
+  .graph {
+    margin-inline: 0;
+  }
+
+  .graph-band {
+    top: var(--band-narrow);
+    left: 0;
+    width: auto;
+    transform: translateY(-120%);
+    border-radius: var(--component-button-radius);
+    padding-inline: var(--semantic-space-inline-tight);
+    background: var(--semantic-surface-page);
+  }
+
+  .hero-title {
+    line-height: var(--semantic-type-heading-lineHeight);
+  }
+
+  .theme-semantic {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .theme-node-swatch {
+    height: 40px;
+  }
+
+  .graph-note {
+    padding-inline: 0;
+  }
+
+  .ramp-step {
+    min-height: 72px;
+  }
+
+  .theme-ribbons {
+    display: none;
+  }
+
+  .theme-ramps {
+    display: grid;
+    gap: var(--semantic-space-inline-tight);
+  }
+}
+
+/* Under this width the readout and the dial cannot share a row. */
+@media (max-width: 359px) {
+  .crown {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A forced palette keeps the color samples, since a swatch's color is its
+   meaning, and draws an edge in the system ink on each control that a fill
+   alone had set apart. The thumb moves 12px, so a switch reads from position. */
+@media (forced-colors: active) {
+  .theme-node-swatch,
+  .ramp-step,
+  .island-dot {
+    forced-color-adjust: none;
+  }
+
+  .crown-button,
+  .crown-switch,
+  .rule-switch,
+  .button-primary,
+  .install-managers,
+  .crown-thumb,
+  .rule-thumb {
+    border: 1px solid;
+  }
+
+  .crown-track,
+  .rule-track {
+    outline: 1px solid;
+    outline-offset: -1px;
+  }
+}
