@@ -76,8 +76,10 @@ const textPairs: readonly (readonly [string, readonly string[]])[] = [
   ['accent.text', ['surface.page', 'surface.raised']],
   ['status.fail', ['surface.page', 'surface.raised', 'status.failSubtle']],
   ['status.warn', ['surface.page', 'surface.raised']],
-  ['text.onIsland', ['surface.island']],
-  ['accent.onIsland', ['surface.island']],
+  [
+    'text.onIsland',
+    ['surface.island', 'status.failOnIsland', 'status.warnOnIsland'],
+  ],
   ['syntax.base', ['surface.code']],
   ['syntax.comment', ['surface.code']],
   ['syntax.punctuation', ['surface.code']],

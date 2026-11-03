@@ -3,6 +3,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { bind } from '@/lib/tokens/bind'
 import { SETTLE_MS, usePageState } from '@/lib/tokens/page-store'
+import type { TokenPath } from '@/tokens/generated/token-path'
+
+/** A failing check or a warning fills the capsule and its edge with a wash, so
+ * the verdict reads before the words. A pass and a narration stay plain ink. */
+const wash: Partial<Record<string, TokenPath>> = {
+  fail: 'component.island.fail.background',
+  warn: 'component.island.warn.background',
+}
 
 /** A label flip speaks at once; every other readout waits for rest. */
 const urgent = (text: string) => text.startsWith('Label switched')
@@ -47,18 +55,13 @@ export function Island() {
       ref={shell}
       className='island'
       {...bind({
-        backgroundColor: 'component.island.background',
-        borderColor: 'component.island.border',
+        backgroundColor: wash[tone] ?? 'component.island.background',
+        borderColor: wash[tone] ?? 'component.island.border',
         color: 'component.island.text',
       })}>
       <div
         ref={inner}
         className='island-inner'>
-        <span
-          className='island-dot'
-          data-tone={tone}
-          aria-hidden='true'
-        />
         <span
           key={text}
           className='island-text'

@@ -98,21 +98,15 @@ export function GraphEngine({
       const step = durationOf('--semantic-motion-duration-reveal')
       at(40, () => {
         root.classList.add('show-primitives')
-        sayOnIsland(
-          `Resolving primitives, ${count('primitives')} tokens`,
-          'accent'
-        )
+        sayOnIsland(`Resolving primitives, ${count('primitives')} tokens`)
       })
       at(step, () => {
         root.classList.add('show-semantic')
-        sayOnIsland(`Resolving semantic, ${count('semantic')} tokens`, 'accent')
+        sayOnIsland(`Resolving semantic, ${count('semantic')} tokens`)
       })
       at(2 * step, () => {
         root.classList.add('show-component')
-        sayOnIsland(
-          `Resolving component, ${count('component')} tokens`,
-          'accent'
-        )
+        sayOnIsland(`Resolving component, ${count('component')} tokens`)
       })
       at(3.2 * step, finishCompile)
     }
@@ -477,7 +471,7 @@ export function GraphEngine({
         const noted = note === undefined ? '' : `. ${note}`
         chain.textContent = `${chainText(shown)}${noted}\n${governanceText(shown)}`
         if (narrate) {
-          sayOnIsland(`${shown} = ${resolved(shown)}`, 'accent')
+          sayOnIsland(`${shown} = ${resolved(shown)}`)
         }
       }
       const position = origin === null ? undefined : positionOf.get(origin)

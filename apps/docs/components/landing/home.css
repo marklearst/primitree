@@ -1150,8 +1150,9 @@
   font-size: var(--semantic-type-label-fontSize);
   font-variant-numeric: tabular-nums;
   font-weight: var(--semantic-type-label-fontWeight);
-  transition: width var(--component-island-transition-duration)
-    var(--semantic-motion-ease-enter);
+  transition-duration: var(--component-island-transition-duration);
+  transition-property: width, background-color, border-color;
+  transition-timing-function: var(--semantic-motion-ease-enter);
 }
 
 .island-inner {
@@ -1161,7 +1162,6 @@
   min-width: 0;
   max-width: min(36rem, calc(100cqi - 2px));
   align-items: center;
-  gap: var(--semantic-space-inline-default);
   padding-inline: var(--semantic-space-inline-loose);
   white-space: nowrap;
 }
@@ -1189,30 +1189,6 @@
   from {
     opacity: 0;
   }
-}
-
-.island-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-}
-
-/* A pass prints as plain words. */
-.island-dot[data-tone='plain'] {
-  display: none;
-}
-
-.island-dot[data-tone='accent'] {
-  background: var(--component-island-accent);
-}
-
-.island-dot[data-tone='warn'] {
-  background: var(--semantic-status-warn);
-}
-
-.island-dot[data-tone='fail'] {
-  background: var(--semantic-status-fail);
 }
 
 /* ---------- sections ---------- */
@@ -2108,8 +2084,9 @@
 /* A jump writes once, so the capsule keeps its growth and its words keep a
    short fade. */
 :root[data-dragging='jump'] .island {
-  transition: width var(--component-island-transition-duration)
-    var(--semantic-motion-ease-enter);
+  transition-duration: var(--component-island-transition-duration);
+  transition-property: width, background-color, border-color;
+  transition-timing-function: var(--semantic-motion-ease-enter);
 }
 
 :root[data-dragging='jump'] .island-text {
@@ -2283,8 +2260,7 @@
    alone had set apart. The thumb moves 12px, so a switch reads from position. */
 @media (forced-colors: active) {
   .theme-node-swatch,
-  .ramp-step,
-  .island-dot {
+  .ramp-step {
     forced-color-adjust: none;
   }
 

@@ -183,6 +183,12 @@ const ruleSwitch = (page: Page, code: string) =>
   ruleRow(page, code).getByRole('switch')
 const ruleLink = (page: Page) => ruleRow(page, 'PT1004').locator('.text-link')
 const island = (page: Page) => page.locator('.island-text')
+const islandShell = (page: Page) => page.locator('.island')
+/** The Island's washes. The signal hues are locked, so any hue solves them. */
+const islandWash = {
+  fail: solved(0).red['15']?.hex ?? '',
+  warn: solved(0).amber['15']?.hex ?? '',
+}
 const buildLine = (page: Page) => page.locator('.close-colophon')
 const graphChain = (page: Page) => page.locator('#graph-chain')
 const activeGraph = (page: Page) =>
@@ -683,7 +689,10 @@ test('homepage leads with what the check does', async ({ page }) => {
     managers[0].install
   )
   await expect(island(page)).toHaveText('0 findings, exit 0')
-  await expect(page.locator('.island-dot')).toBeHidden()
+  await expect(islandShell(page)).toHaveAttribute(
+    'data-tokens',
+    /^component\.island\.background /u
+  )
   await expect(buildLine(page)).toContainText(
     `${tokenCount} tokens, 3 layers, 0 findings, exit 0.`
   )
@@ -1009,7 +1018,8 @@ test('a preset on a signal hue says so on the Island', async ({ page }) => {
   await presetButton(page, 'Signal red').click()
 
   await expect(island(page)).toHaveText('Hue 27, too close to fail')
-  await expect(page.locator('.island-dot')).toHaveAttribute('data-tone', 'fail')
+  await expectPaints(islandShell(page), 'background-color', islandWash.fail)
+  await expectPaints(islandShell(page), 'border-top-color', islandWash.fail)
 })
 
 test('Citrus flips the label to dark and the readout says so', async ({
@@ -1181,7 +1191,7 @@ test('the warn and fail readout names the signal a hue reads too close to', asyn
   await expect(row).toHaveText('Near warn')
   await expect(row).toHaveAttribute('data-fail', '')
   await expect(island(page)).toHaveText(`Hue ${warnHue}, too close to warn`)
-  await expect(page.locator('.island-dot')).toHaveAttribute('data-tone', 'warn')
+  await expectPaints(islandShell(page), 'background-color', islandWash.warn)
 
   await presetButton(page, 'Ultramarine').click()
   await expect(row).toHaveText('Clear')
@@ -1788,7 +1798,10 @@ test('a preset across the ink arc eases the capsule', async ({ page }) => {
       }
     }
   )
-  expect(held).toEqual({ marker: 'jump', transition: 'width' })
+  expect(held).toEqual({
+    marker: 'jump',
+    transition: 'width, background-color, border-color',
+  })
   await expect(html(page)).not.toHaveAttribute('data-dragging', /.*/u)
 })
 
@@ -2683,10 +2696,7 @@ for (const { id, code, label, recording, finding, owners } of breaks) {
     await expect(island(page)).toHaveText(
       count === 1 ? named : `${named}, and ${count - 1} more`
     )
-    await expect(page.locator('.island-dot')).toHaveAttribute(
-      'data-tone',
-      'fail'
-    )
+    await expectPaints(islandShell(page), 'background-color', islandWash.fail)
     await expect(buildLine(page)).toContainText(
       `${id === 'stray' ? tokenCount + 1 : tokenCount} tokens, 3 layers, ${count} ${count === 1 ? 'finding' : 'findings'}, exit 1.`
     )

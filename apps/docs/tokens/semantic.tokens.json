@@ -6,11 +6,16 @@
         "$value": "{primitives.color.neutral.97}"
       }
     },
-    "accent": {
+    "status": {
       "$type": "color",
-      "onIsland": {
-        "$value": "{primitives.color.brand.72}",
-        "$description": "The same step in both themes, because the island is dark in both."
+      "$description": "The Island is dark in both themes, so its washes hold one step in both.",
+      "failOnIsland": {
+        "$value": "{primitives.color.red.15}",
+        "$description": "The Island while a check fails."
+      },
+      "warnOnIsland": {
+        "$value": "{primitives.color.amber.15}",
+        "$description": "The Island while a hue reads too close to the warn signal, or the check cannot run."
       }
     },
     "syntax": {

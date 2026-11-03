@@ -24,6 +24,7 @@
   --primitives-color-red-45: oklch(0.55 0.2 27);
   --primitives-color-red-72: oklch(0.7737 0.133 27);
   --primitives-color-red-97: oklch(0.9754 0.012 27);
+  --primitives-color-amber-15: oklch(0.269 0.0561 80);
   --primitives-color-amber-45: oklch(0.5293 0.1097 80);
   --primitives-color-amber-72: oklch(0.7636 0.1582 80);
   --primitives-color-blue-72: oklch(0.7599 0.1231 260);
@@ -74,12 +75,11 @@
   --semantic-text-onAccent: var(--primitives-color-neutral-100);
   --semantic-text-muted: var(--primitives-color-neutral-45);
   --semantic-text-onInverse: var(--primitives-color-neutral-100);
-  --semantic-accent-onIsland: var(--primitives-color-brand-72);
-  --semantic-accent-solid: var(--primitives-color-brand-45);
-  --semantic-accent-solidHover: var(--primitives-color-brand-35);
-  --semantic-accent-text: var(--primitives-color-brand-45);
-  --semantic-accent-subtle: var(--primitives-color-brand-95);
-  --semantic-accent-edge: var(--primitives-color-brand-85);
+  --semantic-status-failOnIsland: var(--primitives-color-red-15);
+  --semantic-status-warnOnIsland: var(--primitives-color-amber-15);
+  --semantic-status-warn: var(--primitives-color-amber-45);
+  --semantic-status-fail: var(--primitives-color-red-45);
+  --semantic-status-failSubtle: var(--primitives-color-red-97);
   --semantic-syntax-base: var(--primitives-color-neutral-97);
   --semantic-syntax-comment: var(--primitives-color-neutral-72);
   --semantic-syntax-punctuation: var(--primitives-color-neutral-72);
@@ -157,9 +157,11 @@
   --semantic-border-focus: var(--primitives-color-neutral-8);
   --semantic-border-island: var(--primitives-color-neutral-4);
   --semantic-border-panel: var(--primitives-color-neutral-8);
-  --semantic-status-warn: var(--primitives-color-amber-45);
-  --semantic-status-fail: var(--primitives-color-red-45);
-  --semantic-status-failSubtle: var(--primitives-color-red-97);
+  --semantic-accent-solid: var(--primitives-color-brand-45);
+  --semantic-accent-solidHover: var(--primitives-color-brand-35);
+  --semantic-accent-text: var(--primitives-color-brand-45);
+  --semantic-accent-subtle: var(--primitives-color-brand-95);
+  --semantic-accent-edge: var(--primitives-color-brand-85);
   --component-button-primary-background: var(--semantic-accent-solid);
   --component-button-primary-backgroundHover: var(--semantic-accent-solidHover);
   --component-button-primary-text: var(--semantic-text-onAccent);
@@ -180,7 +182,8 @@
   --component-island-background: var(--semantic-surface-island);
   --component-island-text: var(--semantic-text-onIsland);
   --component-island-border: var(--semantic-border-island);
-  --component-island-accent: var(--semantic-accent-onIsland);
+  --component-island-fail-background: var(--semantic-status-failOnIsland);
+  --component-island-warn-background: var(--semantic-status-warnOnIsland);
   --component-island-transition-duration: var(--semantic-motion-duration-handoff);
   --component-chooser-background: var(--semantic-surface-sunken);
   --component-chooser-selected: var(--semantic-surface-page);
@@ -218,11 +221,9 @@
   --semantic-text-onAccent: var(--primitives-color-neutral-4);
   --semantic-text-muted: var(--primitives-color-neutral-72);
   --semantic-text-onInverse: var(--primitives-color-neutral-4);
-  --semantic-accent-solid: var(--primitives-color-brand-72);
-  --semantic-accent-solidHover: var(--primitives-color-brand-85);
-  --semantic-accent-text: var(--primitives-color-brand-72);
-  --semantic-accent-subtle: var(--primitives-color-brand-15);
-  --semantic-accent-edge: var(--primitives-color-brand-35);
+  --semantic-status-warn: var(--primitives-color-amber-72);
+  --semantic-status-fail: var(--primitives-color-red-72);
+  --semantic-status-failSubtle: var(--primitives-color-red-15);
   --semantic-surface-page: var(--primitives-color-neutral-4);
   --semantic-surface-raised: var(--primitives-color-neutral-8);
   --semantic-surface-sunken: var(--primitives-color-neutral-1);
@@ -234,9 +235,11 @@
   --semantic-border-focus: var(--primitives-color-neutral-97);
   --semantic-border-island: var(--primitives-color-neutral-20);
   --semantic-border-panel: var(--primitives-color-neutral-35);
-  --semantic-status-warn: var(--primitives-color-amber-72);
-  --semantic-status-fail: var(--primitives-color-red-72);
-  --semantic-status-failSubtle: var(--primitives-color-red-15);
+  --semantic-accent-solid: var(--primitives-color-brand-72);
+  --semantic-accent-solidHover: var(--primitives-color-brand-85);
+  --semantic-accent-text: var(--primitives-color-brand-72);
+  --semantic-accent-subtle: var(--primitives-color-brand-15);
+  --semantic-accent-edge: var(--primitives-color-brand-35);
 }
 
 [data-theme='dark'][data-motion='reduced'] {
@@ -263,6 +266,7 @@
   --primitives-color-red-45: oklch(0.55 0.2 27);
   --primitives-color-red-72: oklch(0.7737 0.133 27);
   --primitives-color-red-97: oklch(0.9754 0.012 27);
+  --primitives-color-amber-15: oklch(0.269 0.0561 80);
   --primitives-color-amber-45: oklch(0.5293 0.1097 80);
   --primitives-color-amber-72: oklch(0.7636 0.1582 80);
   --primitives-color-blue-72: oklch(0.7599 0.1231 260);
@@ -313,12 +317,11 @@
   --semantic-text-onAccent: var(--primitives-color-neutral-4);
   --semantic-text-muted: var(--primitives-color-neutral-72);
   --semantic-text-onInverse: var(--primitives-color-neutral-4);
-  --semantic-accent-onIsland: var(--primitives-color-brand-72);
-  --semantic-accent-solid: var(--primitives-color-brand-72);
-  --semantic-accent-solidHover: var(--primitives-color-brand-85);
-  --semantic-accent-text: var(--primitives-color-brand-72);
-  --semantic-accent-subtle: var(--primitives-color-brand-15);
-  --semantic-accent-edge: var(--primitives-color-brand-35);
+  --semantic-status-failOnIsland: var(--primitives-color-red-15);
+  --semantic-status-warnOnIsland: var(--primitives-color-amber-15);
+  --semantic-status-warn: var(--primitives-color-amber-72);
+  --semantic-status-fail: var(--primitives-color-red-72);
+  --semantic-status-failSubtle: var(--primitives-color-red-15);
   --semantic-syntax-base: var(--primitives-color-neutral-97);
   --semantic-syntax-comment: var(--primitives-color-neutral-72);
   --semantic-syntax-punctuation: var(--primitives-color-neutral-72);
@@ -396,9 +399,11 @@
   --semantic-border-focus: var(--primitives-color-neutral-97);
   --semantic-border-island: var(--primitives-color-neutral-20);
   --semantic-border-panel: var(--primitives-color-neutral-35);
-  --semantic-status-warn: var(--primitives-color-amber-72);
-  --semantic-status-fail: var(--primitives-color-red-72);
-  --semantic-status-failSubtle: var(--primitives-color-red-15);
+  --semantic-accent-solid: var(--primitives-color-brand-72);
+  --semantic-accent-solidHover: var(--primitives-color-brand-85);
+  --semantic-accent-text: var(--primitives-color-brand-72);
+  --semantic-accent-subtle: var(--primitives-color-brand-15);
+  --semantic-accent-edge: var(--primitives-color-brand-35);
   --component-button-primary-background: var(--semantic-accent-solid);
   --component-button-primary-backgroundHover: var(--semantic-accent-solidHover);
   --component-button-primary-text: var(--semantic-text-onAccent);
@@ -419,7 +424,8 @@
   --component-island-background: var(--semantic-surface-island);
   --component-island-text: var(--semantic-text-onIsland);
   --component-island-border: var(--semantic-border-island);
-  --component-island-accent: var(--semantic-accent-onIsland);
+  --component-island-fail-background: var(--semantic-status-failOnIsland);
+  --component-island-warn-background: var(--semantic-status-warnOnIsland);
   --component-island-transition-duration: var(--semantic-motion-duration-handoff);
   --component-chooser-background: var(--semantic-surface-sunken);
   --component-chooser-selected: var(--semantic-surface-page);

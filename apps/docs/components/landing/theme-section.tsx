@@ -82,7 +82,7 @@ const ramps = [
       .sort((a, b) => b - a),
   },
   { id: 'red', steps: [97, 72, 45, 15] },
-  { id: 'amber', steps: [72, 45] },
+  { id: 'amber', steps: [72, 45, 15] },
 ] as const
 
 const ribbonWidth = 700

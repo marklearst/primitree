@@ -25,6 +25,7 @@ colors:
   red-45: '#cc2827'
   red-72: '#ff9287'
   red-97: '#fff4f3'
+  amber-15: '#342200'
   amber-45: '#8c6300'
   amber-72: '#e6a500'
   blue-72: '#82b2ff'
@@ -187,15 +188,16 @@ Every color is a step on a solved ramp; the frontmatter lists the full primitive
 
 - **Brand 45** (`semantic.accent.solid`, `accent.text` in light; dark uses Brand 72): the primary button, the Crown hub, the close section, the current nav link, text links, the dashed ring on an element the graph reaches, and the threads that draw up to it. Chroma is the most sRGB allows at that luminance.
 - **Brand 35** (`accent.solidHover` in light; Brand 85 in dark): the primary button on hover.
-- **Brand 72** (`accent.onIsland`, `syntax.reference` in both themes): the accent dot on the Island and a DTCG alias string in sample code, the thing Primitree checks.
+- **Brand 72** (`syntax.reference` in both themes): a DTCG alias string in sample code, the thing Primitree checks.
 - **Brand 85 / Brand 15** (`accent.edge` light / `accent.subtle` dark): the link underline; the brand wash.
 - **Brand 95** (`accent.subtle` light): the brand wash on the light page.
 
 ### Secondary
 
-- **Red 45 / Red 72** (`status.fail`, `graph.fail`, `finding.text`): a failing check, a broken ribbon in the graph, the fail zone on the Crown, the fail dot on the Island. Locked at hue 27.
-- **Red 97 / Red 15** (`status.failSubtle`, `finding.background`): the wash behind a printed finding.
-- **Amber 45 / Amber 72** (`status.warn`): a warning, the warn zone on the Crown, the warn dot on the Island. Locked at hue 80.
+- **Red 45 / Red 72** (`status.fail`, `graph.fail`, `finding.text`): a failing check, a broken ribbon in the graph, and the fail zone on the Crown. Locked at hue 27.
+- **Red 97 / Red 15** (`status.failSubtle`, `finding.background`): the wash behind a printed finding. Red 15 is also `status.failOnIsland` in both themes, the Island's wash while a check fails.
+- **Amber 45 / Amber 72** (`status.warn`): a warning and the warn zone on the Crown. Locked at hue 80.
+- **Amber 15** (`status.warnOnIsland` in both themes): the Island's wash while a hue reads too close to the warn signal or the check cannot run. Locked at hue 80.
 
 ### Tertiary
 
@@ -299,7 +301,7 @@ Under 640px the links fold into a popover menu behind a Menu button; a tap outsi
 
 ### Island (Signature)
 
-One pill, 36px tall, `surface.island` with `text.onIsland` and a 1px `border.island`, Label type with tabular figures. At rest it reads `0 findings, exit 0`, the result the build recorded, with no dot; an 8px dot leads every other message: `accent.onIsland` for a hue or a hovered token, `status.warn` for a warning, `status.fail` for a failing check, where the text names the first finding's rule and path; once a hover clears, the failing rest reads `primitree check, exit 1`. A restored rule reads `Rule restored, exit 0`, plain again. The words sit 1px above the line box's center: Wotfard's line box centers capitals, and most of each message is lowercase, so the lift centers the lowercase letters. The capsule animates its width over `duration.handoff` (440ms) as the message changes, and a hidden status region speaks the text once the dial rests, so a drag never floods a screen reader.
+One pill, 36px tall, `surface.island` with `text.onIsland` and a 1px `border.island`, Label type with tabular figures. It holds words, with no status dot or icon. A failing check fills the capsule and its edge with `status.failOnIsland` and a warning with `status.warnOnIsland`, so the verdict reads before the words; a pass, a hue, and a hovered token stay plain ink. The fill crossfades with the words over `duration.handoff`, and `text.onIsland` holds AA on both washes. At rest it reads `0 findings, exit 0`, the result the build recorded. A hue, a hovered token, a warning, and a failing check each print as a sentence, and a failing check names the first finding's rule and path; once a hover clears, the failing rest reads `primitree check, exit 1`. A restored rule reads `Rule restored, exit 0`. The words sit 1px above the line box's center: Wotfard's line box centers capitals, and most of each message is lowercase, so the lift centers the lowercase letters. The capsule animates its width over `duration.handoff` (440ms) as the message changes, and a hidden status region speaks the text once the dial rests, so a drag never floods a screen reader.
 
 ### Crown (Signature)
 

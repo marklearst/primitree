@@ -238,7 +238,7 @@
         "displayName": "Brand 72",
         "canonical": "oklch(0.7381 0.19 150)",
         "tonalRamp": ["#092c14", "#006029", "#007b37", "#2cca65", "#70ed91", "#e0f7e3"],
-        "purpose": "accent.onIsland and syntax.reference in both themes; accent.solid and accent.text in dark."
+        "purpose": "syntax.reference in both themes; accent.solid and accent.text in dark."
       },
       "brand-85": {
         "role": "primary",
@@ -424,9 +424,9 @@
       "name": "Island",
       "kind": "custom",
       "refersTo": "island",
-      "description": "The one status capsule, dark in both themes, stating the real result of the last check; a pass prints with no dot.",
-      "html": "<div class=\"ds-island\" role=\"status\"><span class=\"ds-island-dot\" data-tone=\"plain\"></span><span>0 findings, exit 0</span></div>",
-      "css": ".ds-island{display:inline-flex;height:36px;align-items:center;gap:var(--semantic-space-inline-default,0.5rem);padding:0 var(--semantic-space-inline-loose,1rem);border:1px solid var(--component-island-border,#0c0f0c);border-radius:var(--semantic-radius-pill,999px);background:var(--component-island-background,#0c0f0c);color:var(--component-island-text,#f4f7f5);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:var(--semantic-type-label-fontSize,0.8125rem);font-variant-numeric:tabular-nums;font-weight:var(--semantic-type-label-fontWeight,500);transition:width var(--component-island-transition-duration,440ms) var(--semantic-motion-ease-enter,cubic-bezier(0.16,1,0.3,1))}.ds-island-dot{width:8px;height:8px;flex:none;border-radius:50%;background:currentColor}.ds-island-dot[data-tone=plain]{display:none}.ds-island-dot[data-tone=accent]{background:var(--component-island-accent,#2cca65)}.ds-island-dot[data-tone=warn]{background:var(--semantic-status-warn,#8c6300)}.ds-island-dot[data-tone=fail]{background:var(--semantic-status-fail,#cc2827)}"
+      "description": "The one status capsule, dark in both themes, stating the real result of the last check in words, with no status dot. A failing check fills the capsule and its edge with the Red 15 wash, and a warning with Amber 15.",
+      "html": "<div class=\"ds-island\" role=\"status\"><span class=\"ds-island-text\">0 findings, exit 0</span></div>",
+      "css": ".ds-island{display:inline-flex;height:36px;align-items:center;padding:0 var(--semantic-space-inline-loose,1rem);border:1px solid var(--component-island-border,#0c0f0c);border-radius:var(--semantic-radius-pill,999px);background:var(--component-island-background,#0c0f0c);color:var(--component-island-text,#f4f7f5);font-family:Wotfard,'Wotfard fallback',ui-sans-serif,system-ui,sans-serif;font-size:var(--semantic-type-label-fontSize,0.8125rem);font-variant-numeric:tabular-nums;font-weight:var(--semantic-type-label-fontWeight,500);transition:width var(--component-island-transition-duration,440ms) var(--semantic-motion-ease-enter,cubic-bezier(0.16,1,0.3,1))}.ds-island[data-tone=fail]{background:var(--component-island-fail-background,#401a17);border-color:var(--component-island-fail-background,#401a17)}.ds-island[data-tone=warn]{background:var(--component-island-warn-background,#342200);border-color:var(--component-island-warn-background,#342200)}.ds-island-text{translate:0 -1px}"
     },
     {
       "name": "Install Chooser",

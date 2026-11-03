@@ -93,9 +93,18 @@
         "$type": "color",
         "$value": "{semantic.border.island}"
       },
-      "accent": {
-        "$type": "color",
-        "$value": "{semantic.accent.onIsland}"
+      "fail": {
+        "background": {
+          "$type": "color",
+          "$value": "{semantic.status.failOnIsland}",
+          "$description": "Fills the capsule and its edge while a check fails, the step the dark theme prints behind a finding."
+        }
+      },
+      "warn": {
+        "background": {
+          "$type": "color",
+          "$value": "{semantic.status.warnOnIsland}"
+        }
       },
       "transition": {
         "duration": {

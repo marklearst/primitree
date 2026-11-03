@@ -266,6 +266,17 @@
         "$description": "Locked at hue 27, so a failure always looks like a failure."
       },
       "amber": {
+        "15": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.269,
+              0.0561,
+              80
+            ],
+            "hex": "#342200"
+          }
+        },
         "45": {
           "$value": {
             "colorSpace": "oklch",

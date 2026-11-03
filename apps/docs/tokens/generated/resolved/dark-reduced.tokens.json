@@ -266,6 +266,17 @@
         "$description": "Locked at hue 27, so a failure always looks like a failure."
       },
       "amber": {
+        "15": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.269,
+              0.0561,
+              80
+            ],
+            "hex": "#342200"
+          }
+        },
         "45": {
           "$value": {
             "colorSpace": "oklch",
@@ -599,26 +610,25 @@
         "$value": "{primitives.color.neutral.4}"
       }
     },
-    "accent": {
+    "status": {
       "$type": "color",
-      "onIsland": {
-        "$value": "{primitives.color.brand.72}",
-        "$description": "The same step in both themes, because the island is dark in both."
+      "$description": "A pass has no color: it prints as plain text. These two hues stay locked wherever the brand goes.",
+      "failOnIsland": {
+        "$value": "{primitives.color.red.15}",
+        "$description": "The Island while a check fails."
       },
-      "solid": {
-        "$value": "{primitives.color.brand.72}"
+      "warnOnIsland": {
+        "$value": "{primitives.color.amber.15}",
+        "$description": "The Island while a hue reads too close to the warn signal, or the check cannot run."
       },
-      "solidHover": {
-        "$value": "{primitives.color.brand.85}"
+      "warn": {
+        "$value": "{primitives.color.amber.72}"
       },
-      "text": {
-        "$value": "{primitives.color.brand.72}"
+      "fail": {
+        "$value": "{primitives.color.red.72}"
       },
-      "subtle": {
-        "$value": "{primitives.color.brand.15}"
-      },
-      "edge": {
-        "$value": "{primitives.color.brand.35}"
+      "failSubtle": {
+        "$value": "{primitives.color.red.15}"
       }
     },
     "syntax": {
@@ -956,17 +966,22 @@
         "$description": "A ring on the ink panels. Matches the ink on the light page and gives the panel an edge on the dark one."
       }
     },
-    "status": {
+    "accent": {
       "$type": "color",
-      "$description": "A pass has no color: it prints as plain text. These two hues stay locked wherever the brand goes.",
-      "warn": {
-        "$value": "{primitives.color.amber.72}"
+      "solid": {
+        "$value": "{primitives.color.brand.72}"
       },
-      "fail": {
-        "$value": "{primitives.color.red.72}"
+      "solidHover": {
+        "$value": "{primitives.color.brand.85}"
       },
-      "failSubtle": {
-        "$value": "{primitives.color.red.15}"
+      "text": {
+        "$value": "{primitives.color.brand.72}"
+      },
+      "subtle": {
+        "$value": "{primitives.color.brand.15}"
+      },
+      "edge": {
+        "$value": "{primitives.color.brand.35}"
       }
     }
   },
@@ -1064,9 +1079,18 @@
         "$type": "color",
         "$value": "{semantic.border.island}"
       },
-      "accent": {
-        "$type": "color",
-        "$value": "{semantic.accent.onIsland}"
+      "fail": {
+        "background": {
+          "$type": "color",
+          "$value": "{semantic.status.failOnIsland}",
+          "$description": "Fills the capsule and its edge while a check fails, the step the dark theme prints behind a finding."
+        }
+      },
+      "warn": {
+        "background": {
+          "$type": "color",
+          "$value": "{semantic.status.warnOnIsland}"
+        }
       },
       "transition": {
         "duration": {

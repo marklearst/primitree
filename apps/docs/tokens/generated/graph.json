@@ -446,19 +446,6 @@
       }
     },
     {
-      "path": "component.island.accent",
-      "layer": "component",
-      "type": "color",
-      "target": {
-        "light": "semantic.accent.onIsland",
-        "dark": "semantic.accent.onIsland"
-      },
-      "value": {
-        "light": "oklch(0.7381 0.19 150)",
-        "dark": "oklch(0.7381 0.19 150)"
-      }
-    },
-    {
       "path": "component.island.background",
       "layer": "component",
       "type": "color",
@@ -486,6 +473,20 @@
       }
     },
     {
+      "path": "component.island.fail.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.status.failOnIsland",
+        "dark": "semantic.status.failOnIsland"
+      },
+      "value": {
+        "light": "oklch(0.2742 0.06 27)",
+        "dark": "oklch(0.2742 0.06 27)"
+      },
+      "description": "Fills the capsule and its edge while a check fails, the step the dark theme prints behind a finding."
+    },
+    {
       "path": "component.island.text",
       "layer": "component",
       "type": "color",
@@ -509,6 +510,19 @@
       "value": {
         "light": "440ms",
         "dark": "440ms"
+      }
+    },
+    {
+      "path": "component.island.warn.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.status.warnOnIsland",
+        "dark": "semantic.status.warnOnIsland"
+      },
+      "value": {
+        "light": "oklch(0.269 0.0561 80)",
+        "dark": "oklch(0.269 0.0561 80)"
       }
     },
     {
@@ -561,6 +575,19 @@
       "value": {
         "light": "oklch(0.2053 0.014 150)",
         "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "primitives.color.amber.15",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.269 0.0561 80)",
+        "dark": "oklch(0.269 0.0561 80)"
       }
     },
     {
@@ -1450,20 +1477,6 @@
       }
     },
     {
-      "path": "semantic.accent.onIsland",
-      "layer": "semantic",
-      "type": "color",
-      "target": {
-        "light": "primitives.color.brand.72",
-        "dark": "primitives.color.brand.72"
-      },
-      "value": {
-        "light": "oklch(0.7381 0.19 150)",
-        "dark": "oklch(0.7381 0.19 150)"
-      },
-      "description": "The same step in both themes, because the island is dark in both."
-    },
-    {
       "path": "semantic.accent.solid",
       "layer": "semantic",
       "type": "color",
@@ -1910,6 +1923,20 @@
       }
     },
     {
+      "path": "semantic.status.failOnIsland",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.red.15",
+        "dark": "primitives.color.red.15"
+      },
+      "value": {
+        "light": "oklch(0.2742 0.06 27)",
+        "dark": "oklch(0.2742 0.06 27)"
+      },
+      "description": "The Island while a check fails."
+    },
+    {
       "path": "semantic.status.failSubtle",
       "layer": "semantic",
       "type": "color",
@@ -1934,6 +1961,20 @@
         "light": "oklch(0.5293 0.1097 80)",
         "dark": "oklch(0.7636 0.1582 80)"
       }
+    },
+    {
+      "path": "semantic.status.warnOnIsland",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.amber.15",
+        "dark": "primitives.color.amber.15"
+      },
+      "value": {
+        "light": "oklch(0.269 0.0561 80)",
+        "dark": "oklch(0.269 0.0561 80)"
+      },
+      "description": "The Island while a hue reads too close to the warn signal, or the check cannot run."
     },
     {
       "path": "semantic.surface.code",

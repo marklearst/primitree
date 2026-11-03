@@ -65,7 +65,9 @@ export interface Finding {
   readonly owners: readonly string[]
 }
 
-type IslandTone = 'plain' | 'accent' | 'warn' | 'fail'
+/** A message prints as words. A failing check or a warning also fills the
+ * Island with its wash; everything else leaves it plain ink. */
+type IslandTone = 'plain' | 'warn' | 'fail'
 
 interface IslandMessage {
   readonly text: string
@@ -502,7 +504,7 @@ function hueMessage(
   if (readouts.labelTone !== previousTone) {
     return {
       text: `Label switched to ${readouts.labelTone.toLowerCase()} to hold AA`,
-      tone: 'accent',
+      tone: 'plain',
     }
   }
   const [collision] = readouts.collisions
@@ -514,7 +516,7 @@ function hueMessage(
   }
   return {
     text: `Hue ${hue}, label ${ratioText(readouts.label)}:1 AA`,
-    tone: 'accent',
+    tone: 'plain',
   }
 }
 
@@ -550,7 +552,7 @@ export function resetIsland() {
   update({ island: restMessage(state.findings) })
 }
 
-export function sayOnIsland(text: string, tone: IslandTone) {
+export function sayOnIsland(text: string, tone: IslandTone = 'plain') {
   update({ island: { text, tone } })
 }
 

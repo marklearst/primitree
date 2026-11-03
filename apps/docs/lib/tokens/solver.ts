@@ -214,7 +214,7 @@ export function solvePrimitives(
     neutral: solveFamily(h, neutralCaps, tuning.neutralTint),
     brand: solveFamily(h, brandCaps, tuning.brandChroma),
     red: solveFamily(signalHues.fail, signalCaps),
-    amber: solveFamily(signalHues.warn, { 72: 0.17, 45: 0.2 }),
+    amber: solveFamily(signalHues.warn, { 72: 0.17, 45: 0.2, 15: 0.06 }),
     blue: solveFamily(syntaxHues.blue, { 72: 0.15 }),
   }
 }
