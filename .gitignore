@@ -59,3 +59,7 @@ docs-site
 
 .env
 .vercel
+
+# Example build output
+examples/*/generated/
+examples/*/generated-*/
