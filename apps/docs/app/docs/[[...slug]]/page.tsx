@@ -25,32 +25,34 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const markdownUrl = getPageMarkdownUrl(page).url
   const githubUrl = getDocsGithubUrl(page.path)
 
+  /* The article is the page's main landmark. A wrapper with no box would hide
+     the segment's first node from Next's scroll-to-top, so a visitor arriving
+     from a scrolled homepage would land mid-article. */
   return (
-    <main className='contents'>
-      <DocsPage
-        toc={page.data.toc}
-        full={page.data.full}>
-        <DocsTitle>{page.data.title}</DocsTitle>
-        <DocsDescription className='mb-0'>
-          {page.data.description}
-        </DocsDescription>
-        <div className='flex flex-row gap-2 items-center border-b pb-6'>
-          <MarkdownCopyButton markdownUrl={markdownUrl} />
-          <ViewOptionsPopover
-            markdownUrl={markdownUrl}
-            {...(githubUrl ? { githubUrl } : {})}
-          />
-        </div>
-        <DocsBody>
-          <MDX
-            components={getMDXComponents({
-              // this allows you to link to other pages with relative file paths
-              a: createRelativeLink(source, page),
-            })}
-          />
-        </DocsBody>
-      </DocsPage>
-    </main>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+      role='main'>
+      <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsDescription className='mb-0'>
+        {page.data.description}
+      </DocsDescription>
+      <div className='flex flex-row gap-2 items-center border-b pb-6'>
+        <MarkdownCopyButton markdownUrl={markdownUrl} />
+        <ViewOptionsPopover
+          markdownUrl={markdownUrl}
+          {...(githubUrl ? { githubUrl } : {})}
+        />
+      </div>
+      <DocsBody>
+        <MDX
+          components={getMDXComponents({
+            // this allows you to link to other pages with relative file paths
+            a: createRelativeLink(source, page),
+          })}
+        />
+      </DocsBody>
+    </DocsPage>
   )
 }
 
