@@ -4,14 +4,6 @@
   padding: 0 24px 48px;
 }
 
-.pg-kicker {
-  margin: 0 0 12px;
-  padding-top: 32px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-primitree-accent);
-}
-
 .pg-landing {
   padding: 0 0 24px;
 }
@@ -21,12 +13,7 @@
   line-height: 1.08;
   letter-spacing: -0.035em;
   margin: 0 0 16px;
-  font-weight: 600;
-}
-
-.pg-title em {
-  font-style: normal;
-  color: var(--color-primitree-accent);
+  font-weight: 500;
 }
 
 .pg-visually-hidden {
@@ -58,7 +45,7 @@
 .pg-dropzone {
   border: 1.5px dashed var(--color-primitree-border-strong);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-primitree-surface);
   padding: 48px 24px;
   text-align: center;
   transition:
@@ -73,7 +60,7 @@
 
 .pg-dz-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
   margin: 0 0 6px;
 }
 
@@ -105,14 +92,14 @@
   border-radius: 8px;
   padding: 10px 18px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
 }
 
 .pg-button.primary {
-  background: var(--color-primitree-accent);
-  color: #04251a;
+  background: var(--color-primitree-accent-fill);
+  color: var(--color-primitree-accent-ink);
 }
 
 .pg-button.ghost {
@@ -125,8 +112,9 @@
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid rgb(248 113 113 / 40%);
-  background: rgb(248 113 113 / 8%);
+  border: 1px solid
+    color-mix(in srgb, var(--color-primitree-error) 40%, transparent);
+  background: var(--color-primitree-tint-fail);
   color: var(--color-primitree-error);
   font-size: 14px;
   font-family: var(--font-mono);
@@ -191,7 +179,7 @@
   gap: 20px;
   flex-wrap: wrap;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-primitree-surface);
   border: 1px solid var(--color-primitree-border);
   border-radius: 14px;
   margin-bottom: 20px;
@@ -253,7 +241,6 @@
   background: var(--color-primitree-accent-wash);
   border-color: var(--color-primitree-accent);
   color: var(--color-primitree-accent);
-  font-weight: 600;
 }
 
 .pg-tabs {
@@ -270,7 +257,7 @@
   border: none;
   color: var(--color-primitree-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 8px 14px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -295,12 +282,12 @@
 
 .pg-swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
 }
 
 .pg-swatch {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-primitree-surface);
   border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
   padding: 12px;
@@ -311,16 +298,15 @@
 .pg-swatch-chip {
   height: 44px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-primitree-border);
 }
 
 .pg-swatch-path,
 .pg-swatch-value {
   font-size: 12px;
   font-family: var(--font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .pg-swatch-path {
@@ -358,13 +344,9 @@
 }
 
 .pg-type-chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgb(52 211 153 / 10%);
-  color: var(--color-primitree-good);
+  color: var(--color-primitree-muted);
+  font-family: var(--font-mono);
   font-size: 12px;
-  font-weight: 600;
 }
 
 .pg-files {
@@ -414,7 +396,7 @@
 
 .pg-file-view {
   min-inline-size: 0;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-primitree-surface);
   border: 1px solid var(--color-primitree-border);
   border-radius: 12px;
   padding: 16px;
@@ -468,7 +450,7 @@
   }
 
   .pg-button.ghost:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-primitree-hover-wash);
   }
 }
 

@@ -8,6 +8,7 @@ import {
   resolvePreview,
   zipPipeline,
   type Preview,
+  type PreviewToken,
 } from '@/lib/playground/pipeline'
 import sampleVariables from '@/lib/playground/sample-variables.json'
 import '@/components/playground/playground.css'
@@ -22,6 +23,21 @@ function formatCount(
   plural = `${singular}s`
 ): string {
   return `${count} ${count === 1 ? singular : plural}`
+}
+
+/** Colors read as the hex a designer would name them; a color without one
+ * keeps its CSS `color()` string. */
+function colorLabel(token: PreviewToken): string | null {
+  const value = token.value
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'colorSpace' in value &&
+    typeof value.hex === 'string'
+  ) {
+    return value.hex
+  }
+  return token.css
 }
 
 function formatPlaygroundStats(counts: {
@@ -150,10 +166,9 @@ export function PlaygroundApp() {
     <div
       className='pg-shell'
       data-hydrated={hydrated}>
-      {!preview ? <p className='pg-kicker'>Playground</p> : null}
       <h1 className={`pg-title${preview ? ' pg-visually-hidden' : ''}`}>
         Preview a variables export
-        <br /> <em>before you install the CLI.</em>
+        <br /> before you install the CLI.
       </h1>
 
       {!preview && (
@@ -182,7 +197,15 @@ export function PlaygroundApp() {
               event.preventDefault()
               setDragging(true)
             }}
-            onDragLeave={() => setDragging(false)}
+            onDragLeave={event => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null
+                )
+              ) {
+                setDragging(false)
+              }
+            }}
             onDrop={onDrop}>
             <p
               id='pg-dropzone-title'
@@ -360,7 +383,11 @@ export function PlaygroundApp() {
                         style={{ background: token.css ?? 'transparent' }}
                       />
                       <span className='pg-swatch-path'>{token.path}</span>
-                      <code className='pg-swatch-value'>{token.css}</code>
+                      <code
+                        className='pg-swatch-value'
+                        title={token.css ?? undefined}>
+                        {colorLabel(token)}
+                      </code>
                     </div>
                   ))}
                 </div>
