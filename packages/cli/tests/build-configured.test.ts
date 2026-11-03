@@ -167,6 +167,19 @@ describe('primitree build with a project config', () => {
     ).resolves.toBeDefined()
   })
 
+  it('reports the output directory relative to the working directory', async () => {
+    await writeProject()
+    vi.spyOn(process, 'cwd').mockReturnValue(directory)
+
+    await runBuild(parseArgs([]))
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Built \d+ files for source "brand" in \.[\\/]generated\.$/u
+      )
+    )
+  })
+
   it('requires and accepts a source name when the config has several sources', async () => {
     const configPath = await writeProject()
     await fs.writeFile(

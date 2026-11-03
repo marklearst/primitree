@@ -304,6 +304,19 @@ async function runConfiguredBuild(args: ParsedArgs): Promise<void> {
     return
   }
   console.log(
-    `Built ${formatCount(files.length, 'file')} for source "${configured.sourceName}" in ${outputs.directory}.`
+    `Built ${formatCount(files.length, 'file')} for source "${configured.sourceName}" in ${displayDirectory(outputs.directory)}.`
   )
+}
+
+/** Shows an output directory the way a user would type it: relative to the
+ * working directory when it sits inside it, absolute otherwise. */
+function displayDirectory(directory: string): string {
+  const relative = path.relative(process.cwd(), directory)
+  if (relative === '') {
+    return '.'
+  }
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return directory
+  }
+  return `.${path.sep}${relative}`
 }
