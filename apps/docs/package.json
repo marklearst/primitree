@@ -6,6 +6,8 @@
   "scripts": {
     "generate:api": "node scripts/generate-api.mjs",
     "tokens:build": "node scripts/build-site-tokens.mjs",
+    "tokens:check": "node scripts/build-site-tokens.mjs --check && node scripts/capture-site.mjs --check",
+    "tokens:capture": "node scripts/capture-site.mjs",
     "check:prose": "node ../../scripts/check-prose.mjs",
     "check:prose:built": "node ../../scripts/check-prose.mjs --built",
     "check:links": "node scripts/check-links.mjs",

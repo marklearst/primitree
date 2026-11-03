@@ -1,0 +1,74 @@
+{
+  "check": {
+    "command": "primitree check --source light-full",
+    "stdout": "Check passed for source \"light-full\" with 202 tokens.",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "check-dark": {
+    "command": "primitree check --source dark-full",
+    "stdout": "Check passed for source \"dark-full\" with 202 tokens.",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "inspect": {
+    "command": "primitree inspect semantic.accent.solid --source light-full",
+    "stdout": "Token: semantic.accent.solid\nID: source:light-full/token:semantic.accent.solid\nSource: light-full\nType: color\nValue: {\"colorSpace\":\"oklch\",\"components\":[0.5107,0.1407,150],\"hex\":\"#007b37\"}\nAlias chain: semantic.accent.solid -> primitives.color.brand.45\nOwners: product-design\nDirect dependents: component.button.primary.background, component.close.background, component.crown.center\nSource file: generated/resolved/light-full.tokens.json\nToken pointer: /semantic/accent/solid",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "diff-theme": {
+    "command": "primitree diff generated/resolved/light-full.tokens.json generated/resolved/dark-full.tokens.json --source light-full",
+    "stdout": "Diff found 24 token changes.\nchanged semantic.accent.edge\n  Affected tokens: component.link.underline\nchanged semantic.accent.solid\n  Affected tokens: component.button.primary.background, component.close.background, component.crown.center\nchanged semantic.accent.solidHover\n  Affected tokens: component.button.primary.backgroundHover\nchanged semantic.accent.subtle\n  Affected tokens: none\nchanged semantic.accent.text\n  Affected tokens: component.link.text\nchanged semantic.border.focus\n  Affected tokens: component.focus.ring\nchanged semantic.border.island\n  Affected tokens: component.island.border\nchanged semantic.border.panel\n  Affected tokens: component.code.border\nchanged semantic.border.strong\n  Affected tokens: component.chooser.selectedBorder\nchanged semantic.border.subtle\n  Affected tokens: component.graph.nodeBorder\nchanged semantic.status.fail\n  Affected tokens: component.finding.text, component.graph.fail\nchanged semantic.status.failSubtle\n  Affected tokens: component.finding.background\nchanged semantic.status.warn\n  Affected tokens: none\nchanged semantic.surface.code\n  Affected tokens: component.code.background\nchanged semantic.surface.inverse\n  Affected tokens: none\nchanged semantic.surface.island\n  Affected tokens: component.island.background\nchanged semantic.surface.page\n  Affected tokens: component.chooser.selected, component.crown.knob\nchanged semantic.surface.raised\n  Affected tokens: none\nchanged semantic.surface.sunken\n  Affected tokens: component.chooser.background\nchanged semantic.text.muted\n  Affected tokens: component.graph.edge, component.graph.label\nchanged semantic.text.onAccent\n  Affected tokens: component.button.primary.text, component.close.text, component.crown.centerText\nchanged semantic.text.onInverse\n  Affected tokens: none\nchanged semantic.text.primary\n  Affected tokens: component.chooser.selectedText, component.crown.knobBorder, component.graph.lit, component.nav.textHover\nchanged semantic.text.secondary\n  Affected tokens: component.chooser.text, component.nav.text\nNew findings: 0\nResolved findings: 0",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "build": {
+    "command": "primitree build --source light-full",
+    "stdout": "Built 5 files for source \"light-full\" in ./generated/cli/light-full.",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "build-check": {
+    "command": "primitree build --source light-full --check",
+    "stdout": "Build output is current for source \"light-full\".",
+    "stderr": "",
+    "exitCode": 0
+  },
+  "break-literal": {
+    "command": "primitree check --source break-literal",
+    "stdout": "",
+    "stderr": "PT1003 semantic.accent.solid: Layer semantic does not allow this token value form.\nCheck found 1 active finding for source \"break-literal\".",
+    "exitCode": 1
+  },
+  "break-skip": {
+    "command": "primitree check --source break-skip",
+    "stdout": "",
+    "stderr": "PT1004 component.link.text: Layer component cannot reference layer primitives.\nCheck found 1 active finding for source \"break-skip\".",
+    "exitCode": 1
+  },
+  "break-skip-json": {
+    "command": "primitree check --source break-skip --format json",
+    "stdout": "{\"schemaVersion\":1,\"command\":\"check\",\"source\":\"break-skip\",\"findings\":[{\"findingId\":\"PT1004:source%3Abreak-skip%2Ftoken%3Acomponent.link.text:source%3Abreak-skip%2Ftoken%3Aprimitives.color.brand.45\",\"ruleId\":\"PT1004\",\"tokenId\":\"source:break-skip/token:component.link.text\",\"path\":[\"component\",\"link\",\"text\"],\"message\":\"Layer component cannot reference layer primitives.\",\"owners\":[\"design-systems\"],\"disposition\":\"active\",\"layerId\":\"component\",\"targetTokenId\":\"source:break-skip/token:primitives.color.brand.45\"}],\"summary\":{\"active\":1,\"baseline\":0}}",
+    "stderr": "",
+    "exitCode": 1
+  },
+  "break-stray": {
+    "command": "primitree check --source break-stray",
+    "stdout": "",
+    "stderr": "PT1001 brand.accent: Token path does not match a policy layer.\nCheck found 1 active finding for source \"break-stray\".",
+    "exitCode": 1
+  },
+  "break-owner": {
+    "command": "primitree check --source break-owner",
+    "stdout": "",
+    "stderr": "PT1005 component.button.paddingBlock: Token has no owner.\nPT1005 component.button.paddingInline: Token has no owner.\nPT1005 component.button.primary.background: Token has no owner.\nPT1005 component.button.primary.backgroundHover: Token has no owner.\nPT1005 component.button.primary.text: Token has no owner.\nPT1005 component.button.radius: Token has no owner.\nPT1005 component.button.transition.duration: Token has no owner.\nPT1005 component.button.transition.timingFunction: Token has no owner.\nPT1005 component.chooser.background: Token has no owner.\nPT1005 component.chooser.selected: Token has no owner.\nPT1005 component.chooser.selectedBorder: Token has no owner.\nPT1005 component.chooser.selectedText: Token has no owner.\nPT1005 component.chooser.text: Token has no owner.\nPT1005 component.close.background: Token has no owner.\nPT1005 component.close.text: Token has no owner.\nPT1005 component.code.background: Token has no owner.\nPT1005 component.code.border: Token has no owner.\nPT1005 component.code.padding: Token has no owner.\nPT1005 component.code.prompt: Token has no owner.\nPT1005 component.code.radius: Token has no owner.\nPT1005 component.crown.center: Token has no owner.\nPT1005 component.crown.centerText: Token has no owner.\nPT1005 component.crown.knob: Token has no owner.\nPT1005 component.crown.knobBorder: Token has no owner.\nPT1005 component.finding.background: Token has no owner.\nPT1005 component.finding.text: Token has no owner.\nPT1005 component.focus.ring: Token has no owner.\nPT1005 component.graph.edge: Token has no owner.\nPT1005 component.graph.fail: Token has no owner.\nPT1005 component.graph.label: Token has no owner.\nPT1005 component.graph.lit: Token has no owner.\nPT1005 component.graph.nodeBorder: Token has no owner.\nPT1005 component.graph.wave.duration: Token has no owner.\nPT1005 component.graph.wave.step: Token has no owner.\nPT1005 component.island.accent: Token has no owner.\nPT1005 component.island.background: Token has no owner.\nPT1005 component.island.border: Token has no owner.\nPT1005 component.island.text: Token has no owner.\nPT1005 component.island.transition.duration: Token has no owner.\nPT1005 component.link.text: Token has no owner.\nPT1005 component.link.underline: Token has no owner.\nPT1005 component.nav.text: Token has no owner.\nPT1005 component.nav.textHover: Token has no owner.\nPT1005 primitives.color.amber.45: Token has no owner.\nPT1005 primitives.color.amber.72: Token has no owner.\nPT1005 primitives.color.blue.72: Token has no owner.\nPT1005 primitives.color.brand.15: Token has no owner.\nPT1005 primitives.color.brand.35: Token has no owner.\nPT1005 primitives.color.brand.45: Token has no owner.\nPT1005 primitives.color.brand.72: Token has no owner.\nPT1005 primitives.color.brand.85: Token has no owner.\nPT1005 primitives.color.brand.95: Token has no owner.\nPT1005 primitives.color.neutral.1: Token has no owner.\nPT1005 primitives.color.neutral.100: Token has no owner.\nPT1005 primitives.color.neutral.20: Token has no owner.\nPT1005 primitives.color.neutral.35: Token has no owner.\nPT1005 primitives.color.neutral.4: Token has no owner.\nPT1005 primitives.color.neutral.45: Token has no owner.\nPT1005 primitives.color.neutral.60: Token has no owner.\nPT1005 primitives.color.neutral.72: Token has no owner.\nPT1005 primitives.color.neutral.8: Token has no owner.\nPT1005 primitives.color.neutral.80: Token has no owner.\nPT1005 primitives.color.neutral.90: Token has no owner.\nPT1005 primitives.color.neutral.94: Token has no owner.\nPT1005 primitives.color.neutral.97: Token has no owner.\nPT1005 primitives.color.red.15: Token has no owner.\nPT1005 primitives.color.red.45: Token has no owner.\nPT1005 primitives.color.red.72: Token has no owner.\nPT1005 primitives.color.red.97: Token has no owner.\nPT1005 primitives.duration.0: Token has no owner.\nPT1005 primitives.duration.140: Token has no owner.\nPT1005 primitives.duration.280: Token has no owner.\nPT1005 primitives.duration.440: Token has no owner.\nPT1005 primitives.duration.70: Token has no owner.\nPT1005 primitives.easing.inOut: Token has no owner.\nPT1005 primitives.easing.out: Token has no owner.\nPT1005 primitives.font.family.mono: Token has no owner.\nPT1005 primitives.font.family.sans: Token has no owner.\nPT1005 primitives.font.letterSpacing.minus15: Token has no owner.\nPT1005 primitives.font.letterSpacing.minus30: Token has no owner.\nPT1005 primitives.font.lineHeight.115: Token has no owner.\nPT1005 primitives.font.lineHeight.140: Token has no owner.\nPT1005 primitives.font.lineHeight.155: Token has no owner.\nPT1005 primitives.font.lineHeight.98: Token has no owner.\nPT1005 primitives.font.ratio.86: Token has no owner.\nPT1005 primitives.font.ratio.92: Token has no owner.\nPT1005 primitives.font.size.10: Token has no owner.\nPT1005 primitives.font.size.13: Token has no owner.\nPT1005 primitives.font.size.14: Token has no owner.\nPT1005 primitives.font.size.15: Token has no owner.\nPT1005 primitives.font.size.16: Token has no owner.\nPT1005 primitives.font.size.17: Token has no owner.\nPT1005 primitives.font.size.20: Token has no owner.\nPT1005 primitives.font.size.36: Token has no owner.\nPT1005 primitives.font.size.44: Token has no owner.\nPT1005 primitives.font.size.92: Token has no owner.\nPT1005 primitives.font.weight.400: Token has no owner.\nPT1005 primitives.font.weight.500: Token has no owner.\nPT1005 primitives.radius.10: Token has no owner.\nPT1005 primitives.radius.6: Token has no owner.\nPT1005 primitives.radius.999: Token has no owner.\nPT1005 primitives.space.12: Token has no owner.\nPT1005 primitives.space.128: Token has no owner.\nPT1005 primitives.space.16: Token has no owner.\nPT1005 primitives.space.32: Token has no owner.\nPT1005 primitives.space.4: Token has no owner.\nPT1005 primitives.space.40: Token has no owner.\nPT1005 primitives.space.56: Token has no owner.\nPT1005 primitives.space.72: Token has no owner.\nPT1005 primitives.space.8: Token has no owner.\nCheck found 110 active findings for source \"break-owner\".",
+    "exitCode": 1
+  },
+  "mcp": {
+    "command": "get_token { \"path\": \"component.button.primary.background\" }",
+    "stdout": "{\n  \"path\": \"component.button.primary.background\",\n  \"found\": true,\n  \"token\": {\n    \"$value\": \"{semantic.accent.solid}\"\n  },\n  \"value\": {\n    \"colorSpace\": \"oklch\",\n    \"components\": [\n      0.5107,\n      0.1407,\n      150\n    ],\n    \"hex\": \"#007b37\"\n  },\n  \"css\": \"oklch(0.5107 0.1407 150)\",\n  \"cssVar\": \"var(--component-button-primary-background)\"\n}",
+    "stderr": "",
+    "exitCode": 0
+  }
+}
