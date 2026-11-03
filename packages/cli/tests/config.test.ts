@@ -463,6 +463,14 @@ describe('defineConfig', () => {
 })
 
 describe('loadPrimitreeConfig', () => {
+  it('points a missing config at the getting started guide', async () => {
+    const directory = await temporaryDirectory()
+
+    await expect(loadPrimitreeConfig({ cwd: directory })).rejects.toThrow(
+      'Could not read Primitree config: primitree.config.ts. See https://primitree.com/docs/getting-started for a starter config.'
+    )
+  })
+
   it('rejects a source file above the config directory', async () => {
     const directory = await temporaryDirectory()
     const configPath = await writeConfig(directory, {

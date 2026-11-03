@@ -1119,7 +1119,9 @@ export async function loadPrimitreeConfig(
   const configLabel = options.configPath ?? 'primitree.config.ts'
   const stats = await fs.stat(configPath).catch(() => undefined)
   if (stats === undefined || !stats.isFile()) {
-    throw new Error(`Could not read Primitree config: ${configLabel}`)
+    throw new Error(
+      `Could not read Primitree config: ${configLabel}. See https://primitree.com/docs/getting-started for a starter config.`
+    )
   }
 
   const moduleUrl = pathToFileURL(configPath)
