@@ -299,7 +299,7 @@ Under 640px the links fold into a popover menu behind a Menu button; a tap outsi
 
 ### Island (Signature)
 
-One pill, 36px tall, `surface.island` with `text.onIsland` and a 1px `border.island`, Label type with tabular figures. At rest it reads `0 findings, exit 0`, the result the build recorded, with no dot; an 8px dot leads every other message: `accent.onIsland` for a hue or a hovered token, `status.warn` for a warning, `status.fail` for a failing check, where the text names the first finding's rule and path; once a hover clears, the failing rest reads `primitree check, exit 1`. A restored rule reads `Rule restored, exit 0`, plain again. The capsule animates its width over `duration.handoff` (440ms) as the message changes, and a hidden status region speaks the text once the dial rests, so a drag never floods a screen reader.
+One pill, 36px tall, `surface.island` with `text.onIsland` and a 1px `border.island`, Label type with tabular figures. At rest it reads `0 findings, exit 0`, the result the build recorded, with no dot; an 8px dot leads every other message: `accent.onIsland` for a hue or a hovered token, `status.warn` for a warning, `status.fail` for a failing check, where the text names the first finding's rule and path; once a hover clears, the failing rest reads `primitree check, exit 1`. A restored rule reads `Rule restored, exit 0`, plain again. The words sit 1px above the line box's center: Wotfard's line box centers capitals, and most of each message is lowercase, so the lift centers the lowercase letters. The capsule animates its width over `duration.handoff` (440ms) as the message changes, and a hidden status region speaks the text once the dial rests, so a drag never floods a screen reader.
 
 ### Crown (Signature)
 

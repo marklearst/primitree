@@ -1168,8 +1168,13 @@
 
 /* New words fade in over the time the capsule takes to grow, on the in-out
    curve, so they stay faint while the capsule is still too narrow for them.
-   The words the page loads with sit still. */
+   The words the page loads with sit still.
+
+   Wotfard's line box centers the capitals, but most of each Island
+   message is lowercase, and the middle of its x-height sat 1.1px below the
+   capsule's center. A 1px lift centers the lowercase. */
 .island-text {
+  translate: 0 -1px;
   overflow: hidden;
   text-overflow: ellipsis;
   animation: island-in var(--component-island-transition-duration)
