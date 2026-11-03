@@ -1,21 +1,88 @@
-<div align="center">
+# Primitree
 
-# 🌳 Primitree
-
-Check a local DTCG source against project rules and build files for apps.
+Policy checks and dependency-aware diffs for DTCG design tokens, run before your build and
+in CI.
 
 [![CI](https://github.com/marklearst/primitree/actions/workflows/ci.yml/badge.svg)](https://github.com/marklearst/primitree/actions/workflows/ci.yml)
-[![DTCG](https://img.shields.io/badge/DTCG-2025.10-0B9464)](https://www.designtokens.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-</div>
+A component token that points straight at a primitive fails the check and exits 1:
 
-```sh
-npx primitree@next check
-npx primitree@next build
+```console
+$ npx primitree@next check --source layer-skip
+PT1004 component.button.bg: Layer component cannot reference layer primitives.
+Check found 1 active finding for source "layer-skip".
 ```
 
-Configured builds can write this file set:
+A rename lists every token that resolved through the old name:
+
+```console
+$ npx primitree@next diff tokens.json proposals/rename.tokens.json --source brand
+Diff found 5 token changes.
+changed component.button.bg
+  Affected tokens: none
+changed component.focus.ring
+  Affected tokens: none
+changed component.nav.active.bg
+  Affected tokens: none
+removed semantic.color.bg.brand
+  Affected tokens: component.button.bg, component.focus.ring, component.nav.active.bg
+added semantic.color.bg.primary
+  Affected tokens: component.button.bg, component.focus.ring, component.nav.active.bg
+New findings: 0
+Resolved findings: 0
+```
+
+## Try it
+
+Both transcripts come from [`examples/brand`](examples/brand), a 15-token starter set. The
+homepage at [primitree.com](https://primitree.com) runs on a larger set in
+[`apps/docs/tokens`](apps/docs/tokens), checked by the same CLI:
+
+```sh
+git clone https://github.com/marklearst/primitree
+cd primitree/examples/brand
+npx primitree@next check --source brand
+npx primitree@next check --source layer-skip
+npx primitree@next diff tokens.json proposals/rename.tokens.json --source brand
+npx primitree@next build --source brand
+```
+
+## Add it to a project
+
+```sh
+npm install -D @primitree/cli@next
+```
+
+Put `primitree.config.ts` next to your DTCG file. It names each source, its layers, the
+references each layer may make, and who owns which paths. The
+[getting started guide](https://primitree.com/docs/getting-started) walks through one, and
+[`examples/brand/primitree.config.ts`](examples/brand/primitree.config.ts) is a working copy.
+
+```sh
+npx primitree check --source brand
+npx primitree build --source brand
+npx primitree build --source brand --check
+```
+
+`build --check` exits 1 when the generated files differ from the source, so a pull request
+that edits tokens without rebuilding fails CI.
+
+## Rules the check enforces
+
+| Rule     | Finding                                                                                 |
+| -------- | --------------------------------------------------------------------------------------- |
+| `PT1001` | A token path matches no layer in the config.                                            |
+| `PT1003` | A layer gets the wrong value form: a literal where it expects an alias, or the reverse. |
+| `PT1004` | A layer references a layer it may not reference.                                        |
+| `PT1005` | A token has no owner.                                                                   |
+
+The check also rejects invalid token types, broken references, and cycles.
+
+## Build output
+
+Primitree runs before your build tool and does not replace it. The build writes standard
+DTCG 2025.10 with Resolver contexts, plus CSS, Tailwind v4, and TypeScript:
 
 ```text
 generated/
@@ -29,42 +96,24 @@ generated/
 └── .primitree-manifest.json
 ```
 
-Set the source, layer rules, owner rules, output directory, and formats in
-`primitree.config.ts`. See [the CLI package guide](packages/cli) for a full
-config example.
+## Figma variables
 
-The older Figma form remains available:
+Teams that start from Figma convert a variables export instead of a local DTCG file:
 
 ```sh
 npx primitree@next build variables.json
 ```
 
-Its token output follows DTCG 2025.10 plus a documented boolean extension.
-Aliases remain token references. The converter maps Figma modes to Resolver
-contexts. Figma IDs, scopes, and code syntax live under
-`$extensions['com.primitree']`.
+The converter maps Figma modes to Resolver contexts and keeps aliases as token references.
+Figma IDs, scopes, and code syntax live under `$extensions['com.primitree']`. The Figma path
+can also scaffold a Style Dictionary or Terrazzo config. Export `variables.json` with the
+[Primitree export plugin](apps/figma-plugin), or use `primitree export` against the Variables
+REST API with Enterprise access.
 
-Create `variables.json` with a variables plugin that exports local Figma
-variables. Use the Primitree export plugin during local development.
-Teams with Enterprise access can use `primitree export` against the Variables
-REST API.
+### Compare Figma exports
 
-## Packages
-
-| Package                                  | Purpose                                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ |
-| [`primitree`](packages/primitree)        | Run the CLI through the short, unscoped package name                                 |
-| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API              |
-| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                |
-| [`@primitree/cli`](packages/cli)         | Check and inspect local DTCG sources; convert Figma exports; scaffold token projects |
-| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                    |
-| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                               |
-| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                     |
-
-## Review token changes
-
-`primitree diff` matches variables by stable Figma IDs. A renamed variable
-keeps its identity in the report:
+`primitree diff` matches Figma variables by their stable IDs, so a rename keeps its identity
+in the report:
 
 ```sh
 primitree diff backup/variables.json variables.json --fail-on-breaking
@@ -83,8 +132,20 @@ Variables: 1 renamed, 1 value change.
 | `control/height` | Density    | Compact | 32     | 28    |
 ```
 
-`--fail-on-breaking` exits with code 2 when the report contains removals,
-renames, moves, or type changes.
+`--fail-on-breaking` exits with code 2 when the report contains removals, renames, moves, or
+type changes.
+
+## Packages
+
+| Package                                  | Purpose                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| [`primitree`](packages/primitree)        | Run the CLI through the short, unscoped package name                                 |
+| [`@primitree/core`](packages/core)       | Normalize exports, resolve aliases, compare revisions, and call the API              |
+| [`@primitree/dtcg`](packages/dtcg)       | Convert exports to token files and emit CSS, Tailwind, and TypeScript                |
+| [`@primitree/cli`](packages/cli)         | Check and inspect local DTCG sources; convert Figma exports; scaffold token projects |
+| [`@primitree/hooks`](packages/hooks)     | Read built tokens in React or use the Variables REST API with SWR                    |
+| [`@primitree/mcp`](packages/mcp)         | Serve token lookups and export comparisons through MCP                               |
+| [`apps/figma-plugin`](apps/figma-plugin) | Export local Figma variables to `variables.json`                                     |
 
 ## Check and inspect a DTCG source
 
@@ -163,8 +224,7 @@ pnpm --filter primitree-docs dev
 ```text
 apps/
 ├── docs/                 Documentation site and browser playground
-├── figma-plugin/         Figma export plugin
-└── playground/           Standalone browser playground
+└── figma-plugin/         Figma export plugin
 packages/
 ├── primitree/            Unscoped CLI launcher
 ├── core/                 Shared normalization, diff, API, and types
