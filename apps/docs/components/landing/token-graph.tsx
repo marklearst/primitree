@@ -1,351 +1,339 @@
-'use client'
+import type { CSSProperties, ReactNode } from 'react'
+import { reads } from '@/lib/tokens/bind'
+import { ribbonEdges, ribbonShape } from '@/lib/tokens/graph-edges'
+import {
+  barSize,
+  type GraphFrame,
+  type GraphLayer,
+  LAYER_ORDER,
+  NARROW_HEIGHT,
+  NARROW_WIDTH,
+  RIBBON,
+  type Ribbon,
+} from '@/lib/tokens/graph-layout'
+import { IDLE_CHAIN } from '@/lib/tokens/graph-copy'
+import {
+  graphTokens,
+  layerCounts,
+  placedIn,
+  placeGraph,
+  type SiteToken,
+  siteTokens,
+  tokenVar,
+} from '@/lib/tokens/site-graph'
+import { GraphEngine } from './graph-engine'
 
-import type {
-  DemoLayerId,
-  GraphEdge,
-  GraphNode,
-  ProposalOutcome,
-} from '@/lib/landing/governance-demo'
+/* The site's own tokens as a graph. The server draws all of it, every color is
+   the token's own custom property, and the dial recolors it through the var()
+   chain with no script touching a node. */
 
-const VIEW_WIDTH = 1160
-const VIEW_HEIGHT = 560
-const NODE_WIDTH = 240
-const NODE_HEIGHT = 42
-const HIT_HEIGHT = 50
-const GOVERNED_SLOT = 'semantic.color.bg.brand'
+interface Variant extends Ribbon {
+  readonly frame: GraphFrame
+  readonly height: number
+}
 
-const COLUMNS: readonly {
-  id: DemoLayerId
-  x: number
-  title: string
-  rows: readonly number[]
-}[] = [
-  {
-    id: 'primitives',
-    x: 52,
-    title: 'ROOTS · PRIMITIVES',
-    rows: [88, 164, 240, 316, 392, 468],
+const WIDE: Variant = {
+  frame: {
+    width: 1360,
+    margin: 38,
+    marginStart: 196,
+    slabGap: 40,
+    bandY: { component: 30, semantic: 150, primitives: 270 },
   },
-  {
-    id: 'semantic',
-    x: 460,
-    title: 'TRUNK · SEMANTIC',
-    rows: [108, 216, 324, 432],
-  },
-  {
-    id: 'component',
-    x: 868,
-    title: 'CANOPY · COMPONENT',
-    rows: [88, 182, 276, 370, 464],
-  },
-]
-
-/** Hand-tuned turn positions for each reference wire, from the design file. */
-const EDGE_MIDS = new Map([
-  ['primitives.color.blue.500>semantic.color.bg.brand', 340],
-  ['primitives.color.green.500>semantic.color.bg.brand', 340],
-  ['primitives.color.gray.900>semantic.color.fg.default', 320],
-  ['primitives.radius.md>semantic.radius.control', 360],
-  ['primitives.space.4>semantic.space.inset', 300],
-  ['semantic.color.bg.brand>component.button.bg', 760],
-  ['semantic.color.bg.brand>component.focus.ring', 780],
-  ['semantic.color.bg.brand>component.nav.active.bg', 800],
-  ['semantic.radius.control>component.button.radius', 745],
-  ['semantic.space.inset>component.card.inset', 820],
-])
-
-/** Hand-tuned bypass lanes for the layer-skipping violation wires, routing
- * around the semantic column the way the design file draws them. */
-const VIOLATION_LANES = new Map([
-  [
-    'primitives.color.blue.500>component.button.bg',
-    'M292 119 L373 119 Q380 119 380 126 L380 173 Q380 180 387 180 L835 180 Q842 180 842 173 L842 126 Q842 119 849 119 L868 119',
-  ],
-  [
-    'primitives.color.green.500>component.focus.ring',
-    'M292 175 L373 175 Q380 175 380 182 L380 186 Q380 193 387 193 L868 193',
-  ],
-  ['primitives.space.4>component.card.inset', 'M292 499 L868 495'],
-])
-
-const VIOLATION_TAG = { x: 556, y: 169, width: 110, height: 22 }
-
-interface PlacedNode {
-  readonly node: GraphNode
-  readonly x: number
-  readonly y: number
+  height: 304,
+  ...RIBBON,
 }
 
-function placeNodes(nodes: readonly GraphNode[]): Map<string, PlacedNode> {
-  const placed = new Map<string, PlacedNode>()
-  for (const column of COLUMNS) {
-    const members = nodes.filter(node => node.layer === column.id)
-    members.forEach((node, rowIndex) => {
-      const y = column.rows[rowIndex]
-      if (y === undefined) {
-        throw new Error(`Token graph has no row for ${node.path}.`)
-      }
-      placed.set(node.slot, { node, x: column.x, y })
-    })
-  }
-  return placed
+const NARROW_FRAME: GraphFrame = {
+  width: NARROW_WIDTH,
+  margin: 4,
+  slabGap: 5,
+  bandY: { component: 14, semantic: 154, primitives: 294 },
 }
 
-/** Orthogonal elbow with 7px-rounded corners, matching the design file. */
-function orth(from: PlacedNode, to: PlacedNode, mid: number): string {
-  const r = 7
-  const startX = from.x + NODE_WIDTH
-  const startY = from.y + NODE_HEIGHT / 2
-  const endX = to.x
-  const endY = to.y + NODE_HEIGHT / 2
-  if (Math.abs(startY - endY) < 1) {
-    return `M${startX} ${startY} L${endX} ${endY}`
-  }
-  const dy = endY > startY ? 1 : -1
-  return (
-    `M${startX} ${startY} L${mid - r} ${startY} ` +
-    `Q${mid} ${startY} ${mid} ${startY + r * dy} L${mid} ${endY - r * dy} ` +
-    `Q${mid} ${endY} ${mid + r} ${endY} L${endX} ${endY}`
-  )
+const LAYER_CAPTIONS: Readonly<
+  Record<GraphLayer, { readonly name: string; readonly rule: string }>
+> = {
+  component: { name: 'Component tokens', rule: 'reference semantic tokens' },
+  semantic: { name: 'Semantic tokens', rule: 'reference primitives' },
+  primitives: { name: 'Primitives', rule: 'hold raw values' },
 }
 
-function edgePath(edge: GraphEdge, placed: Map<string, PlacedNode>): string {
-  const key = `${edge.from}>${edge.to}`
-  const lane = VIOLATION_LANES.get(key)
-  if (edge.violation && lane !== undefined) {
-    return lane
-  }
-  const from = placed.get(edge.from)
-  const to = placed.get(edge.to)
-  if (from === undefined || to === undefined) {
-    throw new Error('Token graph expected both edge ends to have slots.')
-  }
-  const mid = EDGE_MIDS.get(key) ?? from.x + NODE_WIDTH + 84
-  return orth(from, to, mid)
+/** The narrowest slab cannot hold its type's full name. */
+const SLAB_LABELS: Readonly<Record<string, string>> = { cubicBezier: 'bezier' }
+
+const bezierPath = (value: string) => {
+  const points =
+    value
+      .slice(value.indexOf('('))
+      .match(/-?[\d.]+/gu)
+      ?.map(Number) ?? []
+  const [x1 = 0, y1 = 0, x2 = 1, y2 = 1] = points
+  const at = (x: number, y: number) => `${x * 10 - 5} ${5 - y * 10}`
+  return `M-5 5C${at(x1, y1)} ${at(x2, y2)} 5 -5`
 }
 
-function chainOf(
-  slot: string,
-  edges: readonly GraphEdge[]
-): ReadonlySet<string> {
-  const chain = new Set([slot])
-  let grew = true
-  while (grew) {
-    grew = false
-    for (const edge of edges) {
-      if (chain.has(edge.from) && !chain.has(edge.to)) {
-        chain.add(edge.to)
-        grew = true
-      }
-      if (chain.has(edge.to) && !chain.has(edge.from)) {
-        chain.add(edge.from)
-        grew = true
-      }
+/** Each type draws its own measurement: a color fills with its value, a length
+ * sets the bar, a family sets itself. */
+function Glyph({ token }: { token: SiteToken }): ReactNode {
+  const value = token.value.light
+  switch (token.type) {
+    case 'color':
+      return (
+        <circle
+          className='node-swatch'
+          r={token.layer === 'semantic' ? 4.5 : 5}
+          style={{ fill: tokenVar(token.path) }}
+        />
+      )
+    case 'duration':
+    case 'dimension': {
+      const bar = barSize(token.type, value)
+      return (
+        <rect
+          className='node-bar'
+          x={-bar.width / 2}
+          y={-bar.height / 2}
+          width={bar.width}
+          height={bar.height}
+          rx={bar.rx}
+        />
+      )
     }
+    case 'fontFamily':
+      return (
+        <text
+          className='node-glyph'
+          textAnchor='middle'
+          y={3.5}
+          style={{ fontFamily: tokenVar(token.path) }}>
+          A
+        </text>
+      )
+    case 'fontWeight':
+      return (
+        <text
+          className='node-glyph'
+          textAnchor='middle'
+          y={3.5}
+          style={{ fontWeight: tokenVar(token.path) }}>
+          a
+        </text>
+      )
+    case 'cubicBezier':
+      return (
+        <path
+          className='node-curve'
+          d={bezierPath(value)}
+        />
+      )
+    default:
+      return (
+        <rect
+          className='node-axis'
+          x={-3}
+          y={-3}
+          width={6}
+          height={6}
+        />
+      )
   }
-  return chain
 }
 
-function isAchromatic(hex: string): boolean {
-  const channels = hex
-    .slice(1)
-    .match(/.{2}/gu)
-    ?.map(channel => Number.parseInt(channel, 16))
-  if (channels === undefined || channels.length !== 3) {
-    return false
-  }
-  return Math.max(...channels) - Math.min(...channels) < 30
-}
-
-function nodeSummary(node: GraphNode): string {
-  const consumerCount =
-    node.consumers === 1 ? '1 consumer' : `${node.consumers} consumers`
-  return `${node.path} · ${node.kind} ${node.display} · owner ${node.owner} · ${consumerCount}`
-}
-
-export function TokenGraph({
-  outcome,
-  checking,
-  traceSlot,
-  selectedSlot,
-  onTraceSlot,
-  onSelectSlot,
-}: {
-  outcome: ProposalOutcome
-  checking: boolean
-  traceSlot: string | null
-  selectedSlot: string | null
-  onTraceSlot: (slot: string | null) => void
-  onSelectSlot: (slot: string | null) => void
-}) {
-  const placed = placeNodes(outcome.nodes)
-  const trace = traceSlot === null ? null : chainOf(traceSlot, outcome.edges)
-  const governed = chainOf(GOVERNED_SLOT, outcome.edges)
-  const hasViolations = outcome.edges.some(edge => edge.violation)
-  const violationCount = outcome.edges.filter(edge => edge.violation).length
-  const violationSlots = new Set(
-    outcome.edges
-      .filter(edge => edge.violation)
-      .flatMap(edge => [edge.from, edge.to])
+function GraphSvg({ variant }: { variant: Variant }) {
+  const { positions } = placeGraph(variant.frame)
+  const { frame, height } = variant
+  const placed = (path: string) => placedIn(positions, path)
+  const positionOf = (path: string) => positions.get(path)
+  const edges = ribbonEdges(graphTokens, positionOf, variant)
+  const breakEdge = ribbonShape(
+    graphTokens,
+    positionOf,
+    variant,
+    'component.link.text',
+    'primitives.color.brand.45'
   )
-  const traceTouchesViolation =
-    trace !== null && [...violationSlots].some(slot => trace.has(slot))
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: an SVG cannot become a fieldset; role=group names the graph for assistive technology.
+    // biome-ignore lint/a11y/useSemanticElements: an SVG cannot be a fieldset, and the group role names the drawing that holds the roving tab stop
     <svg
-      viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-      className='graph-svg'
+      id='token-graph-wide'
+      className='graph-svg graph-svg-wide'
+      viewBox={`0 0 ${frame.width} ${height}`}
       role='group'
-      aria-label={`Token graph for the ${outcome.label} proposal`}>
-      {COLUMNS.map(column => (
-        <g key={column.id}>
-          <text
-            x={column.x}
-            y={52}
-            className='graph-column-title'>
-            {column.title}
-          </text>
-          <line
-            x1={column.x}
-            y1={64}
-            x2={column.x + NODE_WIDTH}
-            y2={64}
-            className='graph-column-rule'
+      aria-label={`Token graph of this page: ${siteTokens.length} tokens in three layers. Use the arrow keys to move between tokens.`}>
+      {siteTokens
+        .filter(token => token.layer === 'component')
+        .map(token => (
+          <path
+            key={token.path}
+            className='graph-stub'
+            data-from={token.path}
+            pathLength={100}
+            d={`M${placed(token.path).x.toFixed(1)} ${frame.bandY.component}V0`}
+            style={
+              token.type === 'color'
+                ? { stroke: tokenVar(token.path) }
+                : undefined
+            }
           />
+        ))}
+      {(['semantic', 'component'] as const).map(layer => (
+        <g
+          key={layer}
+          className='graph-ribbons'
+          data-layer={layer}>
+          {edges
+            .filter(edge => edge.layer === layer)
+            .map(edge => (
+              <path
+                key={`${edge.from}>${edge.to}`}
+                className='graph-edge'
+                data-from={edge.from}
+                data-to={edge.to}
+                data-layer={layer}
+                data-only={edge.only ?? undefined}
+                pathLength={100}
+                d={edge.d}
+                style={
+                  {
+                    '--rest': edge.rest,
+                    ...(edge.color
+                      ? { '--edge-color': tokenVar(edge.to) }
+                      : {}),
+                  } as CSSProperties
+                }
+              />
+            ))}
         </g>
       ))}
-      <g key={`edges-${outcome.id}`}>
-        {outcome.edges.map(edge => {
-          const inTrace =
-            (trace?.has(edge.from) ?? false) && (trace?.has(edge.to) ?? false)
-          const inGoverned = governed.has(edge.from) && governed.has(edge.to)
-          const tone = edge.violation
-            ? 'violation'
-            : inTrace
-              ? 'active'
-              : trace === null && inGoverned
-                ? hasViolations
-                  ? 'suppressed'
-                  : 'governed'
-                : 'base'
-          const dim = trace !== null && !inTrace
-          return (
-            <path
-              key={`${edge.from}-${edge.to}`}
-              d={edgePath(edge, placed)}
-              className='graph-edge'
-              data-tone={tone}
-              data-active={(edge.violation && inTrace) || undefined}
-              data-static={(hasViolations && tone === 'active') || undefined}
-              data-dim={dim || undefined}
-            />
-          )
-        })}
-      </g>
-      {hasViolations && !checking ? (
-        <g
-          className='graph-violation-tag'
-          data-dim={
-            trace !== null && !traceTouchesViolation ? true : undefined
-          }>
-          <rect
-            x={VIOLATION_TAG.x}
-            y={VIOLATION_TAG.y}
-            width={VIOLATION_TAG.width}
-            height={VIOLATION_TAG.height}
-            rx={6}
-          />
-          <text
-            x={VIOLATION_TAG.x + VIOLATION_TAG.width / 2}
-            y={VIOLATION_TAG.y + 15}
-            textAnchor='middle'>
-            {violationCount} × layer-skip
-          </text>
-        </g>
-      ) : null}
-      {[...placed.values()].map(({ node, x, y }) => {
-        const inTrace = trace?.has(node.slot) ?? false
-        const flag =
-          node.finding !== null || violationSlots.has(node.slot)
-            ? 'violation'
-            : (node.change ?? undefined)
-        const emphasis = inTrace
-          ? 'chain'
-          : node.slot === GOVERNED_SLOT && !hasViolations
-            ? 'governed'
-            : undefined
-        const selected = selectedSlot === node.slot
-        const textX = node.swatch === null ? x + 14 : x + 32
+      {breakEdge === null ? null : (
+        <path
+          className='graph-edge graph-break'
+          data-break='skip'
+          data-from='component.link.text'
+          data-to='primitives.color.brand.45'
+          pathLength={100}
+          d={breakEdge.d}
+        />
+      )}
+      {siteTokens.map(token => {
+        const { x, y } = placed(token.path)
         return (
-          // biome-ignore lint/a11y/useSemanticElements: HTML buttons cannot exist inside SVG; the node group carries role=button with full keyboard handling.
+          // biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: each node is a labeled image in a roving tab stop, which SVG has no native element for
           <g
-            key={node.slot}
+            key={token.path}
             className='graph-node'
-            role='button'
-            tabIndex={0}
-            aria-pressed={selected}
-            aria-label={nodeSummary(node)}
-            data-flag={flag}
-            data-emphasis={emphasis}
-            data-selected={selected || undefined}
-            data-dim={(trace !== null && !inTrace) || undefined}
-            onClick={() => onSelectSlot(selected ? null : node.slot)}
-            onKeyDown={event => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                onSelectSlot(selected ? null : node.slot)
-              } else if (event.key === 'Escape') {
-                onSelectSlot(null)
-              }
-            }}
-            onMouseEnter={() => onTraceSlot(node.slot)}
-            onMouseLeave={() => onTraceSlot(null)}
-            onFocus={() => onTraceSlot(node.slot)}
-            onBlur={() => onTraceSlot(null)}>
-            <rect
-              x={x}
-              y={y - (HIT_HEIGHT - NODE_HEIGHT) / 2}
-              width={NODE_WIDTH}
-              height={HIT_HEIGHT}
-              className='graph-node-hit'
-            />
-            <rect
-              x={x}
-              y={y}
-              width={NODE_WIDTH}
-              height={NODE_HEIGHT}
-              rx={8}
-              className='graph-node-box'
-            />
-            {node.swatch === null ? null : (
-              <rect
-                x={x + 14}
-                y={y + 9}
-                width={10}
-                height={10}
-                rx={3}
-                className='graph-node-swatch'
-                data-outline={isAchromatic(node.swatch) || undefined}
-                style={{ fill: node.swatch }}
-              />
-            )}
-            <text
-              x={textX}
-              y={y + 19}
-              className='graph-node-label'>
-              {node.label}
-            </text>
-            <text
-              x={textX}
-              y={y + 34}
-              className='graph-node-value'
-              data-tone={node.finding === null ? undefined : 'violation'}>
-              {node.display}
-            </text>
+            data-path={token.path}
+            data-layer={token.layer}
+            tabIndex={-1}
+            role='img'
+            aria-label={`${token.path}, ${
+              token.target.light === null
+                ? 'a raw value'
+                : `references ${token.target.light}`
+            }`}
+            transform={`translate(${x.toFixed(1)} ${y})`}>
+            <Glyph token={token} />
           </g>
         )
       })}
+      <g
+        className='graph-stray'
+        transform={`translate(${frame.width - frame.margin} ${Math.max(10, frame.bandY.component - 16)})`}>
+        <circle
+          className='graph-stray-ring'
+          r={9}
+        />
+        <circle
+          className='node-swatch'
+          r={5}
+          style={{ fill: tokenVar('component.button.primary.background') }}
+        />
+      </g>
     </svg>
+  )
+}
+
+export function TokenGraph() {
+  const counts = layerCounts()
+  const wide = placeGraph(WIDE.frame)
+  const narrow = placeGraph(NARROW_FRAME)
+  const round = (value: number) => Math.round(value * 10000) / 10000
+  const place = (
+    graph: typeof wide,
+    width: number,
+    height: number
+  ): readonly (readonly [number, number])[] =>
+    siteTokens.map(token => {
+      const position = placedIn(graph.positions, token.path)
+      return [round(position.x / width), round(position.y / height)] as const
+    })
+
+  return (
+    <figure
+      className='graph'
+      {...reads(
+        'component.graph.edge',
+        'component.graph.lit',
+        'component.graph.nodeBorder',
+        'component.graph.label'
+      )}>
+      <div className='graph-canvas'>
+        <GraphSvg variant={WIDE} />
+        <GraphEngine
+          tokens={graphTokens}
+          wide={place(wide, WIDE.frame.width, WIDE.height)}
+          narrow={place(narrow, NARROW_WIDTH, NARROW_HEIGHT)}
+        />
+        {LAYER_ORDER.map(layer => (
+          <p
+            key={layer}
+            className='graph-band'
+            data-layer={layer}
+            style={
+              {
+                '--band-wide': `${(WIDE.frame.bandY[layer] / WIDE.height) * 100}%`,
+                '--band-narrow': `${(NARROW_FRAME.bandY[layer] / NARROW_HEIGHT) * 100}%`,
+              } as CSSProperties
+            }>
+            <span className='graph-band-name'>
+              {LAYER_CAPTIONS[layer].name}{' '}
+              <span className='graph-band-count'>{counts[layer]}</span>
+            </span>
+            <span className='graph-band-rule'>
+              {LAYER_CAPTIONS[layer].rule}
+            </span>
+          </p>
+        ))}
+        <p
+          className='graph-tooltip'
+          id='graph-tooltip'
+          hidden
+        />
+      </div>
+      <ol
+        className='graph-types'
+        aria-label='Token types, left to right'>
+        {wide.slabs.map(slab => (
+          <li
+            key={slab.type}
+            style={{
+              left: `${(slab.from / WIDE.frame.width) * 100}%`,
+              width: `${((slab.to - slab.from) / WIDE.frame.width) * 100}%`,
+            }}>
+            {SLAB_LABELS[slab.type] ?? slab.type}
+          </li>
+        ))}
+      </ol>
+      <figcaption className='graph-note'>
+        <code
+          className='graph-note-chain'
+          id='graph-chain'
+          data-idle=''>
+          {IDLE_CHAIN}
+        </code>
+      </figcaption>
+    </figure>
   )
 }
