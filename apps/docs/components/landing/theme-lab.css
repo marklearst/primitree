@@ -1,0 +1,62 @@
+/* The theme lab's panel. theme-lab.tsx imports it, and the lab route exists in
+   development alone, so the homepage ships none of this. */
+
+.lab {
+  position: fixed;
+  right: var(--semantic-space-inline-loose);
+  bottom: var(--semantic-space-inline-loose);
+  z-index: 60;
+  display: grid;
+  width: min(20rem, calc(100vw - 2rem));
+  gap: var(--semantic-space-inline-default);
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--semantic-border-subtle);
+  border-radius: var(--semantic-radius-control);
+  padding: var(--semantic-space-inline-loose);
+  background: var(--semantic-surface-raised);
+  color: var(--semantic-text-primary);
+  font-size: var(--semantic-type-label-fontSize);
+}
+
+.lab-seed {
+  font-family: var(--semantic-type-code-fontFamily);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-knob {
+  display: grid;
+  gap: var(--semantic-space-inline-tight);
+}
+
+.lab-actions {
+  display: flex;
+  gap: var(--semantic-space-inline-tight);
+}
+
+.lab button {
+  min-height: 36px;
+  flex: 1;
+  border: 1px solid var(--component-chooser-selectedBorder);
+  border-radius: var(--component-button-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lab-status,
+.lab-edits {
+  margin: 0;
+  color: var(--semantic-text-secondary);
+  font-size: var(--semantic-type-caption-fontSize);
+}
+
+.lab-edits,
+.lab-saved {
+  display: grid;
+  gap: var(--semantic-space-inline-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
