@@ -4,11 +4,11 @@ export const siteUrl = 'https://primitree.com'
 export const siteName = 'Primitree'
 
 const siteDescription =
-  'Govern DTCG token changes with policy, dependency impact, ownership, and checked build outputs.'
+  'Primitree checks DTCG token references against your layer rules and lists each token a change reaches.'
 
 export const homeSocialImage = {
   url: `${siteUrl}/opengraph-image`,
-  alt: 'Primitree token governance graph',
+  alt: 'The Primitree mark above the token graph that runs this site: component, semantic, and primitive tokens in three bands, joined by a ribbon from each alias to the token it reads.',
   title: siteName,
   description: siteDescription,
   size: {

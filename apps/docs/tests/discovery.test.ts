@@ -80,7 +80,7 @@ test('site metadata uses the public host and complete social cards', async () =>
   assert.deepEqual(siteMetadata.openGraph?.images, siteMetadata.twitter?.images)
   assert.equal(
     siteMetadata.description,
-    'Govern DTCG token changes with policy, dependency impact, ownership, and checked build outputs.'
+    'Primitree checks DTCG token references against your layer rules and lists each token a change reaches.'
   )
 
   assertPlainPublicText(String(siteMetadata.description))
