@@ -7,9 +7,9 @@
   "type": "module",
   "engines": {
     "node": ">=24.0.0",
-    "pnpm": ">=11.0.0"
+    "pnpm": ">=12.0.0"
   },
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "build": "turbo run build",
     "test": "node --test scripts/check-brand.test.mjs scripts/check-release.test.mjs scripts/check-prose.test.mjs scripts/prerelease-contract.test.mjs scripts/prose/rules.test.mjs && pnpm run check:prose && pnpm run test:release-artifacts && pnpm run test:release-workflow && turbo run test",
