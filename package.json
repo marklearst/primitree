@@ -47,6 +47,7 @@
     "@biomejs/biome": "^2.5.2",
     "@changesets/cli": "2.31.1",
     "@playwright/test": "1.61.1",
+    "@types/node": "^24.13.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "postcss": "^8.5.16",
