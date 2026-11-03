@@ -108,3 +108,60 @@ type.
 
 The command exits with code `0` after a passing check, code `1` for findings,
 and code `2` for command, config, or input errors.
+
+## Findings [#findings]
+
+`check` prints one line per finding: the code, the token path, and the rule
+the token breaks. Any finding exits `1`, and `build` writes nothing until the
+source passes. Broken references, reference cycles, and token types Primitree
+does not support yet stop the run with exit `2` and carry no code.
+
+### Reference not allowed [#pt1004]
+
+**`PT1004`**: an alias points at a layer missing from its own layer's
+`references`, or at a token outside every layer. A layer that leaves itself out
+of `references` cannot alias its own tokens.
+
+```text
+PT1004 component.button.bg: Layer component cannot reference layer primitives.
+```
+
+Point the alias at a token in an allowed layer, or add a token there for it to
+read.
+
+### Wrong value form [#pt1003]
+
+**`PT1003`**: a raw value sits in a layer with `values: 'reference'`, or an
+alias sits in a layer with `values: 'literal'`. Here the semantic token holds a
+color object where the config expects an alias:
+
+```text
+PT1003 semantic.color.bg.brand: Layer semantic does not allow this token value form.
+```
+
+Restore the alias. A new color goes in as a primitive first, and the semantic
+token points at it.
+
+### Token outside every layer [#pt1001]
+
+**`PT1001`**: the first segment of the token path matches no layer's `roots`.
+Primitree compares the segment as written, case included.
+
+```text
+PT1001 brand.accent: Token path does not match a policy layer.
+```
+
+Move the token under a layer root, or add its first segment to a layer's
+`roots`.
+
+### No owner [#pt1005]
+
+**`PT1005`**: no owner covers the token's top-level group, and
+`ownership.default` names nobody. An empty owner list for a group overrides the
+default.
+
+```text
+PT1005 component.button.bg: Token has no owner.
+```
+
+Add `ownership.default`, or list an owner for that top-level group.
