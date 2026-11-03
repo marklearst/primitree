@@ -1,6 +1,11 @@
 import { devices, expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import sampleVariables from '../../apps/docs/lib/playground/sample-variables.json' with { type: 'json' }
+import siteGraph from '../../apps/docs/tokens/generated/graph.json' with { type: 'json' }
+
+// The site follows the reader's color scheme. These checks pin the dark
+// theme's solved tokens, so every page here opens in dark.
+test.use({ colorScheme: 'dark' })
 
 const widths = [320, 375] as const
 const acceptanceWidths = [390, 1440] as const
@@ -20,6 +25,66 @@ function warningVariablesBuffer() {
 
   colorVariable.valuesByMode['1:0'] = 'not-a-color'
   return Buffer.from(JSON.stringify(payload))
+}
+
+function darkValue(path: string) {
+  const token = siteGraph.tokens.find(item => item.path === path)
+  if (token === undefined) {
+    throw new Error(`The token file has no ${path}.`)
+  }
+  return token.value.dark
+}
+
+/** Measures how far a color sits from a token's dark value, on a canvas. The
+ * bundler decides whether a stylesheet holds oklch() or lab(), so colors compare
+ * by what they paint and never by how the browser spells them. */
+function gapFromToken(page: Page, color: string, path: string) {
+  return page.evaluate(
+    ([actual, wanted]) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (context === null) {
+        throw new Error('This browser gave no canvas context.')
+      }
+      const [first = [], second = []] = [actual, wanted].map(value => {
+        context.clearRect(0, 0, 1, 1)
+        context.fillStyle = value ?? ''
+        context.fillRect(0, 0, 1, 1)
+        return [...context.getImageData(0, 0, 1, 1).data]
+      })
+      return Math.max(
+        ...first.map((channel, index) =>
+          Math.abs(channel - (second[index] ?? 0))
+        )
+      )
+    },
+    [color, darkValue(path)] as const
+  )
+}
+
+/** Asserts a computed color paints a token's dark value. Two channels of slack
+ * cover the rounding between a color space and 8-bit sRGB. */
+async function expectPaintsToken(
+  locator: Locator,
+  property: string,
+  path: string
+) {
+  await expect
+    .poll(
+      async () =>
+        gapFromToken(
+          locator.page(),
+          await locator.evaluate(
+            (element, name) => getComputedStyle(element).getPropertyValue(name),
+            property
+          ),
+          path
+        ),
+      { message: `${property} must paint ${path}` }
+    )
+    .toBeLessThanOrEqual(2)
 }
 
 async function expectNoDocumentOverflow(page: Page) {
@@ -228,7 +293,7 @@ for (const width of widths) {
     await expect(summary).toContainText('warning')
     await expectEveryTouchTarget(summary)
     const warning = page.locator('.pg-warnings')
-    await expect(warning).toHaveCSS('color', 'rgb(251, 191, 36)')
+    await expectPaintsToken(warning, 'color', 'semantic.status.warn')
     await expect(warning).toHaveCSS(
       'background-color',
       'rgba(251, 191, 36, 0.07)'
@@ -276,36 +341,38 @@ for (const width of acceptanceWidths) {
   })
 }
 
-test('embedded playground applies Lichen to sample output states', async ({
+test('embedded playground applies the solved tokens to sample output states', async ({
   page,
 }) => {
   await gotoPlayground(page)
   await page.getByRole('button', { name: 'Try the sample' }).click()
 
   const selectedChip = page.locator('.pg-chip:has(input:checked)').first()
-  await expect(selectedChip).toHaveCSS('color', 'rgb(52, 211, 153)')
-  await expect(selectedChip).toHaveCSS(
+  await expectPaintsToken(selectedChip, 'color', 'semantic.accent.text')
+  await expectPaintsToken(
+    selectedChip,
     'background-color',
-    'rgba(52, 211, 153, 0.1)'
+    'semantic.accent.subtle'
   )
-  await expect(selectedChip).toHaveCSS('border-color', 'rgb(52, 211, 153)')
+  await expectPaintsToken(selectedChip, 'border-color', 'semantic.accent.text')
 
   const activeTab = page.getByRole('tab', { name: 'Tokens' })
-  await expect(activeTab).toHaveCSS('color', 'rgb(52, 211, 153)')
-  await expect(activeTab).toHaveCSS('border-bottom-color', 'rgb(52, 211, 153)')
-
-  const successChip = page.locator('.pg-type-chip').first()
-  await expect(successChip).toHaveCSS('color', 'rgb(52, 211, 153)')
-  await expect(successChip).toHaveCSS(
-    'background-color',
-    'rgba(52, 211, 153, 0.1)'
+  await expectPaintsToken(activeTab, 'color', 'semantic.accent.text')
+  await expectPaintsToken(
+    activeTab,
+    'border-bottom-color',
+    'semantic.accent.text'
   )
+
+  const typeLabel = page.locator('.pg-type-chip').first()
+  await expectPaintsToken(typeLabel, 'color', 'semantic.text.muted')
+  await expect(typeLabel).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 
   const primary = page.getByRole('button', {
     name: 'Download pipeline (.zip)',
   })
-  await expect(primary).toHaveCSS('background-color', 'rgb(52, 211, 153)')
-  await expect(primary).toHaveCSS('color', 'rgb(4, 37, 26)')
+  await expectPaintsToken(primary, 'background-color', 'semantic.accent.solid')
+  await expectPaintsToken(primary, 'color', 'semantic.text.onAccent')
 })
 
 test('embedded playground tabs and context radios support the keyboard', async ({
@@ -414,8 +481,12 @@ test('embedded playground announces malformed JSON', async ({ page }) => {
   const alert = page.locator('.pg-error[role="alert"]')
   await expect(alert).toHaveCount(1)
   await expect(alert).toBeVisible()
-  await expect(alert).toHaveCSS('color', 'rgb(248, 113, 113)')
-  await expect(alert).toHaveCSS('background-color', 'rgba(248, 113, 113, 0.08)')
+  await expectPaintsToken(alert, 'color', 'semantic.status.fail')
+  await expectPaintsToken(
+    alert,
+    'background-color',
+    'semantic.status.failSubtle'
+  )
   expect((await alert.textContent())?.trim().length).toBeGreaterThan(0)
 })
 
