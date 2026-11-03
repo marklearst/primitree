@@ -1689,11 +1689,13 @@ test('a wave lands on the stage a broken rule holds', async ({ page }) => {
 
 test('a theme flip mid-wave leaves no pulse to replay', async ({ page }) => {
   await openHome(page)
-  await presetButton(page, 'Ultramarine').evaluate(button => button.click())
+  await presetButton(page, 'Ultramarine').evaluate((button: HTMLElement) =>
+    button.click()
+  )
   await page
     .getByRole('button', { name: 'Switch to the dark theme' })
     .first()
-    .evaluate(button => button.click())
+    .evaluate((button: HTMLElement) => button.click())
   await expect(html(page)).toHaveAttribute('data-theme', 'dark')
   await expect(page.locator('.graph-svg-wide .is-hot')).toHaveCount(0)
 })
@@ -1703,7 +1705,9 @@ test('a second preset inside the wave runs a wave of its own', async ({
 }) => {
   await openHome(page)
   const hot = page.locator('.graph-svg-wide .is-hot')
-  await presetButton(page, 'Ultramarine').evaluate(button => button.click())
+  await presetButton(page, 'Ultramarine').evaluate((button: HTMLElement) =>
+    button.click()
+  )
   await expect(hot).not.toHaveCount(0)
   // A pulse that has not ticked cancels with no event, so the first wave must
   // run before a stray animationcancel could strip the second.
@@ -1719,7 +1723,7 @@ test('a second preset inside the wave runs a wave of its own', async ({
     )
     .toBe(true)
   const heated = await presetButton(page, 'Signal red').evaluate(
-    async button => {
+    async (button: HTMLElement) => {
       button.click()
       await new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(resolve))
@@ -1736,7 +1740,7 @@ test('a ribbon that loses the light mid-wave keeps its pulse in step', async ({
 }) => {
   await openHome(page)
   const starts = await presetButton(page, 'Ultramarine').evaluate(
-    async button => {
+    async (button: HTMLElement) => {
       const frames = () =>
         new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))
@@ -1774,14 +1778,16 @@ test('every ribbon the wave can heat carries the normalised length', async ({
 
 test('a preset across the ink arc eases the capsule', async ({ page }) => {
   await openHome(page)
-  const held = await presetButton(page, 'Citrus').evaluate(button => {
-    button.click()
-    const capsule = document.querySelector('.island')
-    return {
-      marker: document.documentElement.dataset.dragging,
-      transition: capsule ? getComputedStyle(capsule).transitionProperty : '',
+  const held = await presetButton(page, 'Citrus').evaluate(
+    (button: HTMLElement) => {
+      button.click()
+      const capsule = document.querySelector('.island')
+      return {
+        marker: document.documentElement.dataset.dragging,
+        transition: capsule ? getComputedStyle(capsule).transitionProperty : '',
+      }
     }
-  })
+  )
   expect(held).toEqual({ marker: 'jump', transition: 'width' })
   await expect(html(page)).not.toHaveAttribute('data-dragging', /.*/u)
 })
@@ -1821,7 +1827,10 @@ test('the button hovers on its own clock and rethemes on the wave', async ({
   const wave = await heroButton(page).evaluate(element =>
     document
       .getAnimations()
-      .filter(animation => animation.effect?.target === element)
+      .filter(
+        animation =>
+          (animation.effect as KeyframeEffect | null)?.target === element
+      )
       .map(animation => {
         const timing = animation.effect?.getComputedTiming()
         return `${(animation as CSSTransition).transitionProperty} ${Math.round(
