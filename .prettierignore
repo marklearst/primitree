@@ -15,6 +15,10 @@ apps/docs/content/docs/api/
 *.d.ts.map
 .review-state/sdd/
 
+# Written by scripts/build-site-tokens.mjs, and compared byte for byte
+apps/docs/tokens/generated/
+apps/docs/tokens/primitives.tokens.json
+
 # Golden test files must stay byte-exact as emitted
 **/tests/goldens/
 

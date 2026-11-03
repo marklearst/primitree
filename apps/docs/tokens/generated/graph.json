@@ -1,0 +1,2653 @@
+{
+  "hue": 150,
+  "tokens": [
+    {
+      "path": "component.button.paddingBlock",
+      "layer": "component",
+      "type": "dimension",
+      "target": {
+        "light": "semantic.space.inset.controlBlock",
+        "dark": "semantic.space.inset.controlBlock"
+      },
+      "value": {
+        "light": "0.5rem",
+        "dark": "0.5rem"
+      }
+    },
+    {
+      "path": "component.button.paddingInline",
+      "layer": "component",
+      "type": "dimension",
+      "target": {
+        "light": "semantic.space.inset.controlInline",
+        "dark": "semantic.space.inset.controlInline"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "component.button.primary.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.solid",
+        "dark": "semantic.accent.solid"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "component.button.primary.backgroundHover",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.solidHover",
+        "dark": "semantic.accent.solidHover"
+      },
+      "value": {
+        "light": "oklch(0.4269 0.1177 150)",
+        "dark": "oklch(0.852 0.17 150)"
+      }
+    },
+    {
+      "path": "component.button.primary.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.onAccent",
+        "dark": "semantic.text.onAccent"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "component.button.radius",
+      "layer": "component",
+      "type": "dimension",
+      "target": {
+        "light": "semantic.radius.control",
+        "dark": "semantic.radius.control"
+      },
+      "value": {
+        "light": "6px",
+        "dark": "6px"
+      }
+    },
+    {
+      "path": "component.button.transition.duration",
+      "layer": "component",
+      "type": "duration",
+      "target": {
+        "light": "semantic.motion.duration.feedback",
+        "dark": "semantic.motion.duration.feedback"
+      },
+      "value": {
+        "light": "140ms",
+        "dark": "140ms"
+      }
+    },
+    {
+      "path": "component.button.transition.timingFunction",
+      "layer": "component",
+      "type": "cubicBezier",
+      "target": {
+        "light": "semantic.motion.ease.enter",
+        "dark": "semantic.motion.ease.enter"
+      },
+      "value": {
+        "light": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "dark": "cubic-bezier(0.16, 1, 0.3, 1)"
+      }
+    },
+    {
+      "path": "component.chooser.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.surface.sunken",
+        "dark": "semantic.surface.sunken"
+      },
+      "value": {
+        "light": "oklch(0.9477 0.005 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      }
+    },
+    {
+      "path": "component.chooser.selected",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.surface.page",
+        "dark": "semantic.surface.page"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "component.chooser.selectedBorder",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.border.strong",
+        "dark": "semantic.border.strong"
+      },
+      "value": {
+        "light": "oklch(0.6538 0.012 150)",
+        "dark": "oklch(0.5245 0.012 150)"
+      }
+    },
+    {
+      "path": "component.chooser.selectedText",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.primary",
+        "dark": "semantic.text.primary"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "component.chooser.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.secondary",
+        "dark": "semantic.text.secondary"
+      },
+      "value": {
+        "light": "oklch(0.4383 0.012 150)",
+        "dark": "oklch(0.8265 0.009 150)"
+      }
+    },
+    {
+      "path": "component.close.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.solid",
+        "dark": "semantic.accent.solid"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      },
+      "description": "The last section of the homepage, with the install chooser."
+    },
+    {
+      "path": "component.close.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.onAccent",
+        "dark": "semantic.text.onAccent"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "component.code.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.surface.code",
+        "dark": "semantic.surface.code"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      }
+    },
+    {
+      "path": "component.code.border",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.border.panel",
+        "dark": "semantic.border.panel"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.4383 0.012 150)"
+      }
+    },
+    {
+      "path": "component.code.padding",
+      "layer": "component",
+      "type": "dimension",
+      "target": {
+        "light": "semantic.space.inset.code",
+        "dark": "semantic.space.inset.code"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "component.code.prompt",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.syntax.reference",
+        "dark": "semantic.syntax.reference"
+      },
+      "value": {
+        "light": "oklch(0.7381 0.19 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "component.code.radius",
+      "layer": "component",
+      "type": "dimension",
+      "target": {
+        "light": "semantic.radius.panel",
+        "dark": "semantic.radius.panel"
+      },
+      "value": {
+        "light": "10px",
+        "dark": "10px"
+      }
+    },
+    {
+      "path": "component.crown.center",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.solid",
+        "dark": "semantic.accent.solid"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      },
+      "description": "The hub of the hue dial in the hero."
+    },
+    {
+      "path": "component.crown.centerText",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.onAccent",
+        "dark": "semantic.text.onAccent"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "component.crown.knob",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.surface.page",
+        "dark": "semantic.surface.page"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "component.crown.knobBorder",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.primary",
+        "dark": "semantic.text.primary"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "component.finding.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.status.failSubtle",
+        "dark": "semantic.status.failSubtle"
+      },
+      "value": {
+        "light": "oklch(0.9754 0.012 27)",
+        "dark": "oklch(0.2742 0.06 27)"
+      }
+    },
+    {
+      "path": "component.finding.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.status.fail",
+        "dark": "semantic.status.fail"
+      },
+      "value": {
+        "light": "oklch(0.55 0.2 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      }
+    },
+    {
+      "path": "component.focus.ring",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.border.focus",
+        "dark": "semantic.border.focus"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "component.graph.edge",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.muted",
+        "dark": "semantic.text.muted"
+      },
+      "value": {
+        "light": "oklch(0.5245 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      }
+    },
+    {
+      "path": "component.graph.fail",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.status.fail",
+        "dark": "semantic.status.fail"
+      },
+      "value": {
+        "light": "oklch(0.55 0.2 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      }
+    },
+    {
+      "path": "component.graph.label",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.muted",
+        "dark": "semantic.text.muted"
+      },
+      "value": {
+        "light": "oklch(0.5245 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      }
+    },
+    {
+      "path": "component.graph.lit",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.primary",
+        "dark": "semantic.text.primary"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "component.graph.nodeBorder",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.border.subtle",
+        "dark": "semantic.border.subtle"
+      },
+      "value": {
+        "light": "oklch(0.913 0.007 150)",
+        "dark": "oklch(0.309 0.012 150)"
+      }
+    },
+    {
+      "path": "component.graph.wave.duration",
+      "layer": "component",
+      "type": "duration",
+      "target": {
+        "light": "semantic.motion.duration.reveal",
+        "dark": "semantic.motion.duration.reveal"
+      },
+      "value": {
+        "light": "280ms",
+        "dark": "280ms"
+      }
+    },
+    {
+      "path": "component.graph.wave.step",
+      "layer": "component",
+      "type": "duration",
+      "target": {
+        "light": "semantic.motion.duration.causal",
+        "dark": "semantic.motion.duration.causal"
+      },
+      "value": {
+        "light": "70ms",
+        "dark": "70ms"
+      }
+    },
+    {
+      "path": "component.island.accent",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.onIsland",
+        "dark": "semantic.accent.onIsland"
+      },
+      "value": {
+        "light": "oklch(0.7381 0.19 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "component.island.background",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.surface.island",
+        "dark": "semantic.surface.island"
+      },
+      "value": {
+        "light": "oklch(0.1633 0.008 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      },
+      "description": "The status capsule in the site bar. At rest it states the result of the last check."
+    },
+    {
+      "path": "component.island.border",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.border.island",
+        "dark": "semantic.border.island"
+      },
+      "value": {
+        "light": "oklch(0.1633 0.008 150)",
+        "dark": "oklch(0.309 0.012 150)"
+      }
+    },
+    {
+      "path": "component.island.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.onIsland",
+        "dark": "semantic.text.onIsland"
+      },
+      "value": {
+        "light": "oklch(0.9737 0.004 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "component.island.transition.duration",
+      "layer": "component",
+      "type": "duration",
+      "target": {
+        "light": "semantic.motion.duration.handoff",
+        "dark": "semantic.motion.duration.handoff"
+      },
+      "value": {
+        "light": "440ms",
+        "dark": "440ms"
+      }
+    },
+    {
+      "path": "component.link.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.text",
+        "dark": "semantic.accent.text"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "component.link.underline",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.accent.edge",
+        "dark": "semantic.accent.edge"
+      },
+      "value": {
+        "light": "oklch(0.852 0.17 150)",
+        "dark": "oklch(0.4269 0.1177 150)"
+      }
+    },
+    {
+      "path": "component.nav.text",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.secondary",
+        "dark": "semantic.text.secondary"
+      },
+      "value": {
+        "light": "oklch(0.4383 0.012 150)",
+        "dark": "oklch(0.8265 0.009 150)"
+      }
+    },
+    {
+      "path": "component.nav.textHover",
+      "layer": "component",
+      "type": "color",
+      "target": {
+        "light": "semantic.text.primary",
+        "dark": "semantic.text.primary"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "primitives.color.amber.45",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.5293 0.1097 80)",
+        "dark": "oklch(0.5293 0.1097 80)"
+      }
+    },
+    {
+      "path": "primitives.color.amber.72",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.7636 0.1582 80)",
+        "dark": "oklch(0.7636 0.1582 80)"
+      }
+    },
+    {
+      "path": "primitives.color.blue.72",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.7599 0.1231 260)",
+        "dark": "oklch(0.7599 0.1231 260)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.15",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.2607 0.06 150)",
+        "dark": "oklch(0.2607 0.06 150)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.35",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.4269 0.1177 150)",
+        "dark": "oklch(0.4269 0.1177 150)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.45",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.5107 0.1407 150)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.72",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.7381 0.19 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.85",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.852 0.17 150)",
+        "dark": "oklch(0.852 0.17 150)"
+      }
+    },
+    {
+      "path": "primitives.color.brand.95",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.9529 0.035 150)",
+        "dark": "oklch(0.9529 0.035 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.1",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.1025 0.008 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.100",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(1 0 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.20",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.309 0.012 150)",
+        "dark": "oklch(0.309 0.012 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.35",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.4383 0.012 150)",
+        "dark": "oklch(0.4383 0.012 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.4",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.1633 0.008 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.45",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.5245 0.012 150)",
+        "dark": "oklch(0.5245 0.012 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.60",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.6538 0.012 150)",
+        "dark": "oklch(0.6538 0.012 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.72",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.7572 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.8",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.2053 0.014 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.80",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.8265 0.009 150)",
+        "dark": "oklch(0.8265 0.009 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.90",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.913 0.007 150)",
+        "dark": "oklch(0.913 0.007 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.94",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.9477 0.005 150)",
+        "dark": "oklch(0.9477 0.005 150)"
+      }
+    },
+    {
+      "path": "primitives.color.neutral.97",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.9737 0.004 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "primitives.color.red.15",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.2742 0.06 27)",
+        "dark": "oklch(0.2742 0.06 27)"
+      }
+    },
+    {
+      "path": "primitives.color.red.45",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.55 0.2 27)",
+        "dark": "oklch(0.55 0.2 27)"
+      }
+    },
+    {
+      "path": "primitives.color.red.72",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.7737 0.133 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      }
+    },
+    {
+      "path": "primitives.color.red.97",
+      "layer": "primitives",
+      "type": "color",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "oklch(0.9754 0.012 27)",
+        "dark": "oklch(0.9754 0.012 27)"
+      }
+    },
+    {
+      "path": "primitives.duration.0",
+      "layer": "primitives",
+      "type": "duration",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0ms",
+        "dark": "0ms"
+      }
+    },
+    {
+      "path": "primitives.duration.140",
+      "layer": "primitives",
+      "type": "duration",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "140ms",
+        "dark": "140ms"
+      }
+    },
+    {
+      "path": "primitives.duration.280",
+      "layer": "primitives",
+      "type": "duration",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "280ms",
+        "dark": "280ms"
+      }
+    },
+    {
+      "path": "primitives.duration.440",
+      "layer": "primitives",
+      "type": "duration",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "440ms",
+        "dark": "440ms"
+      }
+    },
+    {
+      "path": "primitives.duration.70",
+      "layer": "primitives",
+      "type": "duration",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "70ms",
+        "dark": "70ms"
+      }
+    },
+    {
+      "path": "primitives.easing.inOut",
+      "layer": "primitives",
+      "type": "cubicBezier",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "dark": "cubic-bezier(0.65, 0, 0.35, 1)"
+      },
+      "description": "For things moving between two resting places."
+    },
+    {
+      "path": "primitives.easing.out",
+      "layer": "primitives",
+      "type": "cubicBezier",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "dark": "cubic-bezier(0.16, 1, 0.3, 1)"
+      },
+      "description": "Fast start, long settle."
+    },
+    {
+      "path": "primitives.font.family.mono",
+      "layer": "primitives",
+      "type": "fontFamily",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace",
+        "dark": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace"
+      }
+    },
+    {
+      "path": "primitives.font.family.sans",
+      "layer": "primitives",
+      "type": "fontFamily",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+        "dark": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+      }
+    },
+    {
+      "path": "primitives.font.letterSpacing.minus15",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "-0.015",
+        "dark": "-0.015"
+      }
+    },
+    {
+      "path": "primitives.font.letterSpacing.minus30",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "-0.03",
+        "dark": "-0.03"
+      }
+    },
+    {
+      "path": "primitives.font.lineHeight.115",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1.15",
+        "dark": "1.15"
+      }
+    },
+    {
+      "path": "primitives.font.lineHeight.140",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1.4",
+        "dark": "1.4"
+      }
+    },
+    {
+      "path": "primitives.font.lineHeight.155",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1.55",
+        "dark": "1.55"
+      }
+    },
+    {
+      "path": "primitives.font.lineHeight.98",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.98",
+        "dark": "0.98"
+      }
+    },
+    {
+      "path": "primitives.font.ratio.86",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.86",
+        "dark": "0.86"
+      }
+    },
+    {
+      "path": "primitives.font.ratio.92",
+      "layer": "primitives",
+      "type": "number",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.92",
+        "dark": "0.92"
+      }
+    },
+    {
+      "path": "primitives.font.size.10",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.625rem",
+        "dark": "0.625rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.13",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.8125rem",
+        "dark": "0.8125rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.14",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.875rem",
+        "dark": "0.875rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.15",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.9375rem",
+        "dark": "0.9375rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.16",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.17",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1.0625rem",
+        "dark": "1.0625rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.20",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1.25rem",
+        "dark": "1.25rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.36",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "2.25rem",
+        "dark": "2.25rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.44",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "2.75rem",
+        "dark": "2.75rem"
+      }
+    },
+    {
+      "path": "primitives.font.size.92",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "5.75rem",
+        "dark": "5.75rem"
+      }
+    },
+    {
+      "path": "primitives.font.weight.400",
+      "layer": "primitives",
+      "type": "fontWeight",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "400",
+        "dark": "400"
+      }
+    },
+    {
+      "path": "primitives.font.weight.500",
+      "layer": "primitives",
+      "type": "fontWeight",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "primitives.radius.10",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "10px",
+        "dark": "10px"
+      }
+    },
+    {
+      "path": "primitives.radius.6",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "6px",
+        "dark": "6px"
+      }
+    },
+    {
+      "path": "primitives.radius.999",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "999px",
+        "dark": "999px"
+      }
+    },
+    {
+      "path": "primitives.space.12",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.75rem",
+        "dark": "0.75rem"
+      }
+    },
+    {
+      "path": "primitives.space.128",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "8rem",
+        "dark": "8rem"
+      }
+    },
+    {
+      "path": "primitives.space.16",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "primitives.space.32",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "2rem",
+        "dark": "2rem"
+      }
+    },
+    {
+      "path": "primitives.space.4",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.25rem",
+        "dark": "0.25rem"
+      }
+    },
+    {
+      "path": "primitives.space.40",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "2.5rem",
+        "dark": "2.5rem"
+      }
+    },
+    {
+      "path": "primitives.space.56",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "3.5rem",
+        "dark": "3.5rem"
+      }
+    },
+    {
+      "path": "primitives.space.72",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "4.5rem",
+        "dark": "4.5rem"
+      }
+    },
+    {
+      "path": "primitives.space.8",
+      "layer": "primitives",
+      "type": "dimension",
+      "target": {
+        "light": null,
+        "dark": null
+      },
+      "value": {
+        "light": "0.5rem",
+        "dark": "0.5rem"
+      }
+    },
+    {
+      "path": "semantic.accent.edge",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.85",
+        "dark": "primitives.color.brand.35"
+      },
+      "value": {
+        "light": "oklch(0.852 0.17 150)",
+        "dark": "oklch(0.4269 0.1177 150)"
+      }
+    },
+    {
+      "path": "semantic.accent.onIsland",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.72",
+        "dark": "primitives.color.brand.72"
+      },
+      "value": {
+        "light": "oklch(0.7381 0.19 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      },
+      "description": "The same step in both themes, because the island is dark in both."
+    },
+    {
+      "path": "semantic.accent.solid",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.45",
+        "dark": "primitives.color.brand.72"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "semantic.accent.solidHover",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.35",
+        "dark": "primitives.color.brand.85"
+      },
+      "value": {
+        "light": "oklch(0.4269 0.1177 150)",
+        "dark": "oklch(0.852 0.17 150)"
+      }
+    },
+    {
+      "path": "semantic.accent.subtle",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.95",
+        "dark": "primitives.color.brand.15"
+      },
+      "value": {
+        "light": "oklch(0.9529 0.035 150)",
+        "dark": "oklch(0.2607 0.06 150)"
+      }
+    },
+    {
+      "path": "semantic.accent.text",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.45",
+        "dark": "primitives.color.brand.72"
+      },
+      "value": {
+        "light": "oklch(0.5107 0.1407 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      }
+    },
+    {
+      "path": "semantic.border.focus",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.8",
+        "dark": "primitives.color.neutral.97"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "semantic.border.island",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.4",
+        "dark": "primitives.color.neutral.20"
+      },
+      "value": {
+        "light": "oklch(0.1633 0.008 150)",
+        "dark": "oklch(0.309 0.012 150)"
+      },
+      "description": "Separates the island from a page of nearly the same lightness. Disappears on the light page."
+    },
+    {
+      "path": "semantic.border.panel",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.8",
+        "dark": "primitives.color.neutral.35"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.4383 0.012 150)"
+      },
+      "description": "A ring on the ink panels. Matches the ink on the light page and gives the panel an edge on the dark one."
+    },
+    {
+      "path": "semantic.border.strong",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.60",
+        "dark": "primitives.color.neutral.45"
+      },
+      "value": {
+        "light": "oklch(0.6538 0.012 150)",
+        "dark": "oklch(0.5245 0.012 150)"
+      },
+      "description": "Must reach 3:1 on surface.page, for controls."
+    },
+    {
+      "path": "semantic.border.subtle",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.90",
+        "dark": "primitives.color.neutral.20"
+      },
+      "value": {
+        "light": "oklch(0.913 0.007 150)",
+        "dark": "oklch(0.309 0.012 150)"
+      }
+    },
+    {
+      "path": "semantic.motion.duration.causal",
+      "layer": "semantic",
+      "type": "duration",
+      "target": {
+        "light": "primitives.duration.70",
+        "dark": "primitives.duration.70"
+      },
+      "value": {
+        "light": "70ms",
+        "dark": "70ms"
+      },
+      "description": "One step of delay as a change travels from primitive to semantic to component to the page."
+    },
+    {
+      "path": "semantic.motion.duration.feedback",
+      "layer": "semantic",
+      "type": "duration",
+      "target": {
+        "light": "primitives.duration.140",
+        "dark": "primitives.duration.140"
+      },
+      "value": {
+        "light": "140ms",
+        "dark": "140ms"
+      }
+    },
+    {
+      "path": "semantic.motion.duration.handoff",
+      "layer": "semantic",
+      "type": "duration",
+      "target": {
+        "light": "primitives.duration.440",
+        "dark": "primitives.duration.440"
+      },
+      "value": {
+        "light": "440ms",
+        "dark": "440ms"
+      }
+    },
+    {
+      "path": "semantic.motion.duration.reveal",
+      "layer": "semantic",
+      "type": "duration",
+      "target": {
+        "light": "primitives.duration.280",
+        "dark": "primitives.duration.280"
+      },
+      "value": {
+        "light": "280ms",
+        "dark": "280ms"
+      }
+    },
+    {
+      "path": "semantic.motion.ease.enter",
+      "layer": "semantic",
+      "type": "cubicBezier",
+      "target": {
+        "light": "primitives.easing.out",
+        "dark": "primitives.easing.out"
+      },
+      "value": {
+        "light": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "dark": "cubic-bezier(0.16, 1, 0.3, 1)"
+      }
+    },
+    {
+      "path": "semantic.motion.ease.move",
+      "layer": "semantic",
+      "type": "cubicBezier",
+      "target": {
+        "light": "primitives.easing.inOut",
+        "dark": "primitives.easing.inOut"
+      },
+      "value": {
+        "light": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "dark": "cubic-bezier(0.65, 0, 0.35, 1)"
+      }
+    },
+    {
+      "path": "semantic.radius.control",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.radius.6",
+        "dark": "primitives.radius.6"
+      },
+      "value": {
+        "light": "6px",
+        "dark": "6px"
+      }
+    },
+    {
+      "path": "semantic.radius.panel",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.radius.10",
+        "dark": "primitives.radius.10"
+      },
+      "value": {
+        "light": "10px",
+        "dark": "10px"
+      }
+    },
+    {
+      "path": "semantic.radius.pill",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.radius.999",
+        "dark": "primitives.radius.999"
+      },
+      "value": {
+        "light": "999px",
+        "dark": "999px"
+      }
+    },
+    {
+      "path": "semantic.space.inline.default",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.8",
+        "dark": "primitives.space.8"
+      },
+      "value": {
+        "light": "0.5rem",
+        "dark": "0.5rem"
+      }
+    },
+    {
+      "path": "semantic.space.inline.loose",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.16",
+        "dark": "primitives.space.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.space.inline.tight",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.4",
+        "dark": "primitives.space.4"
+      },
+      "value": {
+        "light": "0.25rem",
+        "dark": "0.25rem"
+      }
+    },
+    {
+      "path": "semantic.space.inset.code",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.16",
+        "dark": "primitives.space.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.space.inset.controlBlock",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.8",
+        "dark": "primitives.space.8"
+      },
+      "value": {
+        "light": "0.5rem",
+        "dark": "0.5rem"
+      }
+    },
+    {
+      "path": "semantic.space.inset.controlInline",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.16",
+        "dark": "primitives.space.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.space.layout.gap",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.12",
+        "dark": "primitives.space.12"
+      },
+      "value": {
+        "light": "0.75rem",
+        "dark": "0.75rem"
+      }
+    },
+    {
+      "path": "semantic.space.layout.gutterMax",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.40",
+        "dark": "primitives.space.40"
+      },
+      "value": {
+        "light": "2.5rem",
+        "dark": "2.5rem"
+      }
+    },
+    {
+      "path": "semantic.space.layout.gutterMin",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.16",
+        "dark": "primitives.space.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.space.layout.sectionMax",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.128",
+        "dark": "primitives.space.128"
+      },
+      "value": {
+        "light": "8rem",
+        "dark": "8rem"
+      }
+    },
+    {
+      "path": "semantic.space.layout.sectionMin",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.72",
+        "dark": "primitives.space.72"
+      },
+      "value": {
+        "light": "4.5rem",
+        "dark": "4.5rem"
+      }
+    },
+    {
+      "path": "semantic.space.stack.default",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.16",
+        "dark": "primitives.space.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.space.stack.loose",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.32",
+        "dark": "primitives.space.32"
+      },
+      "value": {
+        "light": "2rem",
+        "dark": "2rem"
+      }
+    },
+    {
+      "path": "semantic.space.stack.tight",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.8",
+        "dark": "primitives.space.8"
+      },
+      "value": {
+        "light": "0.5rem",
+        "dark": "0.5rem"
+      }
+    },
+    {
+      "path": "semantic.space.stack.wide",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.space.56",
+        "dark": "primitives.space.56"
+      },
+      "value": {
+        "light": "3.5rem",
+        "dark": "3.5rem"
+      }
+    },
+    {
+      "path": "semantic.status.fail",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.red.45",
+        "dark": "primitives.color.red.72"
+      },
+      "value": {
+        "light": "oklch(0.55 0.2 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      }
+    },
+    {
+      "path": "semantic.status.failSubtle",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.red.97",
+        "dark": "primitives.color.red.15"
+      },
+      "value": {
+        "light": "oklch(0.9754 0.012 27)",
+        "dark": "oklch(0.2742 0.06 27)"
+      }
+    },
+    {
+      "path": "semantic.status.warn",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.amber.45",
+        "dark": "primitives.color.amber.72"
+      },
+      "value": {
+        "light": "oklch(0.5293 0.1097 80)",
+        "dark": "oklch(0.7636 0.1582 80)"
+      }
+    },
+    {
+      "path": "semantic.surface.code",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.8",
+        "dark": "primitives.color.neutral.1"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      },
+      "description": "Dark in both themes. Only syntax.* is checked against it."
+    },
+    {
+      "path": "semantic.surface.inverse",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.8",
+        "dark": "primitives.color.neutral.97"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      },
+      "description": "A selected control, the opposite of the page."
+    },
+    {
+      "path": "semantic.surface.island",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.4",
+        "dark": "primitives.color.neutral.1"
+      },
+      "value": {
+        "light": "oklch(0.1633 0.008 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      },
+      "description": "The status capsule in the site bar. Dark in both themes."
+    },
+    {
+      "path": "semantic.surface.page",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.100",
+        "dark": "primitives.color.neutral.4"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "semantic.surface.raised",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.97",
+        "dark": "primitives.color.neutral.8"
+      },
+      "value": {
+        "light": "oklch(0.9737 0.004 150)",
+        "dark": "oklch(0.2053 0.014 150)"
+      }
+    },
+    {
+      "path": "semantic.surface.sunken",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.94",
+        "dark": "primitives.color.neutral.1"
+      },
+      "value": {
+        "light": "oklch(0.9477 0.005 150)",
+        "dark": "oklch(0.1025 0.008 150)"
+      }
+    },
+    {
+      "path": "semantic.syntax.base",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.97",
+        "dark": "primitives.color.neutral.97"
+      },
+      "value": {
+        "light": "oklch(0.9737 0.004 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "semantic.syntax.comment",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.72",
+        "dark": "primitives.color.neutral.72"
+      },
+      "value": {
+        "light": "oklch(0.7572 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      }
+    },
+    {
+      "path": "semantic.syntax.fail",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.red.72",
+        "dark": "primitives.color.red.72"
+      },
+      "value": {
+        "light": "oklch(0.7737 0.133 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      },
+      "description": "A failure printed on surface.code, which stays dark in both themes."
+    },
+    {
+      "path": "semantic.syntax.key",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.90",
+        "dark": "primitives.color.neutral.90"
+      },
+      "value": {
+        "light": "oklch(0.913 0.007 150)",
+        "dark": "oklch(0.913 0.007 150)"
+      }
+    },
+    {
+      "path": "semantic.syntax.keyword",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.red.72",
+        "dark": "primitives.color.red.72"
+      },
+      "value": {
+        "light": "oklch(0.7737 0.133 27)",
+        "dark": "oklch(0.7737 0.133 27)"
+      }
+    },
+    {
+      "path": "semantic.syntax.number",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.blue.72",
+        "dark": "primitives.color.blue.72"
+      },
+      "value": {
+        "light": "oklch(0.7599 0.1231 260)",
+        "dark": "oklch(0.7599 0.1231 260)"
+      }
+    },
+    {
+      "path": "semantic.syntax.punctuation",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.72",
+        "dark": "primitives.color.neutral.72"
+      },
+      "value": {
+        "light": "oklch(0.7572 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      }
+    },
+    {
+      "path": "semantic.syntax.reference",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.brand.72",
+        "dark": "primitives.color.brand.72"
+      },
+      "value": {
+        "light": "oklch(0.7381 0.19 150)",
+        "dark": "oklch(0.7381 0.19 150)"
+      },
+      "description": "A DTCG alias in sample code: the thing Primitree checks."
+    },
+    {
+      "path": "semantic.syntax.string",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.amber.72",
+        "dark": "primitives.color.amber.72"
+      },
+      "value": {
+        "light": "oklch(0.7636 0.1582 80)",
+        "dark": "oklch(0.7636 0.1582 80)"
+      }
+    },
+    {
+      "path": "semantic.text.muted",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.45",
+        "dark": "primitives.color.neutral.72"
+      },
+      "value": {
+        "light": "oklch(0.5245 0.012 150)",
+        "dark": "oklch(0.7572 0.012 150)"
+      },
+      "description": "Must reach 4.5:1 on surface.page and surface.raised."
+    },
+    {
+      "path": "semantic.text.onAccent",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.100",
+        "dark": "primitives.color.neutral.4"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      },
+      "description": "On accent.solid and accent.solidHover. A hue that only holds its chroma as a light tone reroutes this alias to a dark label."
+    },
+    {
+      "path": "semantic.text.onInverse",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.100",
+        "dark": "primitives.color.neutral.4"
+      },
+      "value": {
+        "light": "oklch(1 0 150)",
+        "dark": "oklch(0.1633 0.008 150)"
+      }
+    },
+    {
+      "path": "semantic.text.onIsland",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.97",
+        "dark": "primitives.color.neutral.97"
+      },
+      "value": {
+        "light": "oklch(0.9737 0.004 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "semantic.text.primary",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.8",
+        "dark": "primitives.color.neutral.97"
+      },
+      "value": {
+        "light": "oklch(0.2053 0.014 150)",
+        "dark": "oklch(0.9737 0.004 150)"
+      }
+    },
+    {
+      "path": "semantic.text.secondary",
+      "layer": "semantic",
+      "type": "color",
+      "target": {
+        "light": "primitives.color.neutral.35",
+        "dark": "primitives.color.neutral.80"
+      },
+      "value": {
+        "light": "oklch(0.4383 0.012 150)",
+        "dark": "oklch(0.8265 0.009 150)"
+      }
+    },
+    {
+      "path": "semantic.type.body.fontFamily",
+      "layer": "semantic",
+      "type": "fontFamily",
+      "target": {
+        "light": "primitives.font.family.sans",
+        "dark": "primitives.font.family.sans"
+      },
+      "value": {
+        "light": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+        "dark": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+      }
+    },
+    {
+      "path": "semantic.type.body.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.17",
+        "dark": "primitives.font.size.17"
+      },
+      "value": {
+        "light": "1.0625rem",
+        "dark": "1.0625rem"
+      }
+    },
+    {
+      "path": "semantic.type.body.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.400",
+        "dark": "primitives.font.weight.400"
+      },
+      "value": {
+        "light": "400",
+        "dark": "400"
+      }
+    },
+    {
+      "path": "semantic.type.body.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.155",
+        "dark": "primitives.font.lineHeight.155"
+      },
+      "value": {
+        "light": "1.55",
+        "dark": "1.55"
+      }
+    },
+    {
+      "path": "semantic.type.caption.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.13",
+        "dark": "primitives.font.size.13"
+      },
+      "value": {
+        "light": "0.8125rem",
+        "dark": "0.8125rem"
+      }
+    },
+    {
+      "path": "semantic.type.code.fontFamily",
+      "layer": "semantic",
+      "type": "fontFamily",
+      "target": {
+        "light": "primitives.font.family.mono",
+        "dark": "primitives.font.family.mono"
+      },
+      "value": {
+        "light": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace",
+        "dark": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace"
+      }
+    },
+    {
+      "path": "semantic.type.code.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.14",
+        "dark": "primitives.font.size.14"
+      },
+      "value": {
+        "light": "0.875rem",
+        "dark": "0.875rem"
+      }
+    },
+    {
+      "path": "semantic.type.code.inlineScale",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.ratio.92",
+        "dark": "primitives.font.ratio.92"
+      },
+      "value": {
+        "light": "0.92",
+        "dark": "0.92"
+      }
+    },
+    {
+      "path": "semantic.type.control.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.16",
+        "dark": "primitives.font.size.16"
+      },
+      "value": {
+        "light": "1rem",
+        "dark": "1rem"
+      }
+    },
+    {
+      "path": "semantic.type.control.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.500",
+        "dark": "primitives.font.weight.500"
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "semantic.type.display.fontFamily",
+      "layer": "semantic",
+      "type": "fontFamily",
+      "target": {
+        "light": "primitives.font.family.sans",
+        "dark": "primitives.font.family.sans"
+      },
+      "value": {
+        "light": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+        "dark": "Wotfard, 'Wotfard fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+      }
+    },
+    {
+      "path": "semantic.type.display.fontFamilyFrom",
+      "layer": "semantic",
+      "type": "fontFamily",
+      "target": {
+        "light": "primitives.font.family.mono",
+        "dark": "primitives.font.family.mono"
+      },
+      "value": {
+        "light": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace",
+        "dark": "MonoLisa, 'MonoLisa fallback', ui-monospace, monospace"
+      },
+      "description": "What the headline wears while the page compiles, before it resolves to fontFamily."
+    },
+    {
+      "path": "semantic.type.display.fontScaleFrom",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.ratio.86",
+        "dark": "primitives.font.ratio.86"
+      },
+      "value": {
+        "light": "0.86",
+        "dark": "0.86"
+      },
+      "description": "MonoLisa runs wider than Wotfard, so the compile sets it smaller and the headline keeps its two lines."
+    },
+    {
+      "path": "semantic.type.display.fontSizeMax",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.92",
+        "dark": "primitives.font.size.92"
+      },
+      "value": {
+        "light": "5.75rem",
+        "dark": "5.75rem"
+      }
+    },
+    {
+      "path": "semantic.type.display.fontSizeMin",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.44",
+        "dark": "primitives.font.size.44"
+      },
+      "value": {
+        "light": "2.75rem",
+        "dark": "2.75rem"
+      },
+      "description": "Lower bound of the CSS clamp(). DTCG has no fluid dimension."
+    },
+    {
+      "path": "semantic.type.display.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.500",
+        "dark": "primitives.font.weight.500"
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "semantic.type.display.fontWeightFrom",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.400",
+        "dark": "primitives.font.weight.400"
+      },
+      "value": {
+        "light": "400",
+        "dark": "400"
+      },
+      "description": "Where the headline starts while the page compiles, before it resolves to fontWeight."
+    },
+    {
+      "path": "semantic.type.display.letterSpacing",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.letterSpacing.minus30",
+        "dark": "primitives.font.letterSpacing.minus30"
+      },
+      "value": {
+        "light": "-0.03",
+        "dark": "-0.03"
+      }
+    },
+    {
+      "path": "semantic.type.display.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.98",
+        "dark": "primitives.font.lineHeight.98"
+      },
+      "value": {
+        "light": "0.98",
+        "dark": "0.98"
+      }
+    },
+    {
+      "path": "semantic.type.glyph.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.10",
+        "dark": "primitives.font.size.10"
+      },
+      "value": {
+        "light": "0.625rem",
+        "dark": "0.625rem"
+      },
+      "description": "Inside the graph, whose viewBox scales it with the drawing."
+    },
+    {
+      "path": "semantic.type.heading.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.36",
+        "dark": "primitives.font.size.36"
+      },
+      "value": {
+        "light": "2.25rem",
+        "dark": "2.25rem"
+      }
+    },
+    {
+      "path": "semantic.type.heading.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.500",
+        "dark": "primitives.font.weight.500"
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "semantic.type.heading.letterSpacing",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.letterSpacing.minus15",
+        "dark": "primitives.font.letterSpacing.minus15"
+      },
+      "value": {
+        "light": "-0.015",
+        "dark": "-0.015"
+      }
+    },
+    {
+      "path": "semantic.type.heading.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.115",
+        "dark": "primitives.font.lineHeight.115"
+      },
+      "value": {
+        "light": "1.15",
+        "dark": "1.15"
+      }
+    },
+    {
+      "path": "semantic.type.label.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.13",
+        "dark": "primitives.font.size.13"
+      },
+      "value": {
+        "light": "0.8125rem",
+        "dark": "0.8125rem"
+      }
+    },
+    {
+      "path": "semantic.type.label.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.500",
+        "dark": "primitives.font.weight.500"
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "semantic.type.lede.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.20",
+        "dark": "primitives.font.size.20"
+      },
+      "value": {
+        "light": "1.25rem",
+        "dark": "1.25rem"
+      }
+    },
+    {
+      "path": "semantic.type.lede.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.140",
+        "dark": "primitives.font.lineHeight.140"
+      },
+      "value": {
+        "light": "1.4",
+        "dark": "1.4"
+      }
+    },
+    {
+      "path": "semantic.type.small.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.15",
+        "dark": "primitives.font.size.15"
+      },
+      "value": {
+        "light": "0.9375rem",
+        "dark": "0.9375rem"
+      }
+    },
+    {
+      "path": "semantic.type.small.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.155",
+        "dark": "primitives.font.lineHeight.155"
+      },
+      "value": {
+        "light": "1.55",
+        "dark": "1.55"
+      }
+    },
+    {
+      "path": "semantic.type.title.fontSize",
+      "layer": "semantic",
+      "type": "dimension",
+      "target": {
+        "light": "primitives.font.size.20",
+        "dark": "primitives.font.size.20"
+      },
+      "value": {
+        "light": "1.25rem",
+        "dark": "1.25rem"
+      }
+    },
+    {
+      "path": "semantic.type.title.fontWeight",
+      "layer": "semantic",
+      "type": "fontWeight",
+      "target": {
+        "light": "primitives.font.weight.500",
+        "dark": "primitives.font.weight.500"
+      },
+      "value": {
+        "light": "500",
+        "dark": "500"
+      }
+    },
+    {
+      "path": "semantic.type.title.lineHeight",
+      "layer": "semantic",
+      "type": "number",
+      "target": {
+        "light": "primitives.font.lineHeight.140",
+        "dark": "primitives.font.lineHeight.140"
+      },
+      "value": {
+        "light": "1.4",
+        "dark": "1.4"
+      }
+    }
+  ]
+}

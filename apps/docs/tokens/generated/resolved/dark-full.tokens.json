@@ -1,0 +1,1179 @@
+{
+  "primitives": {
+    "color": {
+      "$type": "color",
+      "$description": "Theme-agnostic. A step number is CIE L*, 0 black to 100 white, in every family. The WCAG contrast of two colors depends only on their step numbers: steps 51 apart reach 4.5:1 at any hue.",
+      "neutral": {
+        "1": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.1025,
+              0.008,
+              150
+            ],
+            "hex": "#020403"
+          }
+        },
+        "4": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.1633,
+              0.008,
+              150
+            ],
+            "hex": "#0c0f0c"
+          }
+        },
+        "8": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.2053,
+              0.014,
+              150
+            ],
+            "hex": "#131914"
+          }
+        },
+        "20": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.309,
+              0.012,
+              150
+            ],
+            "hex": "#2c322d"
+          }
+        },
+        "35": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.4383,
+              0.012,
+              150
+            ],
+            "hex": "#4e544f"
+          }
+        },
+        "45": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.5245,
+              0.012,
+              150
+            ],
+            "hex": "#666c67"
+          }
+        },
+        "60": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.6538,
+              0.012,
+              150
+            ],
+            "hex": "#8b928c"
+          }
+        },
+        "72": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.7572,
+              0.012,
+              150
+            ],
+            "hex": "#abb2ac"
+          }
+        },
+        "80": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.8265,
+              0.009,
+              150
+            ],
+            "hex": "#c2c8c3"
+          }
+        },
+        "90": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.913,
+              0.007,
+              150
+            ],
+            "hex": "#dfe4e0"
+          }
+        },
+        "94": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.9477,
+              0.005,
+              150
+            ],
+            "hex": "#ebefec"
+          }
+        },
+        "97": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.9737,
+              0.004,
+              150
+            ],
+            "hex": "#f4f7f5"
+          }
+        },
+        "100": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              1,
+              0,
+              150
+            ],
+            "hex": "#ffffff"
+          }
+        },
+        "$description": "Tinted toward the brand hue, chroma capped at 0.014."
+      },
+      "brand": {
+        "15": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.2607,
+              0.06,
+              150
+            ],
+            "hex": "#092c14"
+          }
+        },
+        "35": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.4269,
+              0.1177,
+              150
+            ],
+            "hex": "#006029"
+          }
+        },
+        "45": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.5107,
+              0.1407,
+              150
+            ],
+            "hex": "#007b37"
+          }
+        },
+        "72": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.7381,
+              0.19,
+              150
+            ],
+            "hex": "#2cca65"
+          }
+        },
+        "85": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.852,
+              0.17,
+              150
+            ],
+            "hex": "#70ed91"
+          }
+        },
+        "95": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.9529,
+              0.035,
+              150
+            ],
+            "hex": "#e0f7e3"
+          }
+        },
+        "$description": "Each step takes the most chroma its cap and sRGB allow at the luminance its number names. Changing the hue changes these values, never these names."
+      },
+      "red": {
+        "15": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.2742,
+              0.06,
+              27
+            ],
+            "hex": "#401a17"
+          }
+        },
+        "45": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.55,
+              0.2,
+              27
+            ],
+            "hex": "#cc2827"
+          }
+        },
+        "72": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.7737,
+              0.133,
+              27
+            ],
+            "hex": "#ff9287"
+          }
+        },
+        "97": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.9754,
+              0.012,
+              27
+            ],
+            "hex": "#fff4f3"
+          }
+        },
+        "$description": "Locked at hue 27, so a failure always looks like a failure."
+      },
+      "amber": {
+        "45": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.5293,
+              0.1097,
+              80
+            ],
+            "hex": "#8c6300"
+          }
+        },
+        "72": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.7636,
+              0.1582,
+              80
+            ],
+            "hex": "#e6a500"
+          }
+        },
+        "$description": "Locked at hue 80."
+      },
+      "blue": {
+        "72": {
+          "$value": {
+            "colorSpace": "oklch",
+            "components": [
+              0.7599,
+              0.1231,
+              260
+            ],
+            "hex": "#82b2ff"
+          }
+        },
+        "$description": "Locked at hue 260, for numbers in sample code."
+      }
+    },
+    "duration": {
+      "0": {
+        "$value": {
+          "value": 0,
+          "unit": "ms"
+        }
+      },
+      "70": {
+        "$value": {
+          "value": 70,
+          "unit": "ms"
+        }
+      },
+      "140": {
+        "$value": {
+          "value": 140,
+          "unit": "ms"
+        }
+      },
+      "280": {
+        "$value": {
+          "value": 280,
+          "unit": "ms"
+        }
+      },
+      "440": {
+        "$value": {
+          "value": 440,
+          "unit": "ms"
+        }
+      },
+      "$type": "duration",
+      "$description": "Named by length in milliseconds."
+    },
+    "easing": {
+      "$type": "cubicBezier",
+      "out": {
+        "$value": [
+          0.16,
+          1,
+          0.3,
+          1
+        ],
+        "$description": "Fast start, long settle."
+      },
+      "inOut": {
+        "$value": [
+          0.65,
+          0,
+          0.35,
+          1
+        ],
+        "$description": "For things moving between two resting places."
+      }
+    },
+    "font": {
+      "family": {
+        "$type": "fontFamily",
+        "sans": {
+          "$value": [
+            "Wotfard",
+            "Wotfard fallback",
+            "ui-sans-serif",
+            "system-ui",
+            "-apple-system",
+            "Segoe UI",
+            "sans-serif"
+          ]
+        },
+        "mono": {
+          "$value": [
+            "MonoLisa",
+            "MonoLisa fallback",
+            "ui-monospace",
+            "monospace"
+          ]
+        }
+      },
+      "weight": {
+        "400": {
+          "$value": 400
+        },
+        "500": {
+          "$value": 500
+        },
+        "$type": "fontWeight",
+        "$description": "Named by weight. Wotfard ships 400 and 500 at most, so nothing runs heavier."
+      },
+      "size": {
+        "10": {
+          "$value": {
+            "value": 0.625,
+            "unit": "rem"
+          }
+        },
+        "13": {
+          "$value": {
+            "value": 0.8125,
+            "unit": "rem"
+          }
+        },
+        "14": {
+          "$value": {
+            "value": 0.875,
+            "unit": "rem"
+          }
+        },
+        "15": {
+          "$value": {
+            "value": 0.9375,
+            "unit": "rem"
+          }
+        },
+        "16": {
+          "$value": {
+            "value": 1,
+            "unit": "rem"
+          }
+        },
+        "17": {
+          "$value": {
+            "value": 1.0625,
+            "unit": "rem"
+          }
+        },
+        "20": {
+          "$value": {
+            "value": 1.25,
+            "unit": "rem"
+          }
+        },
+        "36": {
+          "$value": {
+            "value": 2.25,
+            "unit": "rem"
+          }
+        },
+        "44": {
+          "$value": {
+            "value": 2.75,
+            "unit": "rem"
+          }
+        },
+        "92": {
+          "$value": {
+            "value": 5.75,
+            "unit": "rem"
+          }
+        },
+        "$type": "dimension",
+        "$description": "Named by pixel size at a 16px root. Values are rem."
+      },
+      "lineHeight": {
+        "98": {
+          "$value": 0.98
+        },
+        "115": {
+          "$value": 1.15
+        },
+        "140": {
+          "$value": 1.4
+        },
+        "155": {
+          "$value": 1.55
+        },
+        "$type": "number",
+        "$description": "Unitless, as the Format module allows. The name is the percentage of font size."
+      },
+      "letterSpacing": {
+        "$type": "number",
+        "$description": "In em, written as thousandths. A DTCG dimension has no em unit, so this is a number and CSS multiplies it: calc(var(--token) * 1em).",
+        "minus30": {
+          "$value": -0.03
+        },
+        "minus15": {
+          "$value": -0.015
+        }
+      },
+      "ratio": {
+        "86": {
+          "$value": 0.86
+        },
+        "92": {
+          "$value": 0.92
+        },
+        "$type": "number",
+        "$description": "A multiplier for font size. The name is the percentage. CSS multiplies it: calc(var(--token) * 1em)."
+      }
+    },
+    "space": {
+      "4": {
+        "$value": {
+          "value": 0.25,
+          "unit": "rem"
+        }
+      },
+      "8": {
+        "$value": {
+          "value": 0.5,
+          "unit": "rem"
+        }
+      },
+      "12": {
+        "$value": {
+          "value": 0.75,
+          "unit": "rem"
+        }
+      },
+      "16": {
+        "$value": {
+          "value": 1,
+          "unit": "rem"
+        }
+      },
+      "32": {
+        "$value": {
+          "value": 2,
+          "unit": "rem"
+        }
+      },
+      "40": {
+        "$value": {
+          "value": 2.5,
+          "unit": "rem"
+        }
+      },
+      "56": {
+        "$value": {
+          "value": 3.5,
+          "unit": "rem"
+        }
+      },
+      "72": {
+        "$value": {
+          "value": 4.5,
+          "unit": "rem"
+        }
+      },
+      "128": {
+        "$value": {
+          "value": 8,
+          "unit": "rem"
+        }
+      },
+      "$type": "dimension",
+      "$description": "Named by pixel size at a 16px root. Values are rem."
+    },
+    "radius": {
+      "6": {
+        "$value": {
+          "value": 6,
+          "unit": "px"
+        }
+      },
+      "10": {
+        "$value": {
+          "value": 10,
+          "unit": "px"
+        }
+      },
+      "999": {
+        "$value": {
+          "value": 999,
+          "unit": "px"
+        }
+      },
+      "$type": "dimension",
+      "$description": "Named by pixels. 999 is the pill convention."
+    }
+  },
+  "semantic": {
+    "text": {
+      "$type": "color",
+      "onIsland": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "primary": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "secondary": {
+        "$value": "{primitives.color.neutral.80}"
+      },
+      "onAccent": {
+        "$value": "{primitives.color.neutral.4}",
+        "$description": "On accent.solid and accent.solidHover. A hue that only holds its chroma as a light tone reroutes this alias to a dark label."
+      },
+      "muted": {
+        "$value": "{primitives.color.neutral.72}",
+        "$description": "Must reach 4.5:1 on surface.page and surface.raised."
+      },
+      "onInverse": {
+        "$value": "{primitives.color.neutral.4}"
+      }
+    },
+    "accent": {
+      "$type": "color",
+      "onIsland": {
+        "$value": "{primitives.color.brand.72}",
+        "$description": "The same step in both themes, because the island is dark in both."
+      },
+      "solid": {
+        "$value": "{primitives.color.brand.72}"
+      },
+      "solidHover": {
+        "$value": "{primitives.color.brand.85}"
+      },
+      "text": {
+        "$value": "{primitives.color.brand.72}"
+      },
+      "subtle": {
+        "$value": "{primitives.color.brand.15}"
+      },
+      "edge": {
+        "$value": "{primitives.color.brand.35}"
+      }
+    },
+    "syntax": {
+      "$type": "color",
+      "$description": "Code sits on surface.code, which stays dark in both themes, so one palette serves both.",
+      "base": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "comment": {
+        "$value": "{primitives.color.neutral.72}"
+      },
+      "punctuation": {
+        "$value": "{primitives.color.neutral.72}"
+      },
+      "key": {
+        "$value": "{primitives.color.neutral.90}"
+      },
+      "string": {
+        "$value": "{primitives.color.amber.72}"
+      },
+      "number": {
+        "$value": "{primitives.color.blue.72}"
+      },
+      "keyword": {
+        "$value": "{primitives.color.red.72}"
+      },
+      "reference": {
+        "$value": "{primitives.color.brand.72}",
+        "$description": "A DTCG alias in sample code: the thing Primitree checks."
+      },
+      "fail": {
+        "$value": "{primitives.color.red.72}",
+        "$description": "A failure printed on surface.code, which stays dark in both themes."
+      }
+    },
+    "motion": {
+      "ease": {
+        "$type": "cubicBezier",
+        "enter": {
+          "$value": "{primitives.easing.out}"
+        },
+        "move": {
+          "$value": "{primitives.easing.inOut}"
+        }
+      },
+      "duration": {
+        "$type": "duration",
+        "feedback": {
+          "$value": "{primitives.duration.140}"
+        },
+        "reveal": {
+          "$value": "{primitives.duration.280}"
+        },
+        "handoff": {
+          "$value": "{primitives.duration.440}"
+        },
+        "causal": {
+          "$value": "{primitives.duration.70}",
+          "$description": "One step of delay as a change travels from primitive to semantic to component to the page."
+        }
+      }
+    },
+    "type": {
+      "$description": "Each role spells out the DTCG typography composite by its property names, because Primitree reads no composite types. CSS assembles the role.",
+      "display": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.sans}"
+        },
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontWeightFrom": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.400}",
+          "$description": "Where the headline starts while the page compiles, before it resolves to fontWeight."
+        },
+        "fontSizeMin": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.44}",
+          "$description": "Lower bound of the CSS clamp(). DTCG has no fluid dimension."
+        },
+        "fontSizeMax": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.92}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.98}"
+        },
+        "letterSpacing": {
+          "$type": "number",
+          "$value": "{primitives.font.letterSpacing.minus30}"
+        },
+        "fontFamilyFrom": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.mono}",
+          "$description": "What the headline wears while the page compiles, before it resolves to fontFamily."
+        },
+        "fontScaleFrom": {
+          "$type": "number",
+          "$value": "{primitives.font.ratio.86}",
+          "$description": "MonoLisa runs wider than Wotfard, so the compile sets it smaller and the headline keeps its two lines."
+        }
+      },
+      "heading": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.36}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.115}"
+        },
+        "letterSpacing": {
+          "$type": "number",
+          "$value": "{primitives.font.letterSpacing.minus15}"
+        }
+      },
+      "title": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.20}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.140}"
+        }
+      },
+      "lede": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.20}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.140}"
+        }
+      },
+      "body": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.sans}"
+        },
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.400}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.17}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.155}"
+        }
+      },
+      "small": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.15}"
+        },
+        "lineHeight": {
+          "$type": "number",
+          "$value": "{primitives.font.lineHeight.155}"
+        }
+      },
+      "control": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.16}"
+        }
+      },
+      "label": {
+        "fontWeight": {
+          "$type": "fontWeight",
+          "$value": "{primitives.font.weight.500}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.13}"
+        }
+      },
+      "caption": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.13}"
+        }
+      },
+      "glyph": {
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.10}",
+          "$description": "Inside the graph, whose viewBox scales it with the drawing."
+        }
+      },
+      "code": {
+        "fontFamily": {
+          "$type": "fontFamily",
+          "$value": "{primitives.font.family.mono}"
+        },
+        "fontSize": {
+          "$type": "dimension",
+          "$value": "{primitives.font.size.14}"
+        },
+        "inlineScale": {
+          "$type": "number",
+          "$value": "{primitives.font.ratio.92}"
+        }
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "inline": {
+        "tight": {
+          "$value": "{primitives.space.4}"
+        },
+        "default": {
+          "$value": "{primitives.space.8}"
+        },
+        "loose": {
+          "$value": "{primitives.space.16}"
+        }
+      },
+      "stack": {
+        "tight": {
+          "$value": "{primitives.space.8}"
+        },
+        "default": {
+          "$value": "{primitives.space.16}"
+        },
+        "loose": {
+          "$value": "{primitives.space.32}"
+        },
+        "wide": {
+          "$value": "{primitives.space.56}"
+        }
+      },
+      "inset": {
+        "controlInline": {
+          "$value": "{primitives.space.16}"
+        },
+        "controlBlock": {
+          "$value": "{primitives.space.8}"
+        },
+        "code": {
+          "$value": "{primitives.space.16}"
+        }
+      },
+      "layout": {
+        "gutterMin": {
+          "$value": "{primitives.space.16}"
+        },
+        "gutterMax": {
+          "$value": "{primitives.space.40}"
+        },
+        "sectionMin": {
+          "$value": "{primitives.space.72}"
+        },
+        "sectionMax": {
+          "$value": "{primitives.space.128}"
+        },
+        "gap": {
+          "$value": "{primitives.space.12}"
+        }
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "control": {
+        "$value": "{primitives.radius.6}"
+      },
+      "pill": {
+        "$value": "{primitives.radius.999}"
+      },
+      "panel": {
+        "$value": "{primitives.radius.10}"
+      }
+    },
+    "surface": {
+      "$type": "color",
+      "page": {
+        "$value": "{primitives.color.neutral.4}"
+      },
+      "raised": {
+        "$value": "{primitives.color.neutral.8}"
+      },
+      "sunken": {
+        "$value": "{primitives.color.neutral.1}"
+      },
+      "code": {
+        "$value": "{primitives.color.neutral.1}",
+        "$description": "Dark in both themes. Only syntax.* is checked against it."
+      },
+      "island": {
+        "$value": "{primitives.color.neutral.1}",
+        "$description": "The status capsule in the site bar. Dark in both themes."
+      },
+      "inverse": {
+        "$value": "{primitives.color.neutral.97}",
+        "$description": "A selected control, the opposite of the page."
+      }
+    },
+    "border": {
+      "$type": "color",
+      "subtle": {
+        "$value": "{primitives.color.neutral.20}"
+      },
+      "strong": {
+        "$value": "{primitives.color.neutral.45}",
+        "$description": "Must reach 3:1 on surface.page, for controls."
+      },
+      "focus": {
+        "$value": "{primitives.color.neutral.97}"
+      },
+      "island": {
+        "$value": "{primitives.color.neutral.20}",
+        "$description": "Separates the island from a page of nearly the same lightness. Disappears on the light page."
+      },
+      "panel": {
+        "$value": "{primitives.color.neutral.35}",
+        "$description": "A ring on the ink panels. Matches the ink on the light page and gives the panel an edge on the dark one."
+      }
+    },
+    "status": {
+      "$type": "color",
+      "$description": "A pass has no color: it prints as plain text. These two hues stay locked wherever the brand goes.",
+      "warn": {
+        "$value": "{primitives.color.amber.72}"
+      },
+      "fail": {
+        "$value": "{primitives.color.red.72}"
+      },
+      "failSubtle": {
+        "$value": "{primitives.color.red.15}"
+      }
+    }
+  },
+  "component": {
+    "button": {
+      "primary": {
+        "$type": "color",
+        "background": {
+          "$value": "{semantic.accent.solid}"
+        },
+        "backgroundHover": {
+          "$value": "{semantic.accent.solidHover}"
+        },
+        "text": {
+          "$value": "{semantic.text.onAccent}"
+        }
+      },
+      "radius": {
+        "$type": "dimension",
+        "$value": "{semantic.radius.control}"
+      },
+      "paddingInline": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.controlInline}"
+      },
+      "paddingBlock": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.controlBlock}"
+      },
+      "transition": {
+        "$description": "The DTCG transition composite, spelled out by its property names.",
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.feedback}"
+        },
+        "timingFunction": {
+          "$type": "cubicBezier",
+          "$value": "{semantic.motion.ease.enter}"
+        }
+      }
+    },
+    "link": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.accent.text}"
+      },
+      "underline": {
+        "$type": "color",
+        "$value": "{semantic.accent.edge}"
+      }
+    },
+    "nav": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.secondary}"
+      },
+      "textHover": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "code": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.code}"
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{semantic.border.panel}"
+      },
+      "radius": {
+        "$type": "dimension",
+        "$value": "{semantic.radius.panel}"
+      },
+      "padding": {
+        "$type": "dimension",
+        "$value": "{semantic.space.inset.code}"
+      },
+      "prompt": {
+        "$type": "color",
+        "$value": "{semantic.syntax.reference}"
+      }
+    },
+    "island": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.island}",
+        "$description": "The status capsule in the site bar. At rest it states the result of the last check."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.onIsland}"
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{semantic.border.island}"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "{semantic.accent.onIsland}"
+      },
+      "transition": {
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.handoff}"
+        }
+      }
+    },
+    "chooser": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.surface.sunken}"
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{semantic.surface.page}"
+      },
+      "selectedBorder": {
+        "$type": "color",
+        "$value": "{semantic.border.strong}"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.secondary}"
+      },
+      "selectedText": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "crown": {
+      "center": {
+        "$type": "color",
+        "$value": "{semantic.accent.solid}",
+        "$description": "The hub of the hue dial in the hero."
+      },
+      "centerText": {
+        "$type": "color",
+        "$value": "{semantic.text.onAccent}"
+      },
+      "knob": {
+        "$type": "color",
+        "$value": "{semantic.surface.page}"
+      },
+      "knobBorder": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      }
+    },
+    "graph": {
+      "edge": {
+        "$type": "color",
+        "$value": "{semantic.text.muted}"
+      },
+      "lit": {
+        "$type": "color",
+        "$value": "{semantic.text.primary}"
+      },
+      "fail": {
+        "$type": "color",
+        "$value": "{semantic.status.fail}"
+      },
+      "nodeBorder": {
+        "$type": "color",
+        "$value": "{semantic.border.subtle}"
+      },
+      "label": {
+        "$type": "color",
+        "$value": "{semantic.text.muted}"
+      },
+      "wave": {
+        "duration": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.reveal}"
+        },
+        "step": {
+          "$type": "duration",
+          "$value": "{semantic.motion.duration.causal}"
+        }
+      }
+    },
+    "close": {
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.accent.solid}",
+        "$description": "The last section of the homepage, with the install chooser."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.text.onAccent}"
+      }
+    },
+    "finding": {
+      "text": {
+        "$type": "color",
+        "$value": "{semantic.status.fail}"
+      },
+      "background": {
+        "$type": "color",
+        "$value": "{semantic.status.failSubtle}"
+      }
+    },
+    "focus": {
+      "ring": {
+        "$type": "color",
+        "$value": "{semantic.border.focus}"
+      }
+    }
+  }
+}

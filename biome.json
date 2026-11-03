@@ -48,7 +48,8 @@
       "!!**/.source",
       "!!**/.turbo",
       "!!**/coverage",
-      "!!**/tests/goldens"
+      "!!**/tests/goldens",
+      "!!**/apps/docs/tokens/generated"
     ]
   }
 }

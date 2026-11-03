@@ -5,10 +5,11 @@
   "description": "Primitree documentation site.",
   "scripts": {
     "generate:api": "node scripts/generate-api.mjs",
+    "tokens:build": "node scripts/build-site-tokens.mjs",
     "check:prose": "node ../../scripts/check-prose.mjs",
     "check:prose:built": "node ../../scripts/check-prose.mjs --built",
     "check:links": "node scripts/check-links.mjs",
-    "build": "node scripts/fetch-webfonts.mjs && pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx && next build",
+    "build": "node scripts/fetch-webfonts.mjs && node scripts/build-site-tokens.mjs --check && pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx && next build",
     "dev": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && next dev --port 3000",
     "start": "next start",
     "test": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && node --test tests/*.test.ts",
