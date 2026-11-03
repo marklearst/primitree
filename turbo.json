@@ -5,6 +5,11 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "content/docs/api/**"]
     },
+    "primitree-docs#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "content/docs/api/**", "public/fonts/**/*.woff2"],
+      "passThroughEnv": ["BLOB_READ_WRITE_TOKEN", "VERCEL"]
+    },
     "test": {
       "dependsOn": ["^build"],
       "outputs": []

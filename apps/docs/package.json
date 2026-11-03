@@ -8,11 +8,12 @@
     "check:prose": "node ../../scripts/check-prose.mjs",
     "check:prose:built": "node ../../scripts/check-prose.mjs --built",
     "check:links": "node scripts/check-links.mjs",
-    "build": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx && next build",
+    "build": "node scripts/fetch-webfonts.mjs && pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx && next build",
     "dev": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && next dev --port 3000",
     "start": "next start",
     "test": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && node --test tests/*.test.ts",
     "typecheck": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx && next typegen && tsc --noEmit",
+    "fonts:upload": "node --env-file-if-exists=.env.local scripts/upload-webfonts.mjs",
     "postinstall": "pnpm run generate:api && pnpm run check:prose && pnpm run check:links && fumadocs-mdx"
   },
   "dependencies": {

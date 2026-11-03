@@ -60,6 +60,10 @@ docs-site
 .env
 .vercel
 
+# Licensed webfont binaries are supplied separately for builds.
+apps/*/public/fonts/wotfard/*.woff2
+apps/*/public/fonts/monolisa/*.woff2
+
 # Example build output
 examples/*/generated/
 examples/*/generated-*/
